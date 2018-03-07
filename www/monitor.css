@@ -1,0 +1,44 @@
+.op_status_box {
+    border-style: solid;
+    border-width: 1px;
+    border-color: blue;
+    margin: 5px;
+    padding: 10px;
+}
+.op_name {
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.op_status {
+    float: right;
+    font-style: italic;
+}
+
+.op_status_done     {    color: black;     }
+.op_status_starting {    color: orange;    }
+.op_status_running  {    color: green;  font-weight: bold; }
+.op_status_stopping {    color: red;       }
+
+.op_time_box {
+    float: none;
+    display: flex;
+}
+
+.op_start_time {
+    float: left;
+    font-family: monospace;
+}
+.op_end_time {
+    float: left;
+    font-family: monospace;
+}
+
+.op_log_message {
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    display: block;
+    text-overflow: ellipsis;
+    margin-left: 10px;
+}

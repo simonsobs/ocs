@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+    <head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<title>IOCS</title>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+        <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/jquery-ui.css" />
+        <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
+        <script src="http://hasselfield.no-ip.org/lib345104954/autobahn.min.js"></script>
+        <script src="monitor.js"></script>
+        <link rel="stylesheet" href="monitor.css" />
+    </head>
+    <body onload="init();">
+        <div id="container">
+            <h1>Observatory Control System</h1>
+            <hr />
+            <div id="controls" style="float: left; width: 40%; margin: 3%">
+                <h2>Controls</h2>
+                <hr />
+                <button onclick="run_task('squids');">Tune Squids</button>
+                <button onclick="run_task('dets');">IV Curve</button>
+                <button onclick="start_proc('acq');">Start Acq</button>
+                <button onclick="stop_proc('acq');">Stop Acq</button>
+                <div id="messages"></div>
+            </div>
+            <div id="browser" style="float: left; width: 40%; margin: 3%">
+                <h2>Status</h2>
+                <hr />
+                <div id="op_container">
+                    <div id="status_squids" class="op_status_box"></div>
+                    <div id="status_dets" class="op_status_box"></div>
+                    <div id="status_acq" class="op_status_box"></div>
+                </div>
+                <div id="inspect"></div>
+            </div>
+        </div>
+	<br />
+	
+    </body>
+</html>
+
+

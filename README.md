@@ -1,2 +1,0 @@
-# ocs
-Observatory Control System.

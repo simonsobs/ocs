@@ -1,10 +1,27 @@
+# If you need to override python or crossbar paths, edit the variables
+# below, or invoke make like this, e.g.:
+#
+#   PYTHON=python2  make run_client
+#
+
+PYTHON ?= python3
 CROSSBAR ?= crossbar
+
+default:
+	@echo
+	@echo -n "This Makefile is for launching the example.  "
+	@echo "In three separate terminals run:"
+	@echo
+	@echo "  make run_crossbar"
+	@echo "  make run_agent"
+	@echo "  make run_client"
+	@echo
 
 run_crossbar:
 	$(CROSSBAR) start --cbdir dot_crossbar/
 
 run_agent:
-	python example_agent.py
+	$(PYTHON) example_agent.py
 
 run_client:
-	python example_ctrl.py
+	$(PYTHON) example_ctrl.py

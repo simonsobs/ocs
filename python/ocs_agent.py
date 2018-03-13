@@ -162,37 +162,55 @@ class OCSAgent(ApplicationSession):
 
     @inlineCallbacks
     def wait(self, op_name, timeout=None):
-        if op_name in self.tasks or op_name in self.processes:
-            session = self.sessions[op_name]
-            if session is None:
-                return (ocs.OK, 'Idle.', {})
-            ready = True
-            if timeout == 0:
-                ready = bool(session.d.called)
-            elif timeout is None:
-                results = yield session.d
-            else:
-                # Make a timeout...
-                td = Deferred()
-                reactor.callLater(1., td.callback, None)
-                dl = DeferredList([session.d, td], fireOnOneCallback=True,
-                                  fireOnOneErrback=True, consumeErrors=True)
-                try:
-                    results = yield dl
-                except FirstError as e:
-                    assert e.index == 0  # i.e. session.d raised an error.
-                    td.cancel()
-                    e.subFailure.raiseException()
-                else:
-                    if td.called:
-                        ready = False
-            if ready:
-                return (ocs.OK, 'Operation "%s" just exited.' % op_name, session.encoded())
-            else:
-                return (ocs.TIMEOUT, 'Operation "%s" still running; wait timed out.' % op_name,
-                        session.encoded())
-        else:
+        """Wait for the specified Operation to become idle, or for timeout
+        seconds to elapse.  If timeout==None, the timeout is disabled
+        and the function will not return until the Operation
+        terminates.  If timeout<=0, then the function will return
+        immediately.
+
+        Returns (status, message, session).  
+
+        Possible values for status:
+
+          ocs.TIMEOUT: the timeout expired before the Operation became
+            idle.
+
+          ocs.ERROR: the specified op_name is not known.
+
+          ocs.OK: the Operation has become idle.
+
+        """
+        if not (op_name in self.tasks or op_name in self.processes):
             return (ocs.ERROR, 'Unknown operation "%s".' % op_name, {})
+        
+        session = self.sessions[op_name]
+        if session is None:
+            return (ocs.OK, 'Idle.', {})
+        ready = True
+        if timeout is None:
+            results = yield session.d
+        elif timeout <= 0:
+            ready = bool(session.d.called)
+        else:
+            # Make a timeout...
+            td = Deferred()
+            reactor.callLater(timeout, td.callback, None)
+            dl = DeferredList([session.d, td], fireOnOneCallback=True,
+                              fireOnOneErrback=True, consumeErrors=True)
+            try:
+                results = yield dl
+            except FirstError as e:
+                assert e.index == 0  # i.e. session.d raised an error.
+                td.cancel()
+                e.subFailure.raiseException()
+            else:
+                if td.called:
+                    ready = False
+        if ready:
+            return (ocs.OK, 'Operation "%s" just exited.' % op_name, session.encoded())
+        else:
+            return (ocs.TIMEOUT, 'Operation "%s" still running; wait timed out.' % op_name,
+                    session.encoded())
 
     @inlineCallbacks
     def stop(self, op_name, params=None):

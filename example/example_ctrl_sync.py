@@ -1,8 +1,9 @@
-"""
+"""Example of a Control Client implemented using a blocking I/O
+backend.  Requires the wampy library, wrapped through
+ocs.client_wampy.
 
-Example using a blocking I/O client.  Requires the wampy library,
-wrapped through ocs.client_wampy.
-
+Unlike example_ctrl.py, which runs within twisted's asynchronous i/o
+framework, this script runs in a fully imperative style.
 """
 
 from ocs.client_wampy import ControlClient

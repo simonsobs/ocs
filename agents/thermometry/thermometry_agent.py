@@ -68,8 +68,9 @@ class Lakeshore240:
                     pass
                 else:
                     return 10
-            n_frames += 100
-            time.sleep(.5)
+            # Place code here
+            # n_frames += 100
+            # time.sleep(.5)
             session.post_message('Acquired %i frames...' % n_frames)
 
         self.set_job_done()

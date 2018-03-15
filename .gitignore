@@ -99,3 +99,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# Custom
+example/dot_crossbar/key.*
+example/dot_crossbar/node.pid

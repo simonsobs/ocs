@@ -68,7 +68,6 @@ class Thermometry:
                     pass
                 else:
                     return 10
-
                                       
             reading = self.module.channels[0].getReading()
             message = {"reading": reading}

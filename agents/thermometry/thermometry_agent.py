@@ -1,13 +1,17 @@
 from ocs import ocs_agent
+from Lakeshore240 import Module
 #import op_model as opm
 
 import time, threading
 
-class Lakeshore240:
+class Thermometry:
 
-    def __init__(self):
+    def __init__(self, agent):
+        self.agent = agent
         self.lock = threading.Semaphore()
         self.job = None
+        
+        self.module = None
 
     # Exclusive access management.
     
@@ -23,54 +27,53 @@ class Lakeshore240:
             self.job = None
 
     # Task functions.
-
-    def squids_task(self, session, params=None):
-        ok, msg = self.try_set_job('squids')
-        print('start squids:', ok)
+    
+    def init_lakeshore_task(self, session, params=None):
+        ok, msg = self.try_set_job('init')
+        
+        print('initialize lakeshore:', ok)
         if not ok:
             return ok, msg
-        session.post_status('running')
 
-        for step in range(5):
-            session.post_message('Tuning step %i' % step)
-            time.sleep(1)
+        session.post_status('starting')    
 
+        try: 
+            self.module = Module()
+        except Exception as e:
+            print(e)
+
+        session.post_message("Lakeshore initialized with ID: %s"%self.module.idn)
+        
         self.set_job_done()
-        return True, 'Squid tune complete.'
+        return True, 'Lakeshore module initialized.'
+        
+    
+    def upload_calibration_curve_task(self, session, params=None):
+        pass
+    
 
-    def dets_task(self, session, params=None):
-        ok, msg = self.try_set_job('dets')
-        print('start dets:', ok)
-        if not ok: return ok, msg
-        session.post_status('running')
-
-        for i in range(5):
-            session.post_message('Dets still tasking...')
-            time.sleep(1)
-
-        self.set_job_done()
-        return True, 'Det bias complete.'
-
-    # Process functions.
-
+    # Process functions.    
+    
     def start_acq(self, session, params=None):
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
         session.post_status('running')
-
-        n_frames = 0
+    
+    
         while True:
             with self.lock:
-                print('Checking...', self.job)
                 if self.job == '!acq':
                     break
                 elif self.job == 'acq':
                     pass
                 else:
                     return 10
-            n_frames += 100
-            time.sleep(.5)
-            session.post_message('Acquired %i frames...' % n_frames)
+
+                                      
+            reading = self.module.channels[0].getReading()
+            message = {"reading": reading}
+
+            session.post_message(message)
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
@@ -86,11 +89,11 @@ class Lakeshore240:
 
 
 if __name__ == '__main__':
-    agent, runner = ocs_agent.init_ocs_agent('observatory.dets1')
+    agent, runner = ocs_agent.init_ocs_agent('observatory.thermometry')
 
-    my_1K_thermometry = Lakeshore240()
-    agent.register_task('squids', my_1K_thermometry.squids_task) 
-    agent.register_task('dets', my_1K_thermometry.dets_task) 
-    agent.register_process('acq', my_1K_thermometry.start_acq, my_1K_thermometry.stop_acq)
+    therm = Thermometry(agent)
+    
+    agent.register_task('lakeshore', therm.init_lakeshore_task)
+    agent.register_process('acq', therm.start_acq, therm.stop_acq)
 
     runner.run(agent, auto_reconnect=True)

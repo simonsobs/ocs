@@ -25,22 +25,23 @@ class DataAggregator:
         with self.lock:
             self.job = None
 
-    def get_data(self, topic):
+    def make_frame_from_data(self, topic):
         frame = core.G3Frame(core.G3FrameType.Housekeeping)
-        data = {"sensor1": np.arange(100), "sensor2": np.arange(100, 200)}
+        data = self.incoming_data[topic]
+        frame["agent_address"] = data["agent_address"][0]
+        frame["session_id"] = data["session_id"][0]
         # tsm = core.G3TimestreamMap()
-        for key in data.keys():
-            ts = core.G3Timestream(data[key])
-            ts.start = 0
-            ts.stop = 100
-            ts.units = core.G3TimestreamUnits.K
-            # tsm[ts] = ts
-            frame[key] = ts
+        ts = [element["channel"][1] for element in data]
+        ts = np.array(ts)
+        ts = core.G3Timestream(ts)
+        ts.start = data[0]["channel"][0]
+        ts.stop = data[-1]["channel"][0]
+        # TODO (Jack/Joy): pass the units through the feed
+        ts.units = core.G3TimestreamUnits.K
+        # TODO (Jack/Joy): there will be more channel names and prob G3TimestreamMap
         # frame["tempertures"] = tsm
-        if len(frame.keys()) > 0:
-            return frame
-        else:
-            return None
+        frame["channel"] = ts
+        return frame
 
     def handler(self, data):
         subscriber_address = data["agent_address"]
@@ -55,7 +56,6 @@ class DataAggregator:
         ok, msg = self.try_set_job('aggregate')
         if not ok: return ok, msg
         session.post_status('running')
-
 
         new_file_time = True
         new_frame_time = False
@@ -88,7 +88,7 @@ class DataAggregator:
                 new_file_time = False
             if new_frame_time:
                 for feed in feeds:
-                    frame = self.make_frame_from_data(self.incoming_data[feed[:-5]])
+                    frame = self.make_frame_from_data(feed[:-5])
                     core.G3Writer(frame, filename = ("%d.g3" % filename))
                     session.post_message('Wrote a frames for feed' % feed)
                 new_frame_time = False

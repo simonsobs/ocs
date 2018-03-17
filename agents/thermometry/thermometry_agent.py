@@ -1,16 +1,17 @@
 from ocs import ocs_agent
 from Lakeshore240 import Module
+import random
 #import op_model as opm
 
 import time, threading
 
 class Thermometry:
 
-    def __init__(self, agent):
+    def __init__(self, agent, fake_data = False):
         self.agent = agent
         self.lock = threading.Semaphore()
         self.job = None
-        
+        self.fake_data = fake_data
         self.module = None
 
     # Exclusive access management.
@@ -31,18 +32,21 @@ class Thermometry:
     def init_lakeshore_task(self, session, params=None):
         ok, msg = self.try_set_job('init')
         
-        print('initialize lakeshore:', ok)
+        print('Initialize Lakeshore:', ok)
         if not ok:
             return ok, msg
-
+        
         session.post_status('starting')    
+        
+        if self.fake_data:
+            session.post_message("No initialization since faking data")
+        else:
+            try: 
+                self.module = Module()
+                session.post_message("Lakeshore initialized with ID: %s"%self.module.idn)
+            except Exception as e:
+                print(e)
 
-        try: 
-            self.module = Module()
-        except Exception as e:
-            print(e)
-
-        session.post_message("Lakeshore initialized with ID: %s"%self.module.idn)
         
         self.set_job_done()
         return True, 'Lakeshore module initialized.'
@@ -68,11 +72,17 @@ class Thermometry:
                     pass
                 else:
                     return 10
-                                      
-            reading = self.module.channels[0].getReading()
-            message = {"reading": reading}
+            
+            if self.fake_data:
+                reading = random.randrange(250, 350)
+                time.sleep(.5)
+            else:
+                reading = self.module.channels[0].getReading()
+            
+            print ("Reading: ", reading)
+            
+            session.post_message(reading)
 
-            session.post_message(message)
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
@@ -90,7 +100,7 @@ class Thermometry:
 if __name__ == '__main__':
     agent, runner = ocs_agent.init_ocs_agent('observatory.thermometry')
 
-    therm = Thermometry(agent)
+    therm = Thermometry(agent, fake_data = True)
     
     agent.register_task('lakeshore', therm.init_lakeshore_task)
     agent.register_process('acq', therm.start_acq, therm.stop_acq)

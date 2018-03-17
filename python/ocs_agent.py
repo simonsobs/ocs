@@ -103,6 +103,9 @@ class OCSAgent(ApplicationSession):
     def publish_status(self, message, session):
         self.publish(self.agent_address + '.feed', session.encoded())
 
+    def publish_data(self, message, session):
+        self.publish(self.agent_address + '.data', session.data_encoded())
+
 
     """Instances of this class are used to connect blocking operation
     managers to the IOCS system.
@@ -252,6 +255,7 @@ class AgentProcess:
 class OpSession:
     def __init__(self, session_id, op_name, status='starting', log_status=True, app=None):
         self.messages = []  # entries are time-ordered (timestamp, text).
+        self.data = None # timestamp, data point
         self.session_id = session_id
         self.op_name = op_name
         self.start_time = time.time()
@@ -267,6 +271,9 @@ class OpSession:
                 'start_time': self.start_time,
                 'end_time': self.end_time,
                 'messages': self.messages}
+
+    def data_encoded(self):
+        return {'channel': self.data}
 
     def set_status(self, status, timestamp=None, log_status=True):
         assert status in ['starting', 'running', 'stopping', 'done']
@@ -284,6 +291,12 @@ class OpSession:
         self.messages.append((timestamp, message))
         self.app.publish_status('Message', self)
 
+    def publish_data(self, message, timestamp=None):
+        if timestamp is None:
+            timestamp = time.time()
+        self.data = (timestamp, message)
+        self.app.publish_data('Message', self)
+
     # Callable from task / process threads.
 
     def post_status(self, status):
@@ -291,4 +304,7 @@ class OpSession:
         
     def post_message(self, message):
         reactor.callFromThread(self.add_message, message)
+
+    def post_data(self, message):
+        reactor.callFromThread(self.publish_data, message)
 

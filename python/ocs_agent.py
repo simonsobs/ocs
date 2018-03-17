@@ -273,7 +273,10 @@ class OpSession:
                 'messages': self.messages}
 
     def data_encoded(self):
-        return {'channel': self.data}
+        return {'channel': self.data, 
+                'op_name': self.op_name,
+                'agent_address': self.app.agent_address,
+                'session_id': self.session_id}
 
     def set_status(self, status, timestamp=None, log_status=True):
         assert status in ['starting', 'running', 'stopping', 'done']

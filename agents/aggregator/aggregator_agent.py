@@ -1,7 +1,9 @@
+import time, threading
+
 from ocs import ocs_agent
+from spt3g import core
 #import op_model as opm
 
-import time, threading
 
 class DataAggregator:
 
@@ -23,10 +25,21 @@ class DataAggregator:
             self.job = None
 
     def get_data(self, topic):
-        return np.arange(100)
-
-    def modify_frame(self, frame):
-        pass
+        frame = core.G3Frame(core.G3FrameType.Housekeeping)
+        data = {"sensor1": np.arange(100), "sensor2": np.arange(100, 200)}
+        # tsm = core.G3TimestreamMap()
+        for key in data.keys():
+            ts = core.G3Timestream(data[key])
+            ts.start = 0
+            ts.stop = 100
+            ts.units = core.G3TimestreamUnits.K
+            # tsm[ts] = ts
+            frame[key] = ts
+        # frame["tempertures"] = tsm
+        if len(frame.keys()) > 0:
+            return frame
+        else:
+            return None
 
     # Task functions.
 
@@ -37,11 +50,11 @@ class DataAggregator:
         if not ok: return ok, msg
         session.post_status('running')
 
-        from spt3g import core
-        #pipe = core.G3Pipeline()
 
-        n_frames = 0
+        new_file_time = True
+        filename = time.time()
         topics = ["thermometry"] # list of topics should be taken from crossbar
+
         while True:
             with self.lock:
                 print('Checking...', self.job)
@@ -51,16 +64,24 @@ class DataAggregator:
                     pass
                 else:
                     return 10
+            if new_file_time:
+                filename = time.time()
+                session.post_message('Starting a new DAQ file: %s' % filename)
+                file_start_time = filename
+                # Add stuff that you write in each new file
+                new_file_time = False
+            n_frames = 0
             for topic in topics:
-                data = self.get_data(topic)
-                n_frames += 1 
-                #pipe.Add(modify_frame)
-                self.modify_frame(frame)
-                core.G3Writer("dump.g3")
-            #pipe.Add(core.G3Writer, filename="dump.g3")
-            #pipe.Run()
-            time.sleep(.5)
+                frame = self.get_data(topic)
+                if (frame is not None):
+                    n_frames += 1 
+                    core.G3Writer(frame, filename = ("%d.g3" % filename))
             session.post_message('Acquired %i frames...' % n_frames)
+            time.sleep(.5)
+            dt = (time.time() - file_start_time)*core.G3Units.s
+            if dt > (15*core.G3Units.min):
+                new_file_time = True
+                core.G3Writer(core.G3Frame(core.G3FrameType.EndProcessing))
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'

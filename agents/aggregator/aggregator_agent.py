@@ -7,9 +7,10 @@ from spt3g import core
 
 class DataAggregator:
 
-    def __init__(self):
+    def __init__(self, agent):
         self.lock = threading.Semaphore()
         self.job = None
+        self.agent = agent
 
     # Exclusive access management.
     
@@ -41,6 +42,11 @@ class DataAggregator:
         else:
             return None
 
+    def handler(self, data):
+        subscriber_address = data["agent_address"]
+        self.incoming_data[subscriber_address].append(data)
+        print ("Message from %s: got value %f "%subscirber_address, data["channel"])
+
     # Task functions.
 
     # Process functions.
@@ -52,8 +58,18 @@ class DataAggregator:
 
 
         new_file_time = True
+        new_frame_time = False
         filename = time.time()
-        topics = ["thermometry"] # list of topics should be taken from crossbar
+        file_start_time = filename
+        frame_start_time = time.time()
+
+        # TODO(): List of feeds should be obtained dynamically
+        self.incoming_data = {}
+        feeds = [u'observatory.thermometry.data'] 
+        for feed in feeds:
+            yield self.agent.subscribe(self.handler, feed)
+            print("Subscribed to feed: %s" % feed)
+            self.incoming_data[feed[:-5]] = []
 
         while True:
             with self.lock:
@@ -68,21 +84,23 @@ class DataAggregator:
                 filename = time.time()
                 session.post_message('Starting a new DAQ file: %s' % filename)
                 file_start_time = filename
-                # Add stuff that you write in each new file
+                # TODO(Jack/Joy): Add stuff that you write in each new file
                 new_file_time = False
-            n_frames = 0
-            for topic in topics:
-                frame = self.get_data(topic)
-                if (frame is not None):
-                    n_frames += 1 
+            if new_frame_time:
+                for feed in feeds:
+                    frame = self.make_frame_from_data(self.incoming_data[feed[:-5]])
                     core.G3Writer(frame, filename = ("%d.g3" % filename))
-            session.post_message('Acquired %i frames...' % n_frames)
-            time.sleep(.5)
-            dt = (time.time() - file_start_time)*core.G3Units.s
-            if dt > (15*core.G3Units.min):
+                    session.post_message('Wrote a frames for feed' % feed)
+                new_frame_time = False
+                frame_start_time = time.time()
+            time.usleep(100)
+            file_dt = (time.time() - file_start_time)*core.G3Units.s
+            frame_dt = (time.time() - frame_start_time)*core.G3Units.s
+            if file_dt > (15*core.G3Units.min):
                 new_file_time = True
                 core.G3Writer(core.G3Frame(core.G3FrameType.EndProcessing))
-
+            if frame_dt > (10*core.G3Units.s):
+                new_frame_time = True
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
             
@@ -99,7 +117,7 @@ class DataAggregator:
 if __name__ == '__main__':
     agent, runner = ocs_agent.init_ocs_agent('observatory.data_aggregator')
 
-    data_aggregator = DataAggregator()
+    data_aggregator = DataAggregator(agent)
     agent.register_process('aggregate', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
 
     runner.run(agent, auto_reconnect=True)

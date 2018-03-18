@@ -26,32 +26,13 @@ import ocs
 from ocs import client_t
 
 def my_script(app, agent_addr):
-
-    # Instantiate TaskClient and ProcessClient handles for this agent,
-    # which we will use to run OCS control commands for each Task and
-    # Process.
+    cw1 = client_t.TaskClient(app, agent_addr, 'subscribe')
+    cw2 = client_t.ProcessClient(app, agent_addr, 'aggregate')
     
-    print('Entered my_script')
-    cw1 = client_t.TaskClient(app, agent_addr, 'squids')
-    cw2 = client_t.TaskClient(app, agent_addr, 'dets')
-    cw3 = client_t.ProcessClient(app, agent_addr, 'acq')
-    
-    # Start a task; wait for the start command to return.  Note that
-    # all requests to the Client handles must be made
-    # asynchronously... that means using "yield".  If you don't use
-    # "yield", then cw1.start() will return a Twisted "Deferred"
-    # object.  And you'll have to read about those.
 
-    print('Starting a task.')
+    print("Subscribing to Topics")
     d1 = yield cw1.start()
-    print(d1)
 
-    # The 'wait' operation is exposed by the Agent so that action can
-    # be taken upon its completion.  If you pass timeout=None, that
-    # disables the timeout function and Agent won't reply until the
-    # Operation completes.
-
-    print('Waiting for task to terminate...')
     x = yield cw1.wait(timeout=20)
     print(x)
     if x[0] == ocs.TIMEOUT:
@@ -63,30 +44,28 @@ def my_script(app, agent_addr):
     else:
         print('The task has terminated.')
 
-    # Start a process; then wait for a while.  Note that we cannot use
-    # time.sleep to delay, because that will block the twisted main
-    # thread from spinning.  instead, use "yield ocs.client_t.dsleep",
-    # which will return control to the main thread and then wake this
-    # one up when the specified time has elapsed.
 
     print()
     print('Starting a data acquisition process...')
-    d1 = yield cw3.start()
+    d1 = yield cw2.start()
     print(d1)
-    for i in range(5):
-        print('sleeping...')
+
+    wait_time = 20
+    for i in range(wait_time):
+        print('Sleeping for %d more seconds...' %(wait_time - i))
         yield client_t.dsleep(1)
 
     # Unlike tasks, we must explicitly request that a Process be
     # stopped.  Having done so, we should use .wait to confirm it has
     # exited and get the final status.
-    print('Request process stop.')
-    d1 = yield cw3.stop()
+    print('Request aggregation stop.')
+    d1 = yield cw2.stop()
     print(d1)
     print('Waiting for it to terminate...')
-    x = yield cw3.wait()
+    x = yield cw2.wait()
     print(x)
 
 if __name__ == '__main__':
-    client_t.run_control_script(my_script, u'observatory.dets1')
+    # client_t.run_control_script(force_stop, u'observatory.data_aggregator')
+    client_t.run_control_script(my_script, u'observatory.data_aggregator')
     

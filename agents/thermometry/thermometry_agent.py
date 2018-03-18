@@ -81,7 +81,7 @@ class Thermometry:
             
             print ("Reading: ", reading)
             
-            session.post_message(reading)
+            session.post_data(reading)
 
 
         self.set_job_done()

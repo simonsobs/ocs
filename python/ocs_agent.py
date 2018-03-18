@@ -308,6 +308,6 @@ class OpSession:
     def post_message(self, message):
         reactor.callFromThread(self.add_message, message)
 
-    def post_data(self, message):
-        reactor.callFromThread(self.publish_data, message)
+    def post_data(self, data):
+        reactor.callFromThread(self.publish_data, data)
 

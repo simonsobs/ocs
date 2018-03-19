@@ -1,5 +1,6 @@
 import time, threading
-
+import matplotlib.pyplot as plt
+import numpy as np
 from ocs import ocs_agent
 # from spt3g import core
 #import op_model as opm
@@ -49,9 +50,30 @@ class DataAggregator:
 
 
     def write_data_to_file(self):
+
         for feed in self.feeds:
+
+
+            # Can't currently write to spt3g file, but we can save plots of thermometry data to a file
+            data = np.array([e["channel"] for e in self.incoming_data[feed]]).transpose()
+            times = data[0]
+            times -= times[0]
+            temps = data[1]
+
+            plt.plot(times, temps)
+            plt.xlabel("Time since start of frame")
+            plt.ylabel("Resistance (faked)")
+            plt.title("Resistance of Lakeshore detector")
+
+            name = "plots/"  + str(self.frame_start_time).split('.')[0] + ".pdf"
+            plt.savefig(name)
+            plt.clf()
+            
+            #TODO (joy/jack) actually write spt3g file
             frame = self.make_frame_from_data(feed)
             # core.G3Writer(frame, filename = ("%d.g3" % self.filename))
+
+            #clear data feed
             self.incoming_data[feed] = []
 
 
@@ -107,10 +129,10 @@ class DataAggregator:
         new_file_time = False
         new_frame_time = False
 
-        file_start_time = time.time()
-        frame_start_time = time.time()
+        self.file_start_time = time.time()
+        self.frame_start_time = time.time()
 
-        self.filename = frame_start_time
+        self.filename = self.frame_start_time
         self.start_file()
 
 
@@ -128,14 +150,14 @@ class DataAggregator:
             if new_frame_time:
                 self.write_data_to_file()
                 new_frame_time = False
-                frame_start_time = time.time()
+                self.frame_start_time = time.time()
 
             if new_file_time:
 
                 self.end_file()
 
-                file_start_time = time.time()
-                self.filename = file_start_time
+                self.file_start_time = time.time()
+                self.filename = self.file_start_time
 
                 self.start_file()
 
@@ -146,8 +168,8 @@ class DataAggregator:
             #Check if its time to write new frame/file
             time.sleep(.1)
             #Might want to use core.G3Units.s and core.G3Units.min here...
-            file_dt = (time.time() - file_start_time)
-            frame_dt = (time.time() - frame_start_time)
+            file_dt = (time.time() - self.file_start_time)
+            frame_dt = (time.time() - self.frame_start_time)
 
 
             if file_dt > (15 * 60): 

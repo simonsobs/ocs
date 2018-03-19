@@ -75,7 +75,7 @@ class Thermometry:
             
             if self.fake_data:
                 reading = random.randrange(250, 350)
-                time.sleep(.5)
+                time.sleep(.1)
             else:
                 reading = self.module.channels[0].getReading()
             

@@ -28,8 +28,9 @@ def my_script(app, agent_addr):
     print('Starting a data acquisition process...')
     d1 = yield cw2.start()
 
-    for i in range(100):
-        print('sleeping...')
+    sleep_time = 20
+    for i in range(sleep_time):
+        print('sleeping for {:d} more seconds'.format(sleep_time - i))
         yield client_t.dsleep(1)
 
 

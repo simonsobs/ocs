@@ -78,6 +78,7 @@ class Thermometry:
                 time.sleep(.1)
             else:
                 reading = self.module.channels[0].getReading()
+                time.sleep(.01)
             
             print ("Reading: ", reading)
             

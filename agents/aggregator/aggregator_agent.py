@@ -15,6 +15,8 @@ class DataAggregator:
         self.agent = agent
 
         self.incoming_data = {}
+
+        # TODO(Jack): List of feeds should be obtained dynamically
         self.feeds = [u'observatory.thermometry']
         self.filename = ""
         self.file = None
@@ -53,13 +55,10 @@ class DataAggregator:
             self.incoming_data[feed] = []
 
         self.set_job_done()
-        return True, 'Lakeshore module initialized.'
-
+        return True, 'Subscribed to data feeds.'
 
     def write_data_to_file(self):
-
         for feed in self.feeds:
-
             if len(self.incoming_data[feed]) == 0:
                 continue
 
@@ -95,7 +94,6 @@ class DataAggregator:
         return
 
     def end_file(self):
-        # TODO (Jack/Joy) Save all remaining data to disk and write endframe
 
         self.write_data_to_file()
         self.file(core.G3Frame(core.G3FrameType.EndProcessing))
@@ -115,12 +113,10 @@ class DataAggregator:
         time_per_frame = 4       # [s]
         time_per_file = 15 * 60  # [s]
 
-        # TODO(): List of feeds should be obtained dynamically
-
         while True:
             with self.lock:
                 if self.job == '!aggregate':
-                    break
+                    breakls
                 elif self.job == 'aggregate':
                     pass
                 else:

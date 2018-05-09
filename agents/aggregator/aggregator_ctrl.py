@@ -25,10 +25,10 @@ stored in the variable d1.
 import ocs
 from ocs import client_t
 
+
 def my_script(app, agent_addr):
     cw1 = client_t.TaskClient(app, agent_addr, 'subscribe')
     cw2 = client_t.ProcessClient(app, agent_addr, 'aggregate')
-    
 
     print("Subscribing to Topics")
     d1 = yield cw1.start()
@@ -44,8 +44,6 @@ def my_script(app, agent_addr):
     else:
         print('The task has terminated.')
 
-
-    print()
     print('Starting a data acquisition process...')
     d1 = yield cw2.start()
     print(d1)
@@ -65,7 +63,7 @@ def my_script(app, agent_addr):
     x = yield cw2.wait()
     print(x)
 
+
 if __name__ == '__main__':
     # client_t.run_control_script(force_stop, u'observatory.data_aggregator')
     client_t.run_control_script(my_script, u'observatory.data_aggregator')
-    

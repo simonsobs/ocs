@@ -2,13 +2,14 @@ import time, threading
 import matplotlib.pyplot as plt
 import numpy as np
 from ocs import ocs_agent
-# from spt3g import core
-#import op_model as opm
+from spt3g import core
+# import op_model as opm
 
 
 class DataAggregator:
 
     def __init__(self, agent):
+
         self.lock = threading.Semaphore()
         self.job = None
         self.agent = agent
@@ -16,12 +17,13 @@ class DataAggregator:
         self.incoming_data = {}
         self.feeds = [u'observatory.thermometry']
         self.filename = ""
+        self.file = None
 
     # Exclusive access management.
     
     def try_set_job(self, job_name):
         with self.lock:
-            if self.job == None:
+            if self.job is None:
                 self.job = job_name
                 return True, 'ok.'
             return False, 'Conflict: "%s" is already running.' % self.job
@@ -29,6 +31,14 @@ class DataAggregator:
     def set_job_done(self):
         with self.lock:
             self.job = None
+
+    def handler(self, data):
+        # Do we want to save data before aggregate starts? Probably doesn't matter
+        if self.job == 'aggregate':
+            # print(data)
+            subscriber_address = data["agent_address"]
+            self.incoming_data[subscriber_address].append(data)
+            # print ("Message from %s: got value %s "% (subscriber_address, data))
 
     # Task to subscribe to data feeds
     def subscribe_to_topics(self, sessions, parmams=None):
@@ -38,103 +48,72 @@ class DataAggregator:
             return ok, msg
 
         for feed in self.feeds:
-            print ()
-
             self.agent.subscribe(self.handler, feed + u'.data')
-            print ("Subscribed to feed: %s" % (feed + '.data'))
+            print(f"Subscribed to feed: {feed}")
             self.incoming_data[feed] = []
 
         self.set_job_done()
         return True, 'Lakeshore module initialized.'
 
 
-
     def write_data_to_file(self):
 
         for feed in self.feeds:
 
+            if len(self.incoming_data[feed]) == 0:
+                continue
 
-            # Can't currently write to spt3g file, but we can save plots of thermometry data to a file
-            data = np.array([e["channel"] for e in self.incoming_data[feed]]).transpose()
-            times = data[0]
-            times -= times[0]
-            temps = data[1]
+            # Creates frame from datastream
 
-            plt.plot(times, temps)
-            plt.xlabel("Time since start of frame")
-            plt.ylabel("Resistance (faked)")
-            plt.title("Resistance of Lakeshore detector")
+            frame = core.G3Frame(core.G3FrameType.Housekeeping)
+            data = self.incoming_data[feed]
 
-            name = "plots/"  + str(self.frame_start_time).split('.')[0] + ".pdf"
-            plt.savefig(name)
-            plt.clf()
-            
-            #TODO (joy/jack) actually write spt3g file
-            frame = self.make_frame_from_data(feed)
-            # core.G3Writer(frame, filename = ("%d.g3" % self.filename))
+            frame["agent_address"] = data[0]["agent_address"]
+            frame["session_id"] = data[0]["session_id"]
 
-            #clear data feed
+            ts = [element["channel"][1] for element in data]
+            start_time = data[0]["channel"][0]
+            end_time = data[-1]["channel"][0]
+
+            ts = core.G3Timestream(ts)
+            ts.start = core.G3Time(start_time)
+            ts.stop = core.G3Time(end_time)
+
+            frame["channel"] = ts
+
+            print(f"Writing Frame to file:{frame}")
+
+            self.file(frame)
+
+            # clear data feed
             self.incoming_data[feed] = []
 
+    def start_file(self):
+
+        print(f"Creating file: {self.filename}")
+        self.file = core.G3Writer(filename=self.filename)
+        return
 
     def end_file(self):
-        #TODO (Jack/Joy) Save all remaining data to disk and write endframe
+        # TODO (Jack/Joy) Save all remaining data to disk and write endframe
+
         self.write_data_to_file()
-        # core.G3Writer(core.G3Frame(core.G3FrameType.EndProcessing)) 
-        pass
+        self.file(core.G3Frame(core.G3FrameType.EndProcessing))
 
-    def start_file(self):
-        #TODO (Jack/Joy) Create new file and initialize it
-        pass
+        print(f"Closing file: {self.filename}")
 
-
-    def make_frame_from_data(self, topic):
-        print ("NOT IMPLEMENTED")
-        data = [e["channel"] for e in self.incoming_data[topic]]
-        print ("Making frame from data: %s"%data)
-        return data
-
-        frame = core.G3Frame(core.G3FrameType.Housekeeping)
-        data = self.incoming_data[topic]
-        frame["agent_address"] = data["agent_address"][0]
-        frame["session_id"] = data["session_id"][0]
-        # tsm = core.G3TimestreamMap()
-        ts = [element["channel"][1] for element in data]
-        ts = np.array(ts)
-        ts = core.G3Timestream(ts)
-        ts.start = data[0]["channel"][0]
-        ts.stop = data[-1]["channel"][0]
-        # TODO (Jack/Joy): pass the units through the feed
-        ts.units = core.G3TimestreamUnits.K
-        # TODO (Jack/Joy): there will be more channel names and prob G3TimestreamMap
-        # frame["tempertures"] = tsm
-        frame["channel"] = ts
-        return frame
-
-    def handler(self, data):
-        # Do we want to save data before aggregate starts? Probably doesn't matter
-        if self.job == 'aggregate':
-            subscriber_address = data["agent_address"]
-            self.incoming_data[subscriber_address].append(data)
-            print ("Message from %s: got value %s "% (subscriber_address, data))
-
-
-
+        return
 
     def start_aggregate(self, session, params=None):
         ok, msg = self.try_set_job('aggregate')
         if not ok: return ok, msg
         session.post_status('running')
 
-        new_file_time = False
-        new_frame_time = False
+        new_file_time = True
+        new_frame_time = True
 
-        self.file_start_time = time.time()
-        self.frame_start_time = time.time()
-
-        self.filename = self.frame_start_time
-        self.start_file()
-
+        time_per_frame = 4       # [s]
+        time_per_file = 15 * 60  # [s]
 
         # TODO(): List of feeds should be obtained dynamically
 
@@ -146,51 +125,44 @@ class DataAggregator:
                     pass
                 else:
                     return 10
-            
-            if new_frame_time:
-                self.write_data_to_file()
-                new_frame_time = False
-                self.frame_start_time = time.time()
 
             if new_file_time:
+                if self.file is not None:
+                    self.end_file()
 
-                self.end_file()
-
-                self.file_start_time = time.time()
-                self.filename = self.file_start_time
-
+                file_start_time = time.time()
+                time_string = time.strftime("%Y-%m-%d_T_%H:%M:%S", time.localtime(file_start_time))
+                self.filename = f"data/{time_string}.g3"
                 self.start_file()
 
                 session.post_message('Starting a new DAQ file: %s' % self.filename)
-                
+
                 new_file_time = False
 
-            #Check if its time to write new frame/file
+            if new_frame_time:
+                self.write_data_to_file()
+                new_frame_time = False
+                frame_start_time = time.time()
+
+            # Check if its time to write new frame/file
             time.sleep(.1)
-            #Might want to use core.G3Units.s and core.G3Units.min here...
-            file_dt = (time.time() - self.file_start_time)
-            frame_dt = (time.time() - self.frame_start_time)
+            new_file_time = (time.time() - file_start_time) > time_per_file
+            new_frame_time = (time.time() - frame_start_time) > time_per_frame
 
-
-            if file_dt > (15 * 60): 
-                new_file_time = True
-            if frame_dt > (10):
-                new_frame_time = True
-            
+        self.end_file()
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
             
     def stop_aggregate(self, session, params=None):
+
         ok = False
         with self.lock:
             if self.job =='aggregate':
                 self.job = '!aggregate'
                 ok = True
 
-        self.end_file()
-
         return (ok, {True: 'Requested process stop.',
-                    False: 'Failed to request process stop.'}[ok])
+                     False: 'Failed to request process stop.'}[ok])
 
 
 if __name__ == '__main__':

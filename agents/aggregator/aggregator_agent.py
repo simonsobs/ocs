@@ -35,6 +35,9 @@ class DataAggregator:
             self.job = None
 
     def handler(self, data):
+        """
+        Handles data published to feed.
+        """
         # Do we want to save data before aggregate starts? Probably doesn't matter
         if self.job == 'aggregate':
             # print(data)
@@ -70,16 +73,16 @@ class DataAggregator:
             frame["agent_address"] = data[0]["agent_address"]
             frame["session_id"] = data[0]["session_id"]
 
-            ts = [element["channel"][1] for element in data]
+            timestream = [element["channel"][1] for element in data]
             start_time = data[0]["channel"][0]
             end_time = data[-1]["channel"][0]
 
-            ts = core.G3Timestream(ts)
-            ts.start = core.G3Time(start_time)
-            ts.stop = core.G3Time(end_time)
+            timestream = core.G3Timestream(timestream)
+            timestream.start = core.G3Time(start_time*core.G3Units.s)
+            timestream.stop = core.G3Time(end_time*core.G3Units.s)
 
-            frame["channel"] = ts
-
+            frame["channel"] = timestream
+            print("Second: ", core.G3Units.s)
             print(f"Writing Frame to file:{frame}")
 
             self.file(frame)
@@ -88,13 +91,11 @@ class DataAggregator:
             self.incoming_data[feed] = []
 
     def start_file(self):
-
         print(f"Creating file: {self.filename}")
         self.file = core.G3Writer(filename=self.filename)
         return
 
     def end_file(self):
-
         self.write_data_to_file()
         self.file(core.G3Frame(core.G3FrameType.EndProcessing))
 
@@ -116,7 +117,7 @@ class DataAggregator:
         while True:
             with self.lock:
                 if self.job == '!aggregate':
-                    breakls
+                    break
                 elif self.job == 'aggregate':
                     pass
                 else:
@@ -140,17 +141,19 @@ class DataAggregator:
                 new_frame_time = False
                 frame_start_time = time.time()
 
-            # Check if its time to write new frame/file
+
+
             time.sleep(.1)
+            # Check if its time to write new frame/file
             new_file_time = (time.time() - file_start_time) > time_per_file
             new_frame_time = (time.time() - frame_start_time) > time_per_frame
+
 
         self.end_file()
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
             
     def stop_aggregate(self, session, params=None):
-
         ok = False
         with self.lock:
             if self.job =='aggregate':

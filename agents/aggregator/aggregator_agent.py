@@ -148,7 +148,6 @@ class DataAggregator:
             new_file_time = (time.time() - file_start_time) > time_per_file
             new_frame_time = (time.time() - frame_start_time) > time_per_frame
 
-
         self.end_file()
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'

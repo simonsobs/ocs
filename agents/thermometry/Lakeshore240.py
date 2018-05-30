@@ -6,16 +6,17 @@ Created on Fri Feb 23 14:15:51 2018
 @author: jacoblashner
 """
 
-import serial
+from serial import Serial
+from serial.serialutil import SerialException
 import time
-import numpy as np
 from Channel import Channel
+import sys
 
 try:
     from tqdm import *
-except:
-    tqdm = lambda x : x
-       
+except ModuleNotFoundError:
+    tqdm = lambda x: x
+
 
 class Module:
     """
@@ -23,84 +24,68 @@ class Module:
         Contains list of inputs which can be read from.
     """
     
-    def __init__(self, port = '/dev/tty.SLAB_USBtoUART', 
-                 baud = 115200, timeout = 1, numChannels = 2):
+    def __init__(self, port='/dev/tty.SLAB_USBtoUART', baud=115200, timeout=10, num_channels=2):
         """
             Establish Serial communication and initialize channels.
         """
-        self.com = serial.Serial(port = port, baudrate = baud, timeout = timeout)
+        self.com = Serial(port=port, baudrate=baud, timeout=timeout)
         self.idn = self.test()
+
         self.channels = []
-        for i in range(numChannels):
-            c = Channel(self, i+1, enabled = True)
-            c.name = "Input %d"%(i+1)
-            c.updateInfo()
+        for i in range(num_channels):
+            c = Channel(self, i+1, enabled=True)
+            c.name = f'Input {i+1}'
+            c.update_info()
             self.channels.append(c)
-            
+
+    def open_com(self):
+        try:
+            self.com.open()
+        except SerialException:
+            print("Port already open")
+
+    def close_com(self):
+        self.com.close()
+
     def msg(self, msg):
         """
             Send command or query to module. 
             Return response (within timeout) if message is a query.
         """
-        
-        tmp = msg + '\r\n;'
-        bits = tmp.encode()
-        
-        # open if need to (should need to as it's a bad idea to leave open permanently)
-        if not self.com.isOpen():
-            self.com.open()
-        self._flush()
+        # Writes message
+        message_string = f'{msg}\r\n;'.encode()
 
-        # send command to lakeshore
-        self.com.write(bits)
-        
+        # write(message_string)
+        self.com.write(message_string)
+
         # Reads response if queried
         resp = ''
         if "?" in msg:
             resp = self.com.readline()
-            resp = str(resp[:-2], 'utf-8');         #Strips terminating chars
+            resp = str(resp[:-2], 'utf-8')       # Strips terminating chars
             if not resp:
-                resp = "ERROR: Response timeout"
-        
-        time.sleep(.01)                 #Must wait 10 ms before another command
-        
-        self.com.close()
-    
-        return resp            
+                raise TimeoutError("Device timed out")
+
+            time.sleep(.01)             # Must wait 10 ms before sending another command
+
+        return resp
     
     def test(self):
         """ Return IDN of module. """
         return self.msg("*IDN?")
-    
+
+    def __repr__(self):
+        return f"Lakeshore240"
+
     def __str__(self):
-        idn = self.test()
-        string = "ID: %s"%idn
-        string += "\n"
+        string = f"ID: {self.idn}\n"
         for c in self.channels:
             string += str(c)
-        
         return string
-    
-    def _flush(self):
-        self.com.flushInput()
-        self.com.flushOutput()
         
-        
-        
-    def close(self):
-        """ Closes device """
-        try:
-            if self.com.isOpen():
-                self.com.close()
-        except:
-            raise LakeshoreError('Could not close down connection')
-
-    
 
 if __name__ == "__main__":
     ls = Module()
-    print (ls.idn)
-
-    
+    print (ls)
     
  

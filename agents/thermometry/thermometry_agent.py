@@ -101,7 +101,7 @@ class Thermometry:
 if __name__ == '__main__':
     agent, runner = ocs_agent.init_ocs_agent('observatory.thermometry')
 
-    therm = Thermometry(agent, fake_data = True)
+    therm = Thermometry(agent, fake_data=True)
     
     agent.register_task('lakeshore', therm.init_lakeshore_task)
     agent.register_process('acq', therm.start_acq, therm.stop_acq)

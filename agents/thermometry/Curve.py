@@ -6,12 +6,11 @@ Created on Tue Feb 27 21:05:48 2018
 @author: jacoblashner
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 class Curve:
     """
-    Header for curve
+    Header for calibration curve
     ----------------
     :Name:      Name of curve
     :SN:        Serial Number
@@ -20,15 +19,21 @@ class Curve:
     :Coeff:     1 = negative, 2 = positive
     
     """
-    def __init__(self, fname, excitation):
+    def __init__(self, filename=None):
         self.header = {}
-        
-        with open(fname, 'r') as f:
+        self.units = []
+        self.temps = []
+
+        if filename is not None:
+            self.load_from_file(filename)
+
+    def load_from_file(self, filename):
+        with open(filename, 'r') as file:
             # Reads Header
-            lineNum = 0
+            line_num = 0
             while True:
-                lineNum += 1
-                line = f.readline().strip()
+                line_num += 1
+                line = file.readline().strip()
                 if line == "[DATA]":
                     break
                 
@@ -37,18 +42,37 @@ class Curve:
                     val = line.split(':')[1].strip()
                     self.header[key] = val
                 
-            self.nums, unit, self.temps = np.loadtxt(fname, skiprows = lineNum,
-                                                        unpack = True)
-        
-            if int(self.header["Format"]) == 2:
-                self.ohms = unit / excitation 
-            elif int(self.header["Format"]) == 3:
-                self.ohms = unit
-            elif int(self.header["Format"]) == 4:
-                self.ohms = np.power(10, unit)
-            
+            _, self.units, self.temps = np.loadtxt(filename, skiprows=line_num, unpack=True)
 
-    
+    def load_data(self, name, sn, format, limit, coeff, units, temps):
+        assert format in [1, 2, 3, 4]
+        assert coeff in [1, 2]
+
+        assert len(units) < 200
+        assert len(units) == len(temps)
+
+        self.header = {
+            "Name": name,
+            "SN": sn,
+            "Format": format,
+            "Limit": limit,
+            "Coeff": coeff
+        }
+
+        self.units = units
+        self.temps = temps
+
+    def write_to_file(self, filename):
+        with open(filename, 'w') as file:
+            file.write("[HEADER]\n")
+            for key in ["Name", "SN", "Format", "Limit", "Coeff"]:
+                file.write(f"{key}:\t{self.header[key]}\n")
+            file.write("\n[DATA]\n")
+            file.write("# No.\tUnits\tTemp(K)\n\n")
+
+            for i in range(len(self.units)):
+                file.write(f"{i+1}\t{self.units[i]}\t{self.temps[i]}\n")
+
     def __str__(self):
         string = ""
         for k in self.header.keys():
@@ -57,11 +81,8 @@ class Curve:
     
     
 if __name__ == "__main__":
-    fname = "curves/defaults/SimSensorNTC.txt"
-    curve = Curve(None, fname = fname)
-    curve.loadToMachine(None, 1)
-
-
+    filename = "curves/defaults/SimSensorNTC.txt"
+    curve = Curve(filename=filename)
     
     
             

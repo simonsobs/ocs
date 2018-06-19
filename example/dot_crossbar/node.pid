@@ -1,0 +1,22 @@
+{
+    "pid": 2899, 
+    "argv": [
+        "crossbar", 
+        "start", 
+        "--cbdir", 
+        "dot_crossbar/"
+    ], 
+    "options": {
+        "debug_lifecycle": false, 
+        "debug_programflow": false, 
+        "command": "start", 
+        "color": "auto", 
+        "loglevel": "info", 
+        "logformat": "standard", 
+        "logdir": null, 
+        "logtofile": false, 
+        "cbdir": "/home/so_user/so/ocs/example/dot_crossbar", 
+        "config": "config.json", 
+        "shutdownafter": null
+    }
+}

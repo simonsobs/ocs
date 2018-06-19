@@ -1,5 +1,4 @@
 import time, threading
-import matplotlib.pyplot as plt
 import numpy as np
 from ocs import ocs_agent
 from spt3g import core
@@ -40,10 +39,10 @@ class DataAggregator:
         """
         # Do we want to save data before aggregate starts? Probably doesn't matter
         if self.job == 'aggregate':
-            # print(data)
+            
             subscriber_address = data["agent_address"]
             self.incoming_data[subscriber_address].append(data)
-            # print ("Message from %s: got value %s "% (subscriber_address, data))
+            #print ("Message from %s: got value %s "% (subscriber_address, data))
 
     # Task to subscribe to data feeds
     def subscribe_to_topics(self, sessions, parmams=None):
@@ -111,8 +110,8 @@ class DataAggregator:
         new_file_time = True
         new_frame_time = True
 
-        time_per_frame = 4       # [s]
-        time_per_file = 15 * 60  # [s]
+        time_per_frame = 3       # [s]
+        time_per_file = 10  # [s]
 
         while True:
             with self.lock:

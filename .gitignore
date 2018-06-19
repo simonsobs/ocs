@@ -105,4 +105,6 @@ ENV/
 
 # Custom
 example/dot_crossbar/key.*
-example/dot_crossbar/node.pid
+ocs/Lakeshore/ls.cfg
+ocs/Lakeshore/ips.json
+agents/aggregator/data/*

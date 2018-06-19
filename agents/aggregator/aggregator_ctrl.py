@@ -48,7 +48,7 @@ def my_script(app, agent_addr):
     d1 = yield cw2.start()
     print(d1)
 
-    wait_time = 20
+    wait_time = 120
     for i in range(wait_time):
         print('Sleeping for %d more seconds...' %(wait_time - i))
         yield client_t.dsleep(1)

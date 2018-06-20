@@ -31,8 +31,7 @@ def my_script(app):
     yield get_data.start()
 
 
-
-    sleep_time = 3
+    sleep_time = 10
     for i in range(sleep_time):
         print('sleeping for {:d} more seconds'.format(sleep_time - i))
         yield client_t.dsleep(1)

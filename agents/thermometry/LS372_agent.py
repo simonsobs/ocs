@@ -4,8 +4,9 @@ from ocs import ocs_agent
 from ocs.Lakeshore.Lakeshore372 import LS372
 import random
 import time, threading
+import numpy as np
 
-class Thermo372:
+class LS372_Agent:
     """
         Agent to connect to a single Lakeshore 372 device.
         
@@ -46,6 +47,7 @@ class Thermo372:
         session.post_status('starting')
 
         if self.fake_data:
+            self.res = random.randrange(1, 1000);
             session.post_message("No initialization since faking data")
         else:
             self.module = LS372(self.ip)
@@ -71,13 +73,13 @@ class Thermo372:
                     return 10
 
             if self.fake_data:
-                reading = random.randrange(250, 350)
+                reading = np.random.normal(self.res, 20)
                 time.sleep(.1)
             else:
                 reading = self.module.get_temp(unit='S')
                 time.sleep(.01)
 
-            print("Reading: ", reading)
+            print("{}: {}".format(self.name, reading))
             session.post_data(reading)
 
         self.set_job_done()
@@ -100,7 +102,7 @@ if __name__ == '__main__':
     # with open(ip_filename) as file:
     #     ips = json.load(file)
 
-    therm = Thermo372("LS372A", "0.0.0.0" , fake_data=True)
+    therm = LS372_Agent("LS372A", "0.0.0.0" , fake_data=True)
 
     agent.register_task('lakeshore', therm.init_lakeshore_task)
     agent.register_process('acq', therm.start_acq, therm.stop_acq)

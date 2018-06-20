@@ -45,14 +45,18 @@ class DataAggregator:
             #print ("Message from %s: got value %s "% (subscriber_address, data))
 
     # Task to subscribe to data feeds
-    def subscribe_to_topics(self, sessions, parmams=None):
+    def subscribe_to_topics(self, sessions, params=None):
         ok, msg = self.try_set_job('subscribe')
-        
         if not ok:
             return ok, msg
 
+        try:
+            self.feeds = params["feeds"]
+        except ValueError:
+            print("feeds not specified")
+
         for feed in self.feeds:
-            self.agent.subscribe(self.handler, feed + u'.data')
+            self.agent.subscribe(self.handler, feed + '.data')
             print(f"Subscribed to feed: {feed}")
             self.incoming_data[feed] = []
 
@@ -75,13 +79,14 @@ class DataAggregator:
             times = [element["channel"][0] for element in data]
             data_stream = [element["channel"][1] for element in data]
             start_time = times[0]
+            print(times[-1])
             end_time = times[-1]
 
             ts_map = core.G3TimestreamMap()
-            ts_map[0] = core.G3Timestream(times)
-            ts_map[1] = core.G3Timestream(data_stream)
+            ts_map["times"] = core.G3Timestream(times)
+            ts_map["temps"] = core.G3Timestream(data_stream)
             ts_map.start = core.G3Time(start_time*core.G3Units.s)
-            ts_map.start = core.G3Time(end_time * core.G3Units.s)
+            ts_map.stop = core.G3Time(end_time * core.G3Units.s)
 
             frame["data"] = ts_map
             print("Second: ", core.G3Units.s)
@@ -106,6 +111,7 @@ class DataAggregator:
         return
 
     def start_aggregate(self, session, params=None):
+
         ok, msg = self.try_set_job('aggregate')
         if not ok: return ok, msg
         session.post_status('running')
@@ -113,8 +119,8 @@ class DataAggregator:
         new_file_time = True
         new_frame_time = True
 
-        time_per_frame = 3       # [s]
-        time_per_file = 10  # [s]
+        time_per_frame = 10      # [s]
+        time_per_file = 60 * 15  # [s]
 
         while True:
             with self.lock:
@@ -142,8 +148,6 @@ class DataAggregator:
                 self.write_data_to_file()
                 new_frame_time = False
                 frame_start_time = time.time()
-
-
 
             time.sleep(.1)
             # Check if its time to write new frame/file

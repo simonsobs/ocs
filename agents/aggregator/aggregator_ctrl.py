@@ -27,6 +27,9 @@ from ocs import client_t
 
 
 def my_script(app, agent_addr):
+
+
+
     cw1 = client_t.TaskClient(app, agent_addr, 'subscribe')
     cw2 = client_t.ProcessClient(app, agent_addr, 'aggregate')
 

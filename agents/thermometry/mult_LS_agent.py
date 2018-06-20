@@ -1,5 +1,3 @@
-
-import ocs
 from ocs import ocs_agent
 from ocs.Lakeshore.Lakeshore372 import LS372
 import random
@@ -10,7 +8,7 @@ class Thermo372:
         Agent to connect to a single Lakeshore 372 device.
         
         Params:
-            name: Application Session
+            agent: Application Session
             ip:  ip address of agent 
             fake_data: generates random numbers without connecting to LS if True. 
     """
@@ -18,19 +16,18 @@ class Thermo372:
         self.lock = threading.Semaphore()
         self.job = None
 
-        self.name = name
+        self.name  = name
         self.ip = ip
         self.fake_data = fake_data
         self.module = None
 
     def try_set_job(self, job_name):
-        print(self.job, job_name)
         with self.lock:
             if self.job == None:
                 self.job = job_name
-                return (True, 'ok')
+                return True, 'ok'
             else:
-                return (False, 'Conflict: "%s" is already running.' % self.job)
+                return False, 'Conflict: "%s" is already running.' % self.job
 
     def set_job_done(self):
         with self.lock:
@@ -39,7 +36,7 @@ class Thermo372:
     def init_lakeshore_task(self, session, params=None):
         ok, msg = self.try_set_job('init')
 
-        print('Initialize Lakeshore:', ok)
+        print('Initialize {}: {}'.format(self.name, ok))
         if not ok:
             return ok, msg
 
@@ -54,11 +51,9 @@ class Thermo372:
         return True, 'Lakeshore module initialized.'
 
     def start_acq(self, session, params=None):
-
         ok, msg = self.try_set_job('acq')
         if not ok:
              return ok, msg
-
         session.post_status('running')
         
         while True:
@@ -77,7 +72,7 @@ class Thermo372:
                 reading = self.module.get_temp(unit='S')
                 time.sleep(.01)
 
-            print("Reading: ", reading)
+            print("{} Reading: {}".format(self.name, reading))
             session.post_data(reading)
 
         self.set_job_done()
@@ -93,17 +88,16 @@ class Thermo372:
                     False: 'Failed to request process stop.'}[ok])
 
 if __name__ == '__main__':
-    agent, runner = ocs_agent.init_ocs_agent('observatory.thermometry')
-    
-    # import json
-    # ip_filename = "/home/so_user/so/ocs/ocs/Lakeshore/ips.json"
-    # with open(ip_filename) as file:
-    #     ips = json.load(file)
 
-    therm = Thermo372("LS372A", "0.0.0.0" , fake_data=True)
+    names = ["LS372A", "LS372B", "LS372C"]
+    therms = []
+    for i, name in enumerate(names):
+        agent, runner = ocs_agent.init_ocs_agent('observatory.thermometry.{}'.format(name))
+        therms.append(Thermo372(name, "0.0.0.0" , fake_data=True))
+        agent.register_task("init", therms[i].init_lakeshore_task)
+        agent.register_process("acq", therms[i].start_acq, therms[i].stop_acq)
 
-    agent.register_task('lakeshore', therm.init_lakeshore_task)
-    agent.register_process('acq', therm.start_acq, therm.stop_acq)
+        start_reactor = (i == len(names) - 1)
+        runner.run(agent, auto_reconnect=True, start_reactor=start_reactor)
 
-    runner.run(agent, auto_reconnect=True)
 

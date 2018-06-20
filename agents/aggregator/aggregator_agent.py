@@ -72,15 +72,18 @@ class DataAggregator:
             frame["agent_address"] = data[0]["agent_address"]
             frame["session_id"] = data[0]["session_id"]
 
-            timestream = [element["channel"][1] for element in data]
-            start_time = data[0]["channel"][0]
-            end_time = data[-1]["channel"][0]
+            times = [element["channel"][0] for element in data]
+            data_stream = [element["channel"][1] for element in data]
+            start_time = times[0]
+            end_time = times[-1]
 
-            timestream = core.G3Timestream(timestream)
-            timestream.start = core.G3Time(start_time*core.G3Units.s)
-            timestream.stop = core.G3Time(end_time*core.G3Units.s)
+            ts_map = core.G3TimestreamMap()
+            ts_map[0] = core.G3Timestream(times)
+            ts_map[1] = core.G3Timestream(data_stream)
+            ts_map.start = core.G3Time(start_time*core.G3Units.s)
+            ts_map.start = core.G3Time(end_time * core.G3Units.s)
 
-            frame["channel"] = timestream
+            frame["data"] = ts_map
             print("Second: ", core.G3Units.s)
             print(f"Writing Frame to file:{frame}")
 

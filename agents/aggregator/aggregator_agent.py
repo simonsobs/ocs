@@ -39,7 +39,6 @@ class DataAggregator:
         """
         # Do we want to save data before aggregate starts? Probably doesn't matter
         if self.job == 'aggregate':
-            
             subscriber_address = data["agent_address"]
             self.incoming_data[subscriber_address].append(data)
             #print ("Message from %s: got value %s "% (subscriber_address, data))
@@ -50,10 +49,10 @@ class DataAggregator:
         if not ok:
             return ok, msg
 
-        try:
-            self.feeds = params["feeds"]
-        except ValueError:
-            print("feeds not specified")
+        # try:
+        #     self.feeds = params["feeds"]
+        # except ValueError:
+        #     print("feeds not specified")
 
         for feed in self.feeds:
             self.agent.subscribe(self.handler, feed + '.data')
@@ -71,26 +70,25 @@ class DataAggregator:
             # Creates frame from datastream
 
             frame = core.G3Frame(core.G3FrameType.Housekeeping)
-            data = self.incoming_data[feed]
+            frame_data = self.incoming_data[feed]
 
-            frame["agent_address"] = data[0]["agent_address"]
-            frame["session_id"] = data[0]["session_id"]
+            frame["agent_address"] = frame_data[0]["agent_address"]
+            frame["session_id"] = frame_data[0]["session_id"]
+            print(frame_data[0])
+            timestream_names = frame_data[0]["data"].keys()
 
-            times = [element["channel"][0] for element in data]
-            data_stream = [element["channel"][1] for element in data]
-            start_time = times[0]
-            print(times[-1])
-            end_time = times[-1]
+            tod_map = core.G3TimestreamMap()
+            timestamp_map = core.G3TimestreamMap()
 
-            ts_map = core.G3TimestreamMap()
-            ts_map["times"] = core.G3Timestream(times)
-            ts_map["temps"] = core.G3Timestream(data_stream)
-            ts_map.start = core.G3Time(start_time*core.G3Units.s)
-            ts_map.stop = core.G3Time(end_time * core.G3Units.s)
+            for name in timestream_names:
+                timestamps = [x["data"][name][0] for x in frame_data]
+                tod = [x["data"][name][1] for x in frame_data]
 
-            frame["data"] = ts_map
-            print("Second: ", core.G3Units.s)
-            print(f"Writing Frame to file:{frame}")
+                tod_map[name] = core.G3Timestream(tod)
+                timestamp_map[name] = core.G3Timestream(timestamps)
+
+            frame["TODs"] = tod_map
+            frame["Timestamps"] = timestamp_map
 
             self.file(frame)
 

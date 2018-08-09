@@ -273,7 +273,7 @@ class OpSession:
                 'messages': self.messages}
 
     def data_encoded(self):
-        return {'channel': self.data, 
+        return {'data': self.data,
                 'op_name': self.op_name,
                 'agent_address': self.app.agent_address,
                 'session_id': self.session_id}
@@ -297,7 +297,7 @@ class OpSession:
     def publish_data(self, message, timestamp=None):
         if timestamp is None:
             timestamp = time.time()
-        self.data = (timestamp, message)
+        self.data = message
         self.app.publish_data('Message', self)
 
     # Callable from task / process threads.

@@ -6,7 +6,7 @@
 import serial
 import socket
 import time
-
+from ocs.Lakeshore.channel372 import Channel372
 
 class LS372:
     """
@@ -20,9 +20,16 @@ class LS372:
          
         self.id = self.test()
         #Enable all channels
-        for i in range(self.num_channels):
-            print(i)
-            self.msg('INSET %d,1,3,3'%(i))
+        # going to hold off on enabling all channels automatically - bjk
+        #for i in range(self.num_channels):
+        #    print(i)
+        #    self.msg('INSET %d,1,3,3'%(i))
+
+        self.channels = []
+        for i in range(num_channels):
+            c = Channel372(self, i+1)
+            self.channels.append(c)
+
     def msg(self, message):
         msg_str = f'{message}\r\n'.encode()
         self.com.send(msg_str)
@@ -50,6 +57,7 @@ class LS372:
             c=str(chan)
         
         if unit == 'S':
+            # Sensor is same as Resistance Query
             return float(self.msg('SRDG? %s'%c))
         if unit == 'K':
             return float(self.msg('KRDG? %s'%c))

@@ -86,8 +86,9 @@ class LS372_Agent:
                     data[therm] = (time.time(), reading)
                 time.sleep(.1)
             else:
-                for i, channel in enumerate(self.module.channels):
-                    data[self.thermometers[i]] = (time.time(), self.module.get_temp(unit='S', chan=channel.channel_num))
+                for (thermometer, channel) in zip(self.thermometers, self.module.channels):
+                    if channel.enabled:
+                        data[thermometer] = (time.time(), self.module.get_temp(unit='S', chan=channel.channel_num))
                 time.sleep(.01)
 
             print("Data: {}".format(data))

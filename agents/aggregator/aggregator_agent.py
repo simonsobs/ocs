@@ -56,7 +56,7 @@ class DataAggregator:
 
         for feed in self.feeds:
             self.agent.subscribe(self.handler, feed + '.data')
-            print(f"Subscribed to feed: {feed}")
+            print("Subscribed to feed: {}".format(feed))
             self.incoming_data[feed] = []
 
         self.set_job_done()
@@ -75,17 +75,27 @@ class DataAggregator:
             frame["agent_address"] = frame_data[0]["agent_address"]
             frame["session_id"] = frame_data[0]["session_id"]
             print(frame_data[0])
-            timestream_names = frame_data[0]["data"].keys()
+
+            tods = {}
+            timestamps = {}
+
+            # Creats tods and timestamps from frame data
+            for data_point in frame_data:
+                for key, val in data_point["data"].items():
+                    if key in tods.keys():
+                        tods[key].append(val[1])
+                        timestamps[key].append(val[0])
+                    else:
+                        tods[key] = [val[1]]
+                        timestamps[key] = [val[0]]
+
 
             tod_map = core.G3TimestreamMap()
             timestamp_map = core.G3TimestreamMap()
 
-            for name in timestream_names:
-                timestamps = [x["data"][name][0] for x in frame_data]
-                tod = [x["data"][name][1] for x in frame_data]
-
-                tod_map[name] = core.G3Timestream(tod)
-                timestamp_map[name] = core.G3Timestream(timestamps)
+            for key in tods:
+                tod_map[key] = core.G3Timestream(tods[key])
+                timestamp_map[key] = core.G3Timestream(timestamps[key])
 
             frame["TODs"] = tod_map
             frame["Timestamps"] = timestamp_map
@@ -96,7 +106,7 @@ class DataAggregator:
             self.incoming_data[feed] = []
 
     def start_file(self):
-        print(f"Creating file: {self.filename}")
+        print("Creating file: {}".format(self.filename))
         self.file = core.G3Writer(filename=self.filename)
         return
 
@@ -104,7 +114,7 @@ class DataAggregator:
         self.write_data_to_file()
         self.file(core.G3Frame(core.G3FrameType.EndProcessing))
 
-        print(f"Closing file: {self.filename}")
+        print("Closing file: {}".format(self.filename))
 
         return
 
@@ -135,7 +145,7 @@ class DataAggregator:
 
                 file_start_time = time.time()
                 time_string = time.strftime("%Y-%m-%d_T_%H:%M:%S", time.localtime(file_start_time))
-                self.filename = f"data/{time_string}.g3"
+                self.filename = "data/{}.g3".format(time_string)
                 self.start_file()
 
                 session.post_message('Starting a new DAQ file: %s' % self.filename)

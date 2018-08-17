@@ -46,6 +46,24 @@ class LS372:
     def set_autoscan(self, start=1, autoscan=0):
         self.msg('SCAN {},{}'.format(start, autoscan))
 
+    def enable_autoscan(self):
+        """Enable the autoscan feature of the Lakeshore 372.
+
+        Will query active channel to pass already selected channel to SCAN
+        command.
+        """
+        active_channel = self.get_active_channel()
+        self.msg('SCAN {},{}'.format(active_channel.channel_num, 1))
+
+    def disable_autoscan(self):
+        """Disable the autoscan feature of the Lakeshore 372.
+
+        Will query active channel to pass already selected channel to SCAN
+        command.
+        """
+        active_channel = self.get_active_channel()
+        self.msg('SCAN {},{}'.format(active_channel.channel_num, 0))
+
     def get_temp(self, unit="S", chan=-1):
         
         if (chan==-1):
@@ -61,6 +79,18 @@ class LS372:
             return float(self.msg('SRDG? %s'%c))
         if unit == 'K':
             return float(self.msg('KRDG? %s'%c))
+
+    def get_active_channel(self):
+        """Query the Lakeshore for which channel it's currently scanning.
+
+        :returns: channel object describing the scanned channel
+        :rtype: Channel372 Object
+        """
+        resp = self.msg("SCAN?")
+        channel_number = int(resp.split(',')[0])
+        channel_list = [_.channel_num for _ in self.channels]
+        idx = channel_list.index(channel_number)
+        return self.channels[idx]
 
 if __name__=="__main__":
     import json

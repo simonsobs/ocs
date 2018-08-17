@@ -64,6 +64,20 @@ class LS372:
         active_channel = self.get_active_channel()
         self.msg('SCAN {},{}'.format(active_channel.channel_num, 0))
 
+    def set_active_channel(self, channel):
+        """Set the active scanner channel.
+
+        Query using SCAN? to determine autoscan parameter and set active
+        channel.
+
+        :param channel: Channel number to switch scanner to. 1-8 or 1-16
+                        depending on scanner type
+        :type channel: int
+        """
+        resp = self.msg("SCAN?")
+        autoscan_setting = resp.split(',')[1]
+        self.msg('SCAN {},{}'.format(channel, autoscan_setting))
+
     def get_temp(self, unit="S", chan=-1):
         
         if (chan==-1):

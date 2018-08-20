@@ -23,6 +23,59 @@ particular file system.  A Control Client could be a web page with
 control buttons and log windows, or a script written by a user to
 perform a series of unattended, interlocking data acquisition tasks.
 
+Installing
+----------
+Clone this repository and install using pip::
+
+  git clone https://github.com/simonsobs/ocs.git
+  cd ocs/
+  pip3 install -r requirements.txt --user .
+
+The OCS documentation can be built using sphinx once you've performed the
+installation::
+
+  cd docs/
+  make html
+
+You can then open ``docs/_build/html/index.html`` in your preferred web
+browser.
+
+
+Quick Start Example
+-------------------
+
+Open three terminals in the ``example/`` directory. Run the following
+commands, in order, one command per terminal::
+
+  make run_crossbar
+  make run_agent
+  make run_client
+
+The first command, ``make run_crossbar`` will start an instance of crossbar.
+(Note: If another OCS user is already running this, it will fail for you, but
+you can use their already running instance.) The second command, ``make
+run_agent`` starts the example OCS agent. This demos an imaginary hardware
+device that knows how to perform operations such as tuning the SQUIDs. It
+registers such tasks/processes for use by the client. Finally, the third command, ``make
+run_client``, runs the example OCS client. This makes use of the registered
+tasks and processes to perform some useful string of operations.
+
+These will each print out a lot of log messages. But as long as you get more
+log messages than error text, you're in good shape.
+
+Web control example
+-------------------
+
+If the machine where you ran the example also has a GUI, you can open
+a web browser and navigate on your local filesystem to the file in the
+repository called www/monitor.html.  This exposes control buttons and
+status windows for the Operations of the Agent that you launched with
+"make run_agent".
+
+
+Details
+=======
+
 Base layer: WAMP and crossbar
 -----------------------------
 
@@ -77,34 +130,6 @@ stop()
 
 Setting up OCS
 ==============
-
-Quick start example
--------------------
-
-Clone this repository.  Install crossbar, autobahn, and twisted, using
-a ``pip`` command such as::
-
-  sudo pip3 install crossbar autobahn twisted
-
-(see below for more explicit installation commands).  Open 3 terminals
-in the ``example/`` directory.  Run the following commands, in order,
-one command per terminal::
-
-  make run_crossbar
-  make run_agent
-  make run_client
-  
-These will each print out a lot of log messages.  But as long as you
-get more log messages than error text, you're in good shape.
-
-Web control example
--------------------
-
-If the machine where you ran the example also has a GUI, you can open
-a web browser and navigate on your local filesystem to the file in the
-repository called www/monitor.html.  This exposes control buttons and
-status windows for the Operations of the Agent that you launched with
-"make run_agent".
 
 crossbar.io installation and configuration
 ------------------------------------------

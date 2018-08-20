@@ -1,6 +1,9 @@
 # tmp files
 *.swp
 
+# documentation
+docs/_build/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

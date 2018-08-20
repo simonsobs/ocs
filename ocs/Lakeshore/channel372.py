@@ -25,18 +25,20 @@ class Channel372:
     def query_input_channel_parameter(self):
         """Run Input Channel Parameter Query
 
-        Input channel parameters include:
-            off/on - Specifies whether the input/channel is disabled or enabled
-                type off/on - bool
-            dwell - Specifies a value for the autoscanning dwell time 1 to 200 s
-                type dwell - int in units of seconds
-            pause - Specifies a value for the change pause time: 3 to 200 s
-                type pause - int in units of seconds
-            curve number - Specifies which curve the channel uses
-                type curve number - int
-            tempco - Sets the temperature coefficien that will be used for
-                     temperature control if no curve is selected
-                type tempco - str
+        ::
+
+          Input channel parameters include:
+              off/on - Specifies whether the input/channel is disabled or enabled
+                  type off/on - bool
+              dwell - Specifies a value for the autoscanning dwell time 1 to 200 s
+                  type dwell - int in units of seconds
+              pause - Specifies a value for the change pause time: 3 to 200 s
+                  type pause - int in units of seconds
+              curve number - Specifies which curve the channel uses
+                  type curve number - int
+              tempco - Sets the temperature coefficien that will be used for
+                       temperature control if no curve is selected
+                  type tempco - str
 
         :returns: response from INSET? command
 
@@ -58,30 +60,32 @@ class Channel372:
     def query_input_setup(self):
         """Run Input Setup Query, storing results in human readable format.
 
-        Input setup parameters include:
-            mode - Sensor excitation mode.
-                   Measurement input: 0 = Voltage Excitation Mode,
-                                      1 = Current Excitation Mode
-                   Control input (channel A): 1 = Current Excitation
-                type mode - int
-            excitation - Measurement input excitation range
-                type excitation - int
-            autorange - Specifies if auto range is enabled.
-                            0 = off,
-                            1 = autorange current,
-                            2 = ROX102B Autorange (control input only)
-                type autorange - int
-            range - Measurement input resistance. Ignored for control input.
-                type range - int
-            cs shunt - Current source shunt.
-                        0 = current source not shunted, excitation on
-                        1 = current source shunted, excitation off
-                type cs shunt - int
-            units - Specifies the preferred units parameter for sensor readings
-                    and for the control setpoint:
-                        1 = kelvin,
-                        2 = ohms
-                type units - int
+        ::
+
+          Input setup parameters include:
+              mode - Sensor excitation mode.
+                     Measurement input: 0 = Voltage Excitation Mode,
+                                        1 = Current Excitation Mode
+                     Control input (channel A): 1 = Current Excitation
+                  type mode - int
+              excitation - Measurement input excitation range
+                  type excitation - int
+              autorange - Specifies if auto range is enabled.
+                              0 = off,
+                              1 = autorange current,
+                              2 = ROX102B Autorange (control input only)
+                  type autorange - int
+              range - Measurement input resistance. Ignored for control input.
+                  type range - int
+              cs shunt - Current source shunt.
+                          0 = current source not shunted, excitation on
+                          1 = current source shunted, excitation off
+                  type cs shunt - int
+              units - Specifies the preferred units parameter for sensor readings
+                      and for the control setpoint:
+                          1 = kelvin,
+                          2 = ohms
+                  type units - int
 
         :returns: response from INTYPE? command
 

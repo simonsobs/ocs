@@ -18,13 +18,14 @@ class Curve:
     :Coeff:     1 = negative, 2 = positive
     
     """
-    def __init__(self, filename=None):
-        self.header = {}
-        self.units = []
-        self.temps = []
+    def __init__(self, filename=None, header=None, units=None, temps=None):
 
         if filename is not None:
             self.load_from_file(filename)
+        else:
+            self.header = header
+            self.units = units
+            self.temps = temps
 
     def load_from_file(self, filename):
         with open(filename, 'r') as file:
@@ -43,34 +44,17 @@ class Curve:
                 
             _, self.units, self.temps = np.loadtxt(filename, skiprows=line_num, unpack=True)
 
-    def load_data(self, name, sn, format, limit, coeff, units, temps):
-        assert format in [1, 2, 3, 4]
-        assert coeff in [1, 2]
-
-        assert len(units) < 200
-        assert len(units) == len(temps)
-
-        self.header = {
-            "Name": name,
-            "SN": sn,
-            "Format": format,
-            "Limit": limit,
-            "Coeff": coeff
-        }
-
-        self.units = units
-        self.temps = temps
 
     def write_to_file(self, filename):
         with open(filename, 'w') as file:
             file.write("[HEADER]\n")
             for key in ["Name", "SN", "Format", "Limit", "Coeff"]:
-                file.write(f"{key}:\t{self.header[key]}\n")
+                file.write("{}:\t{}\n".format(key, self.header[key]))
             file.write("\n[DATA]\n")
             file.write("# No.\tUnits\tTemp(K)\n\n")
 
             for i in range(len(self.units)):
-                file.write(f"{i+1}\t{self.units[i]}\t{self.temps[i]}\n")
+                file.write("{}\t{}\t{}\n".format(i+1, self.units[i], self.temps[i]))
 
     def __str__(self):
         string = ""

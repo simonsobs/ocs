@@ -24,18 +24,21 @@ class Module:
         Contains list of inputs which can be read from.
     """
     
-    def __init__(self, port='/dev/tty.SLAB_USBtoUART', baud=115200, timeout=10, num_channels=2):
+    def __init__(self, port='/dev/tty.SLAB_USBtoUART', baud=115200, timeout=10):
         """
             Establish Serial communication and initialize channels.
         """
         self.com = Serial(port=port, baudrate=baud, timeout=timeout)
-        self.idn = self.test()
+
+        idn = self.msg("*IDN?")
+        self.manufacturer, self.model, self.inst_sn, self.firmware_version = idn.split(',')
+        num_channels = int(self.model[-2])
+
+        self.name = self.msg("MODNAME?")
 
         self.channels = []
         for i in range(num_channels):
-            c = Channel(self, i+1, enabled=True)
-            c.name = f'Input {i+1}'
-            c.update_info()
+            c = Channel(self, i+1)
             self.channels.append(c)
 
     def open_com(self):
@@ -53,7 +56,7 @@ class Module:
             Return response (within timeout) if message is a query.
         """
         # Writes message
-        message_string = f'{msg}\r\n;'.encode()
+        message_string = "{}\r\n;".format(msg).encode()
 
         # write(message_string)
         self.com.write(message_string)
@@ -69,20 +72,14 @@ class Module:
             time.sleep(.01)             # Must wait 10 ms before sending another command
 
         return resp
-    
-    def test(self):
-        """ Return IDN of module. """
-        return self.msg("*IDN?")
 
-    def __repr__(self):
-        return f"Lakeshore240"
+    def set_name(self, name):
+        self.name = name
+        self.msg("MODNAME {}".format(name))
 
     def __str__(self):
-        string = f"ID: {self.idn}\n"
-        #for c in self.channels:
-        #    string += str(c)
-        return string
-        
+        return "{} ({})".format(self.name, self.inst_sn)
+
 
 if __name__ == "__main__":
     ls = Module(port="/dev/ttyUSB0")

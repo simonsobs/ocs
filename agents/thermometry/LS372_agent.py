@@ -23,6 +23,7 @@ class LS372_Agent:
         self.ip = ip
         self.fake_data = fake_data
         self.module = None
+        self.thermometers = []
 
     def try_set_job(self, job_name):
         print(self.job, job_name)
@@ -49,8 +50,13 @@ class LS372_Agent:
         if self.fake_data:
             self.res = random.randrange(1, 1000);
             session.post_message("No initialization since faking data")
+            self.thermometers = ["thermA", "thermB"]
         else:
             self.module = LS372(self.ip)
+            print("Initialized Lakeshore module: {!s}".format(self.module))
+            session.post_message("Lakeshore initilized with ID: %s"%self.module.id)
+
+            self.thermometers = [channel.name for channel in self.module.channels]
 
         self.set_job_done()
         return True, 'Lakeshore module initialized.'
@@ -72,15 +78,20 @@ class LS372_Agent:
                 else:
                     return 10
 
+            data = {}
+
             if self.fake_data:
-                reading = np.random.normal(self.res, 20)
+                for therm in self.thermometers:
+                    reading = np.random.normal(self.res, 20)
+                    data[therm] = (time.time(), reading)
                 time.sleep(.1)
             else:
-                reading = self.module.get_temp(unit='S')
+                active_channel = self.module.get_active_channel()
+                data[active_channel.name] = (time.time(), self.module.get_temp(unit='S', chan=active_channel.channel_num))
                 time.sleep(.01)
 
-            print("{}: {}".format(self.name, reading))
-            session.post_data(reading)
+            print("Data: {}".format(data))
+            session.post_data(data)
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'

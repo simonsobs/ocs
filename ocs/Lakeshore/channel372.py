@@ -20,11 +20,11 @@ class Channel372:
         self.ls = ls
         self.channel_num = channel_num
         self.enabled = False
-        self.query_input_channel_parameter()
-        self.query_sensor_input_name()
-        self.query_input_setup()
+        self.get_input_channel_parameter()
+        self.get_sensor_input_name()
+        self.get_input_setup()
 
-    def query_input_channel_parameter(self):
+    def get_input_channel_parameter(self):
         """Run Input Channel Parameter Query
 
         ::
@@ -59,7 +59,7 @@ class Channel372:
 
         return resp
 
-    def query_input_setup(self):
+    def get_input_setup(self):
         """Run Input Setup Query, storing results in human readable format.
 
         ::
@@ -202,7 +202,7 @@ class Channel372:
 
         return resp
 
-    def query_sensor_input_name(self):
+    def get_sensor_input_name(self):
         """Run Sensor Input Name Query
 
         :returns: response from INNAME? command

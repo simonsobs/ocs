@@ -202,6 +202,61 @@ class Channel372:
 
         return resp
 
+    # Public API
+
+    # INTYPE
+    def set_excitation_mode(self, excitation_mode):
+        pass
+
+    def set_excitation(self, excitation_value):
+        pass
+
+    def enable_autorange(self):
+        pass
+
+    def disable_autorange(self):
+        pass
+
+    def set_resistance_range(self, resistance_range):
+        pass
+
+    def enable_excitation(self):
+        pass
+
+    def disable_excitation(self):
+        pass
+
+    # RDGPWR?
+    def get_excitation_power(self):
+        pass
+
+    def set_units(self, units):
+        pass
+
+    # INSET
+    def enable_channel(self):
+        pass
+
+    def disable_channel(self):
+        pass
+
+    def set_dwell(self, dwell):
+        pass
+
+    def set_pause(self, dwell):
+        pass
+
+    # Can also use INCRV/INCRV?
+    def set_calibration_curve(self, curve_number):
+        pass
+
+    def get_calibration_curve(self):
+        pass
+
+    def set_temperature_coefficient(self, coefficient):
+        pass
+
+    # INNAME
     def get_sensor_input_name(self):
         """Run Sensor Input Name Query
 
@@ -213,6 +268,33 @@ class Channel372:
         self.name = resp
 
         return resp
+
+    def set_sensor_input_name(self, name):
+        pass
+
+    # RDGK?
+    def get_kelvin_reading(self):
+        pass
+
+    # RDGR?
+    def get_resistance_reading(self):
+        pass
+
+    # RDGST?
+    def get_reading_status(self):
+        pass
+
+    # SRDG?
+    def get_sensor_reading(self):
+        pass
+
+    # TLIMIT
+    def set_temperature_limit(self, limit):
+        pass
+
+    # TLIMIT?
+    def get_temperature_limit(self):
+        pass
 
     def __str__(self):
         string = "-" * 50 + "\n"

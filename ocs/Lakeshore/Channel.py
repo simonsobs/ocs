@@ -173,7 +173,7 @@ class Channel:
     
     def __str__(self):
         string = "-" * 40 + "\n"
-        string += "Channel %d: %s\n"%(self.channel_num, self._name)
+        string += "{} -- Channel {}: {}\n".format(self.ls.inst_sn, self.channel_num, self._name)
         string += "-"*40 + "\n"
 
         string += "{!s:<18} {!s:>13}\n".format("Enabled:", self._enabled)

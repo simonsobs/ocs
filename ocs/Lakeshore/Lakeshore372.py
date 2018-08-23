@@ -3,10 +3,10 @@
 # Lauren Saunders
 # Follows similar commands to Lakeshore240.py
 
-import serial
 import socket
 import time
 from ocs.Lakeshore.channel372 import Channel372
+
 
 class LS372:
     """
@@ -17,13 +17,13 @@ class LS372:
         self.com.connect((ip, 7777))
         self.com.settimeout(timeout)
         self.num_channels = num_channels
-         
+
         self.id = self.test()
-        #Enable all channels
-        # going to hold off on enabling all channels automatically - bjk
-        #for i in range(self.num_channels):
-        #    print(i)
-        #    self.msg('INSET %d,1,3,3'%(i))
+        # Enable all channels
+        #  going to hold off on enabling all channels automatically - bjk
+        # for i in range(self.num_channels):
+        #     print(i)
+        #     self.msg('INSET %d,1,3,3'%(i))
 
         self.channels = []
         for i in range(num_channels):
@@ -42,7 +42,7 @@ class LS372:
 
     def test(self):
         return self.msg('*IDN?')
-    
+
     def set_autoscan(self, start=1, autoscan=0):
         self.msg('SCAN {},{}'.format(start, autoscan))
 
@@ -79,20 +79,19 @@ class LS372:
         self.msg('SCAN {},{}'.format(channel, autoscan_setting))
 
     def get_temp(self, unit="S", chan=-1):
-        
-        if (chan==-1):
+        if (chan == -1):
             resp = self.msg("SCAN?")
             c = resp.split(',')[0]
-        elif (chan==0):
+        elif (chan == 0):
             c = 'A'
         else:
-            c=str(chan)
-        
+            c = str(chan)
+
         if unit == 'S':
             # Sensor is same as Resistance Query
-            return float(self.msg('SRDG? %s'%c))
+            return float(self.msg('SRDG? %s' % c))
         if unit == 'K':
-            return float(self.msg('KRDG? %s'%c))
+            return float(self.msg('KRDG? %s' % c))
 
     def get_active_channel(self):
         """Query the Lakeshore for which channel it's currently scanning.
@@ -106,10 +105,10 @@ class LS372:
         idx = channel_list.index(channel_number)
         return self.channels[idx]
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     import json
     with open("ips.json") as file:
         ips = json.load(file)
     name="LS372A"
     ls = LS372(ips[name])
-

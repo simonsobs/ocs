@@ -6,16 +6,18 @@ Created on Wed Aug 15, 2018
 @author: Brian Koopman
 """
 
+
 class Channel372:
     """Lakeshore 372 Channel Object
 
     :param ls: Lakeshore unit for communication
     :type ls: LS372 Object
-    :param channel_num: The channel number (1-8 or 1-16 depending on scanner type)
+    :param channel_num: The channel number (1-8 or 1-16 depending on scanner
+                        type)
     :type channel_num: int
     """
     def __init__(self, ls, channel_num):
-        self.ls = ls 
+        self.ls = ls
         self.channel_num = channel_num
         self.enabled = False
         self.query_input_channel_parameter()
@@ -50,11 +52,11 @@ class Channel372:
                       '2': 'positive'}
 
         self.enabled = bool(int(resp[0]))
-        self.dwell = int(resp[1]) # seconds
-        self.pause = int(resp[2]) # seconds
+        self.dwell = int(resp[1])  # seconds
+        self.pause = int(resp[2])  # seconds
         self.curve_num = int(resp[3])
         self.tempco = tempco_key[resp[4]]
-        
+
         return resp
 
     def query_input_setup(self):
@@ -213,24 +215,24 @@ class Channel372:
         return resp
 
     def __str__(self):
-        string  = "-" * 50 + "\n"
-        string += "Channel %d: %s\n"%(self.channel_num, self.name)
-        string += "-" * 50 + "\n"        
-        string += "\t%-30s\t%r\n"%("Enabled :", self.enabled)
-        string += "\t%-30s\t%s %s\n"%("Dwell:", self.dwell, "seconds")
-        string += "\t%-30s\t%s %s\n"%("Pause:", self.pause, "seconds")
-        string += "\t%-30s\t%s\n"%("Curve Number:", self.curve_num)
-        string += "\t%-30s\t%s\n"%("Temperature Coefficient:", self.tempco)
-        string += "\t%-30s\t%s\n"%("Excitation State:", self.csshunt)
-        string += "\t%-30s\t%s\n"%("Excitation Mode:", self.mode)
-        string += "\t%-30s\t%s %s\n"%("Excitation:", self.excitation, self.excitation_units)
-        string += "\t%-30s\t%s\n"%("Autorange:", self.autorange)
-        string += "\t%-30s\t%s %s\n"%("Resistance Range:", self.range, "ohms")
-        string += "\t%-30s\t%s\n"%("Preferred Units:", self.units)
+        string = "-" * 50 + "\n"
+        string += "Channel %d: %s\n" % (self.channel_num, self.name)
+        string += "-" * 50 + "\n"
+        string += "\t%-30s\t%r\n" % ("Enabled :", self.enabled)
+        string += "\t%-30s\t%s %s\n" % ("Dwell:", self.dwell, "seconds")
+        string += "\t%-30s\t%s %s\n" % ("Pause:", self.pause, "seconds")
+        string += "\t%-30s\t%s\n" % ("Curve Number:", self.curve_num)
+        string += "\t%-30s\t%s\n" % ("Temperature Coefficient:", self.tempco)
+        string += "\t%-30s\t%s\n" % ("Excitation State:", self.csshunt)
+        string += "\t%-30s\t%s\n" % ("Excitation Mode:", self.mode)
+        string += "\t%-30s\t%s %s\n" % ("Excitation:", self.excitation, self.excitation_units)
+        string += "\t%-30s\t%s\n" % ("Autorange:", self.autorange)
+        string += "\t%-30s\t%s %s\n" % ("Resistance Range:", self.range, "ohms")
+        string += "\t%-30s\t%s\n" % ("Preferred Units:", self.units)
 
         return string
-    
+
+
 if __name__ == "__main__":
-    ch1 = Channel(None, 1)
+    ch1 = Channel372(None, 1)
     print(ch1)
-    

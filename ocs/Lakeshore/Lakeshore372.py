@@ -6,6 +6,88 @@
 import socket
 import time
 
+# Lookup keys for command parameters.
+autorange_key = {'0': 'off',
+                 '1': 'on',
+                 '2': 'ROX 102B'}
+
+mode_key = {'0': 'voltage',
+            '1': 'current'}
+
+mode_lock = {'voltage': '0',
+             'current': '1'}
+
+voltage_excitation_key = {1: 2.0e-6,
+                          2: 6.32e-6,
+                          3: 20.0e-6,
+                          4: 63.2e-6,
+                          5: 200.0e-6,
+                          6: 632.0e-6,
+                          7: 2.0e-3,
+                          8: 6.32e-3,
+                          9: 20.0e-3,
+                          10: 63.2e-3,
+                          11: 200.0e-3,
+                          12: 632.0e-3}
+
+current_excitation_key = {1: 1.0e-12,
+                          2: 3.16e-12,
+                          3: 10.0e-12,
+                          4: 31.6e-12,
+                          5: 100.0e-12,
+                          6: 316.0e-12,
+                          7: 1.0e-9,
+                          8: 3.16e-9,
+                          9: 10.0e-9,
+                          10: 31.6e-9,
+                          11: 100.0e-9,
+                          12: 316.0e-9,
+                          13: 1.0e-6,
+                          14: 3.16e-6,
+                          15: 10.0e-6,
+                          16: 31.6e-6,
+                          17: 100.0e-6,
+                          18: 316.0e-6,
+                          19: 1.0e-3,
+                          20: 3.16e-3,
+                          21: 10.0-3,
+                          22: 31.6-3}
+
+voltage_excitation_lock = {2.0e-6: 1,
+                           6.32e-6: 2,
+                           20.0e-6: 3,
+                           63.2e-6: 4,
+                           200.0e-6: 5,
+                           632.0e-6: 6,
+                           2.0e-3: 7,
+                           6.32e-3: 8,
+                           20.0e-3: 9,
+                           63.2e-3: 10,
+                           200.0e-3: 11,
+                           632.0e-3: 12}
+current_excitation_lock = {1.0e-12: 1,
+                           3.16e-12: 2,
+                           10.0e-12: 3,
+                           31.6e-12: 4,
+                           100.0e-12: 5,
+                           316.0e-12: 6,
+                           1.0e-9: 7,
+                           3.16e-9: 8,
+                           10.0e-9: 9,
+                           31.6e-9: 10,
+                           100.0e-9: 11,
+                           316.0e-9: 12,
+                           1.0e-6: 13,
+                           3.16e-6: 14,
+                           10.0e-6: 15,
+                           31.6e-6: 16,
+                           100.0e-6: 17,
+                           316.0e-6: 18,
+                           1.0e-3: 19,
+                           3.16e-3: 20,
+                           10.0-3: 21,
+                           31.6-3: 22}
+
 
 class LS372:
     """
@@ -17,7 +99,8 @@ class LS372:
         self.com.settimeout(timeout)
         self.num_channels = num_channels
 
-        self.id = self.test()
+        self.id = self.get_id()
+        self.autoscan = None
         # Enable all channels
         #  going to hold off on enabling all channels automatically - bjk
         # for i in range(self.num_channels):
@@ -39,7 +122,8 @@ class LS372:
             resp = ''
         return resp
 
-    def test(self):
+    def get_id(self):
+        """Get the ID number of the Lakeshore unit."""
         return self.msg('*IDN?')
 
     def get_temp(self, unit="S", chan=-1):
@@ -57,12 +141,29 @@ class LS372:
         if unit == 'K':
             return float(self.msg('KRDG? %s' % c))
 
-    # SCAN?
     def get_autoscan(self):
-        pass
+        """Determine state of autoscan.
 
-    def set_autoscan(self, start=1, autoscan=0):
+        :returns: state of autoscanner
+        :rtype: bool
+        """
+        resp = self.msg('SCAN?')
+        scan_state = bool(int(resp.split(',')[1]))
+        self.autoscan = scan_state
+        return scan_state
+
+    def _set_autoscan(self, start=1, autoscan=0):
+        """Set the autoscan state and start channel for scanning.
+
+        :param start: Channel number to start scanning
+        :type start: int
+        :param autoscan: State of autoscan, 0 for off, 1 for on
+        :type autoscan: int
+        """
+        assert autoscan in [0, 1]
+
         self.msg('SCAN {},{}'.format(start, autoscan))
+        self.autoscan = bool(autoscan)
 
     def enable_autoscan(self):
         """Enable the autoscan feature of the Lakeshore 372.
@@ -72,6 +173,7 @@ class LS372:
         """
         active_channel = self.get_active_channel()
         self.msg('SCAN {},{}'.format(active_channel.channel_num, 1))
+        self.autoscan = True
 
     def disable_autoscan(self):
         """Disable the autoscan feature of the Lakeshore 372.
@@ -81,6 +183,7 @@ class LS372:
         """
         active_channel = self.get_active_channel()
         self.msg('SCAN {},{}'.format(active_channel.channel_num, 0))
+        self.autoscan = False
 
     def get_active_channel(self):
         """Query the Lakeshore for which channel it's currently scanning.
@@ -177,6 +280,27 @@ class Channel:
 
         return resp
 
+    def _set_input_channel_parameter(self, params):
+        """Set INSET.
+
+        Parameters should be <disabled/enabled>, <dwell>, <pause>, <curve
+        number>, <tempco>. Will determine <input/channel> from attributes. This
+        allows us to use output from get_input_channel_parameters directly, as
+        it doesn't return <input/channel>.
+
+        :param params: INSET parameters
+        :type params: list of str
+
+        :returns: response from ls.msg
+        """
+        assert len(params) == 5
+
+        reply = [str(self.channel_num)]
+        [reply.append(x) for x in params]
+
+        param_str = ','.join(reply)
+        return self.ls.msg(f"INSET {param_str}")
+
     def get_input_setup(self):
         """Run Input Setup Query, storing results in human readable format.
 
@@ -225,9 +349,6 @@ class Channel:
         else:
             control_channel = False
 
-        mode_key = {'0': 'voltage',
-                    '1': 'current'}
-
         self.mode = mode_key[_mode]
 
         if control_channel:
@@ -239,40 +360,8 @@ class Channel:
                                     5: 31.6e-9,
                                     6: 100e-9}}
         else:
-            excitation_key = {'0': {1: 2.0e-6,
-                                    2: 6.32e-6,
-                                    3: 20.0e-6,
-                                    4: 63.2e-6,
-                                    5: 200.0e-6,
-                                    6: 632.0e-6,
-                                    7: 2.0e-3,
-                                    8: 6.32e-3,
-                                    9: 20.0e-3,
-                                    10: 63.2e-3,
-                                    11: 200.0e-3,
-                                    12: 632.0e-3},
-                              '1': {1: 1.0e-12,
-                                    2: 3.16e-12,
-                                    3: 10.0e-12,
-                                    4: 31.6e-12,
-                                    5: 100.0e-12,
-                                    6: 316.0e-12,
-                                    7: 1.0e-9,
-                                    8: 3.16e-9,
-                                    9: 10.0e-9,
-                                    10: 31.6e-9,
-                                    11: 100.0e-9,
-                                    12: 316.0e-9,
-                                    13: 1.0e-6,
-                                    14: 3.16e-6,
-                                    15: 10.0e-6,
-                                    16: 31.6e-6,
-                                    17: 100.0e-6,
-                                    18: 316.0e-6,
-                                    19: 1.0e-3,
-                                    20: 3.16e-3,
-                                    21: 10.0-3,
-                                    22: 31.6-3}}
+            excitation_key = {'0': voltage_excitation_key,
+                              '1': current_excitation_key}
 
         excitation_units_key = {'0': 'volts',
                                 '1': 'amps'}
@@ -280,9 +369,6 @@ class Channel:
         self.excitation = excitation_key[_mode][int(_excitation)]
         self.excitation_units = excitation_units_key[_mode]
 
-        autorange_key = {'0': 'on',
-                         '1': 'off',
-                         '2': 'ROX 102B'}
         self.autorange = autorange_key[_autorange]
 
         range_key = {1: 2.0e-3,
@@ -320,20 +406,101 @@ class Channel:
 
         return resp
 
+    def _set_input_setup(self, params):
+        """Set INTYPE.
+
+        Parameters are <mode>, <excitation>, <autorange>, <range>, <cs shunt>,
+        <units>. Will determine <input/channel> from attributes.
+
+        :param params: INTYPE parameters
+        :type params: list of str
+
+        :returns: response from ls.msg
+        """
+        assert len(params) == 6
+
+        reply = [str(self.channel_num)]
+        [reply.append(x) for x in params]
+
+        param_str = ','.join(reply)
+        return self.ls.msg(f"INTYPE {param_str}")
+
     # Public API
 
-    # INTYPE
+    def get_excitation_mode(self):
+        """Get the excitation mode form INTYPE?
+
+        :returns: excitation mode, 'current' or 'voltage'
+        :rtype: str"""
+        resp = self.get_input_setup()
+        self.mode = mode_key[resp[0]]
+        return self.mode
+
     def set_excitation_mode(self, excitation_mode):
-        pass
+        """Set the excitation mode to either voltage excitation or current
+        exitation.
+
+        :param excitation_mode: mode we want, must be 'current' or 'voltage'
+        :type excitation_mode: str
+
+        :returns: reply from INTYPE call
+        :rtype: str
+        """
+        assert excitation_mode in ['voltage', 'current']
+
+        resp = self.get_input_setup()
+        resp[0] = mode_lock[excitation_mode]
+
+        self.mode = mode_key[resp[0]]
+
+        return self._set_input_setup(resp)
+
+    def get_excitation(self):
+        """Get excitation value from INTYPE?
+
+        :returns: excitation value in volts or amps, depending on mode
+        :rtype: float
+        """
+        resp = self.get_input_setup()
+        _mode = resp[0]
+        _excitation = resp[1]
+
+        if self.channel_num == "A":
+            control_channel = True
+        else:
+            control_channel = False
+
+        if control_channel:
+            excitation_key = {'1': {1: 316.0e-12,
+                                    2: 1e-9,
+                                    3: 3.16e-9,
+                                    4: 10e-9,
+                                    5: 31.6e-9,
+                                    6: 100e-9}}
+        else:
+            excitation_key = {'0': voltage_excitation_key,
+                              '1': current_excitation_key}
+
+        self.excitation = excitation_key[_mode][int(_excitation)]
+
+        return self.excitation
 
     def set_excitation(self, excitation_value):
         pass
 
     def enable_autorange(self):
-        pass
+        """Enable auto range for channel via INTYPE command."""
+        resp = self.get_input_setup()
+        resp[2] = '1'
+        self.autorange = autorange_key[resp[2]]
+        return self._set_input_setup(resp)
 
     def disable_autorange(self):
-        pass
+        """Disable auto range for channel via INTYPE command."""
+        resp = self.get_input_setup()
+        resp[2] = '0'
+        self.autorange = autorange_key[resp[2]]
+        return self._set_input_setup(resp)
 
     def set_resistance_range(self, resistance_range):
         pass
@@ -353,10 +520,26 @@ class Channel:
 
     # INSET
     def enable_channel(self):
-        pass
+        """Enable channel using INSET command.
+
+        :returns: response from self._set_input_setup()
+        :rtype: str
+        """
+        resp = self.get_input_channel_parameter()
+        resp[0] = '1'
+        self.enabled = True
+        return self._set_input_channel_parameter(resp)
 
     def disable_channel(self):
-        pass
+        """Disable channel using INSET command.
+
+        :returns: response from self._set_input_setup()
+        :rtype: str
+        """
+        resp = self.get_input_channel_parameter()
+        resp[0] = '0'
+        self.enabled = False
+        return self._set_input_channel_parameter(resp)
 
     def set_dwell(self, dwell):
         pass

@@ -65,6 +65,7 @@ voltage_excitation_lock = {2.0e-6: 1,
                            63.2e-3: 10,
                            200.0e-3: 11,
                            632.0e-3: 12}
+
 current_excitation_lock = {1.0e-12: 1,
                            3.16e-12: 2,
                            10.0e-12: 3,
@@ -88,6 +89,67 @@ current_excitation_lock = {1.0e-12: 1,
                            10.0-3: 21,
                            31.6-3: 22}
 
+range_key = {1: 2.0e-3,
+             2: 6.32e-3,
+             3: 20.0e-3,
+             4: 63.2e-3,
+             5: 200e-3,
+             6: 632e-3,
+             7: 2.0,
+             8: 6.32,
+             9: 20.0,
+             10: 63.2,
+             11: 200,
+             12: 632,
+             13: 2e3,
+             14: 6.32e3,
+             15: 20.0e3,
+             16: 63.2e3,
+             17: 200e3,
+             18: 632e3,
+             19: 2e6,
+             20: 6.32e6,
+             21: 20.0e6,
+             22: 63.2e6}
+
+range_lock = {2.0e-3: 1,
+              6.32e-3: 2,
+              20.0e-3: 3,
+              63.2e-3: 4,
+              200e-3: 5,
+              632e-3: 6,
+              2.0: 7,
+              6.32: 8,
+              20.0: 9,
+              63.2: 10,
+              200: 11,
+              632: 12,
+              2e3: 13,
+              6.32e3: 14,
+              20.0e3: 15,
+              63.2e3: 16,
+              200e3: 17,
+              632e3: 18,
+              2e6: 19,
+              6.32e6: 20,
+              20.0e6: 21,
+              63.2e6: 22}
+
+units_key = {'1': 'kelvin',
+             '2': 'ohms'}
+
+units_lock = {'kelvin': '1',
+              'ohms': '2'}
+
+csshunt_key = {'0': 'on',
+               '1': 'off'}
+
+tempco_key = {'1': 'negative',
+              '2': 'positive'}
+
+tempco_lock = {'negative': '1',
+               'positive': '2'}
+
 
 class LS372:
     """
@@ -100,7 +162,7 @@ class LS372:
         self.num_channels = num_channels
 
         self.id = self.get_id()
-        self.autoscan = None
+        self.autoscan = self.get_autoscan()
         # Enable all channels
         #  going to hold off on enabling all channels automatically - bjk
         # for i in range(self.num_channels):
@@ -219,14 +281,6 @@ class LS372:
     def get_network_configuration(self):
         pass
 
-    # PID
-    def set_pid(self, P, I, D):
-        pass
-
-    # PID?
-    def get_pid(self):
-        pass
-
 
 class Channel:
     """Lakeshore 372 Channel Object
@@ -244,6 +298,7 @@ class Channel:
         self.get_input_channel_parameter()
         self.get_sensor_input_name()
         self.get_input_setup()
+        self.tlimit = self.get_temperature_limit()
 
     def get_input_channel_parameter(self):
         """Run Input Channel Parameter Query
@@ -268,9 +323,6 @@ class Channel:
         Reference: LakeShore 372 Manual - pg177
         """
         resp = self.ls.msg(f"INSET? {self.channel_num}").split(',')
-
-        tempco_key = {'1': 'negative',
-                      '2': 'positive'}
 
         self.enabled = bool(int(resp[0]))
         self.dwell = int(resp[1])  # seconds
@@ -371,37 +423,10 @@ class Channel:
 
         self.autorange = autorange_key[_autorange]
 
-        range_key = {1: 2.0e-3,
-                     2: 6.32e-3,
-                     3: 20.0e-3,
-                     4: 63.2e-3,
-                     5: 200e-3,
-                     6: 632e-3,
-                     7: 2.0,
-                     8: 6.32,
-                     9: 20.0,
-                     10: 63.2,
-                     11: 200,
-                     12: 632,
-                     13: 2e3,
-                     14: 6.32e3,
-                     15: 20.0e3,
-                     16: 63.2e3,
-                     17: 200e3,
-                     18: 632e3,
-                     19: 2e6,
-                     20: 6.32e6,
-                     21: 20.0e6,
-                     22: 63.2e6}
-
         self.range = range_key[int(_range)]
 
-        csshunt_key = {'0': 'on',
-                       '1': 'off'}
         self.csshunt = csshunt_key[_csshunt]
 
-        units_key = {'1': 'kelvin',
-                     '2': 'ohms'}
         self.units = units_key[_units]
 
         return resp
@@ -486,7 +511,40 @@ class Channel:
         return self.excitation
 
     def set_excitation(self, excitation_value):
-        pass
+        """Set voltage/current exitation to specified value via INTYPE command.
+
+        :param excitation_value: value in volts/amps of excitation
+        :type excitation_value: float
+
+        :returns: response from INTYPE command
+        :rtype: str
+        """
+        _mode = self.mode
+
+        if self.channel_num == "A":
+            control_channel = True
+        else:
+            control_channel = False
+
+        if control_channel:
+            excitation_lock = {316.0e-12: 1,
+                               1e-9: 2,
+                               3.16e-9: 3,
+                               10e-9: 4,
+                               31.6e-9: 5,
+                               100e-9: 6}
+        else:
+            if _mode == 'voltage':
+                excitation_lock = voltage_excitation_lock
+            elif _mode == 'current':
+                excitation_lock = current_excitation_lock
+
+        closest_value = min(excitation_lock, key=lambda x: abs(x-excitation_value))
+
+        resp = self.get_input_setup()
+        resp[1] = str(excitation_lock[closest_value])
+
+        return self._set_input_setup(resp)
 
     def enable_autorange(self):
         """Enable auto range for channel via INTYPE command."""
@@ -503,26 +561,107 @@ class Channel:
         return self._set_input_setup(resp)
 
     def set_resistance_range(self, resistance_range):
-        pass
+        """Set the resistance range.
+
+        :param resistance_range: range in ohms we want to measure. Doesn't need
+                                 to be exactly one of the options on the
+                                 lakeshore, will select closest valid range,
+                                 though note these are in increments of 2, 6.32, 20, 63.2, etc.
+        :type resistance_range: float
+
+        :returns: response from INTYPE command
+        :rtype: str
+        """
+
+        def get_closest_resistance_range(num):
+            """Gets the closest valid resistance range."""
+            ranges = [2.0e-3, 6.32e-3, 20.0e-3, 63.2e-3, 200e-3, 632e-3, 2.0,
+                      6.32, 20.0, 63.2, 200, 632, 2e3, 6.32e3, 20.0e3, 63.2e3,
+                      200e3, 632e3, 2e6, 6.32e6, 20.0e6, 63.2e6]
+
+            return min(ranges, key=lambda x: abs(x-num))
+
+        _range = get_closest_resistance_range(resistance_range)
+
+        resp = self.get_input_setup()
+        resp[3] = str(range_lock[_range])
+        self.range = _range
+        return self._set_input_setup(resp)
+
+    def get_resistance_range(self):
+        """Get the resistance range.
+
+        :returns: resistance range in Ohms
+        :rtype: float
+        """
+        resp = self.get_input_setup()
+        _range = resp[3]
+        self.range = range_key[int(_range)]
+        return self.range
 
     def enable_excitation(self):
-        pass
+        """Enable excitation by not shunting the current source via INTYPE command.
+
+        :returns: state of excitation
+        :rtype: str
+        """
+        resp = self.get_input_setup()
+        resp[4] = '0'
+        self.csshunt = csshunt_key[resp[4]]
+        return self._set_input_setup(resp)
 
     def disable_excitation(self):
-        pass
+        """Disable excitation by shunting the current source via INTYPE command.
 
-    # RDGPWR?
+        :returns: state of excitation
+        :rtype: str
+        """
+        resp = self.get_input_setup()
+        resp[4] = '1'
+        self.csshunt = csshunt_key[resp[4]]
+        return self._set_input_setup(resp)
+
     def get_excitation_power(self):
-        pass
+        """Get the most recent power calculation for the channel via RDGPWR? command.
+
+        :returns: power in Watts
+        :rtype: float
+        """
+        # TODO: Confirm units on this are watts
+        resp = self.ls.msg(f"RDGPWR? {self.channel_num}").strip()
+        return float(resp)
 
     def set_units(self, units):
-        pass
+        """Set preferred units using INTYPE command.
 
-    # INSET
+        :param units: preferred units parameter for sensor readings, 'kelvin'
+                      or 'ohms'
+        :type units: str
+        :returns: response from INTYPE command
+        :rtype: str
+        """
+        assert units.lower() in ['kelvin', 'ohms']
+
+        resp = self.get_input_setup()
+        resp[5] = units_lock[units.lower()]
+        return self._set_input_setup(resp)
+
+    def get_units(self):
+        """Get preferred units from INTYPE? command.
+
+        :returns: preferred units
+        :rtype: str
+        """
+        resp = self.get_input_setup()
+        _units = resp[5]
+        self.units = units_key[_units]
+
+        return self.units
+
     def enable_channel(self):
         """Enable channel using INSET command.
 
-        :returns: response from self._set_input_setup()
+        :returns: response from self._set_input_channel_parameter()
         :rtype: str
         """
         resp = self.get_input_channel_parameter()
@@ -533,7 +672,7 @@ class Channel:
     def disable_channel(self):
         """Disable channel using INSET command.
 
-        :returns: response from self._set_input_setup()
+        :returns: response from self._set_input_channel_parameter()
         :rtype: str
         """
         resp = self.get_input_channel_parameter()
@@ -542,22 +681,107 @@ class Channel:
         return self._set_input_channel_parameter(resp)
 
     def set_dwell(self, dwell):
-        pass
+        """Set the autoscanning dwell time.
 
-    def set_pause(self, dwell):
-        pass
+        :param dwell: Dwell time in seconds
+        :type dwell: int
+        :returns: response from self._set_input_channel_parameter()
+        :rtype: str
+        """
+        assert dwell in range(1, 201), "Dwell must be 1 to 200 sec"
 
-    # Can also use INCRV/INCRV?
+        resp = self.get_input_channel_parameter()
+        resp[1] = str(dwell)  # seconds
+        self.dwell = dwell  # seconds
+        return self._set_input_channel_parameter(resp)
+
+    def get_dwell(self):
+        """Get the autoscanning dwell time.
+
+        :returns: the dwell time in seconds
+        :rtype: int
+        """
+        resp = self.get_input_channel_parameter()
+        self.dwell = int(resp[1])
+        return self.dwell
+
+    def set_pause(self, pause):
+        """Set pause time.
+
+        :param pause: Pause time in seconds
+        :type pause: int
+        :returns: response from self._set_input_channel_parameter()
+        :rtype: str
+        """
+        assert pause in range(3, 201), "Pause must be 3 to 200 sec"
+
+        resp = self.get_input_channel_parameter()
+        resp[2] = str(pause)  # seconds
+        self.pause = pause  # seconds
+        return self._set_input_channel_parameter(resp)
+
+    def get_pause(self):
+        """Get the pause time from INSET.
+
+        :returns: the pause time in seconds
+        :rtype: int
+        """
+        resp = self.get_input_channel_parameter()
+        self.pause = int(resp[2])  # seconds
+        return self.pause
+
     def set_calibration_curve(self, curve_number):
-        pass
+        """Set calibration curve using INSET.
+
+        Note: If curve doesn't exist, curve number gets set to 0.
+
+        :param curve_number: Curve number for temperature conversion
+        :type curve_number: int
+        """
+        assert curve_number in range(0, 60), "Curve number must from 0 to 59"
+
+        resp = self.get_input_channel_parameter()
+        resp[3] = str(curve_number)
+        self.curve_num = self.get_calibration_curve()
+        return self._set_input_channel_parameter(resp)
 
     def get_calibration_curve(self):
-        pass
+        """Get calibration curve number using INSET?
+
+        :returns: curve number in use for the channel
+        :rtype: int
+        """
+        resp = self.get_input_channel_parameter()
+        self.curve_num = int(resp[3])
+        return self.curve_num
 
     def set_temperature_coefficient(self, coefficient):
-        pass
+        """Set tempertaure coefficient with INSET.
 
-    # INNAME
+        :param coefficient: set coefficient to be used for temperature control
+                            if no curve is selected, either 'negative' or
+                            'positive'
+        :type coefficient: str
+
+        :returns: response from _set_input_channel_parameter()
+        :rtype: str
+        """
+        assert coefficient in ['positive', 'negative']
+
+        resp = self.get_input_channel_parameter()
+        resp[4] = tempco_lock[coefficient]
+        self.tempco = coefficient
+        return self._set_input_channel_parameter(resp)
+
+    def get_temperature_coefficient(self):
+        """Get temperature coefficient from INSET?
+
+        :returns: temperature coefficient
+        """
+        resp = self.get_input_channel_parameter()
+        self.tempco = tempco_key[resp[4]]
+        return self.tempco
+
     def get_sensor_input_name(self):
         """Run Sensor Input Name Query
 
@@ -571,31 +795,99 @@ class Channel:
         return resp
 
     def set_sensor_input_name(self, name):
-        pass
+        """Set sensor input name using INNAME.
 
-    # RDGK?
+        Note: ',' and ';' characters are sanatized from input
+
+        :param name: name to give input channel
+        :type name: str
+        """
+        name = name.replace(',', '').replace(';', '')
+        resp = self.ls.msg(f'INNAME {self.channel_num},"{name}"')
+        self.name = name
+        return resp
+
     def get_kelvin_reading(self):
-        pass
+        """Get temperature reading from channel.
 
-    # RDGR?
+        :returns: temperature from channel in Kelvin
+        :rtype: float
+        """
+        return float(self.ls.msg(f"RDGK? {self.channel_num}"))
+
     def get_resistance_reading(self):
-        pass
+        """Get resistence reading from channel.
 
-    # RDGST?
+        :returns: resistance from channel in Ohms
+        :rtype: float
+        """
+        return float(self.ls.msg(f"RDGR? {self.channel_num}"))
+
     def get_reading_status(self):
-        pass
+        """Get status of input reading.
 
-    # SRDG?
+        :returns: list of errors on reading (or None if no errors)
+        :rtype: list of str
+        """
+        resp = self.ls.msg(f"RDGST? {self.channel_num}")
+        error_sum = int(resp)
+
+        errors = {128: "T.UNDER",
+                  64: "T.OVER",
+                  32: "R.UNDER",
+                  16: "R.OVER",
+                  8: "VDIF OVL",
+                  4: "VMIX OVL",
+                  2: "VCM OVL",
+                  1: "CS OVL"}
+
+        error_list = []
+        for key, value in errors.items():
+            if key <= error_sum:
+                error_list.append(value)
+                error_sum -= key
+
+        assert error_sum == 0
+
+        if len(error_list) == 0:
+            error_list = None
+
+        return error_list
+
     def get_sensor_reading(self):
-        pass
+        """Get sensor reading from channel.
 
-    # TLIMIT
+        :returns: resistance from channel in Ohms
+        :rtype: float
+        """
+        return float(self.ls.msg(f"SRDG? {self.channel_num}"))
+
     def set_temperature_limit(self, limit):
-        pass
+        """Set temperature limit in kelvin for which to shutdown all control
+        outputs when exceeded. A temperature limit of zero turns the
+        temperature limit feature off for the given sensor input.
 
-    # TLIMIT?
+        :param limit: temperature limit in kelvin
+        :type limit: float
+
+        :returns: response from TLIMIT command
+        :rtype: str
+        """
+        resp = self.ls.msg(f"TLIMIT {self.channel_num},{limit}")
+        self.tlimit = limit
+        return resp
+
     def get_temperature_limit(self):
-        pass
+        """Get temperature limit, at which output controls are shutdown.
+
+        A temperature limit of 0 disables this feature.
+
+        :returns: temperature limit in Kelvin
+        :rtype: float
+        """
+        resp = self.ls.msg(f"TLIMIT? {self.channel_num}").strip()
+        self.tlimit = float(resp)
+        return self.tlimit
 
     def __str__(self):
         string = "-" * 50 + "\n"
@@ -618,12 +910,77 @@ class Channel:
 
 class Curve:
     """Calibration Curve class for the LS372."""
-    # CRVHDR?
+    def __init__(self, ls, curve_num):
+        self.ls = ls
+        self.curve_num = curve_num
+
+        self.name = None
+        self.serial_number = None
+        self.format = None
+        self.limit = None
+        self.coefficient = None
+        self.get_header()  # populates above values
+
     def get_header(self):
-        pass
+        """Get curve header description.
+
+        :returns: response from CRVHDR? in list
+        :rtype: list of str
+        """
+        resp = self.ls.msg(f"CRVHDR? {self.curve_num}").split(',')
+
+        _name = resp[0].strip()
+        _sn = resp[1].strip()
+        _format = resp[2]
+        _limit = float(resp[3])
+        _coefficient = resp[4]
+
+        self.name = _name
+        self.serial_number = _sn
+
+        format_key = {'3': "Ohm/K (linear)",
+                      '4': "log Ohm/K (linear)",
+                      '7': "Ohm/K (cubic spline)"}
+
+        self.format = format_key[_format]
+
+        self.limit = _limit
+        self.coefficient = tempco_key[_coefficient]
+
+        return resp
 
     # CRVHDR
     def set_header(self, name, serial_number, _format, limit, coefficient):
+        pass
+
+    def get_name(self):
+        pass
+
+    def set_name(self, name):
+        pass
+
+    def get_serial_number(self):
+        pass
+
+    def set_serial_number(self, serial_number):
+        pass
+
+    def get_format(self):
+        pass
+
+    def set_format(self, _format):
+        pass
+
+    def get_limit(self):
+        pass
+
+    def set_limit(self, limit):
+        pass
+
+    def get_coefficient(self):
+        pass
+
+    def set_coefficient(self, coefficient):
         pass
 
     # CRVPT?
@@ -725,6 +1082,15 @@ class Heater:
 
     def set_analog_output(self):
         pass
+
+    # PID
+    def set_pid(self, P, I, D):
+        pass
+
+    # PID?
+    def get_pid(self):
+        resp = self.msg("PID?").split(',')
+
 
 
 if __name__ == "__main__":

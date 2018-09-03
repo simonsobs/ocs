@@ -6,12 +6,57 @@ unit that is being used for something, you'll probably want to reset the
 parameters you require.
 """
 
-from ocs.Lakeshore.Lakeshore372 import LS372, Channel
+from ocs.Lakeshore.Lakeshore372 import LS372, Channel, Curve
 
 ls = LS372('172.16.127.192')
 ch = Channel(ls, 4)
+cv = Curve(ls, 21)
+
+# Curve Tests
+def test_set_get_curve():
+    tmp_file = tmpdir.mkdir("curve").join('curve.txt')
+    init_curve = cv.get_curve(tmp_file)
+    cv.set_curve("./test_ls372/test.cal")
+    assert cv.name == "UNIT TEST"
+    assert cv.serial_number == "00000042"
+    cv.set_curve(tmp_file)
+
+def test_set_get_curve_coefficient():
+    init_coefficient = cv.get_coefficient()
+    cv.set_coefficient('positive')
+    assert cv.get_coefficient() == 'positive'
+    cv.set_coefficient(init_coefficient)
 
 
+def test_set_get_curve_limit():
+    init_limit = cv.get_limit()
+    cv.set_limit(42.0)
+    assert cv.get_limit() == 42.0
+    cv.set_limit(init_limit)
+
+
+def test_set_get_curve_format():
+    init_format = cv.get_format()
+    cv.set_format("Ohm/K (cubic spline)")
+    assert cv.get_format() == "Ohm/K (cubic spline)"
+    cv.set_format(init_format)
+
+
+def test_set_get_curve_serial_number():
+    init_sn = cv.get_serial_number()
+    cv.set_serial_number("10001110101")
+    assert cv.get_serial_number() == "0001110101"
+    cv.set_serial_number(init_sn)
+
+
+def test_set_get_curve_name():
+    init_name = cv.get_name()
+    cv.set_name("unit test")
+    assert cv.get_name().lower() == "unit test"
+    cv.set_name(init_name)
+
+
+# LS372 Tests
 def test_scanner_off():
     init_autoscan = ls.get_autoscan()
     ls.disable_autoscan()
@@ -32,6 +77,7 @@ def test_scanner_on():
         ls.disable_autoscan()
 
 
+# Channel Tests
 def test_enable_autorange():
     init_autorange = ch.autorange
     ch.enable_autorange()

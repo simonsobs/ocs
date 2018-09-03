@@ -5,6 +5,7 @@
 
 import socket
 import time
+import numpy as np
 
 # Lookup keys for command parameters.
 autorange_key = {'0': 'off',
@@ -149,6 +150,14 @@ tempco_key = {'1': 'negative',
 
 tempco_lock = {'negative': '1',
                'positive': '2'}
+
+format_key = {'3': "Ohm/K (linear)",
+              '4': "log Ohm/K (linear)",
+              '7': "Ohm/K (cubic spline)"}
+
+format_lock = {"Ohm/K (linear)": '3',
+               "log Ohm/K (linear)": '4',
+               "Ohm/K (cubic spline)": '7'}
 
 
 class LS372:
@@ -938,10 +947,6 @@ class Curve:
         self.name = _name
         self.serial_number = _sn
 
-        format_key = {'3': "Ohm/K (linear)",
-                      '4': "log Ohm/K (linear)",
-                      '7': "Ohm/K (cubic spline)"}
-
         self.format = format_key[_format]
 
         self.limit = _limit
@@ -949,59 +954,290 @@ class Curve:
 
         return resp
 
-    # CRVHDR
-    def set_header(self, name, serial_number, _format, limit, coefficient):
-        pass
+    def _set_header(self, params):
+        """Set the Curve Header with the CRVHDR command.
+
+        Parameters should be <name>, <SN>, <format>, <limit value>,
+        <coefficient>. We will determine <curve> from attributes. This
+        allows us to use output from get_header directly, as it doesn't return
+        the curve number.
+
+        <name> is limited to 15 characters. Longer names take the fist 15 characters
+        <sn> is limited to 10 characters. Longer sn's take the last 10 digits
+
+        :param params: CRVHDR parameters
+        :type params: list of str
+
+        :returns: response from ls.msg
+        """
+        assert len(params) == 5
+
+        _curve_num = self.curve_num
+        _name = params[0][:15]
+        _sn = params[1][-10:]
+        _format = params[2]
+        assert _format.strip() in ['3', '4', '7']
+        _limit = params[3]
+        _coeff = params[4]
+        assert _coeff.strip() in ['1', '2']
+
+        return self.ls.msg(f'CRVHDR {_curve_num},"{_name}","{_sn}",{_format},{_limit},{_coeff}')
 
     def get_name(self):
-        pass
+        """Get the curve name with the CRVHDR? command."
+
+        :returns: The curve name
+        :rtype: str
+        """
+        self.get_header()
+        return self.name
 
     def set_name(self, name):
-        pass
+        """Set the curve name with the CRVHDR command.
+
+        :param name: The curve name, limit of 15 characters, longer names get truncated
+        :type name: str
+
+        :returns: the response from the CRVHDR command
+        :rtype: str
+        """
+        resp = self.get_header()
+        resp[0] = name.upper()
+        self.name = resp[0]
+        return self._set_header(resp)
 
     def get_serial_number(self):
-        pass
+        """Get the curve serial number with the CRVHDR? command."
+
+        :returns: The curve serial number
+        :rtype: str
+        """
+        self.get_header()
+        return self.serial_number
 
     def set_serial_number(self, serial_number):
-        pass
+        """Set the curve serial number with the CRVHDR command.
+
+        :param serial_number: The curve serial number, limit of 10 characters,
+                              longer serials get truncated
+        :type name: str
+
+        :returns: the response from the CRVHDR command
+        :rtype: str
+        """
+        resp = self.get_header()
+        resp[1] = serial_number
+        self.serial_number = resp[1]
+        return self._set_header(resp)
 
     def get_format(self):
-        pass
+        """Get the curve data format with the CRVHDR? command."
+
+        :returns: The curve data format
+        :rtype: str
+        """
+        self.get_header()
+        return self.format
 
     def set_format(self, _format):
-        pass
+        """Set the curve format with the CRVHDR command.
+
+        :param _format: The curve format, valid formats are:
+                          "Ohm/K (linear)"
+                          "log Ohm/K (linear)"
+                          "Ohm/K (cubic spline)"
+        :type name: str
+
+        :returns: the response from the CRVHDR command
+        :rtype: str
+        """
+        resp = self.get_header()
+
+        assert _format in format_lock.keys(), "Please select a valid format"
+
+        resp[2] = format_lock[_format]
+        self.format = _format
+        return self._set_header(resp)
 
     def get_limit(self):
-        pass
+        """Get the curve temperature limit with the CRVHDR? command."
+
+        :returns: The curve temperature limit
+        :rtype: str
+        """
+        self.get_header()
+        return self.limit
 
     def set_limit(self, limit):
-        pass
+        """Set the curve temperature limit with the CRVHDR command.
+
+        :param limit: The curve temperature limit
+        :type limit: float
+
+        :returns: the response from the CRVHDR command
+        :rtype: str
+        """
+        resp = self.get_header()
+        resp[3] = str(limit)
+        self.limit = limit
+        return self._set_header(resp)
 
     def get_coefficient(self):
-        pass
+        """Get the curve temperature coefficient with the CRVHDR? command."
+
+        :returns: The curve temperature coefficient
+        :rtype: str
+        """
+        self.get_header()
+        return self.coefficient
 
     def set_coefficient(self, coefficient):
-        pass
+        """Set the curve temperature coefficient with the CRVHDR command."
 
-    # CRVPT?
+        :param coefficient: The curve temperature coefficient, either 'positive' or 'negative'
+        :type limit: str
+
+        :returns: the response from the CRVHDR command
+        :rtype: str
+        """
+        assert coefficient in ['positive', 'negative']
+
+        resp = self.get_header()
+        resp[4] = tempco_lock[coefficient]
+        self.tempco = coefficient
+        return self._set_header(resp)
+
     def get_data_point(self, index):
-        pass
+        """Get a single data point from a curve, given the index, using the
+        CRVPT? command.
 
-    # CRVPT
-    # TODO: find out what curvature value does (it is optional)
-    def set_data_point(self, index, units_value, kevlin_value, curvature_value=None):
-        pass
+        The format for the return value, a 3-tuple of floats, is chosen to work
+        with how the get_curve() method later stores the entire curve in a
+        numpy structured array.
+
+        :param index: index of breakpoint to query
+        :type index: int
+
+        :returns: (units, tempertaure, curvature) values for the given breakpoint
+        :rtype: 3-tuple of floats
+        """
+        resp = self.ls.msg(f"CRVPT? {self.curve_num},{index}").split(',')
+        _units = float(resp[0])
+        _temp = float(resp[1])
+        _curvature = float(resp[2])
+        return (_units, _temp, _curvature)
+
+    def _set_data_point(self, index, units, kelvin, curvature=None):
+        """Set a single data point with the CRVPT command.
+
+        :param index: data point index
+        :type index: int
+        :param units: value of the sensor units to 6 digits
+        :type units: float
+        :param kelvin: value of the corresponding temp in Kelvin to 6 digits
+        :type kelvin: float
+        :param curavature: used for calculating cublic spline coefficients (optional)
+        :type curvature: float
+
+        :returns: response from the CRVPT command
+        :rtype: str
+        """
+        if curvature is None:
+            resp = self.ls.msg(f"CRVPT {self.curve_num}, {index}, {units}, {kelvin}")
+        else:
+            resp = self.ls.msg(f"CRVPT {self.curve_num}, {index}, {units}, {kelvin}, {curvature}")
+
+        return resp
 
     # Public API Elements
-    def get_curve(self):
-        pass
+    def get_curve(self, _file=None):
+        """Get a calibration curve from the LS372.
+
+        If _file is not None, save to file location.
+        """
+        breakpoints = []
+        for i in range(1, 201):
+            x = self.get_data_point(i)
+            if x[0] == 0:
+                break
+            breakpoints.append(x)
+
+        struct_array = np.array(breakpoints, dtype=[('units', 'f8'),
+                                                    ('temperature', 'f8'),
+                                                    ('curvature', 'f8')])
+
+        self.breakpoints = struct_array
+
+        if _file is not None:
+            with open('./calibration/' + self.serial_number + '.cal', 'w') as f:
+                f.write('Sensor Model:\t' + self.name + '\r\n')
+                f.write('Serial Number:\t' + self.serial_number + '\r\n')
+                f.write('Data Format:\t' + format_lock[self.format] + f'\t({self.format})\r\n')
+                f.write('SetPoint Limit:\t%s\t(Kelvin)\r\n' % '%0.4f' % np.max(self.breakpoints['temperature']))
+                f.write('Temperature coefficient:\t' + tempco_lock[self.coefficient] + f' ({self.coefficient})\r\n')
+                f.write('Number of Breakpoints:\t%s\r\n' % len(self.breakpoints))
+                f.write('\r\n')
+                f.write('No.\tUnits\tTemperature (K)\r\n')
+                f.write('\r\n')
+                for idx, point in enumerate(self.breakpoints):
+                    f.write('%s\t%s %s\r\n' % (idx+1, '%0.4f' % point['units'], '%0.4f' % point['temperature']))
+
+        return self.breakpoints
 
     def set_curve(self, _file):
-        pass
+        """Set a calibration curve, loading it from the file.
 
-    # CRVDEL
+        :param _file: the file to load the calibration curve from
+        :type _file: str
+
+        :returns: return the new curve header, refreshing the attributes
+        :rtype: list of str
+        """
+        with open(_file) as f:
+            content = f.readlines()
+
+        header = []
+        for i in range(0, 6):
+            if i < 2 or i > 4:
+                header.append(content[i].strip().split(":", 1)[1].strip())
+            else:
+                header.append(content[i].strip().split(":", 1)[1].strip().split("(", 1)[0].strip())
+
+        # Skip to the R and T values in the file and strip them of tabs, newlines, etc
+        values = []
+        for i in range(9, len(content)):
+            values.append(content[i].replace('\t', ' ').strip().replace(' ', ', ').split(','))
+
+        self.delete_curve()  # remove old curve first, so old breakpoints don't remain
+
+        self._set_header(header[:-1])  # ignore num of breakpoints
+
+        for point in values:
+            self._set_data_point(point[0], point[1], point[2])
+
+        # refresh curve attributes
+        return self.get_header()
+
     def delete_curve(self):
-        pass
+        """Delete the curve using the CRVDEL command.
+
+        :returns: the response from the CRVDEL command
+        :rtype: str
+        """
+        resp = self.ls.msg(f"CRVDEL {self.curve_num}")
+        self.get_header()
+        return resp
+
+    def __str__(self):
+        string = "-" * 50 + "\n"
+        string += "Curve %d: %s\n" % (self.curve_num, self.name)
+        string += "-" * 50 + "\n"
+        string += "  %-30s\t%r\n" % ("Serial Number:", self.serial_number)
+        string += "  %-30s\t%s (%s)\n" % ("Format :", format_lock[self.format], self.format)
+        string += "  %-30s\t%s\n" % ("Temperature Limit:", self.limit)
+        string += "  %-30s\t%s\n" % ("Temperature Coefficient:", self.coefficient)
+
+        return string
 
 
 class Heater:
@@ -1090,7 +1326,7 @@ class Heater:
     # PID?
     def get_pid(self):
         resp = self.msg("PID?").split(',')
-
+        return resp
 
 
 if __name__ == "__main__":

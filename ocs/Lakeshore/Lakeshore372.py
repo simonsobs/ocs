@@ -1,7 +1,4 @@
 # Lakeshore372.py
-# 6/6/2018
-# Lauren Saunders
-# Follows similar commands to Lakeshore240.py
 
 import socket
 import time
@@ -164,7 +161,7 @@ class LS372:
     """
         Lakeshore 372 class.
     """
-    def __init__(self, ip, baud=57600, timeout=10, num_channels=16):
+    def __init__(self, ip, timeout=10, num_channels=16):
         self.com = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.com.connect((ip, 7777))
         self.com.settimeout(timeout)

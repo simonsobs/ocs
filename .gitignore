@@ -110,6 +110,7 @@ ENV/
 .mypy_cache/
 
 # Custom
+.crossbar/
 example/dot_crossbar/key.*
 ocs/Lakeshore/ls.cfg
 ocs/Lakeshore/ips.json

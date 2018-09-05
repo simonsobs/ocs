@@ -31,4 +31,5 @@ def getUSBNodes():
 
     return nodes
 
-
+if __name__=="__main__":
+    print(getUSBNodes())

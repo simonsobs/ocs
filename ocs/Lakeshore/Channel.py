@@ -15,9 +15,7 @@ from ocs.Lakeshore.Curve import Curve
 # and what the integers actually stand for
 # ==============================================================================
 
-# To convert from int representation to string and back
-sensors = {"Diode":1, "PlatRTC":2, "NTCRTC": 3}
-# units = {"Kelvin": 1, "Celsius": 2, "Sensor": 3, "Fahrenheit": 4}
+# To convert from int representation to string
 sensorStrings = ["None","Diode", "PlatRTC", "NTCRTC"]
 unitStrings = ["None", "Kelvin", "Celsius", "Sensor", "Fahrenheit"]
 
@@ -61,9 +59,10 @@ class Channel:
         response = self.ls.msg("INNAME? %d" % (self.channel_num))
         self._name = response
 
-    def set_values(self, sensor=None, auto_range=None, range=None, current_reversal=None, unit=None, enabled=None, name=None):
+    def set_values(self, sensor=None, auto_range=None, range=None,
+                   current_reversal=None, unit=None, enabled=None, name=None):
         """
-            A function to force set values to be valid, and to make sure class data corresponds to data that is actually sent to the module.
+            Sets Channel parameters after validation.
         """
         # Checks to see if values are valid
         if sensor is not None:

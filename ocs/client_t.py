@@ -5,6 +5,7 @@ txaio.use_twisted()
 
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet.error import ReactorNotRunning
 
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner

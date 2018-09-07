@@ -5,6 +5,7 @@ txaio.use_twisted()
 
 from twisted.internet import reactor, task, threads
 from twisted.internet.defer import inlineCallbacks, Deferred, DeferredList, FirstError
+from twisted.internet.error import ReactorNotRunning
 
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
@@ -52,12 +53,19 @@ class OCSAgent(ApplicationSession):
 
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
+
+        # Stops all currently running sessions
+        for session in self.sessions:
+            if self.sessions[session] is not None:
+                self.stop(session)
+
         self.disconnect()
 
     def onDisconnect(self):
         self.log.info('transport disconnected')
         # this is to clean up stuff. it is not our business to
         # possibly reconnect the underlying connection
+        self._countdown = 1
         self._countdown -= 1
         if self._countdown <= 0:
             try:

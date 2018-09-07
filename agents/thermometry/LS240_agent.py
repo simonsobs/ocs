@@ -8,6 +8,7 @@ import threading
 class LS240_Agent:
 
     def __init__(self, agent, fake_data = False, port="/dev/ttyUSB0"):
+        self.active = True
         self.agent = agent
         self.lock = threading.Semaphore()
         self.job = None
@@ -15,8 +16,15 @@ class LS240_Agent:
         self.module = None
         self.port = port
         self.thermometers = []
-    # Exclusive access management.
 
+        self.agent_data = {
+            'address': agent.agent_address,
+        }
+
+    def close(self):
+        pass
+
+    # Exclusive access management.
     def try_set_job(self, job_name):
         with self.lock:
             if self.job == None:
@@ -28,8 +36,16 @@ class LS240_Agent:
         with self.lock:
             self.job = None
 
-    # Task functions.
 
+    def publish_status(self, session, params=None):
+        while self.active:
+            print("Here")
+            time.sleep(1)
+
+    def stop_publish(self, session, params=None):
+        self.active = False
+
+    # Task functions.
     def init_lakeshore_task(self, session, params=None):
         ok, msg = self.try_set_job('init')
 
@@ -78,7 +94,7 @@ class LS240_Agent:
             if self.fake_data:
                 for therm in self.thermometers:
                     data[therm] = (time.time(), random.randrange(250, 350))
-                time.sleep(.01)
+                time.sleep(.2)
 
             else:
                 for i, channel in enumerate(self.module.channels):
@@ -101,12 +117,15 @@ class LS240_Agent:
                      False: 'Failed to request process stop.'}[ok])
 
 
+
 if __name__ == '__main__':
     agent, runner = ocs_agent.init_ocs_agent('observatory.thermometry')
 
     therm = LS240_Agent(agent, fake_data=True)
     
     agent.register_task('init_lakeshore', therm.init_lakeshore_task)
+    agent.register_process('pub', therm.publish_status, therm.stop_publish)
     agent.register_process('acq', therm.start_acq, therm.stop_acq)
 
     runner.run(agent, auto_reconnect=True)
+    therm.close()

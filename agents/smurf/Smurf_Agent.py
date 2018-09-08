@@ -23,6 +23,11 @@ class Smurf_Agent:
         }
         self.base = None
 
+    def close(self):
+        print("Closing connection")
+        if self.base is not None:
+            self.base.stop()
+
     def try_set_job(self, job_name):
         with self.lock:
             if self.job == None:
@@ -53,21 +58,84 @@ class Smurf_Agent:
 
         self.base.start(pollEn = self.args['pollEn'])
 
-        print("Hardware Initialized")
+        return True, "Hardware Initialized"
 
-        # Monitors smurf variables for change
-        def listener(var, value, disp):
-            print("{} has been updated: {}".format(var, disp))
+    #Load config file
+    def read_config(self, session, params={}):
+        """
+            Loads configuration file
 
-        self.base.FpgaTopLevel.AppTop.AppCore.StreamControl.StreamCounter.addListener(listener)
-        self.base.FpgaTopLevel.AppTop.AppCore.StreamControl.EofeCounter.addListener(listener)
-        self.base.FpgaTopLevel.AppTop.AppCore.StreamControl.enable.addListener(listener)
+            params:
+                - filename: path to the config file
+        """
+        filename = params.get("filename")
 
-    def enable_streaming(self, session, params=None):
-        self.base.FpgaTopLevel.AppTop.AppCore.StreamControl.enable.set(True, write=True)
+        if filename is None:
+            print("filename must be specified in params. File not loaded.")
+            return False, "Correct params not specified"
 
-    def disable_streaming(self, session, params=None):
-        self.base.FpgaTopLevel.AppTop.AppCore.StreamControl.enable.set(False, write=True)
+        self.base.ReadConfig(filename)
+
+        return True, "Loaded config file {}".format(filename)
+
+    def node_from_path(self, path):
+        """
+            Returns a pyrogue node from a given path.
+
+            params:
+                 - path: A list containing the sequence of node names
+        """
+        cur_node = self.base
+        for node in path:
+            next_node = cur_node.nodes.get(node)
+            if next_node is None:
+                raise ValueError("{} has no child {}".format(cur_node.name, node))
+            cur_node = next_node
+
+        return cur_node
+
+
+    def set_variable(self, session, params={}):
+        """
+            Sets variable
+            params:
+                - path: Path to the variable in the form of a list of node names
+                - value: value to set
+                - write: write 
+        """
+        print(params)
+        path  = params.get('path')
+        value = params.get('value')
+        write = params.get('write', True)
+
+        if path is None or value is None:
+            raise ValueError("Must specify path and value in params")
+
+        variable = self.node_from_path(path)
+        variable.set(value, write=write)
+
+        return True, "Varibale {} set to {}".format(variable.name, value)
+
+    def add_listener(self, session, params={}):
+        """
+            Adds listener to a variable
+            params:
+                - path: Path to the variable in the form of a list of node names
+                - callback: Function to be called when variable is updated
+                                Callback must have the form: f(var, value, disp)
+        """
+        path = params.get('path')
+        # callback = params.get('callback')
+        def callback(var, value, disp):
+            print("Variable {} has been updated to {}".format(var, disp))
+
+        if path is None or callback is None:
+            raise ValueError("Must specify path and callback in params")
+
+        variable = self.node_from_path(path)
+        variable.addListener(callback)
+
+        return True, "Added listener to {}".format(variable.name)
 
 
 if __name__ == '__main__':
@@ -75,8 +143,10 @@ if __name__ == '__main__':
 
     smurf = Smurf_Agent(agent)
     
-    agent.register_task('init', smurf.init_hardware)
-    agent.register_task('enable_streaming', smurf.enable_streaming)
-    agent.register_task('disable_streaming', smurf.disable_streaming)
+    agent.register_task('init_hardware', smurf.init_hardware)
+    agent.register_task('read_config', smurf.read_config)
+    agent.register_task('set_variable', smurf.set_variable)
+    agent.register_task('add_listener', smurf.add_listener)
 
     runner.run(agent, auto_reconnect=True)
+    smurf.close()

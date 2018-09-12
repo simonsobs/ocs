@@ -118,8 +118,7 @@ class DataAggregator:
 
         return
 
-    def start_aggregate(self, session, params=None):
-
+    def start_aggregate(self, session, params={}):
         ok, msg = self.try_set_job('aggregate')
         if not ok: return ok, msg
         session.post_status('running')
@@ -127,8 +126,8 @@ class DataAggregator:
         new_file_time = True
         new_frame_time = True
 
-        time_per_frame = 10      # [s]
-        time_per_file = 60 * 15  # [s]
+        time_per_frame = 60 * 10 # [s]
+        time_per_file  = 60 * 60  # [s]
 
         while True:
             with self.lock:
@@ -144,7 +143,7 @@ class DataAggregator:
                     self.end_file()
 
                 file_start_time = time.time()
-                time_string = time.strftime("%Y-%m-%d_T_%H:%M:%S", time.localtime(file_start_time))
+                time_string = time.strftime("%Y-%m-%d_T_%H:%M:%S\\", time.localtime(file_start_time))
                 self.filename = "data/{}.g3".format(time_string)
                 self.start_file()
 

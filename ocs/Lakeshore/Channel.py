@@ -57,7 +57,7 @@ class Channel:
         self._enabled = int(data[5])
 
         response = self.ls.msg("INNAME? %d" % (self.channel_num))
-        self._name = response
+        self._name = response.strip()
 
     def set_values(self, sensor=None, auto_range=None, range=None,
                    current_reversal=None, unit=None, enabled=None, name=None):
@@ -110,7 +110,7 @@ class Channel:
             self._name = name
 
         # Writes new values to module
-        self.ls.msg("INNAME {!s}".format(self._name))
+        self.ls.msg("INNAME {},{!s}".format(self.channel_num, self._name))
 
         input_type_message = "INTYPE "
         input_type_message += ",".join(["{}".format(c) for c in [ self.channel_num, self._sensor, self._auto_range,

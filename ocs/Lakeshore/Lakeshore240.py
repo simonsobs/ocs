@@ -69,7 +69,7 @@ class Module:
             if not resp:
                 raise TimeoutError("Device timed out")
 
-            time.sleep(.01)             # Must wait 10 ms before sending another command
+            # time.sleep(.01)             # Must wait 10 ms before sending another command
 
         return resp
 

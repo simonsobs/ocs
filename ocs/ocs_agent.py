@@ -23,6 +23,34 @@ def init_ocs_agent(address=None):
 
 
 class OCSAgent(ApplicationSession):
+    """OCSAgent is used to connect blocking device control code to the
+    OCS.  OCSAgent is an ApplicationSession and its methods are all
+    run in the twisted main Reactor thread.
+
+    To make use of OCSAgent, the user instantiates it (perhaps through
+    init_ocs_agent) with a particular agent_address.  Then the user
+    registers task and process functions by calling register_task()
+    and register_process().  These are (blocking) functions that will
+    be called, in their own twisted thread, when the "start" method is
+    request.
+
+    The OCSAgent automatically registers handlers in WAMP, namely:
+
+      {agent_address} - the management_handler function, which
+        responds to queries about what tasks and processes are exposed
+        by this agent.
+
+      {agent_address}.ops - the device_handler function, which accepts
+        Operation commands (start, status, etc.) for all Tasks and
+        Processes.
+
+    The OCSAgent also makes use of pubsub channels:
+
+      {agent_address}.feed - a channel to which any session status
+        updates are published (written by the Agent; subscribed by any
+        interested Control Tools).
+
+    """
 
     def __init__(self, config, address=None):
         ApplicationSession.__init__(self, config)
@@ -261,7 +289,22 @@ class AgentProcess:
         self.stopper = stopper
     
 class OpSession:
-    def __init__(self, session_id, op_name, status='starting', log_status=True, app=None):
+    """When a caller requests that an Operation (Process or Task) is
+    started, an OpSession object is created and is associated with
+    that run of the Operation.  The running Operation may update the
+    status and post messages to the message buffer.  This is the
+    preferred means for communicating Operation status to the caller.
+
+    In the OCSAgent model, Operations run in a separate device thread
+    from the main "Reactor".  To maintain data structure integrity,
+    code running in the device thread must use post_message() and
+    post_status().  In contrast, code running in the main reactor
+    thread may use add_message() and add_status().
+
+    The message buffer is purged periodically.
+    """
+    def __init__(self, session_id, op_name, status='starting', log_status=True,
+                 app=None, purge_policy=None):
         self.messages = []  # entries are time-ordered (timestamp, text).
         self.data = None # timestamp, data point
         self.session_id = session_id
@@ -269,8 +312,30 @@ class OpSession:
         self.start_time = time.time()
         self.end_time = None
         self.app = app
+
         # This has to be the last call since it depends on init...
         self.set_status(status, log_status=log_status, timestamp=self.start_time)
+
+        # Set up the log message purge.
+        self.purge_policy = {
+            'min_age_s': 3600,
+            'min_messages': 5,
+            'max_messages': 10000,
+            }
+        if purge_policy is not None:
+            self.purge_policy.update(purge_policy)
+        self.purge_log()
+
+    def purge_log(self):
+        cutoff = time.time() - self.purge_policy['min_age_s']
+        while ((len(self.messages) > self.purge_policy['max_messages']) or
+               ((len(self.messages) < self.purge_policy['min_messages']) and
+                self.messages[0][0] < cutoff)):
+            m = self.messages.pop(0)
+        # Set this purger to be called again in the future, at some
+        # cadence based on the minimum message age.
+        next_purge_time = max(self.purge_policy['min_age_s'] / 5, 600)
+        self.purger = task.deferLater(reactor, next_purge_time, self.purge_log)
 
     def encoded(self):
         return {'session_id': self.session_id,

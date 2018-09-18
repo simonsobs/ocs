@@ -12,14 +12,16 @@ ls = LS372('172.16.127.192')
 ch = Channel(ls, 4)
 cv = Curve(ls, 21)
 
+
 # Curve Tests
-def test_set_get_curve():
+def test_set_get_curve(tmpdir):
     tmp_file = tmpdir.mkdir("curve").join('curve.txt')
-    init_curve = cv.get_curve(tmp_file)
+    cv.get_curve(tmp_file)
     cv.set_curve("./test_ls372/test.cal")
     assert cv.name == "UNIT TEST"
     assert cv.serial_number == "00000042"
     cv.set_curve(tmp_file)
+
 
 def test_set_get_curve_coefficient():
     init_coefficient = cv.get_coefficient()
@@ -164,13 +166,6 @@ def test_set_get_tempco_negative():
     ch.set_calibration_curve(0)
     ch.set_temperature_coefficient('negative')
     assert ch.get_temperature_coefficient() == 'negative'
-
-
-def test_set_get_curve():
-    # TODO: Upload a curve first
-    # if curve doesn't exist, it gets set to 0, for now we know 21 exists
-    ch.set_calibration_curve(21)
-    assert ch.get_calibration_curve() == 21
 
 
 def test_set_get_input_name():

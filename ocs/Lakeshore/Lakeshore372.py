@@ -1166,7 +1166,7 @@ class Curve:
         self.breakpoints = struct_array
 
         if _file is not None:
-            with open('./calibration/' + self.serial_number + '.cal', 'w') as f:
+            with open(_file, 'w') as f:
                 f.write('Sensor Model:\t' + self.name + '\r\n')
                 f.write('Serial Number:\t' + self.serial_number + '\r\n')
                 f.write('Data Format:\t' + format_lock[self.format] + f'\t({self.format})\r\n')

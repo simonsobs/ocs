@@ -12,6 +12,25 @@ from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 
 import time
 
+def init_site_agent(args, address=None):
+    """
+    Create ApplicationSession and ApplicationRunner instances, set up
+    to communicate on the chosen WAMP realm.
+
+    Args:
+        args (argparse.Namespace): The arguments, as processed by
+            ocs.site_config.
+
+    Returns: (agent, runner).
+    """
+    if address is None:
+        address = '%s.%s' % (args.address_root, args.instance_id)
+    server, realm = args.site_hub, args.site_realm
+    #txaio.start_logging(level='debug')
+    agent = OCSAgent(ComponentConfig(realm, {}), address=address)
+    runner = ApplicationRunner(server, realm)
+    return agent, runner
+
 
 def init_ocs_agent(address=None):
     cfg = ocs.get_ocs_config()

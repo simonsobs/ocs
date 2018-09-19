@@ -18,6 +18,27 @@ def run_control_script(function, *args, **kwargs):
     runner = ApplicationRunner(server, realm)
     runner.run(session, auto_reconnect=True)
 
+def run_control_script2(function, *args, **kwargs):
+    """
+    Run a function in a ControlClientSession.  The command line is
+    parsed and site configuration information is loaded.  The function
+    is invoked as
+
+        function(root_address, *args, **kwargs)
+
+    where root_address has been figured out based on system configuration.
+    """
+    parser = ocs.site_config.add_arguments()
+    pargs = parser.parse_args()
+    ocs.site_config.reparse_args(pargs, '*control*')
+    server, realm = pargs.site_hub, pargs.site_realm
+    addr = pargs.address_root
+    session = ControlClientSession(ComponentConfig(realm, {}), function,
+                                   [addr] + list(args), kwargs)
+    runner = ApplicationRunner(server, realm)
+    runner.run(session, auto_reconnect=True)
+
+
 class ControlClientSession(ApplicationSession):
 
     def __init__(self, config, script, script_args, script_kwargs):

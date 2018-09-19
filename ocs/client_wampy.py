@@ -18,6 +18,8 @@ class ControlClient(WampyClient):
     def call(self, procedure, *args, **kwargs):
         message = WampyCall(procedure=procedure, args=args, kwargs=kwargs)
         response = self.make_rpc(message)
+        if not hasattr(response, 'yield_args'):
+            raise RuntimeError(response.message)
         return response.yield_args[0]
 
     def get_tasks(self):

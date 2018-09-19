@@ -1,3 +1,11 @@
+# Crossbar stuff
+*/dot_crossbar/key.priv
+*/dot_crossbar/key.pub
+*/dot_crossbar/node.pid
+
+
+## github's .gitignore
+
 # tmp files
 *.swp
 

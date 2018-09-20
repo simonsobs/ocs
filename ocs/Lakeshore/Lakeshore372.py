@@ -1248,13 +1248,26 @@ class Heater:
         self.filter = None
         self.delay = None
 
+    modes={0:'Off',1:'Monitor Out',2:'Open Loop',3:'Zone',4:'Still',5:'Closed Loop',6:'Warm up')
+
     # OUTMODE
     def set_output_mode(self, output, mode, _input, powerup, polarity, _filter, delay):
         pass
 
     # OUTMODE?
     def get_output_mode(self):
-        pass
+        """
+        Query the heater mode using the OUTMODE? command.
+        Also returns input channel, whether powerup is enabled, polarity, unfiltered/filtered, and the autoscanning delay time.
+        """
+        resp = self.ls.msg(f"OUTMODE? {self.output}").split(",")
+        mode = modes[float(resp[0])]
+        _input = resp[1]
+        powerup = resp[2]
+        polarity = resp[3]
+        _filter = resp[4]
+        delay = resp[5]
+        return(mode, _input, powerup, polarity, _filter, delay)
 
     # HTRSET/HTRSET?
     def get_heater_output(self, heater):
@@ -1290,23 +1303,26 @@ class Heater:
         pass
 
     def get_heater_range(self):
-        pass
+        resp = self.msg(f"RANGE? {self.output}")
+        return resp
 
     # SETP - heater class
     def set_setpoint(self, value):
-        pass
+        self.ls.msg(f"SETP {self.output},{value}") 
 
     # SETP? - heater class
     def get_setpoint(self):
-        pass
+        resp = self.ls.msg(f"SETP? {self.output}")
+        return resp
 
     # STILL - heater class?
     def set_still_output(self, value):
-        pass
+        self.ls.msg(f"STILL {value}")
 
     # STILL? - heater_class?
     def get_still_output(self):
-        pass
+        resp = self.ls.msg(f"STILL?")
+        return resp
 
     # ANALOG, ANALOG?, AOUT?
     # TODO: read up on what analog output is used for, pretty sure just another output
@@ -1318,11 +1334,11 @@ class Heater:
 
     # PID
     def set_pid(self, P, I, D):
-        pass
+        self.ls.msg(f"PID {self.output},{P},{I},{D}")
 
     # PID?
     def get_pid(self):
-        resp = self.msg("PID?").split(',')
+        resp = self.ls.msg("PID?").split(',')
         return resp
 
 

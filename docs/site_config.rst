@@ -53,7 +53,8 @@ The OCS Site Config File (SCF) will be a single YAML file.  The SCF
 may be shared between multiple hosts, providing distinct
 configurations for each one.
 
-Here is an example of an SCF for a two-host, 3-agent system::
+Here is an example of an SCF for a site with two hosts, and 4 agent
+instances (running two different classes of agent)::
 
   hub:
   
@@ -185,7 +186,10 @@ Examples
 In the following examples, suppose we have "river_agent.py", which
 implements an Agent for talking to Riverbank320 devices.  Suppose
 these are being run on a host called "host-1".  Refer to the example
-site configuration listed above.
+site configuration listed above.  *(Note that to run these in the
+example tree you will usually need to add the options that select the
+example SCF and host, namely:* ``--site-file telescope.yaml --site-host
+host-1`` *. One exception to this is when using* ``--site=none``. *)*
 
 
 1. Because there are two instances of "Riverbank320Agent" registered
@@ -196,9 +200,10 @@ site configuration listed above.
 
 
 2. We can ask our agent to connect to a different WAMP realm, for
-   testing purposes::
+   testing purposes (note this realm would need to be enabled in
+   crossbar, probably)::
 
-     $ python river_agent.py --instance-id=thermo1 --site-realm=debugrealm
+     $ python river_agent.py --instance-id=thermo1 --site-realm=my_other_realm
      I am in charge of device with serial number: PX1204312
    
 3. Run an instance of an Agent, but force all configuration matching
@@ -210,6 +215,15 @@ site configuration listed above.
 
    Note that we do not need to specify an ``--instance-id``, because
    the SCF only lists one Riverbank320Agent instance.
+
+4. To avoid referring to a SCF at all, pass ``--site=none``.  Then
+   specify enough information for the agent to connect and run::
+
+     $ python river_agent.py --site=none \
+     --site-hub ws://localhost:8001/ws --site-realm debug_realm \
+     --address-root=observatory --instance-id=thermo1 \
+     --serial-number=PX1204312 --mode=testing
+     I am in charge of device with serial number: PX1204312
 
 
 

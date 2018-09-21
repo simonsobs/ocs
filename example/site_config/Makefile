@@ -24,7 +24,7 @@ run_crossbar:
 	$(CROSSBAR) start --cbdir dot_crossbar/
 
 run_agent:
-	$(PYTHON) example_agent.py $(SITE_ARGS) --instance-id=thermo1
+	$(PYTHON) river_agent.py $(SITE_ARGS) --instance-id=thermo1
 
 run_client:
-	$(PYTHON) example_ctrl.py $(SITE_ARGS)
+	$(PYTHON) river_ctrl.py $(SITE_ARGS)

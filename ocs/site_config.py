@@ -130,7 +130,8 @@ def add_arguments(parser=None):
     ``--site=...``
         Instead of the default site, use the configuration
         for the specified site.  The configuration is loaded from
-        ``$OCS_CONFIG_DIR/{site}.yaml``.
+        ``$OCS_CONFIG_DIR/{site}.yaml``.  If --site=none, the
+        site_config facility will not be used at all.
 
     ``--site-file=...``
         Instead of the default site config, use the
@@ -183,6 +184,9 @@ def get_config(args, agent_class=None):
     Returns:
         The tuple (site_config, host_config, device_config).
     """
+    if args.site == 'none':
+        return (None,None,None)
+    
     site_file = args.site_file
     site = args.site
     if site_file is None:
@@ -259,6 +263,9 @@ def reparse_args(args, agent_class=None):
     Special values accepted for agent_class:
     - '*control*': do not insist on matching host or device.
     """
+    if args.site=='none':
+        return args
+
     site, host, instance = get_config(args, agent_class=agent_class)
 
     if args.site_hub is None:
@@ -274,6 +281,7 @@ def reparse_args(args, agent_class=None):
 
         for k,v in instance.data['arguments']:
             kprop = k.lstrip('-').replace('-','_')
+            print('site_config is setting values of "%s" to "%s".' % (kprop, v))
             setattr(args, kprop, v)
 
     return args

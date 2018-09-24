@@ -5,11 +5,11 @@ ocs.client_t in general.
 """
 
 import ocs
-from ocs import client_t
+from ocs import client_t, site_config
 
-def my_script(app, root):
+def my_script(app, pargs):
 
-    agent_addr = root + '.thermo1'
+    agent_addr = '%s.%s' % (pargs.address_root, pargs.target)
 
     print('Entered my_script')
     cw = client_t.ProcessClient(app, agent_addr, 'acq')
@@ -30,5 +30,7 @@ def my_script(app, root):
     print(x)
 
 if __name__ == '__main__':
-    client_t.run_control_script2(my_script)
+    parser = site_config.add_arguments()  # initialized ArgParser
+    parser.add_argument('--target')          # Options for this client
+    client_t.run_control_script2(my_script, parser=parser)
     

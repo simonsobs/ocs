@@ -100,9 +100,11 @@ instances (running two different classes of agent)::
 
 By default the system will look for site files in the path pointed to
 by environment variable OCS_CONFIG_DIR.  The default site filename is
-``default.yaml``.  In practice, users launching an Agent or Control
-Client select the site name or give the complete site config filename
-through the command line (see below).
+``default.yaml``.  In practice, users will set the environment
+variable and create or symlink ``default.yaml`` with their site's
+configuration.  During development, multiple YAML files may be in
+active use; then users will identify their config file through command
+line arguments when launching Agents and Control Clients (see below).
 
 At root level, the configuration file should encode a SiteConfig
 object.  The structure is described in the ``from_dict`` method of
@@ -225,6 +227,37 @@ host-1`` *. One exception to this is when using* ``--site=none``. *)*
      --serial-number=PX1204312 --mode=testing
      I am in charge of device with serial number: PX1204312
 
+
+Control Clients and the Site Config
+===================================
+
+As of this writing, Control Clients do not store configuration in the
+SCF.  But there is an interim interface available for Control Clients
+to access the Site Configuration, with the usual command-line
+overrides.  Control Clients that use the ``run_control_script``
+function to launch can instead use ``run_control_script2``, which
+behaves as follows:
+
+.. autofunction:: ocs.client_t.run_control_script2
+
+
+The control client script might look something like this (see also
+river_ctrl.py in the examples)::
+  
+    
+  def my_script(app, pargs):
+      from ocs import client_t
+
+      # We've added a --target option.
+      # Construct the full agent address.
+      agent_addr = '%s.%s' % (pargs.address_root, pargs.target)
+  
+      # Create a ProcessClient for the process 'acq'.
+      cw = client_t.ProcessClient(app, agent_addr, 'acq')
+  
+      print('Starting a data acquisition process...')
+      d1 = yield cw.start()
+      #...
 
 
 OCS Host Manager Agent

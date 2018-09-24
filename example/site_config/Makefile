@@ -27,4 +27,4 @@ run_agent:
 	$(PYTHON) river_agent.py $(SITE_ARGS) --instance-id=thermo1
 
 run_client:
-	$(PYTHON) river_ctrl.py $(SITE_ARGS)
+	$(PYTHON) river_ctrl.py $(SITE_ARGS) --target=thermo1

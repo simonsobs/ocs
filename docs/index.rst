@@ -31,6 +31,7 @@ OCS.
    architecture
    installation
    quickstart
+   site_config
    lakeshore372
 
 Indices and tables

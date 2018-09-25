@@ -179,6 +179,7 @@ class OCSAgent(ApplicationSession):
 
     def handle_task_return_val(self, *args, **kw):
         (ok, message), session = args
+        session.success = ok
         session.add_message(message)
         session.set_status('done')
 
@@ -331,6 +332,7 @@ class OpSession:
         self.start_time = time.time()
         self.end_time = None
         self.app = app
+        self.success = None
 
         # This has to be the last call since it depends on init...
         self.set_status(status, log_status=log_status, timestamp=self.start_time)
@@ -362,6 +364,7 @@ class OpSession:
                 'status': self.status,
                 'start_time': self.start_time,
                 'end_time': self.end_time,
+                'success': self.success,
                 'messages': self.messages}
 
     def data_encoded(self):

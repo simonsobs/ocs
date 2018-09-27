@@ -30,6 +30,22 @@ class Curve:
                 self.breakpoints = breakpoints
             else:
                 raise Exception("Must give either filename or header and breakpoints")
+    
+    def write_to_file(self, filename):
+        with open(filename, 'w') as file:
+
+            keys = list(self.header)
+            for k in keys:
+                print(k, self.header[k])
+                file.write("{}:\t{}\n".format(k, self.header[k]))
+                        
+            file.write('\n')
+            file.write('No.\tUnits\tTemperature (K)\n')
+            file.write('\n')
+
+            for i,bp in enumerate(self.breakpoints):
+                file.write('{}\t{:.4f} {:.4f}\n'.format(i+1, bp[0], bp[1]))
+                
 
     def load_from_file(self, filename):
         with open(filename, 'r') as file:
@@ -55,9 +71,9 @@ class Curve:
         return string
 
 if __name__ == "__main__":
-    filename = "D-001.cal"
+    filename = "calibration/D-001.cal"
     curve = Curve(filename=filename)
-    
+    curve.write_to_file('test.cal')
     
             
             

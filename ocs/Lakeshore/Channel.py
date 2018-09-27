@@ -8,7 +8,7 @@ Created on Tue Feb 27 13:42:09 2018
 
 
 from ocs.Lakeshore.Curve import Curve
-
+import numpy as np
 
 # ==============================================================================
 # Lots of stuff to convert between integers that are read by the module 
@@ -119,27 +119,27 @@ class Channel:
         self.ls.msg(input_type_message)
 
     def read_curve(self):
+        # Reads curve
+        breakpoints = []
+        for i in range(1, 201):
+            resp = self.ls.msg("CRVPT? {},{}".format(self.channel_num, i))
+            unit, temp = resp.split(',')
+            if float(unit) == 0.0:
+                break
+            breakpoints.append((float(unit), float(temp)))
+
         resp = self.ls.msg("CRVHDR? {}".format(self.channel_num)).split(',')
 
         header = {
-            "Name": resp[0],
-            "SN": resp[1],
-            "Format": int(resp[2]),
-            "Limit": float(resp[3]),
-            "Coeff": int(resp[4])
+            "Sensor Model": resp[0],
+            "Serial Number": resp[1],
+            "Data Format": int(resp[2]),
+            "SetPoint Limit": float(resp[3]),
+            "Temperature Coefficient": int(resp[4]),
+            "Number of Breakpoints": len(breakpoints)
         }
 
-        units = []
-        temps = []
-        for i in range(1, 201):
-            resp = self.ls.msg("CRVPT? {},{}".format(self.channel_num, i)).split(',')
-            units.append(float(resp[0]))
-            temps.append(float(resp[1]))
-
-        self.curve = Curve(header=header, units=units, temps=temps)
-
-
-
+        self.curve = Curve(header=header, breakpoints=breakpoints)
 
     def get_reading(self, unit = 0):
         u = self._unit if not unit else unit
@@ -156,17 +156,24 @@ class Channel:
         
     def load_curve(self, filename):
         self.curve = Curve(filename=filename)
+        hdr = self.curve.header
+        #loads header
+        cmd = "CRVHDR {},{},{},{},{},{}".format(
+            self.channel_num,
+            hdr["Sensor Model"],
+            hdr["Serial Number"],
+            hdr["Data Format"],
+            hdr["SetPoint Limit"],
+            hdr["Temperature coefficient"])
+        self.ls.msg(cmd)
 
-        units = self.curve.units
-        temps = self.curve.temps
+        bps = self.curve.breakpoints
+        assert len(bps) < 200, "Curve must have less than 200 pts"
 
-        assert len(units) == len(temps)
-        assert len(units) < 200, "Curve must have less than 200 pts"
-
-        print ("Loading Curve to {}".format(self.name))
+        print ("Loading Curve to {}".format(self._name))
         for i in range(200):
-            if i < len(units):
-                self.load_curve_point(i+1, units[i], temps[i])
+            if i < len(bps):
+                self.load_curve_point(i+1, bps[i][0], bps[i][1])
             else:
                 self.load_curve_point(i+1, 0, 0)
     

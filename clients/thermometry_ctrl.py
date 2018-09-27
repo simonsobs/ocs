@@ -5,7 +5,7 @@ from ocs import client_t
 def my_script(app, agent_addr):
 
     print('Entered control')
-    init_task = client_t.TaskClient(app, agent_addr, 'lakeshore')
+    init_task = client_t.TaskClient(app, agent_addr, 'init_lakeshore')
     acq_proc = client_t.ProcessClient(app, agent_addr, 'acq') 
     
     print('Initializing Lakeshore.')
@@ -26,7 +26,7 @@ def my_script(app, agent_addr):
     print('Starting a data acquisition process...')
     d1 = yield acq_proc.start()
 
-    sleep_time = 20
+    sleep_time = 3
     try:
         for i in range(sleep_time):
             print('sleeping for {:d} more seconds'.format(sleep_time - i))

@@ -143,7 +143,7 @@ class DataAggregator:
                     self.end_file()
 
                 file_start_time = time.time()
-                time_string = time.strftime("%Y-%m-%d_T_%H:%M:%S\\", time.localtime(file_start_time))
+                time_string = time.strftime("%Y-%m-%d_T_%H:%M:%S", time.localtime(file_start_time))
                 self.filename = "data/{}.g3".format(time_string)
                 self.start_file()
 

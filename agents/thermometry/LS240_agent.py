@@ -61,11 +61,11 @@ class LS240_Agent:
 
         else:
             try:
-                self.module = Module(port=self.port, num_channels=8)
+                self.module = Module(port=self.port)
                 print("Initialized Lakeshore module: {!s}".format(self.module))
-                session.post_message("Lakeshore initialized with ID: %s"%self.module.idn)
+                session.post_message("Lakeshore initialized with ID: %s"%self.module.inst_sn)
 
-                self.thermometers = [channel.name for channel in self.module.channels]
+                self.thermometers = [channel._name for channel in self.module.channels]
 
             except Exception as e:
                 print(e)
@@ -121,7 +121,7 @@ class LS240_Agent:
 if __name__ == '__main__':
     agent, runner = ocs_agent.init_ocs_agent('observatory.thermometry')
 
-    therm = LS240_Agent(agent, fake_data=True)
+    therm = LS240_Agent(agent, fake_data=False)
     
     agent.register_task('init_lakeshore', therm.init_lakeshore_task)
     agent.register_process('pub', therm.publish_status, therm.stop_publish)

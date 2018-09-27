@@ -31,19 +31,19 @@ def my_script(app):
     yield init_ls.wait(timeout=10)
     yield get_data.start()
 
-    sleep_time = 30
+    sleep_time = 10
     for i in range(sleep_time):
         print('sleeping for {:d} more seconds'.format(sleep_time - i))
         yield client_t.dsleep(1)
 
 
     print("Stopping Data Acquisition")
-    get_data.stop()
-    get_data.wait()
+    yield get_data.stop()
+    yield get_data.wait()
 
     print("Stopping Data Aggregator")
-    aggregate.stop()
-    aggregate.wait()
+    yield aggregate.stop()
+    yield aggregate.wait()
 
 
 if __name__ == '__main__':

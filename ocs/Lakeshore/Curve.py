@@ -40,7 +40,7 @@ class Curve:
             if line.strip()=='':
                 break
             key, v = line.split(':')
-            val = v.split('(')[0]
+            val = v.split('(')[0].strip()
             self.header[key] = val
 
         self.breakpoints = []

@@ -157,14 +157,13 @@ class Channel:
     def load_curve(self, filename):
         self.curve = Curve(filename=filename)
         hdr = self.curve.header
+        keys = list(hdr)
+
         #loads header
-        cmd = "CRVHDR {},{},{},{},{},{}".format(
-            self.channel_num,
-            hdr["Sensor Model"],
-            hdr["Serial Number"],
-            hdr["Data Format"],
-            hdr["SetPoint Limit"],
-            hdr["Temperature coefficient"])
+        cmd = "CRVHDR {}".format(self.channel_num)
+        for key in keys[:5]:
+            cmd += ",{}".format(hdr[key])
+        print(cmd)
         self.ls.msg(cmd)
 
         bps = self.curve.breakpoints

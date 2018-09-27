@@ -164,13 +164,13 @@ class Channel:
             hdr["Serial Number"],
             hdr["Data Format"],
             hdr["SetPoint Limit"],
-            hdr["Temperature Coefficient"])
+            hdr["Temperature coefficient"])
         self.ls.msg(cmd)
 
         bps = self.curve.breakpoints
         assert len(bps) < 200, "Curve must have less than 200 pts"
 
-        print ("Loading Curve to {}".format(self.name))
+        print ("Loading Curve to {}".format(self._name))
         for i in range(200):
             if i < len(bps):
                 self.load_curve_point(i+1, bps[i][0], bps[i][1])

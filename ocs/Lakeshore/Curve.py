@@ -35,13 +35,13 @@ class Curve:
         with open(filename, 'r') as file:
             content = file.readlines()
 
-        header = OrderedDict({})
+        self.header = OrderedDict({})
         for line in content:
             if line.strip()=='':
                 break
             key, v = line.split(':')
             val = v.split('(')[0]
-            header[key] = val
+            self.header[key] = val
 
         self.breakpoints = []
         for line in content[9:]:

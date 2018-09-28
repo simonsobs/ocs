@@ -1248,7 +1248,7 @@ class Heater:
         self.filter = None
         self.delay = None
 
-    modes={0:'Off',1:'Monitor Out',2:'Open Loop',3:'Zone',4:'Still',5:'Closed Loop',6:'Warm up')
+    modes={0:'Off',1:'Monitor Out',2:'Open Loop',3:'Zone',4:'Still',5:'Closed Loop',6:'Warm up'}
 
     # OUTMODE
     def set_output_mode(self, output, mode, _input, powerup, polarity, _filter, delay):

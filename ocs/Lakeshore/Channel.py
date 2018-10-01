@@ -167,7 +167,7 @@ class Channel:
         self.ls.msg(cmd)
 
         bps = self.curve.breakpoints
-        assert len(bps) < 200, "Curve must have less than 200 pts"
+        assert len(bps) <= 200, "Curve must have 200 breakpoints or less"
 
         print ("Loading Curve to {}".format(self._name))
         for i in range(200):
@@ -175,7 +175,9 @@ class Channel:
                 self.load_curve_point(i+1, bps[i][0], bps[i][1])
             else:
                 self.load_curve_point(i+1, 0, 0)
-    
+        print("Curve loaded")
+
+
     def __str__(self):
         string = "-" * 40 + "\n"
         string += "{} -- Channel {}: {}\n".format(self.ls.inst_sn, self.channel_num, self._name)

@@ -188,6 +188,8 @@ class LS372:
             resp = str(self.com.recv(4096)[:-2], 'utf-8')
         else:
             resp = ''
+
+        time.sleep(0.05)  # No comms for 50 ms after sending message
         return resp
 
     def get_id(self):

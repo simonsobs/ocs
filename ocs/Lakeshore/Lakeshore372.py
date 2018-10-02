@@ -189,7 +189,10 @@ class LS372:
         else:
             resp = ''
 
-        time.sleep(0.05)  # No comms for 50 ms after sending message
+        if 'RDG' in message:
+            time.sleep(0.1)  # Instrument sampling rate of 10 readings/s max (pg 34)
+        else:
+            time.sleep(0.05)  # No comms for 50 ms after sending message
         return resp
 
     def get_id(self):

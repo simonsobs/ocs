@@ -1,16 +1,47 @@
 """Tests for Lakeshore 372 drive module.
 
+Note: Do not run on a Lakeshore controlling heaters in a cryostat, as it will
+likely have ill effects! You have been warned.
+
 Note: While these test try, they don't neccessarily maintain the state the
 Lakeshore was in when you started the test. If you're testing on a Lakeshore
 unit that is being used for something, you'll probably want to reset the
 parameters you require.
 """
 
-from ocs.Lakeshore.Lakeshore372 import LS372, Channel, Curve
+from ocs.Lakeshore.Lakeshore372 import LS372, Channel, Curve, Heater
 
 ls = LS372('172.16.127.192')
 ch = Channel(ls, 4)
 cv = Curve(ls, 21)
+ht = Heater(ls, 0)
+
+# Heater Tests
+def test_set_get_heater_input():
+    init_value = ht.get_input_channel()
+    ht.set_input_channel('1')
+    assert ht.input == '1'
+    ht.set_input_channel(2)
+    assert ht.input == '2'
+    ht.set_input_channel(init_value)
+
+
+def test_set_get_heater_range():
+    init_value = ht.get_heater_range()
+    ht.set_heater_range(31.6e-6)
+    assert ht.range == 31.6e-6
+    ht.set_heater_range(100e-6)
+    assert ht.range == 100e-6
+    ht.set_heater_range(init_value)
+
+
+def test_set_get_heater_mode():
+    init_value = ht.get_mode()
+    ht.set_mode("Open Loop")
+    assert ht.mode.lower() == 'open loop'
+    ht.set_mode("Closed Loop")
+    assert ht.mode.lower() == 'closed loop'
+    ht.set_mode(init_value)
 
 
 # Curve Tests

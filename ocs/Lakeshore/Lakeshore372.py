@@ -156,6 +156,15 @@ format_lock = {"Ohm/K (linear)": '3',
                "log Ohm/K (linear)": '4',
                "Ohm/K (cubic spline)": '7'}
 
+heater_range_key = {"0": "Off", "1": 31.6e-6, "2": 100e-6, "3": 316e-6,
+                    "4": 1e-3, "5": 3.16e-3, "6": 10e-3, "7": 31.6e-3,
+                    "8": 100e-3}
+heater_range_lock = {v:k for k, v in heater_range_key.items()}
+
+output_modes = {'0': 'Off', '1': 'Monitor Out', '2': 'Open Loop', '3': 'Zone', '4': 'Still',
+                '5': 'Closed Loop', '6': 'Warm up'}
+output_modes_lock = {v.lower():k for k, v in output_modes.items()}
+
 
 class LS372:
     """
@@ -187,6 +196,8 @@ class LS372:
                 c = Channel(self, i)
             self.channels.append(c)
 
+        self.sample_heater = Heater(self, 0)
+
     def msg(self, message):
         msg_str = f'{message}\r\n'.encode()
         self.com.send(msg_str)
@@ -206,7 +217,7 @@ class LS372:
         """Get the ID number of the Lakeshore unit."""
         return self.msg('*IDN?')
 
-    def get_temp(self, unit="S", chan=-1):
+    def get_temp(self, unit="K", chan=-1):
         if (chan == -1):
             resp = self.msg("SCAN?")
             c = resp.split(',')[0]
@@ -1250,36 +1261,174 @@ class Curve:
 
 
 class Heater:
-    """Heater class for LS372 control"""
+    """Heater class for LS372 control
+
+    :param ls: the lakeshore object we're controlling
+    :type ls: Lakeshore372.LS372
+    :param output: the heater output we want to control, 0 = sample,
+                   1 = warm-up, 2 = still
+    :type output: int
+    """
     def __init__(self, ls, output):
         self.ls = ls
         self.output = output
         self.mode = None
         self.input = None
         self.powerup = None
+        self.polarity = None
         self.filter = None
         self.delay = None
 
-    modes={0:'Off',1:'Monitor Out',2:'Open Loop',3:'Zone',4:'Still',5:'Closed Loop',6:'Warm up'}
+        self.range = None
 
-    # OUTMODE
-    def set_output_mode(self, output, mode, _input, powerup, polarity, _filter, delay):
-        pass
+        self.get_output_mode()
 
-    # OUTMODE?
     def get_output_mode(self):
-        """
-        Query the heater mode using the OUTMODE? command.
-        Also returns input channel, whether powerup is enabled, polarity, unfiltered/filtered, and the autoscanning delay time.
+        """Query the heater mode using the OUTMODE? command.
+
+        :returns: 6-tuple with output mode, input channel, whether powerup is
+                  enabled, polarity, unfiltered/filtered, and the autoscanning
+                  delay time.
+        :rtype: tuple
         """
         resp = self.ls.msg(f"OUTMODE? {self.output}").split(",")
-        mode = modes[float(resp[0])]
-        _input = resp[1]
-        powerup = resp[2]
-        polarity = resp[3]
-        _filter = resp[4]
-        delay = resp[5]
-        return(mode, _input, powerup, polarity, _filter, delay)
+
+        # TODO: make these human readable
+        self.mode = output_modes[resp[0]]
+        self.input = resp[1]
+
+        self.powerup = resp[2]
+        self.polarity = resp[3]
+        self.filter = resp[4]
+        self.delay = resp[5]
+
+        return resp
+
+    # OUTMODE
+    def _set_output_mode(self, params):
+        """Set the output mode of the heater with the OUTMODE command.
+
+        Parameters should be <mode>, <input/channel>, <powerup enable>, <polarity>,
+        <filter>, <delay>. Will determine <output> from attributes. This allows
+        us to use output from get_output_mode directly, as it doesn't return
+        <outpu>.
+
+        :param params: OUTMODE parameters
+        :type params: list of str
+
+        :returns: response from ls.msg
+
+        """
+        assert len(params) == 6
+
+        reply = [str(self.output)]
+        [reply.append(x) for x in params]
+
+        param_str = ','.join(reply)
+        return self.ls.msg(f"OUTMODE {param_str}")
+
+    def get_mode(self):
+        """Set output mode with OUTMODE? commnd.
+
+        :returns: The output mode
+        :rtype: str
+        """
+        self.get_output_mode()
+        return self.mode
+
+    def set_mode(self, mode):
+        """Set output mode with OUTMODE commnd.
+
+        :param mode: control mode for heater, see page 171 of LS372 Manual for
+                     valid modes, as it changes per output
+        :type mode: str
+
+        :returns: the response from the OUTMODE command
+        """
+        # TODO: Make assertions check specific output and it's validity in mode selection
+        assert mode.lower() in output_modes_lock.keys(), f"{mode} not a valid mode"
+
+        resp = self.get_output_mode()
+        resp[0] = output_modes_lock[mode.lower()]
+        self.mode = mode
+        return self._set_output_mode(resp)
+
+    def get_input_channel(self):
+        """Get the control channel with the OUTMODE? command.
+
+        :returns: The control channel
+        :rtype: str
+        """
+        self.get_output_mode()
+        return self.input
+
+    def set_input_channel(self, _input):
+        """Set the control channel with the OUTMODE command.
+
+        :param _input: specifies which input or channel to control from
+        :type _input: str or int
+        """
+        assert int(_input) in range(17) or _input == "A", f"{_input} not a valid input/channel"
+
+        resp = self.get_output_mode()
+        resp[1] = str(_input)
+        self.input = str(_input)
+        return self._set_output_mode(resp)
+
+    def get_powerup(self):
+        pass
+
+    def set_powerup(self, powerup):
+        """
+        :param powerup: specifies whether the output remains on or shuts off
+                        after power cycle. True for on after powerup
+        :type powerup: bool
+        """
+        # assert powerup in [True, False], f"{powerup} not valid powerup parameter"
+        # set_powerup = str(int(powerup))
+        #
+        pass
+
+    def get_polarity(self):
+        pass
+
+    def set_polarity(self):
+        """
+        :param polarity: specifies output polarity: 'unipolar' or 'bipolar'
+        :type polarity: str
+        """
+        # polarity_key = {0: 'unipolar', 1: 'bipolar'}
+        # polarity_lock = {v:k for k, v in polarity_key.items()}
+        #
+        # assert polarity in polarity_lock.keys(), f"{polarity} not a valid polarity parameter"
+        #
+        # {polarity_lock[polarity]}
+        pass
+
+    def get_filter(self):
+        pass
+
+    def set_filter(self, _filter):
+        """
+        :param _filter: specifies controlling on unfiltered or filtered readings, True = filtered, False = unfiltered
+        :type _filter: bool
+        """
+        # assert _filter in [True, False], f"{_filter} not valid filter parameter"
+        # set_filter = str(int(_filter))
+        #
+        pass
+
+    def get_delay(self):
+        pass
+
+    def set_delay(self, delay):
+        """
+        :param delay: delay in seconds for setpoint change during autoscanning, 1-255 seconds
+        :type delay: int
+        """
+        # assert delay in range(1, 256), f"{delay} not a valid delay parameter"
+        #
+        pass
 
     # HTRSET/HTRSET?
     def get_heater_output(self, heater):
@@ -1310,13 +1459,46 @@ class Heater:
     def get_ramp_status(self):
         pass
 
-    # RANGE, RANGE?
+    # RANGE
     def set_heater_range(self, _range):
-        pass
+        """Set heater range with RANGE command.
+
+        :param _range: heater range
+        :type _range: float or str (for "On" "Off")
+
+        :returns: heater range in amps
+        :rtype: float
+        """
+        assert _range in heater_range_lock.keys() or str(_range).lower() in ['on', 'off'], 'Not a valid heater Range'
+
+        if str(_range).lower() == 'off':
+            _range = "Off"
+
+        if self.output == 0:
+            resp = self.ls.msg(f"RANGE {self.output} {heater_range_lock[_range]}").strip()
+        else:
+            on_off_key = {"0": "Off", "1": "On"}
+            on_off_lock = {v:k for k, v in on_off_key.items()}
+            resp = self.ls.msg(f"RANGE {self.output} {on_off_lock[_range]}").strip()
+
+        # refresh self.heater value with RANGE? query
+        self.get_heater_range()
 
     def get_heater_range(self):
-        resp = self.msg(f"RANGE? {self.output}")
-        return resp
+        """Get heater range with RANGE? command.
+
+        :returns: heater range in amps
+        :rtype: float
+        """
+        resp = self.ls.msg(f"RANGE? {self.output}").strip()
+
+        if self.output == 0:
+            self.range = heater_range_key[resp]
+        else:
+            on_off_key = {"0": "Off", "1": "On"}
+            self.range = on_off_key[resp]
+
+        return self.range
 
     # SETP - heater class
     def set_setpoint(self, value):
@@ -1346,12 +1528,35 @@ class Heater:
 
     # PID
     def set_pid(self, P, I, D):
-        self.ls.msg(f"PID {self.output},{P},{I},{D}")
+        """Set PID parameters for closed loop control.
+
+        :params P: proportional term in PID loop
+        :type P: float
+        :params I: integral term in PID loop
+        :type I: float
+        :params D: derivative term in PID loop
+        :type D: float
+
+        :returns: response from PID command
+        :rtype: str
+        """
+        assert float(P) <= 1000 and float(P) >= 0
+        assert float(I) <= 10000 and float(I) >= 0
+        assert float(D) <= 2500 and float(D) >= 0
+
+        resp = self.ls.msg(f"PID {self.output},{P},{I},{D}")
+        return resp
 
     # PID?
     def get_pid(self):
+        """Get PID parameters with PID? command.
+
+        :returns: P, I, D
+        :rtype: float, float, float
+
+        """
         resp = self.ls.msg("PID?").split(',')
-        return resp
+        return float(resp[0]), float(resp[1]), float(resp[2])
 
 
 if __name__ == "__main__":

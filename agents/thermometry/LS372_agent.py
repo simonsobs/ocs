@@ -1,6 +1,6 @@
 
 import ocs
-from ocs import ocs_agent
+from ocs import ocs_agent, site_config
 from ocs.Lakeshore.Lakeshore372 import LS372
 import random
 import time, threading
@@ -45,7 +45,7 @@ class LS372_Agent:
         if not ok:
             return ok, msg
 
-        session.post_status('starting')
+        session.post_status('running')
 
         if self.fake_data:
             self.res = random.randrange(1, 1000);
@@ -105,18 +105,216 @@ class LS372_Agent:
         return (ok, {True: 'Requested process stop.',
                     False: 'Failed to request process stop.'}[ok])
 
+    def set_heater_range(self, session, params):
+        """
+        Adjust the heater range for servoing cryostat. Wait for a specified
+        amount of time after the change.
+
+        :param params: dict with 'range', 'wait' keys
+        :type params: dict
+
+        range - the heater range value to change to
+        wait - time in seconds after changing the heater value to wait, allows
+               the servo to adjust to the new heater range, typical value of
+               ~600 seconds
+        """
+        ok, msg = self.try_set_job('set_heater_range')
+        if not ok:
+            return ok, msg
+
+        session.post_status('running')
+
+        current_range = self.module.sample_heater.get_heater_range()
+
+        if params['range'] == current_range:
+            print("Current heater range matches commanded value. Proceeding unchanged.")
+        else:
+            self.module.sample_heater.set_heater_range(params)
+            time.sleep(params['wait'])
+
+        self.set_job_done()
+        return True, f'Set heater range to {params["range"]}'
+
+    def set_excitation_mode(self, session, params):
+        """
+        Set the excitation mode of a specified channel.
+
+        :param params: dict with "channel" and "mode" keys for Channel.set_excitation_mode()
+        :type params: dict
+        """
+        ok, msg = self.try_set_job('set_excitation_mode')
+        if not ok:
+            return ok, msg
+
+        session.post_status('running')
+
+        self.module.channels[params['channel']].set_excitation_mode(params['mode'])
+        session.post_message(f'post message in agent for Set channel {params["channel"]} excitation mode to {params["mode"]}')
+        print(f'print statement in agent for Set channel {params["channel"]} excitation mode to {params["mode"]}')
+
+        self.set_job_done()
+        return True, f'return text for Set channel {params["channel"]} excitation mode to {params["mode"]}'
+
+    def set_excitation(self, session, params):
+        """
+        Set the excitation voltage/current value of a specified channel.
+
+        :param params: dict with "channel" and "value" keys for Channel.set_excitation()
+        :type params: dict
+        """
+        ok, msg = self.try_set_job('set_excitation')
+        if not ok:
+            return ok, msg
+
+        session.post_status('running')
+
+        current_excitation = self.module.channels[params['channel']].get_excitation()
+
+        if params['value'] == current_excitation:
+            print(f'Channel {params["channel"]} excitation already set to {params["value"]}')
+        else:
+            self.module.channels[params['channel']].set_excitation(params['value'])
+            session.post_message(f'Set channel {params["channel"]} excitation to {params["value"]}')
+            print(f'Set channel {params["channel"]} excitation to {params["value"]}')
+
+        self.set_job_done()
+        return True, f'Set channel {params["channel"]} excitation to {params["value"]}'
+
+    def set_pid(self, session, params):
+        """
+        Set the PID parameters for servo control of fridge.
+
+        :param params: dict with "P", "I", and "D" keys for Heater.set_pid()
+        :type params: dict
+        """
+        ok, msg = self.try_set_job('set_pid')
+        if not ok:
+            return ok, msg
+
+        session.post_status('running')
+
+        self.module.sample_heater.set_pid(params["P"], params["I"], params["D"])
+        session.post_message(f'post message text for Set PID to {params["P"]}, {params["I"]}, {params["D"]}')
+        print(f'print text for Set PID to {params["P"]}, {params["I"]}, {params["D"]}')
+
+        self.set_job_done()
+        return True, f'return text for Set PID to {params["P"]}, {params["I"]}, {params["D"]}'
+
+    def servo_to_temperature(self, session, params):
+        """Servo to temperature passed into params.
+
+        :param params: dict with "temperature" Heater.set_setpoint() in unites of K
+        :type params: dict
+        """
+        ok, msg = self.try_set_job('servo_to_temperature')
+        if not ok:
+            return ok, msg
+
+        session.post_status('running')
+
+        # Check we're in correct control mode for servo.
+        if self.module.sample_heater.mode != 'Closed Loop':
+            session.post_message(f'Changing control to Closed Loop mode for servo.')
+            self.module.sample_heater.set_mode("Closed Loop")
+
+        # Check we aren't autoscanning.
+        if self.module.get_autoscan() is True:
+            session.post_message(f'Autoscan is enabled, disabling for PID control on dedicated channel.')
+            self.module.disable_autoscan()
+
+        # Check we're scanning same channel expected by heater for control.
+        if self.module.get_active_channel().channel_num != int(self.module.sample_heater.input):
+            session.post_message(f'Changing active channel to expected heater control input')
+            self.module.set_active_channel(int(self.module.sample_heater.input))
+
+        # Check we're setup to take correct units.
+        if self.module.get_active_channel().units != 'kelvin':
+            session.post_message(f'Setting preferred units to Kelvin on heater control input.')
+            self.module.get_active_channel().set_units('kelvin')
+
+        # Make sure we aren't servoing too high in temperature.
+        if params["temperature"] > 1:
+            self.set_job_done()
+            return False, f'Servo temperature is set above 1K. Aborting.'
+
+        self.module.sample_heater.set_setpoint(params["temperature"])
+
+        self.set_job_done()
+        return True, f'Setpoint now set to {params["temperature"]} K'
+
+    def check_temperature_stability(self, session, params):
+        """Check servo temperature stability is within threshold.
+
+        :param params: dict with "measurements" and "threshold" parameters
+        :type params: dict
+
+        measurements - number of measurements to average for stability check
+        threshold - amount within which the average needs to be to the setpoint for stability
+        """
+        ok, msg = self.try_set_job('check_temperature_stability')
+        if not ok:
+            return ok, msg
+
+        session.post_status('running')
+
+        setpoint = float(self.module.sample_heater.get_setpoint())
+
+        if params is None:
+            params = {'measurements': 10, 'threshold': 0.5e-3}
+
+        test_temps = []
+
+        for i in range(params['measurements']):
+            test_temps.append(self.module.get_temp())
+            time.sleep(.1)  # sampling rate is 10 readings/sec, so wait 0.1 s for a new reading
+
+        mean = np.mean(test_temps)
+        session.post_message(f'Average of {params["measurements"]} measurements is {mean} K.')
+        print(f'Average of {params["measurements"]} measurements is {mean} K.')
+
+        if np.abs(mean - setpoint) < params['threshold']:
+            print("passed threshold")
+            session.post_message(f'Setpoint Difference: ' + str(mean - setpoint))
+            session.post_message(f'Average is within {params["threshold"]} K threshold. Proceeding with calibration.')
+
+            self.set_job_done()
+            return True, f"Servo temperature is stable within {params['threshold']} K"
+
+        else:
+            print("we're in the else")
+            #adjust_heater(t,rest)
+            self.set_job_done()
+            return False, f"Temperature not stable within {params['threshold']}."
+
+
 if __name__ == '__main__':
-    agent, runner = ocs_agent.init_ocs_agent('observatory.thermometry')
-    
-    # import json
-    # ip_filename = "/home/so_user/so/ocs/ocs/Lakeshore/ips.json"
-    # with open(ip_filename) as file:
-    #     ips = json.load(file)
+    # Get the default ocs argument parser.
+    parser = site_config.add_arguments()
 
-    therm = LS372_Agent("LS372A", "0.0.0.0" , fake_data=True)
+    # Add options specific to this agent.
+    pgroup = parser.add_argument_group('Agent Options')
+    pgroup.add_argument('--ip-address')
+    pgroup.add_argument('--serial-number')
+    pgroup.add_argument('--mode')
 
-    agent.register_task('lakeshore', therm.init_lakeshore_task)
-    agent.register_process('acq', therm.start_acq, therm.stop_acq)
+    # Parse comand line.
+    args = parser.parse_args()
+
+    # Interpret options in the context of site_config.
+    site_config.reparse_args(args, 'Lakeshore372Agent')
+    print('I am in charge of device with serial number: %s' % args.serial_number)
+
+    lake_agent = LS372_Agent(args.serial_number, args.ip_address , fake_data=False)
+
+    agent, runner = ocs_agent.init_site_agent(args)
+
+    agent.register_task('lakeshore', lake_agent.init_lakeshore_task)
+    agent.register_task('set_heater_range', lake_agent.set_heater_range)
+    agent.register_task('set_excitation_mode', lake_agent.set_excitation_mode)
+    agent.register_task('set_excitation', lake_agent.set_excitation)
+    agent.register_task('set_pid', lake_agent.set_pid)
+    agent.register_task('servo_to_temperature', lake_agent.servo_to_temperature)
+    agent.register_task('check_temperature_stability', lake_agent.check_temperature_stability)
+    agent.register_process('acq', lake_agent.start_acq, lake_agent.stop_acq)
 
     runner.run(agent, auto_reconnect=True)
-

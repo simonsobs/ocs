@@ -160,6 +160,10 @@ format_lock = {"Ohm/K (linear)": '3',
 class LS372:
     """
         Lakeshore 372 class.
+
+    Attributes:
+        channels - list of channels, index corresponds to channel number with
+                   index 0 corresponding to the control channel, 'A'
     """
     def __init__(self, ip, timeout=10, num_channels=16):
         self.com = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -176,8 +180,11 @@ class LS372:
         #     self.msg('INSET %d,1,3,3'%(i))
 
         self.channels = []
-        for i in range(num_channels):
-            c = Channel(self, i+1)
+        for i in range(num_channels + 1):
+            if i == 0:
+                c = Channel(self, 'A')
+            else:
+                c = Channel(self, i)
             self.channels.append(c)
 
     def msg(self, message):

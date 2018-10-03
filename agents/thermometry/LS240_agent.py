@@ -1,4 +1,4 @@
-from ocs import ocs_agent
+from ocs import ocs_agent, site_config
 from ocs.Lakeshore.Lakeshore240 import Module
 import random
 import time
@@ -117,11 +117,24 @@ class LS240_Agent:
                      False: 'Failed to request process stop.'}[ok])
 
 
-
 if __name__ == '__main__':
+    parser = site_config.add_arguments()
+
+    # Add options specific to this agent.
+    pgroup = parser.add_argument_group('Agent Options')
+    pgroup.add_argument('--serial-number')
+    pgroup.add_argument('--mode')
+    pgroup.add_argument('--fake-data', action="store_true")
+
+    # Parse comand line.
+    args = parser.parse_args()
+
+    # Interpret options in the context of site_config.
+    site_config.reparse_args(args, 'Lakeshore240Agent')
+
     agent, runner = ocs_agent.init_ocs_agent('observatory.thermometry')
 
-    therm = LS240_Agent(agent, fake_data=False)
+    therm = LS240_Agent(agent, fake_data=args.fake_data)
     
     agent.register_task('init_lakeshore', therm.init_lakeshore_task)
     agent.register_process('pub', therm.publish_status, therm.stop_publish)

@@ -1,13 +1,14 @@
 
 import ocs
-from ocs import client_t
-import logging
+from ocs import client_t, site_config
 
 
-def my_script(app):
+def my_script(app, pargs):
 
-    agg_addr = u'observatory.data_aggregator'
-    therm_addr = u'observatory.thermometry'
+    agg_addr = u'observatory.aggregator'
+
+    therm_addr = "{}.{}".format(pargs.address_root, pargs.target)
+    data_feed = "{}.data".format(therm_addr)
 
     print('Entered control')
 
@@ -22,7 +23,7 @@ def my_script(app):
 
     # Start the aggregator running
     print("Starting Aggregator")
-    yield subscribe.start()
+    yield subscribe.start(data_feed)
     subscribe.wait(timeout=10)
     yield aggregate.start()
 
@@ -31,21 +32,28 @@ def my_script(app):
     yield init_ls.wait(timeout=10)
     yield get_data.start()
 
-    sleep_time = 10
+    sleep_time = 3
     for i in range(sleep_time):
         print('sleeping for {:d} more seconds'.format(sleep_time - i))
         yield client_t.dsleep(1)
 
-
     print("Stopping Data Acquisition")
     yield get_data.stop()
     yield get_data.wait()
+
 
     print("Stopping Data Aggregator")
     yield aggregate.stop()
     yield aggregate.wait()
 
 
+
+
+
+
 if __name__ == '__main__':
-    client_t.run_control_script(my_script)
+    parser = site_config.add_arguments()
+    parser.add_argument('--target', default="thermo1")
+    client_t.run_control_script2(my_script, parser=parser)
+
    

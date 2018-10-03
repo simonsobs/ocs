@@ -1,6 +1,6 @@
 import time, threading
 import numpy as np
-from ocs import ocs_agent
+from ocs import ocs_agent, site_config
 from spt3g import core
 # import op_model as opm
 
@@ -9,78 +9,50 @@ class DataAggregator:
 
     def __init__(self, agent):
 
-        self.lock = threading.Semaphore()
-        self.job = None
         self.agent = agent
-
+        self.log = agent.log
         self.incoming_data = {}
+        self.aggregate = False
 
-        # TODO(Jack): List of feeds should be obtained dynamically
-        self.feeds = [u'observatory.thermometry']
         self.filename = ""
         self.file = None
 
-    # Exclusive access management.
-    
-    def try_set_job(self, job_name):
-        with self.lock:
-            if self.job is None:
-                self.job = job_name
-                return True, 'ok.'
-            return False, 'Conflict: "%s" is already running.' % self.job
-
-    def set_job_done(self):
-        with self.lock:
-            self.job = None
-
-    def handler(self, data):
-        """
-        Handles data published to feed.
-        """
-        # Do we want to save data before aggregate starts? Probably doesn't matter
-        if self.job == 'aggregate':
-            subscriber_address = data["agent_address"]
-            self.incoming_data[subscriber_address].append(data)
-            #print ("Message from %s: got value %s "% (subscriber_address, data))
 
     # Task to subscribe to data feeds
-    def subscribe_to_topics(self, sessions, params=None):
-        ok, msg = self.try_set_job('subscribe')
-        if not ok:
-            return ok, msg
+    def subscribe_to_feed(self, sessions, feed):
 
-        # try:
-        #     self.feeds = params["feeds"]
-        # except ValueError:
-        #     print("feeds not specified")
+        if feed in self.incoming_data.keys():
+            return False, "Already subscribed to feed {}".format(feed)
 
-        for feed in self.feeds:
-            self.agent.subscribe(self.handler, feed + '.data')
-            print("Subscribed to feed: {}".format(feed))
-            self.incoming_data[feed] = []
+        def handler(data):
+            # Do we want to save data before aggregate starts? Probably doesn't matter
+            if self.aggregate:
+                self.incoming_data[feed].append(data)
+                # print("Message from {}: {}".format(feed, data))
 
-        self.set_job_done()
+        self.agent.subscribe(handler, feed)
+        self.incoming_data[feed] =[]
+        self.log.info("Subscribed to feed {}".format(feed))
+
         return True, 'Subscribed to data feeds.'
 
     def write_data_to_file(self):
-        for feed in self.feeds:
-            if len(self.incoming_data[feed]) == 0:
+
+        for feed_name, data_list in self.incoming_data.items():
+            if len(data_list) == 0:
                 continue
 
             # Creates frame from datastream
-
             frame = core.G3Frame(core.G3FrameType.Housekeeping)
-            frame_data = self.incoming_data[feed]
 
-            frame["agent_address"] = frame_data[0]["agent_address"]
-            frame["session_id"] = frame_data[0]["session_id"]
-            print(frame_data[0])
+            frame["agent_address"] = data_list[0]["agent_address"]
+            frame["session_id"] = data_list[0]["session_id"]
 
             tods = {}
             timestamps = {}
 
             # Creats tods and timestamps from frame data
-            for data_point in frame_data:
+            for data_point in data_list:
                 for key, val in data_point["data"].items():
                     if key in tods.keys():
                         tods[key].append(val[1])
@@ -103,7 +75,7 @@ class DataAggregator:
             self.file(frame)
 
             # clear data feed
-            self.incoming_data[feed] = []
+            self.incoming_data[feed_name] = []
 
     def start_file(self):
         print("Creating file: {}".format(self.filename))
@@ -119,8 +91,6 @@ class DataAggregator:
         return
 
     def start_aggregate(self, session, params={}):
-        ok, msg = self.try_set_job('aggregate')
-        if not ok: return ok, msg
         session.post_status('running')
 
         new_file_time = True
@@ -128,15 +98,8 @@ class DataAggregator:
 
         time_per_frame = 60 * 10 # [s]
         time_per_file  = 60 * 60  # [s]
-
-        while True:
-            with self.lock:
-                if self.job == '!aggregate':
-                    break
-                elif self.job == 'aggregate':
-                    pass
-                else:
-                    return 10
+        self.aggregate = True
+        while self.aggregate:
 
             if new_file_time:
                 if self.file is not None:
@@ -162,26 +125,24 @@ class DataAggregator:
             new_frame_time = (time.time() - frame_start_time) > time_per_frame
 
         self.end_file()
-        self.set_job_done()
         return True, 'Acquisition exited cleanly.'
             
     def stop_aggregate(self, session, params=None):
-        ok = False
-        with self.lock:
-            if self.job =='aggregate':
-                self.job = '!aggregate'
-                ok = True
-
-        return (ok, {True: 'Requested process stop.',
-                     False: 'Failed to request process stop.'}[ok])
+        self.aggregate = False
+        return (True, "Stopped aggregation")
 
 
 if __name__ == '__main__':
-    agent, runner = ocs_agent.init_ocs_agent(u'observatory.data_aggregator')
+
+    parser = site_config.add_arguments()
+    args = parser.parse_args()
+    site_config.reparse_args(args, 'AggregatorAgent')
+
+    agent, runner = ocs_agent.init_site_agent(args)
 
     data_aggregator = DataAggregator(agent)
 
-    agent.register_task('subscribe', data_aggregator.subscribe_to_topics)
+    agent.register_task('subscribe', data_aggregator.subscribe_to_feed)
     agent.register_process('aggregate', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
 
     runner.run(agent, auto_reconnect=True)

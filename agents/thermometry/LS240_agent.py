@@ -132,7 +132,7 @@ if __name__ == '__main__':
     # Interpret options in the context of site_config.
     site_config.reparse_args(args, 'Lakeshore240Agent')
 
-    agent, runner = ocs_agent.init_ocs_agent('observatory.thermometry')
+    agent, runner = ocs_agent.init_site_agent(args)
 
     therm = LS240_Agent(agent, fake_data=args.fake_data)
     

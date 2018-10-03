@@ -1,13 +1,17 @@
 
 import ocs
-from ocs import client_t
+from ocs import client_t, site_config
 
-def my_script(app, agent_addr):
+
+def my_script(app, pargs):
+
+
+    agent_addr = "{}.{}".format(pargs.address_root, pargs.target)
 
     print('Entered control')
     init_task = client_t.TaskClient(app, agent_addr, 'init_lakeshore')
     acq_proc = client_t.ProcessClient(app, agent_addr, 'acq') 
-    
+
     print('Initializing Lakeshore.')
     d1 = yield init_task.start()
     
@@ -27,15 +31,17 @@ def my_script(app, agent_addr):
     d1 = yield acq_proc.start()
 
     sleep_time = 3
-    try:
-        for i in range(sleep_time):
-            print('sleeping for {:d} more seconds'.format(sleep_time - i))
-            yield client_t.dsleep(1)
-    finally:
-        print("Stopping acquisition process")
-        yield acq_proc.stop()
-        yield acq_proc.wait()
+
+    for i in range(sleep_time):
+        print("Sleeping for {} more seconds".format(sleep_time-i))
+        yield client_t.dsleep(1)
+
+    print("Stopping acquisition process")
+    yield acq_proc.stop()
+    yield acq_proc.wait()
+
 
 if __name__ == '__main__':
-    client_t.run_control_script(my_script, u'observatory.thermometry')
-   
+    parser = site_config.add_arguments()
+    parser.add_argument('--target', default="thermo1")
+    client_t.run_control_script2(my_script, parser=parser)

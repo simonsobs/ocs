@@ -122,7 +122,8 @@ ENV/
 
 # Custom
 .crossbar/
-example/dot_crossbar/key.*
 ocs/Lakeshore/ls.cfg
 ocs/Lakeshore/ips.json
 agents/aggregator/data/*
+key.*
+node.pid

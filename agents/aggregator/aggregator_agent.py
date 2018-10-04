@@ -1,6 +1,7 @@
 import time, threading
 import numpy as np
 from ocs import ocs_agent, site_config
+import os
 from spt3g import core
 # import op_model as opm
 
@@ -91,13 +92,33 @@ class DataAggregator:
         return
 
     def start_aggregate(self, session, params={}):
+        """
+        Starts the aggregation process.
+
+        Optional Parameters:
+            :time_per_file:     How much time should elapse before starting a new file
+            :time_per_frame:    How much time before writing new frame. This should eventually be set by the agent feeds.
+            :data_dir:          Directory to store data
+        """
+
+        if params is None:
+            print("No params specified")
+            params = {}
+
+        time_per_file = params.get("time_per_file", 60 * 60) # [s]
+        time_per_frame = params.get("time_per_frame", 60 * 10)  # [s]
+        data_dir = params.get("data_dir", "data/")
+
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+
+        self.log.info("Starting data aggregation in directory {}".format(data_dir))
+
         session.post_status('running')
 
         new_file_time = True
         new_frame_time = True
 
-        time_per_frame = 60 * 10 # [s]
-        time_per_file  = 60 * 60  # [s]
         self.aggregate = True
         while self.aggregate:
 
@@ -107,7 +128,7 @@ class DataAggregator:
 
                 file_start_time = time.time()
                 time_string = time.strftime("%Y-%m-%d_T_%H:%M:%S", time.localtime(file_start_time))
-                self.filename = "data/{}.g3".format(time_string)
+                self.filename = os.path.join(data_dir, "{}.g3".format(time_string))
                 self.start_file()
 
                 session.post_message('Starting a new DAQ file: %s' % self.filename)

@@ -25,7 +25,13 @@ def my_script(app, pargs):
     print("Starting Aggregator")
     yield subscribe.start(data_feed)
     subscribe.wait(timeout=10)
-    yield aggregate.start()
+
+    agg_params = {
+        "time_per_file": 5,
+        "time_per_frame": 10,
+        "data_dir": "data2/"
+    }
+    yield aggregate.start(params=agg_params)
 
     print("Starting Data Acquisition")
     yield init_ls.start()

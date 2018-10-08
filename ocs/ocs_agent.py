@@ -75,6 +75,8 @@ class OCSAgent(ApplicationSession):
         ApplicationSession.__init__(self, config)
         self.tasks = {}       # by op_name
         self.processes = {}   # by op_name
+        self.feeds = {}
+        self.subscribed_feeds = []
         self.sessions = {}    # by op_name, single OpSession.
         self.next_session_id = 0
         self.session_archive = {} # by op_name, lists of OpSession.
@@ -122,6 +124,7 @@ class OCSAgent(ApplicationSession):
 
     @inlineCallbacks
     def my_device_handler(self, action, op_name, params=None, timeout=None):
+        print("Calling {} with params {}".format(op_name, params))
         if action == 'start':
             d = yield self.start(op_name, params=params)
         if action == 'stop':
@@ -176,6 +179,27 @@ class OCSAgent(ApplicationSession):
     def register_process(self, name, start_func, stop_func):
         self.processes[name] = AgentProcess(start_func, stop_func)
         self.sessions[name] = None
+
+    def register_feed(self, name, aggregate=False):
+        self.feeds[name] = Feed(self, name, aggregate=aggregate)
+
+    def publish_to_feed(self, feed_name, message):
+        if feed_name not in self.feeds.keys():
+            self.log.error("Feed {} is not registered.".format(feed_name))
+            return
+        self.feeds[feed_name].publish_message(message)
+
+    def subscribe_to_feed(self, agent_addr, feed_name, callback, force_subscribe = False):
+        address = "{}.feeds.{}".format(agent_addr, feed_name)
+
+        # Makes sure that feeds are not accidentally subscribed to multiple times if agent is not restarted...
+        if address not in self.subscribed_feeds or force_subscribe:
+            self.subscribe(callback, address)
+            self.subscribed_feeds.append(address)
+            return True
+        else:
+            self.log.error("Feed {} is already subscribed to".format(address))
+            return False
 
     def handle_task_return_val(self, *args, **kw):
         (ok, message), session = args
@@ -307,7 +331,7 @@ class AgentProcess:
     def __init__(self, launcher, stopper):
         self.launcher = launcher
         self.stopper = stopper
-    
+
 class OpSession:
     """When a caller requests that an Operation (Process or Task) is
     started, an OpSession object is created and is associated with
@@ -408,4 +432,40 @@ class OpSession:
 
     def post_data(self, data):
         reactor.callFromThread(self.publish_data, data)
+
+    def call_operation(self, operation, params=None, timeout=None, block=False):
+        kwargs = {'params': params}
+        if timeout is not None:
+            kwargs['timeout'] = timeout
+        if block:
+            return threads.blockingCallFromThread(reactor, operation, **kwargs)
+        else:
+            reactor.callFromThread(operation, **kwargs)
+class Feed:
+    def __init__(self, agent, feed_name, aggregate=False, max_messages=20):
+        self.messages = []
+        self.max_messages = max_messages
+        self.agent = agent
+        self.agent_address = agent.agent_address
+        self.feed_name = feed_name
+        self.aggregate = aggregate
+        self.address = "{}.feeds.{}".format(self.agent_address, self.feed_name)
+
+    def encoded(self):
+        return {
+            "agent_address": self.agent_address,
+            "feed_name": self.feed_name,
+            "address": self.address,
+            "messages": self.messages,
+            "aggregate": self.aggregate,
+        }
+
+    def publish_message(self, message, timestamp = None):
+        self.agent.publish(self.address,(message, self.encoded()))
+
+        if timestamp is None:
+            timestamp = time.time()
+        self.messages.append((timestamp, message))
+        if len(self.messages) > self.max_messages:
+            self.messages.pop(0)
 

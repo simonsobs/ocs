@@ -1,8 +1,9 @@
-from ocs import ocs_agent, site_config
+from ocs import ocs_agent, site_config, client_t
 from ocs.Lakeshore.Lakeshore240 import Module
 import random
 import time
 import threading
+from autobahn.wamp.exception import ApplicationError
 
 
 class LS240_Agent:
@@ -10,6 +11,7 @@ class LS240_Agent:
     def __init__(self, agent, fake_data = False, port="/dev/ttyUSB0"):
         self.active = True
         self.agent = agent
+        self.log = agent.log
         self.lock = threading.Semaphore()
         self.job = None
         self.fake_data = fake_data
@@ -17,12 +19,14 @@ class LS240_Agent:
         self.port = port
         self.thermometers = []
 
+        self.agent.register_feed('temperatures', aggregate=True)
+        feeds = [f[1].encoded() for f in self.agent.feeds.items()]
+
         self.agent_data = {
             'address': agent.agent_address,
+            'feeds': feeds
         }
-
-    def close(self):
-        pass
+        self.registered = False
 
     # Exclusive access management.
     def try_set_job(self, job_name):
@@ -36,15 +40,6 @@ class LS240_Agent:
         with self.lock:
             self.job = None
 
-
-    def publish_status(self, session, params=None):
-        while self.active:
-            print("Here")
-            time.sleep(1)
-
-    def stop_publish(self, session, params=None):
-        self.active = False
-
     # Task functions.
     def init_lakeshore_task(self, session, params=None):
         ok, msg = self.try_set_job('init')
@@ -54,6 +49,15 @@ class LS240_Agent:
             return ok, msg
 
         session.post_status('starting')
+
+        # Registers agent
+        try:
+            register_t = client_t.TaskClient(session.app, 'observatory.registry', 'register_agent')
+            session.call_operation(register_t.start, self.agent_data, block=True)
+            self.registered = True
+        except ApplicationError as e:
+            if e.error == u'wamp.error.no_such_procedure':
+                self.log.error("Registry is not running")
 
         if self.fake_data:
             session.post_message("No initialization since faking data")
@@ -73,8 +77,13 @@ class LS240_Agent:
         self.set_job_done()
         return True, 'Lakeshore module initialized.'
 
-    # Process functions.    
+    def terminate(self, session, params=None):
+        if self.registered:
+            unregister = client_t.TaskClient(session.app, 'observatory.registry', 'remove_agent')
+            session.call_operation(unregister.start, self.agent.agent_address)
+        return True, 'Lakeshore terminated.'
 
+    # Process functions.
     def start_acq(self, session, params=None):
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
@@ -101,8 +110,8 @@ class LS240_Agent:
                     data[self.thermometers[i]] = (time.time(), channel.get_reading())
 
             print("Data: {}".format(data))
-
-            session.post_data(data)
+            session.app.publish_to_feed('temperatures', data)
+            # session.post_data(data)
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
@@ -135,9 +144,9 @@ if __name__ == '__main__':
     agent, runner = ocs_agent.init_site_agent(args)
 
     therm = LS240_Agent(agent, fake_data=args.fake_data)
-    
+
     agent.register_task('init_lakeshore', therm.init_lakeshore_task)
-    agent.register_process('pub', therm.publish_status, therm.stop_publish)
+    agent.register_task('terminate', therm.terminate)
     agent.register_process('acq', therm.start_acq, therm.stop_acq)
 
     runner.run(agent, auto_reconnect=True)

@@ -1,9 +1,10 @@
 import time, threading
 import numpy as np
-from ocs import ocs_agent, site_config
+from ocs import ocs_agent, site_config, client_t
 import os
 from spt3g import core
 # import op_model as opm
+from autobahn.wamp.exception import ApplicationError
 
 
 class DataAggregator:
@@ -18,24 +19,89 @@ class DataAggregator:
         self.filename = ""
         self.file = None
 
+        self.agent_data = {
+            "address": self.agent.agent_address
+        }
+
+        self.registered = False
+
+
+    # Called whenever data is published to a subscribed feed
+    def data_handler(self, _data):
+        data, feed = _data
+        if self.aggregate:
+            self.incoming_data[feed["address"]].append(data)
+
+    def add_feed(self, agent_address, feed_name):
+        """
+        Subscribes to feed and adds incoming data to dictionary
+        :param agent_address:
+        :param feed_name:
+        """
+        feed_address = "{}.feeds.{}".format(agent_address, feed_name)
+        self.agent.subscribe_to_feed(agent_address, feed_name, self.data_handler)
+        self.incoming_data[feed_address] = []
+        self.log.info("Subscribed to feed {}".format(feed_address))
+
+    def initialize(self, session, params={}):
+        # Registers agent
+        try:
+            register_t = client_t.TaskClient(session.app, 'observatory.registry', 'register_agent')
+            session.call_operation(register_t.start, self.agent_data, block=True)
+            self.registered = True
+        except ApplicationError as e:
+            if e.error == u'wamp.error.no_such_procedure':
+                self.log.error("Registry is not running")
+                return True, "Initialized Aggregator but could not register"
+
+        # Called whenever a new agent is added to the registry
+        def new_agent_handler(_data):
+            agent_data, feed_data = _data
+            feeds = agent_data.get("feeds")
+            if feeds is None:
+                return
+
+            for feed in agent_data["feeds"]:
+                if feed["aggregate"]:
+                    self.add_feed( feed["agent_address"], feed["feed_name"])
+
+        self.agent.subscribe_to_feed('observatory.registry', 'new_agent', new_agent_handler)
+        return True, "Initialized Aggregator"
+
+    def terminate(self, session, params=None):
+        # Unregister agent
+        if self.registered:
+            unregister = client_t.TaskClient(session.app, 'observatory.registry', 'remove_agent')
+            session.call_operation(unregister.start, self.agent.agent_address)
+
+        return True, "Terminated Aggregator agent"
+
 
     # Task to subscribe to data feeds
-    def subscribe_to_feed(self, sessions, feed):
+    def subscribe_to_feed(self, sessions, params = {}):
+        """
+        Task to subscribe to specified feed
 
-        if feed in self.incoming_data.keys():
-            return False, "Already subscribed to feed {}".format(feed)
+        :param agent_address:   Address of agent containing feed
+        :param feed_name:       Name of feed to subscribe to.
+        """
+        if params is None:
+            params = {}
 
-        def handler(data):
-            # Do we want to save data before aggregate starts? Probably doesn't matter
-            if self.aggregate:
-                self.incoming_data[feed].append(data)
-                # print("Message from {}: {}".format(feed, data))
+        agent_address = params.get("agent_address")
+        feed_name = params.get("feed_name")
 
-        self.agent.subscribe(handler, feed)
-        self.incoming_data[feed] =[]
-        self.log.info("Subscribed to feed {}".format(feed))
+        if None in [agent_address, feed_name]:
+            self.log.error("Must specify agent_address and feed_name")
+            raise KeyError("agent_address and feed_name must be specified in params")
 
+        feed_address = "{}.feeds.{}".format(agent_address, feed_name)
+        if feed_address in self.incoming_data.keys():
+            return False, "Already subscribed to feed {}".format(feed_address)
+
+        self.add_feed(agent_address, feed_name)
         return True, 'Subscribed to data feeds.'
+
 
     def write_data_to_file(self):
 
@@ -46,15 +112,14 @@ class DataAggregator:
             # Creates frame from datastream
             frame = core.G3Frame(core.G3FrameType.Housekeeping)
 
-            frame["agent_address"] = data_list[0]["agent_address"]
-            frame["session_id"] = data_list[0]["session_id"]
+            frame["feed"] = feed_name
 
             tods = {}
             timestamps = {}
 
             # Creats tods and timestamps from frame data
             for data_point in data_list:
-                for key, val in data_point["data"].items():
+                for key, val in data_point.items():
                     if key in tods.keys():
                         tods[key].append(val[1])
                         timestamps[key].append(val[0])
@@ -163,6 +228,8 @@ if __name__ == '__main__':
 
     data_aggregator = DataAggregator(agent)
 
+    agent.register_task('initialize', data_aggregator.initialize)
+    agent.register_task('terminate', data_aggregator.terminate)
     agent.register_task('subscribe', data_aggregator.subscribe_to_feed)
     agent.register_process('aggregate', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
 

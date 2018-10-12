@@ -105,7 +105,7 @@ if __name__ == '__main__':
 
     therm = Thermometry(agent, fake_data=True)
     
-    agent.register_task('lakeshore', therm.init_lakeshore_task)
+    agent.register_task('init_lakeshore', therm.init_lakeshore_task)
     agent.register_process('acq', therm.start_acq, therm.stop_acq)
 
     runner.run(agent, auto_reconnect=True)

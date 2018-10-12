@@ -308,7 +308,7 @@ if __name__ == '__main__':
 
     agent, runner = ocs_agent.init_site_agent(args)
 
-    agent.register_task('lakeshore', lake_agent.init_lakeshore_task)
+    agent.register_task('init_lakeshore', lake_agent.init_lakeshore_task)
     agent.register_task('set_heater_range', lake_agent.set_heater_range)
     agent.register_task('set_excitation_mode', lake_agent.set_excitation_mode)
     agent.register_task('set_excitation', lake_agent.set_excitation)

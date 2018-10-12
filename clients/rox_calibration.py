@@ -15,8 +15,8 @@ def calibrate_roxes(app, pargs):
     measurement_agent_addr = f'{pargs.address_root}.measurement'
 
     # Task/Process registration
-    control_init_task = client_t.TaskClient(app, control_agent_addr, 'lakeshore')
-    measurement_init_task = client_t.TaskClient(app, measurement_agent_addr, 'lakeshore')
+    control_init_task = client_t.TaskClient(app, control_agent_addr, 'init_lakeshore')
+    measurement_init_task = client_t.TaskClient(app, measurement_agent_addr, 'init_lakeshore')
 
     # Measurement tasks
     set_measurement_ch_excitation_mode = client_t.TaskClient(app, measurement_agent_addr, 'set_excitation_mode')

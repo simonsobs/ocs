@@ -13,7 +13,10 @@ class DataAggregator:
 
         self.agent = agent
         self.log = agent.log
+
+        self.feed_data = {}
         self.incoming_data = {}
+
         self.aggregate = False
 
         self.filename = ""
@@ -29,6 +32,9 @@ class DataAggregator:
     # Called whenever data is published to a subscribed feed
     def data_handler(self, _data):
         data, feed = _data
+        if feed["address"] not in self.feed_data.keys():
+            self.feed_data[feed["address"]] = feed
+
         if self.aggregate:
             self.incoming_data[feed["address"]].append(data)
 
@@ -38,7 +44,11 @@ class DataAggregator:
         :param agent_address:
         :param feed_name:
         """
+
         feed_address = "{}.feeds.{}".format(agent_address, feed_name)
+        if feed_address in self.incoming_data.keys():
+            return
+
         self.agent.subscribe_to_feed(agent_address, feed_name, self.data_handler)
         self.incoming_data[feed_address] = []
         self.log.info("Subscribed to feed {}".format(feed_address))
@@ -47,6 +57,7 @@ class DataAggregator:
         # Registers agent
         try:
             register_t = client_t.TaskClient(session.app, 'observatory.registry', 'register_agent')
+            dump_agents_t = client_t.TaskClient(session.app, 'observatory.registry', 'dump_agent_info')
             session.call_operation(register_t.start, self.agent_data, block=True)
             self.registered = True
         except ApplicationError as e:
@@ -56,23 +67,29 @@ class DataAggregator:
 
         # Called whenever a new agent is added to the registry
         def new_agent_handler(_data):
-            agent_data, feed_data = _data
+            (action, agent_data), feed_data = _data
+
+            if action == "removed":
+                return
+
             feeds = agent_data.get("feeds")
             if feeds is None:
                 return
 
             for feed in agent_data["feeds"]:
                 if feed["aggregate"]:
-                    self.add_feed( feed["agent_address"], feed["feed_name"])
+                    self.add_feed(feed["agent_address"], feed["feed_name"])
 
-        self.agent.subscribe_to_feed('observatory.registry', 'new_agent', new_agent_handler)
+        self.agent.subscribe_to_feed('observatory.registry', 'agent_activity', new_agent_handler)
+
+        session.call_operation(dump_agents_t.start)
         return True, "Initialized Aggregator"
 
     def terminate(self, session, params=None):
         # Unregister agent
         if self.registered:
             unregister = client_t.TaskClient(session.app, 'observatory.registry', 'remove_agent')
-            session.call_operation(unregister.start, self.agent.agent_address)
+            session.call_operation(unregister.start, self.agent_data)
 
         return True, "Terminated Aggregator agent"
 

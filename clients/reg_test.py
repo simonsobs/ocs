@@ -23,13 +23,13 @@ def my_script(app, pargs):
         'agg':  client_t.ProcessClient(app, agg_addr, 'aggregate')
     }
 
+    yield therm_ops['init'].start()
+    yield therm_ops['init'].wait()
 
     # Initializes Aggregator and Thermometry
     yield agg_ops['init'].start()
     yield agg_ops['init'].wait()
 
-    yield therm_ops['init'].start()
-    yield therm_ops['init'].wait()
 
     # Starts data aggregation
     agg_params = {
@@ -51,6 +51,7 @@ def my_script(app, pargs):
     yield therm_ops['acq'].stop()
     yield therm_ops['acq'].wait()
     yield therm_ops['term'].start()
+    yield therm_ops['term'].wait()
 
 
     print("Stopping Data Aggregator")

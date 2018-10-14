@@ -441,6 +441,7 @@ class OpSession:
             return threads.blockingCallFromThread(reactor, operation, **kwargs)
         else:
             reactor.callFromThread(operation, **kwargs)
+
 class Feed:
     def __init__(self, agent, feed_name, aggregate=False, max_messages=20):
         self.messages = []

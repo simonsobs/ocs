@@ -80,7 +80,7 @@ class LS240_Agent:
     def terminate(self, session, params=None):
         if self.registered:
             unregister = client_t.TaskClient(session.app, 'observatory.registry', 'remove_agent')
-            session.call_operation(unregister.start, self.agent.agent_address)
+            session.call_operation(unregister.start, self.agent_data)
         return True, 'Lakeshore terminated.'
 
     # Process functions.
@@ -111,7 +111,6 @@ class LS240_Agent:
 
             print("Data: {}".format(data))
             session.app.publish_to_feed('temperatures', data)
-            # session.post_data(data)
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'

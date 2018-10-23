@@ -339,9 +339,12 @@ class OpSession:
 
         # Set up the log message purge.
         self.purge_policy = {
-            'min_age_s': 3600,
-            'min_messages': 5,
-            'max_messages': 10000,
+            'min_age_s': 3600,     # Time in seconds after which
+                                   # messages can be discarded.
+            'min_messages': 5,     # Number of messages to keep,
+                                   # even if they have expired.
+            'max_messages': 10000, # Max number of messages to keep,
+                                   # even if they have not expired.
             }
         if purge_policy is not None:
             self.purge_policy.update(purge_policy)
@@ -350,7 +353,7 @@ class OpSession:
     def purge_log(self):
         cutoff = time.time() - self.purge_policy['min_age_s']
         while ((len(self.messages) > self.purge_policy['max_messages']) or
-               ((len(self.messages) < self.purge_policy['min_messages']) and
+               ((len(self.messages) > self.purge_policy['min_messages']) and
                 self.messages[0][0] < cutoff)):
             m = self.messages.pop(0)
         # Set this purger to be called again in the future, at some

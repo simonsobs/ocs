@@ -1,5 +1,6 @@
 # Lakeshore372.py
 
+import sys
 import socket
 import time
 import numpy as np
@@ -1560,8 +1561,4 @@ class Heater:
 
 
 if __name__ == "__main__":
-    import json
-    with open("ips.json") as file:
-        ips = json.load(file)
-    name="LS372A"
-    ls = LS372(ips[name])
+    ls = LS372(sys.argv[1])

@@ -81,7 +81,17 @@ class OCSAgent(ApplicationSession):
         self.next_session_id = 0
         self.session_archive = {} # by op_name, lists of OpSession.
         self.agent_address = address
-        
+        self.registered = False
+
+    def encoded(self):
+        return {
+            'agent_address': self.agent_address,
+            'feeds': [f[1].encoded() for f in self.feeds.items()],
+            'tasks': list(self.tasks.keys()),
+            'processes': list(self.processes.keys())
+        }
+
+
     def onConnect(self):
         self.log.info('transport connected')
         self.join(self.config.realm)
@@ -100,8 +110,19 @@ class OCSAgent(ApplicationSession):
         yield self.register(self.my_device_handler, self.agent_address + '.ops')
         yield self.register(self.my_management_handler, self.agent_address)
 
+        self.register_feed("heartbeat", max_messages=1)
+
+        def heartbeat():
+            self.publish_to_feed("heartbeat", 0)
+
+        self.heartbeat_call = task.LoopingCall(heartbeat)
+        self.heartbeat_call.start(1.0) # Calls the hearbeat every second
+
+        #tries to register feed
+
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
+        self.heartbeat_call.stop()
 
         # Stops all currently running sessions
         for session in self.sessions:
@@ -114,7 +135,6 @@ class OCSAgent(ApplicationSession):
         self.log.info('transport disconnected')
         # this is to clean up stuff. it is not our business to
         # possibly reconnect the underlying connection
-        self._countdown = 1
         self._countdown -= 1
         if self._countdown <= 0:
             try:
@@ -180,8 +200,8 @@ class OCSAgent(ApplicationSession):
         self.processes[name] = AgentProcess(start_func, stop_func)
         self.sessions[name] = None
 
-    def register_feed(self, name, aggregate=False):
-        self.feeds[name] = Feed(self, name, aggregate=aggregate)
+    def register_feed(self, name, **kwargs):
+        self.feeds[name] = Feed(self, name, **kwargs)
 
     def publish_to_feed(self, feed_name, message):
         if feed_name not in self.feeds.keys():
@@ -434,6 +454,21 @@ class OpSession:
         reactor.callFromThread(self.publish_data, data)
 
     def call_operation(self, operation, params=None, timeout=None, block=False):
+        """
+        Calls ocs_agent operation.
+
+        Args:
+            operation (function):
+                operation to call
+            params (dict):
+                Parameters passed to operation
+            timeout (float):
+                Operation timeout
+            block (bool):
+                Whether or not operation should be called in a blocking thread.
+        """
+
+
         kwargs = {'params': params}
         if timeout is not None:
             kwargs['timeout'] = timeout
@@ -443,13 +478,26 @@ class OpSession:
             reactor.callFromThread(operation, **kwargs)
 
 class Feed:
-    def __init__(self, agent, feed_name, aggregate=False, max_messages=20):
+    def __init__(self, agent, feed_name, agg_params={}, max_messages=20):
+        """
+        Manages publishing to a specific feed and storing of messages.
+
+        Args:
+            agent (OCSAgent):
+                agent that is registering the feed
+            feed_name (string):
+                name of the feed
+            agg_params (dict, optional):
+                Parameters used by the aggregator.
+            max_messages (int, optional):
+                Max number of messages stored. Defaults to 20.
+        """
         self.messages = []
         self.max_messages = max_messages
         self.agent = agent
         self.agent_address = agent.agent_address
         self.feed_name = feed_name
-        self.aggregate = aggregate
+        self.agg_params = agg_params
         self.address = "{}.feeds.{}".format(self.agent_address, self.feed_name)
 
     def encoded(self):
@@ -458,10 +506,19 @@ class Feed:
             "feed_name": self.feed_name,
             "address": self.address,
             "messages": self.messages,
-            "aggregate": self.aggregate,
+            "agg_params": self.agg_params,
         }
 
     def publish_message(self, message, timestamp = None):
+        """
+        Publishes message to feed and stores it in ``self.messages``.
+
+        Args:
+            message:
+                Data to be published
+            timestamp (float):
+                timestamp given to the message. Defaults to time.time()
+        """
         self.agent.publish(self.address,(message, self.encoded()))
 
         if timestamp is None:

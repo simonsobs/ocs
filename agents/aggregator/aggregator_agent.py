@@ -22,15 +22,11 @@ class DataAggregator:
         self.filename = ""
         self.file = None
 
-        self.agent_data = {
-            "address": self.agent.agent_address
-        }
-
         self.registered = False
 
 
-    # Called whenever data is published to a subscribed feed
-    def data_handler(self, _data):
+    def _data_handler(self, _data):
+        """Callback whenever data is published to an aggregated feed"""
         data, feed = _data
         if feed["address"] not in self.feed_data.keys():
             self.feed_data[feed["address"]] = feed
@@ -40,33 +36,40 @@ class DataAggregator:
 
     def add_feed(self, agent_address, feed_name):
         """
-        Subscribes to feed and adds incoming data to dictionary
-        :param agent_address:
-        :param feed_name:
+        Subscribes to aggregated feed
+
+        Args:
+            agent_address (string):
+                agent address of the feed.
+
+            feed_name (string):
+                name of the feed.
         """
 
         feed_address = "{}.feeds.{}".format(agent_address, feed_name)
         if feed_address in self.incoming_data.keys():
             return
 
-        self.agent.subscribe_to_feed(agent_address, feed_name, self.data_handler)
+        self.agent.subscribe_to_feed(agent_address, feed_name, self._data_handler)
         self.incoming_data[feed_address] = []
         self.log.info("Subscribed to feed {}".format(feed_address))
 
     def initialize(self, session, params={}):
-        # Registers agent
+        """
+        TASK: Registers the aggregator and subscribes to *agent_activity* feed.
+        """
         try:
             register_t = client_t.TaskClient(session.app, 'observatory.registry', 'register_agent')
             dump_agents_t = client_t.TaskClient(session.app, 'observatory.registry', 'dump_agent_info')
-            session.call_operation(register_t.start, self.agent_data, block=True)
+            session.call_operation(register_t.start, self.agent.encoded(), block=True)
             self.registered = True
         except ApplicationError as e:
             if e.error == u'wamp.error.no_such_procedure':
                 self.log.error("Registry is not running")
                 return True, "Initialized Aggregator but could not register"
 
-        # Called whenever a new agent is added to the registry
-        def new_agent_handler(_data):
+        def _new_agent_handler(_data):
+            """Callback for whenever an agent is published to agent_activity"""
             (action, agent_data), feed_data = _data
 
             if action == "removed":
@@ -77,40 +80,33 @@ class DataAggregator:
                 return
 
             for feed in agent_data["feeds"]:
-                if feed["aggregate"]:
+                if feed['agg_params'].get("aggregate", False):
                     self.add_feed(feed["agent_address"], feed["feed_name"])
 
-        self.agent.subscribe_to_feed('observatory.registry', 'agent_activity', new_agent_handler)
+        self.agent.subscribe_to_feed('observatory.registry', 'agent_activity', _new_agent_handler)
 
         session.call_operation(dump_agents_t.start)
         return True, "Initialized Aggregator"
 
-    def terminate(self, session, params=None):
-        # Unregister agent
-        if self.registered:
-            unregister = client_t.TaskClient(session.app, 'observatory.registry', 'remove_agent')
-            session.call_operation(unregister.start, self.agent_data)
-
-        return True, "Terminated Aggregator agent"
-
 
     # Task to subscribe to data feeds
-    def subscribe_to_feed(self, sessions, params = {}):
+    def add_feed_task(self, sessions, params=None):
         """
-        Task to subscribe to specified feed
+        TASK: Subscribes to specified feed.
 
-        :param agent_address:   Address of agent containing feed
-        :param feed_name:       Name of feed to subscribe to.
+        Args:
+            agent_address (string):
+                agent address of the feed.
+
+            feed_name (string):
+                name of the feed.
         """
         if params is None:
             params = {}
 
-        agent_address = params.get("agent_address")
-        feed_name = params.get("feed_name")
+        agent_address = params["agent_address"]
+        feed_name = params["feed_name"]
 
-        if None in [agent_address, feed_name]:
-            self.log.error("Must specify agent_address and feed_name")
-            raise KeyError("agent_address and feed_name must be specified in params")
 
         feed_address = "{}.feeds.{}".format(agent_address, feed_name)
         if feed_address in self.incoming_data.keys():
@@ -121,7 +117,10 @@ class DataAggregator:
 
 
     def write_data_to_file(self):
-
+        """
+        Translates ``self.incoming_data`` to G3Frames, writes it to file.
+        Clears self.incoming_data.
+        """
         for feed_name, data_list in self.incoming_data.items():
             if len(data_list) == 0:
                 continue
@@ -161,11 +160,17 @@ class DataAggregator:
             self.incoming_data[feed_name] = []
 
     def start_file(self):
+        """
+        Starts new G3File with filename ``self.filename``.
+        """
         print("Creating file: {}".format(self.filename))
         self.file = core.G3Writer(filename=self.filename)
         return
 
     def end_file(self):
+        """
+        Ends current G3File with EndProcessing frame.
+        """
         self.write_data_to_file()
         self.file(core.G3Frame(core.G3FrameType.EndProcessing))
 
@@ -175,12 +180,19 @@ class DataAggregator:
 
     def start_aggregate(self, session, params={}):
         """
-        Starts the aggregation process.
+        PROCESS: Starts the aggregation process.
 
-        Optional Parameters:
-            :time_per_file:     How much time should elapse before starting a new file
-            :time_per_frame:    How much time before writing new frame. This should eventually be set by the agent feeds.
-            :data_dir:          Directory to store data
+        Args:
+            time_per_file (int, optional):
+                Specifies how much time should elapse before starting a new
+                file (in seconds). Defaults to 1 hr.
+
+            time_per_frame (int, optional):
+                Specifies how much time should elapse before starting a new
+                frame (in seconds). Defaults to 10 minutes.
+
+            data_dir (string, optional):
+                Path of directory to store data. Defaults to 'data/'.
         """
 
         if params is None:
@@ -246,8 +258,7 @@ if __name__ == '__main__':
     data_aggregator = DataAggregator(agent)
 
     agent.register_task('initialize', data_aggregator.initialize)
-    agent.register_task('terminate', data_aggregator.terminate)
-    agent.register_task('subscribe', data_aggregator.subscribe_to_feed)
+    agent.register_task('subscribe', data_aggregator.add_feed_task)
     agent.register_process('aggregate', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
 
     runner.run(agent, auto_reconnect=True)

@@ -19,13 +19,7 @@ class LS240_Agent:
         self.port = port
         self.thermometers = []
 
-        self.agent.register_feed('temperatures', aggregate=True)
-        feeds = [f[1].encoded() for f in self.agent.feeds.items()]
-
-        self.agent_data = {
-            'address': agent.agent_address,
-            'feeds': feeds
-        }
+        self.agent.register_feed('temperatures', agg_params={'aggregate': True})
         self.registered = False
 
     # Exclusive access management.
@@ -53,7 +47,7 @@ class LS240_Agent:
         # Registers agent
         try:
             register_t = client_t.TaskClient(session.app, 'observatory.registry', 'register_agent')
-            session.call_operation(register_t.start, self.agent_data, block=True)
+            session.call_operation(register_t.start, self.agent.encoded(), block=True)
             self.registered = True
         except ApplicationError as e:
             if e.error == u'wamp.error.no_such_procedure':
@@ -76,12 +70,6 @@ class LS240_Agent:
 
         self.set_job_done()
         return True, 'Lakeshore module initialized.'
-
-    def terminate(self, session, params=None):
-        if self.registered:
-            unregister = client_t.TaskClient(session.app, 'observatory.registry', 'remove_agent')
-            session.call_operation(unregister.start, self.agent_data)
-        return True, 'Lakeshore terminated.'
 
     # Process functions.
     def start_acq(self, session, params=None):
@@ -145,8 +133,6 @@ if __name__ == '__main__':
     therm = LS240_Agent(agent, fake_data=args.fake_data)
 
     agent.register_task('init_lakeshore', therm.init_lakeshore_task)
-    agent.register_task('terminate', therm.terminate)
     agent.register_process('acq', therm.start_acq, therm.stop_acq)
 
     runner.run(agent, auto_reconnect=True)
-    therm.close()

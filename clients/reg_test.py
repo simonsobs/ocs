@@ -12,13 +12,11 @@ def my_script(app, pargs):
     # Therm operations
     therm_ops = {
         'init': client_t.TaskClient(app, therm_addr, 'init_lakeshore'),
-        'term': client_t.TaskClient(app, therm_addr, 'terminate'),
         'acq': client_t.ProcessClient(app, therm_addr, 'acq')
     }
 
     agg_ops = {
         'init': client_t.TaskClient(app, agg_addr, 'initialize'),
-        'term': client_t.TaskClient(app, agg_addr, 'terminate'),
         'sub':  client_t.TaskClient(app, agg_addr, 'subscribe'),
         'agg':  client_t.ProcessClient(app, agg_addr, 'aggregate')
     }
@@ -50,14 +48,11 @@ def my_script(app, pargs):
     print("Stopping Data Acquisition")
     yield therm_ops['acq'].stop()
     yield therm_ops['acq'].wait()
-    yield therm_ops['term'].start()
-    yield therm_ops['term'].wait()
 
 
     print("Stopping Data Aggregator")
     yield agg_ops['agg'].stop()
     yield agg_ops['agg'].wait()
-    yield agg_ops['term'].start()
 
 
 

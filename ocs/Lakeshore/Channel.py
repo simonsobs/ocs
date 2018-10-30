@@ -151,6 +151,8 @@ class Channel:
         """
         if unit is None:
             u = self._unit
+        else:
+            u = unit
 
         assert u.upper() in ['K', 'C', 'F', 'S']
 

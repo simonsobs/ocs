@@ -155,6 +155,12 @@ class Channel:
         self.ls.msg(message)
         
     def load_curve(self, filename):
+        """Upload calibration curve to channel from file.
+
+        Args:
+            filename (str): Calibration file for upload.
+
+        """
         self.curve = Curve(filename=filename)
         hdr = self.curve.header
         keys = list(hdr)
@@ -176,6 +182,11 @@ class Channel:
             else:
                 self.load_curve_point(i+1, 0, 0)
         print("Curve loaded")
+
+    def delete_curve(self):
+        """Delete calibration curve from channel."""
+        cmd = "CRVDEL {}".format(self.channel_num)
+        self.ls.msg(cmd)
 
 
     def __str__(self):

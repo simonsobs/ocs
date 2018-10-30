@@ -141,11 +141,22 @@ class Channel:
 
         self.curve = Curve(header=header, breakpoints=breakpoints)
 
-    def get_reading(self, unit = 0):
-        u = self._unit if not unit else unit
-        unit_char = "KCSF"[u-1]
-        message = "{}RDG? {}".format(unit_char, self.channel_num)
+    def get_reading(self, unit='S'):
+        """Get a reading from the channel in the specified units.
+
+        Args:
+            unit (str): Units for reading, options are Kelvin (K), Celcius (C),
+                        Fahrenheit (F), or Sensor (S)
+
+        """
+        if unit is None:
+            u = self._unit
+
+        assert u.upper() in ['K', 'C', 'F', 'S']
+
+        message = "{}RDG? {}".format(u, self.channel_num)
         response = self.ls.msg(message)
+
         return float(response)
 
     def load_curve_point(self, n, x, y):

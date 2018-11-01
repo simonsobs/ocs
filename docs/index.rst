@@ -33,6 +33,7 @@ OCS.
    quickstart
    site_config
    lakeshore372
+   live_monitoring
 
 Indices and tables
 ==================

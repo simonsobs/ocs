@@ -15,7 +15,7 @@ class LS372_Agent:
             ip:  ip address of agent 
             fake_data: generates random numbers without connecting to LS if True. 
     """
-    def __init__(self, name, ip, fake_data=False):
+    def __init__(self, agent, name, ip, fake_data=False):
         self.lock = threading.Semaphore()
         self.job = None
 
@@ -24,6 +24,8 @@ class LS372_Agent:
         self.fake_data = fake_data
         self.module = None
         self.thermometers = []
+
+        self.log = agent.log
 
     def try_set_job(self, job_name):
         print(self.job, job_name)
@@ -41,7 +43,7 @@ class LS372_Agent:
     def init_lakeshore_task(self, session, params=None):
         ok, msg = self.try_set_job('init')
 
-        print('Initialize Lakeshore:', ok)
+        self.log.info('Initialized Lakeshore: {status}', status=ok)
         if not ok:
             return ok, msg
 
@@ -304,9 +306,9 @@ if __name__ == '__main__':
     site_config.reparse_args(args, 'Lakeshore372Agent')
     print('I am in charge of device with serial number: %s' % args.serial_number)
 
-    lake_agent = LS372_Agent(args.serial_number, args.ip_address , fake_data=False)
-
     agent, runner = ocs_agent.init_site_agent(args)
+
+    lake_agent = LS372_Agent(agent, args.serial_number, args.ip_address , fake_data=False)
 
     agent.register_task('init_lakeshore', lake_agent.init_lakeshore_task)
     agent.register_task('set_heater_range', lake_agent.set_heater_range)

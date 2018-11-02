@@ -79,6 +79,7 @@ class OCSAgent(ApplicationSession):
         self.next_session_id = 0
         self.session_archive = {} # by op_name, lists of OpSession.
         self.agent_address = address
+        self.log = txaio.make_logger()
         
     def onConnect(self):
         self.log.info('transport connected')

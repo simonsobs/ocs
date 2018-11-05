@@ -33,6 +33,8 @@ OCS.
    quickstart
    site_config
    lakeshore372
+   aggregator
+   registry
    live_monitoring
 
 Indices and tables

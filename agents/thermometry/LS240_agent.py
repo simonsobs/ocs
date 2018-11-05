@@ -3,6 +3,7 @@ from ocs.Lakeshore.Lakeshore240 import Module
 import random
 import time
 import threading
+import os
 from autobahn.wamp.exception import ApplicationError
 
 
@@ -128,12 +129,28 @@ if __name__ == '__main__':
 
     # Interpret options in the context of site_config.
     site_config.reparse_args(args, 'Lakeshore240Agent')
+    
+    # Finds usb-port for device
+    # This should work for devices with the cp210x driver
+    device_port = ""
+    
+    if os.path.exists('/dev/serial/by-id'):
+        ports = os.listdir('/dev/serial/by-id')
+        for port in ports:
+            if args.serial_number in port:
+                device_port = "/dev/serial/by-id/{}".format(port)
+                print("Found port {}".format(device_port))
+                break
 
-    agent, runner = ocs_agent.init_site_agent(args)
+    if device_port or args.fake_data:
+        agent, runner = ocs_agent.init_site_agent(args)
 
-    therm = LS240_Agent(agent, fake_data=args.fake_data)
+        therm = LS240_Agent(agent, fake_data=args.fake_data, port=device_port)
 
-    agent.register_task('init_lakeshore', therm.init_lakeshore_task)
-    agent.register_process('acq', therm.start_acq, therm.stop_acq)
+        agent.register_task('init_lakeshore', therm.init_lakeshore_task)
+        agent.register_process('acq', therm.start_acq, therm.stop_acq)
 
-    runner.run(agent, auto_reconnect=True)
+        runner.run(agent, auto_reconnect=True)
+
+    else:
+        print("Could not find device with sn {}".format(args.serial_number))

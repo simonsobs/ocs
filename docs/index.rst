@@ -35,6 +35,7 @@ OCS.
    lakeshore372
    aggregator
    registry
+   live_monitoring
 
 Indices and tables
 ==================

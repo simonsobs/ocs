@@ -141,11 +141,24 @@ class Channel:
 
         self.curve = Curve(header=header, breakpoints=breakpoints)
 
-    def get_reading(self, unit = 0):
-        u = self._unit if not unit else unit
-        unit_char = "KCSF"[u-1]
-        message = "{}RDG? {}".format(unit_char, self.channel_num)
+    def get_reading(self, unit='S'):
+        """Get a reading from the channel in the specified units.
+
+        Args:
+            unit (str): Units for reading, options are Kelvin (K), Celcius (C),
+                        Fahrenheit (F), or Sensor (S)
+
+        """
+        if unit is None:
+            u = self._unit
+        else:
+            u = unit
+
+        assert u.upper() in ['K', 'C', 'F', 'S']
+
+        message = "{}RDG? {}".format(u, self.channel_num)
         response = self.ls.msg(message)
+
         return float(response)
 
     def load_curve_point(self, n, x, y):
@@ -155,6 +168,12 @@ class Channel:
         self.ls.msg(message)
         
     def load_curve(self, filename):
+        """Upload calibration curve to channel from file.
+
+        Args:
+            filename (str): Calibration file for upload.
+
+        """
         self.curve = Curve(filename=filename)
         hdr = self.curve.header
         keys = list(hdr)
@@ -176,6 +195,11 @@ class Channel:
             else:
                 self.load_curve_point(i+1, 0, 0)
         print("Curve loaded")
+
+    def delete_curve(self):
+        """Delete calibration curve from channel."""
+        cmd = "CRVDEL {}".format(self.channel_num)
+        self.ls.msg(cmd)
 
 
     def __str__(self):

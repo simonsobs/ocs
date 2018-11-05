@@ -2,3 +2,6 @@ crossbar
 autobahn
 twisted
 wampy
+
+# Lakeshore240
+pyserial

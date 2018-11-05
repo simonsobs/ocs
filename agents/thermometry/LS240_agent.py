@@ -18,6 +18,7 @@ class LS240_Agent:
         self.module = None
         self.port = port
         self.thermometers = []
+        self.log = agent.log
 
         self.agent.register_feed('temperatures', agg_params={'aggregate': True})
         self.registered = False
@@ -38,7 +39,7 @@ class LS240_Agent:
     def init_lakeshore_task(self, session, params=None):
         ok, msg = self.try_set_job('init')
 
-        print('Initialize Lakeshore:', ok)
+        self.log.info('Initialized Lakeshore: {status}', status=ok)
         if not ok:
             return ok, msg
 

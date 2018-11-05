@@ -82,6 +82,9 @@ class OCSAgent(ApplicationSession):
         self.session_archive = {} # by op_name, lists of OpSession.
         self.agent_address = address
         self.registered = False
+        self.log = txaio.make_logger()
+
+
 
     def encoded(self):
         return {
@@ -90,6 +93,7 @@ class OCSAgent(ApplicationSession):
             'tasks': list(self.tasks.keys()),
             'processes': list(self.processes.keys())
         }
+
 
 
     def onConnect(self):
@@ -118,7 +122,6 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0) # Calls the hearbeat every second
 
-        #tries to register feed
 
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
@@ -135,6 +138,7 @@ class OCSAgent(ApplicationSession):
         self.log.info('transport disconnected')
         # this is to clean up stuff. it is not our business to
         # possibly reconnect the underlying connection
+        self._countdown = 1
         self._countdown -= 1
         if self._countdown <= 0:
             try:
@@ -144,7 +148,6 @@ class OCSAgent(ApplicationSession):
 
     @inlineCallbacks
     def my_device_handler(self, action, op_name, params=None, timeout=None):
-        print("Calling {} with params {}".format(op_name, params))
         if action == 'start':
             d = yield self.start(op_name, params=params)
         if action == 'stop':

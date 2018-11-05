@@ -3,6 +3,8 @@
 */dot_crossbar/key.pub
 */dot_crossbar/node.pid
 
+# site_config
+default.yaml
 
 ## github's .gitignore
 
@@ -125,5 +127,6 @@ ENV/
 ocs/Lakeshore/ls.cfg
 ocs/Lakeshore/ips.json
 agents/aggregator/data/*
+agents/aggregator/data2/*
 key.*
 node.pid

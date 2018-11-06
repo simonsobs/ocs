@@ -5,10 +5,10 @@ from ocs import client_t, site_config
 
 def my_script(app, pargs):
 
-    agg_addr = u'observatory.aggregator'
+    agg_addr = "{}.aggregator".format(pargs.address_root)
 
     therm_addr = "{}.{}".format(pargs.address_root, pargs.target)
-    data_feed = "{}.data".format(therm_addr)
+    feed_name = 'temperatures'
 
     print('Entered control')
 
@@ -23,13 +23,15 @@ def my_script(app, pargs):
 
     # Start the aggregator running
     print("Starting Aggregator")
-    yield subscribe.start(data_feed)
+
+    params = {'agent_address': therm_addr, 'feed_name': feed_name}
+    yield subscribe.start(params=params)
     subscribe.wait(timeout=10)
 
     agg_params = {
         "time_per_file": 5,
         "time_per_frame": 10,
-        "data_dir": "data2/"
+        "data_dir": "data/"
     }
     yield aggregate.start(params=agg_params)
 

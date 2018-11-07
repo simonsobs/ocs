@@ -75,6 +75,19 @@ class LS240_Agent:
 
     # Process functions.
     def start_acq(self, session, params=None):
+        """Start data acquisition.
+
+        Args:
+            params (dict): params dictionary with keys:
+                'sampling_frequency' (float): sampling frequency for data collection
+                                              defaults to 2.5 Hz
+
+        """
+        if params is None:
+            f_sample = 2.5 #Hz
+        else:
+            f_sample = params['sampling_frequency']
+        sleep_time = 1/f_sample - 0.01
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
         session.post_status('running')
@@ -98,6 +111,8 @@ class LS240_Agent:
             else:
                 for i, channel in enumerate(self.module.channels):
                     data[self.thermometers[i]] = (time.time(), channel.get_reading())
+
+                time.sleep(sleep_time)
 
             print("Data: {}".format(data))
             session.app.publish_to_feed('temperatures', data)

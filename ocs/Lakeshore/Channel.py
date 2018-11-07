@@ -24,6 +24,8 @@ unitStrings = ["None", "Kelvin", "Celsius", "Sensor", "Fahrenheit"]
 excitations = [[10e-6], [1e-3], [1e-3, 300e-6, 100e-6, 30e-6, 10e-6, 3e-6, 1e-6, 300e-9, 100e-9]]
 ranges = [[7.5], [1e3], [10, 30, 100, 300, 1e3, 3e3, 10e3, 30e3, 100e3]] 
 
+units_key = {1: 'K', 2: 'C', 3: 'S', 4: 'F'}
+
     
 class Channel:
     """
@@ -53,7 +55,7 @@ class Channel:
         self._auto_range = int(data[1])
         self._range = int(data[2])
         self._current_reversal = int(data[3])
-        self._unit = int(data[4])
+        self._unit = units_key[int(data[4])]
         self._enabled = int(data[5])
 
         response = self.ls.msg("INNAME? %d" % (self.channel_num))
@@ -96,7 +98,7 @@ class Channel:
 
         if unit is not None:
             if unit in [1, 2, 3, 4]:
-                self._unit = unit
+                self._unit = unit_key[unit]
             else:
                 print("unit must be 1, 2, 3, or 4")
 
@@ -114,7 +116,7 @@ class Channel:
 
         input_type_message = "INTYPE "
         input_type_message += ",".join(["{}".format(c) for c in [ self.channel_num, self._sensor, self._auto_range,
-                                                                    self._range, self._current_reversal, self._unit,
+                                                                    self._range, self._current_reversal, unit,
                                                                     int(self._enabled)]])
         self.ls.msg(input_type_message)
 
@@ -141,8 +143,10 @@ class Channel:
 
         self.curve = Curve(header=header, breakpoints=breakpoints)
 
-    def get_reading(self, unit='S'):
+    def get_reading(self, unit=None):
         """Get a reading from the channel in the specified units.
+
+        If no unit is provided, use the one determined by the channel settings.
 
         Args:
             unit (str): Units for reading, options are Kelvin (K), Celcius (C),

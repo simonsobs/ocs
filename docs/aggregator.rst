@@ -82,7 +82,7 @@ The aggregator will then write a G3Timestream for each thermometer on the 240.
 
 
 .. autoclass:: agents.aggregator.aggregator_agent.DataAggregator
-    :members: initialize, start_aggregate, subscribe_to_feed
+    :members: initialize, start_aggregate, add_feed_task
 
 
 

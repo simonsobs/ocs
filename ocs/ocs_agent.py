@@ -203,8 +203,19 @@ class OCSAgent(ApplicationSession):
         self.processes[name] = AgentProcess(start_func, stop_func)
         self.sessions[name] = None
 
-    def register_feed(self, name, **kwargs):
-        self.feeds[name] = Feed(self, name, **kwargs)
+    def register_feed(self, feed_name, **kwargs):
+        """
+        Initializes a new feed with name ``feed_name``.
+
+        Args:
+            feed_name (string):
+                name of the feed
+            agg_params (dict, optional):
+                Parameters used by the aggregator.
+            max_messages (int, optional):
+                Max number of messages cached by the feed. Defaults to 20.
+        """
+        self.feeds[feed_name] = Feed(self, feed_name, **kwargs)
 
     def publish_to_feed(self, feed_name, message):
         if feed_name not in self.feeds.keys():
@@ -481,20 +492,21 @@ class OpSession:
             reactor.callFromThread(operation, **kwargs)
 
 class Feed:
-    def __init__(self, agent, feed_name, agg_params={}, max_messages=20):
-        """
-        Manages publishing to a specific feed and storing of messages.
+    """
+    Manages publishing to a specific feed and storing of messages.
 
-        Args:
-            agent (OCSAgent):
-                agent that is registering the feed
-            feed_name (string):
-                name of the feed
-            agg_params (dict, optional):
-                Parameters used by the aggregator.
-            max_messages (int, optional):
-                Max number of messages stored. Defaults to 20.
-        """
+    Args:
+        agent (OCSAgent):
+            agent that is registering the feed
+        feed_name (string):
+            name of the feed
+        agg_params (dict, optional):
+            Parameters used by the aggregator.
+        max_messages (int, optional):
+            Max number of messages stored. Defaults to 20.
+    """
+
+    def __init__(self, agent, feed_name, agg_params={}, max_messages=20):
         self.messages = []
         self.max_messages = max_messages
         self.agent = agent

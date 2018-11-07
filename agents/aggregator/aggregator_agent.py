@@ -25,14 +25,6 @@ class DataAggregator:
         self.registered = False
 
 
-    def _data_handler(self, _data):
-        """Callback whenever data is published to an aggregated feed"""
-        data, feed = _data
-        if feed["address"] not in self.feed_data.keys():
-            self.feed_data[feed["address"]] = feed
-
-        if self.aggregate:
-            self.incoming_data[feed["address"]].append(data)
 
     def add_feed(self, agent_address, feed_name):
         """
@@ -46,11 +38,17 @@ class DataAggregator:
                 name of the feed.
         """
 
+        def _data_handler(_data):
+            """Callback whenever data is published to an aggregated feed"""
+            data, feed = _data
+            if self.aggregate:
+                self.incoming_data[feed["address"]].append(data)
+
         feed_address = "{}.feeds.{}".format(agent_address, feed_name)
         if feed_address in self.incoming_data.keys():
             return
 
-        self.agent.subscribe_to_feed(agent_address, feed_name, self._data_handler)
+        self.agent.subscribe_to_feed(agent_address, feed_name, _data_handler)
         self.incoming_data[feed_address] = []
         self.log.info("Subscribed to feed {}".format(feed_address))
 

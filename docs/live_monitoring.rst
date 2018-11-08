@@ -30,6 +30,7 @@ that is a problem, though at the cost of convenience to you.
     * Docker_
     * `Docker Compose`_
     * sisock_
+    * spt3g_ - For writing data to disk in ``.3g`` format.
 
 .. _Installing OCS:
 
@@ -187,6 +188,10 @@ Setup the Docker Environment
 If this is your first time using Docker you need to do some first time setup,
 which is detailed in the ``sisock`` repo, but which we will review here.
 
+    Note: While there is a docker group you could add your user to, be aware
+    that users in this group are ``root`` equivalent. If you do not want the
+    security implications that come with this, run docker with sudo.
+
 We will be building a network of Docker containers. To provide name resolution
 for the containers within the network we must build our own user defined bridge
 network. We can do so by running::
@@ -195,14 +200,21 @@ network. We can do so by running::
 
 The first container we will create will be one that we do not command with
 Docker Compose. This is the Grafana container, the one which we will use to
-view the live monitor. The following will pull down a copy of the latest
-Grafana container and run it::
+view the live monitor. Since we will be configuring grafana and do not want to
+lose any information if we remove the container we will setup persistent
+storage using a Docker volume::
 
-    $ docker run -d -p 3000:3000 --name=sisock_grafana -e "GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel" grafana/grafana
+    $ docker volume create grafana-storage
+
+Now we can create the Grafana container. This pulls down the latest copy of
+the container and runs it::
+
+    $ docker run -d -p 3000:3000 --name=sisock_grafana -v grafana-storage:/var/lib/grafana -e "GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel" grafana/grafana
 
 To explain the options a bit, the name we have given the container is
-``sisock_grafana``, we have installed several plugins, and we have exposed the
-container on port 3000 of our machine.
+``sisock_grafana``, we have mounted the persistent storage docker volume to
+``/var/lib/grafana`` within the container, we have installed several plugins,
+and we have exposed the container on port 3000 of our machine.
 
 Finally, we need to add the ``sisock_grafana`` to our custom defined network::
 
@@ -416,11 +428,12 @@ Configuring Grafana
 ===================
 
 Now we are ready to configure Grafana. This should be a one time setup,
-however, if you destroy and rebuild the grafana container, you will obviously
-need to reconfigure. The configuration is not challenging, however dashboard
-configuration can be quite time consuming. The good news is dashboards can be
-backed up by downloading them in a ``.json`` format. Users are responsible for
-backing up their own dashboards.
+however, if you destroy the persistent storage volume and rebuild the grafana
+container, you will obviously need to reconfigure. The configuration is not
+challenging, however dashboard configuration can be quite time consuming. The
+good news is dashboards can be backed up by downloading them in a ``.json``
+format. The docker volume will keep your dashboard configurations, but
+ultimately users are responsible for backing up their own dashboards.
 
 Set a Password
 --------------
@@ -632,3 +645,4 @@ navigating your browser to ``localhost:3000``.
 .. _Docker: https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/
 .. _post installation: https://docs.docker.com/v17.09/engine/installation/linux/linux-postinstall/
 .. _Docker Compose: https://docs.docker.com/compose/install/
+.. _spt3g : https://github.com/CMB-S4/spt3g_software

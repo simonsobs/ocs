@@ -2,7 +2,9 @@ import time, threading
 import numpy as np
 from ocs import ocs_agent, site_config, client_t
 import os
-from spt3g import core
+if os.getenv('OCS_DOC_BUILD') != 'True':
+    from spt3g import core
+
 # import op_model as opm
 from autobahn.wamp.exception import ApplicationError
 

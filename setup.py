@@ -1,10 +1,10 @@
 from distutils.core import setup, Extension
 
-VERSION = '0.1'
+import versioneer
 
 setup (name = 'ocs',
-       version = VERSION,
-       description = 'Observatory Control System',
-       package_dir = {'ocs': 'ocs'},
-       packages = ['ocs',
-                   ])
+       description='Observatory Control System',
+       package_dir={'ocs': 'ocs'},
+       packages=['ocs'],
+       version=versioneer.get_version(),
+       cmdclass=versioneer.get_cmdclass())

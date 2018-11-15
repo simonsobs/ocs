@@ -10,7 +10,7 @@
             },
             "realms": [
                 {
-                    "name": "realm1",
+                    "name": "test_realm",
                     "roles": [
                         {
                             "name": "iocs_agent",

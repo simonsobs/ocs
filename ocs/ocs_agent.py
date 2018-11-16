@@ -146,18 +146,15 @@ class OCSAgent(ApplicationSession):
             except ReactorNotRunning:
                 pass
 
-    @inlineCallbacks
     def my_device_handler(self, action, op_name, params=None, timeout=None):
         if action == 'start':
-            d = yield self.start(op_name, params=params)
+            return self.start(op_name, params=params)
         if action == 'stop':
-            d = yield self.stop(op_name, params=params)
+            return self.stop(op_name, params=params)
         if action == 'wait':
-            d = yield self.wait(op_name, timeout=timeout)
+            return self.wait(op_name, timeout=timeout)
         if action == 'status':
-            d = yield self.status(op_name)
-        print('Returning to caller', d)
-        return d  #or returnValue(d), if python<3.3
+            return self.status(op_name)
 
     def my_management_handler(self, q, **kwargs):
         if q == 'get_tasks':
@@ -329,33 +326,33 @@ class OCSAgent(ApplicationSession):
             return (ocs.TIMEOUT, 'Operation "%s" still running; wait timed out.' % op_name,
                     session.encoded())
 
-    @inlineCallbacks
     def stop(self, op_name, params=None):
         if op_name in self.tasks:
-            yield (ocs.ERROR, 'No implementation for "%s" because it is a task.' % op_name,
+            return (ocs.ERROR, 'No implementation for "%s" because it is a task.' % op_name,
                     {})
         elif op_name in self.processes:
             session = self.sessions.get(op_name)
+            if session is None:
+                return (ocs.ERROR, 'No session active.', {})
             proc = self.processes[op_name]
-            d2 = threads.deferToThread(proc.stopper, params)
-            yield (ocs.OK, 'Requested stop on process "%s".' % op_name, session.encoded())
+            d2 = threads.deferToThread(proc.stopper, session, params)
+            return (ocs.OK, 'Requested stop on process "%s".' % op_name, session.encoded())
         else:
-            yield (ocs.ERROR, 'No process called "%s".' % op_name, {})
+            return (ocs.ERROR, 'No process called "%s".' % op_name, {})
 
-    @inlineCallbacks
     def abort(self, op_name, params=None):
-        yield {'ok': False, 'error': 'No implementation for operation "%s"' % op_name}
+        return {'ok': False, 'error': 'No implementation for operation "%s"' % op_name}
 
-    @inlineCallbacks
     def status(self, op_name, params=None):
         if op_name in self.tasks or op_name in self.processes:
             session = self.sessions.get(op_name)
             if session is None:
-                yield (ocs.OK, 'No session active.', {})
+                return (ocs.OK, 'No session active.', {})
             else:
-                yield (ocs.OK, 'Session active.', session.encoded())
+                return (ocs.OK, 'Session active.', session.encoded())
         else:
-            yield (ocs.ERROR, 'No implementation for operation "%s"' % op_name, {})
+            return (ocs.ERROR, 'No implementation for operation "%s"' % op_name, {})
+
 
 class AgentTask:
     def __init__(self, launcher):

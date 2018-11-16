@@ -84,17 +84,9 @@ class OCSAgent(ApplicationSession):
         self.registered = False
         self.log = txaio.make_logger()
 
-
-
-    def encoded(self):
-        return {
-            'agent_address': self.agent_address,
-            'feeds': [f[1].encoded() for f in self.feeds.items()],
-            'tasks': list(self.tasks.keys()),
-            'processes': list(self.processes.keys())
-        }
-
-
+    """
+    Methods below are implementations of the ApplicationSession.
+    """
 
     def onConnect(self):
         self.log.info('transport connected')
@@ -146,6 +138,20 @@ class OCSAgent(ApplicationSession):
             except ReactorNotRunning:
                 pass
 
+    """The methods below provide OCS framework support."""
+            
+    def encoded(self):
+        """
+        Returns a dict describing this Agent.  Includes 'agent_address',
+        and lists of 'feeds', 'tasks', and 'processes'.
+        """
+        return {
+            'agent_address': self.agent_address,
+            'feeds': [f[1].encoded() for f in self.feeds.items()],
+            'tasks': list(self.tasks.keys()),
+            'processes': list(self.processes.keys())
+        }
+
     def my_device_handler(self, action, op_name, params=None, timeout=None):
         if action == 'start':
             return self.start(op_name, params=params)
@@ -183,14 +189,6 @@ class OCSAgent(ApplicationSession):
 
     def publish_data(self, message, session):
         self.publish(self.agent_address + '.data', session.data_encoded())
-
-
-    """Instances of this class are used to connect blocking operation
-    managers to the IOCS system.
-
-    Multiple operations are grouped within a single server so that
-    resources can be properly managed.
-    """
 
     def register_task(self, name, func):
         self.tasks[name] = AgentTask(func)
@@ -238,7 +236,25 @@ class OCSAgent(ApplicationSession):
         session.add_message(message)
         session.set_status('done')
 
+    """ The functions below define the OCS API for client control of an
+    Agent's Operations.  Some methods are valid on Processs, some on
+    Tasks, and some on both."""
+
     def start(self, op_name, params=None):
+        """
+        Launch an operation.  Note that successful return of this function
+        does not mean that the operation is running; it only means
+        that the system has requested the operation to run.
+
+        Returns tuple (status, message, session).
+
+        Possible values for status:
+
+          ocs.ERROR: the specified op_name is not known, or the op is
+            already running (has an active session).
+
+          ocs.OK: the Operation start routine has been launched.
+        """
         print('start called for %s' % op_name)
         is_task = op_name in self.tasks
         is_proc = op_name in self.processes
@@ -282,7 +298,7 @@ class OCSAgent(ApplicationSession):
         terminates.  If timeout<=0, then the function will return
         immediately.
 
-        Returns (status, message, session).  
+        Returns (status, message, session).
 
         Possible values for status:
 
@@ -327,6 +343,18 @@ class OCSAgent(ApplicationSession):
                     session.encoded())
 
     def stop(self, op_name, params=None):
+        """
+        Launch a Process stop routine.
+
+        Returns (status, message, session).
+
+        Possible values for status:
+
+          ocs.ERROR: the specified op_name is not known, or refers to
+            a Task.  Also returned if Process is known but not running.
+
+          ocs.OK: the Process stop routine has been launched.
+        """
         if op_name in self.tasks:
             return (ocs.ERROR, 'No implementation for "%s" because it is a task.' % op_name,
                     {})
@@ -341,9 +369,31 @@ class OCSAgent(ApplicationSession):
             return (ocs.ERROR, 'No process called "%s".' % op_name, {})
 
     def abort(self, op_name, params=None):
-        return {'ok': False, 'error': 'No implementation for operation "%s"' % op_name}
+        """
+        Initiate a Task abort routine.  This function is not currently
+        implemented in any useful way.
+
+        Returns (status, message, session).
+
+        Possible values for status:
+
+          ocs.ERROR: you called a function that does not do anything.
+        """
+        return (ocs.ERROR, 'No implementation for operation "%s"' % op_name, {})
 
     def status(self, op_name, params=None):
+        """
+        Get an Operation's session data.
+
+        Returns (status, message, session).  When there is no session
+        data available, an empty dictionary is returned instead.
+
+        Possible values for status:
+
+          ocs.ERROR: the specified op_name is not known.
+
+          ocs.OK: the op_name was recognized.
+        """
         if op_name in self.tasks or op_name in self.processes:
             session = self.sessions.get(op_name)
             if session is None:
@@ -351,7 +401,7 @@ class OCSAgent(ApplicationSession):
             else:
                 return (ocs.OK, 'Session active.', session.encoded())
         else:
-            return (ocs.ERROR, 'No implementation for operation "%s"' % op_name, {})
+            return (ocs.ERROR, 'No task or process called "%s"' % op_name, {})
 
 
 class AgentTask:

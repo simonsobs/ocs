@@ -21,16 +21,27 @@ While there are mostly software dependencies for this, there is one hardware
 requirement, you will need a linux machine with Ubuntu 18.04 installed. Other
 Operating Systems can be used, but will not be supported.
 
+    * OCS_
+    * Docker_
+    * `Docker Compose`_
+    * sisock_ - For the live monitor.
+    * spt3g_ - For writing data to disk in ``.3g`` format.
+
+Networking Requirements
+-----------------------
+
 This linux machine will need to go on the same network as whatever hardware
 you're controlling with OCS. Live monitoring remotely (i.e. not sitting
 directly at the computer) is facilitated if your IT department allows it to
-have a public IP address. Port forwarding can be used to get around this if
-that is a problem, though at the cost of convenience to you.
+have a public IP address.
 
-    * Docker_
-    * `Docker Compose`_
-    * sisock_
-    * spt3g_ - For writing data to disk in ``.3g`` format.
+    If you do have a public IP and traffic is allowed to
+    all ports, you are strongly recommended to enable a firewall as described in
+    firewall_.
+
+    If you do not have a public IP, but do have access to a gateway to
+    your private network, then port forwarding can be used to view the live monitor
+    remotely, as described in port_forwarding_.
 
 .. _Installing OCS:
 
@@ -113,8 +124,8 @@ the instructions in the site-config_ repo's ``README`` as well.
 For more information see the :ref:`site_config` page in this documentation.
 
 
-Setup sisock
-============
+Setting Up sisock
+=================
 
 The sisock repo provides the infrastructure we'll need to perform live
 monitoring. The code in this repo will ultimately run within several Docker
@@ -533,8 +544,8 @@ time in the upper right, it most likely by default says "Last 6 hours":
 The thermometry ``DataNodeServers`` by default cache the last 60 minutes of
 data.
 
-Run the OCS Agents and Clients
-==============================
+Running the OCS Agents and Clients
+==================================
 
 Now that the live monitor is configured we can setup our OCS Agents which
 communicate with our hardware and save the data to disk. This will involve at
@@ -567,8 +578,8 @@ Data should now be displaying the terminal you started the LS240 Agent in, and
 file output should be occurring in the configured Data Aggregator directory,
 which the Agent reports.
 
-View the Live Monitor
-=====================
+Viewing the Live Monitor
+========================
 
 Now we should start to see data in our live monitor. If no data is showing up,
 you may have to select the metrics drop down menu again when first starting up.
@@ -604,6 +615,70 @@ Grafana
 
 Backing up Panels
 ``````````````````
+
+Networking
+----------
+
+.. _firewall:
+
+Configuring a Firewall
+``````````````````````
+
+If you have convinced your university IT department to allow you to have a
+linux machine on the public network we should take some precautions to secure
+the crossbar server, which currently for OCS does not have a secure
+authentication mechanism, from the outside world. The simplest way of doing so
+is by setting up a firewall.
+
+Ubuntu should come with (or have easily installable) a simple front end for
+iptables called ufw (Uncomplicated Firewall). This is disabled by default.
+Before configuring you should consider any software running on the machine
+which may require an open port. We will configure it to have ports 22 and 3000
+open, for ssh and Grafana, respectively.
+
+``ufw`` should be disabled by default::
+
+    $ sudo ufw status
+    Status: inactive
+
+You can get a list of applications which ``ufw`` knows about with::
+
+    $ sudo ufw app list
+    Available applications:
+      CUPS
+      OpenSSH
+
+We can then allow the ssh port with::
+
+    $ sudo ufw allow OpenSSH
+    Rules updated
+    Rules updated (v6)
+
+This opens port 22. And finally, we can allow Grafana's port 3000::
+
+    $ sudo ufw allow 3000
+    Rules updated
+    Rules updated (v6)
+
+Lastly we have to enable ``ufw``::
+
+    $ sudo ufw enable
+    Command may disrupt existing ssh connections. Proceed with operation (y|n)? y
+    Firewall is active and enabled on system startup
+
+You should then see that the firewall is active::
+
+    $ sudo ufw status
+    Status: active
+
+    To                         Action      From
+    --                         ------      ----
+    OpenSSH                    ALLOW       Anywhere
+    3000                       ALLOW       Anywhere
+    OpenSSH (v6)               ALLOW       Anywhere (v6)
+    3000 (v6)                  ALLOW       Anywhere (v6)
+
+.. _port_forwarding:
 
 Port Forwarding to View Remotely
 `````````````````````````````````
@@ -646,3 +721,4 @@ navigating your browser to ``localhost:3000``.
 .. _post installation: https://docs.docker.com/v17.09/engine/installation/linux/linux-postinstall/
 .. _Docker Compose: https://docs.docker.com/compose/install/
 .. _spt3g : https://github.com/CMB-S4/spt3g_software
+.. _OCS: https://github.com/simonsobs/ocs

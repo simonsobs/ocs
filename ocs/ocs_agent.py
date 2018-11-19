@@ -110,7 +110,7 @@ class OCSAgent(ApplicationSession):
         self.register_feed("heartbeat", max_messages=1)
 
         def heartbeat():
-            self.publish_to_feed("heartbeat", 0)
+            self.publish_to_feed("heartbeat", 0, from_reactor=True)
 
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0) # Calls the hearbeat every second
@@ -215,11 +215,15 @@ class OCSAgent(ApplicationSession):
         """
         self.feeds[feed_name] = Feed(self, feed_name, **kwargs)
 
-    def publish_to_feed(self, feed_name, message):
+    def publish_to_feed(self, feed_name, message, from_reactor=False):
         if feed_name not in self.feeds.keys():
             self.log.error("Feed {} is not registered.".format(feed_name))
             return
-        self.feeds[feed_name].publish_message(message)
+
+        if from_reactor:
+            self.feeds[feed_name].publish_message(message)
+        else:
+            reactor.callFromThread(self.feeds[feed_name].publish_message, message)
 
     def subscribe_to_feed(self, agent_addr, feed_name, callback, force_subscribe = False):
         address = "{}.feeds.{}".format(agent_addr, feed_name)

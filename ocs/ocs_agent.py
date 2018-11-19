@@ -190,12 +190,13 @@ class OCSAgent(ApplicationSession):
     def publish_data(self, message, session):
         self.publish(self.agent_address + '.data', session.data_encoded())
 
-    def register_task(self, name, func):
-        self.tasks[name] = AgentTask(func)
+    def register_task(self, name, func, blocking=True):
+        self.tasks[name] = AgentTask(func, blocking=blocking)
         self.sessions[name] = None
 
-    def register_process(self, name, start_func, stop_func):
-        self.processes[name] = AgentProcess(start_func, stop_func)
+    def register_process(self, name, start_func, stop_func, blocking=True):
+        self.processes[name] = AgentProcess(start_func, stop_func,
+                                            blocking=blocking)
         self.sessions[name] = None
 
     def register_feed(self, feed_name, **kwargs):
@@ -274,19 +275,27 @@ class OCSAgent(ApplicationSession):
             session = OpSession(self.next_session_id, op_name, app=self)
             self.next_session_id += 1
             self.sessions[op_name] = session
-            # Schedule to run.
+
+            # Get the task/process, prepare to launch.
             if is_task:
-                session.d = threads.deferToThread(
-                    self.tasks[op_name].launcher, session, params)
-                session.d.addCallback(self.handle_task_return_val, session)
-                return (ocs.OK, 'Started task "%s".' % op_name,
-                        session.encoded())
+                op = self.tasks[op_name]
+                msg = 'Started task "%s".' % op_name
             else:
-                proc = self.processes[op_name]
-                session.d = threads.deferToThread(proc.launcher, session, params)
-                session.d.addCallback(self.handle_task_return_val, session)
-                return (ocs.OK, 'Started process "%s".' % op_name,
-                        session.encoded())
+                op = self.processes[op_name]
+                msg = 'Started process "%s".' % op_name
+                args = (op.launcher, session, params)
+
+            # Launch differently depending on whether op intends to
+            # block or not.
+            if op.blocking:
+                # Launch, soon, in a blockable worker thread.
+                session.d = threads.deferToThread(op.launcher, session, params)
+            else:
+                # Launch, soon, in the main reactor thread.
+                session.d = task.deferLater(reactor, 0, op.launcher, session, params)
+            session.d.addCallback(self.handle_task_return_val, session)
+            return (ocs.OK, msg, session.encoded())
+        
         else:
             return (ocs.ERROR, 'No task or process called "%s"' % op_name, {})
 
@@ -405,13 +414,15 @@ class OCSAgent(ApplicationSession):
 
 
 class AgentTask:
-    def __init__(self, launcher):
+    def __init__(self, launcher, blocking=None):
         self.launcher = launcher
+        self.blocking = blocking
 
 class AgentProcess:
-    def __init__(self, launcher, stopper):
+    def __init__(self, launcher, stopper, blocking=None):
         self.launcher = launcher
         self.stopper = stopper
+        self.blocking = blocking
 
 class OpSession:
     """When a caller requests that an Operation (Process or Task) is

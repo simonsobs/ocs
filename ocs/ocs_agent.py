@@ -219,7 +219,7 @@ class OCSAgent(ApplicationSession):
         if feed_name not in self.feeds.keys():
             self.log.error("Feed {} is not registered.".format(feed_name))
             return
-        self.feeds[feed_name].publish_message(message)
+        reactor.callFromThread(self.feeds[feed_name].publish_message, message)
 
     def subscribe_to_feed(self, agent_addr, feed_name, callback, force_subscribe = False):
         address = "{}.feeds.{}".format(agent_addr, feed_name)

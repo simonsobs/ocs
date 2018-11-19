@@ -83,6 +83,7 @@ class OCSAgent(ApplicationSession):
         self.agent_address = address
         self.registered = False
         self.log = txaio.make_logger()
+        self.heartbeat_call = None
 
     """
     Methods below are implementations of the ApplicationSession.
@@ -117,7 +118,8 @@ class OCSAgent(ApplicationSession):
 
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
-        self.heartbeat_call.stop()
+        if self.heartbeat_call is not None:
+            self.heartbeat_call.stop()
 
         # Stops all currently running sessions
         for session in self.sessions:

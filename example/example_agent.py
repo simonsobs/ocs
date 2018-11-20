@@ -29,10 +29,10 @@ class MyHardwareDevice:
         print('start squids:', ok)
         if not ok:
             return ok, msg
-        session.post_status('running')
+        session.set_status('running')
 
         for step in range(5):
-            session.post_message('Tuning step %i' % step)
+            session.add_message('Tuning step %i' % step)
             time.sleep(1)
 
         self.set_job_done()
@@ -42,10 +42,10 @@ class MyHardwareDevice:
         ok, msg = self.try_set_job('dets')
         print('start dets:', ok)
         if not ok: return ok, msg
-        session.post_status('running')
+        session.set_status('running')
 
         for i in range(5):
-            session.post_message('Dets still tasking...')
+            session.add_message('Dets still tasking...')
             time.sleep(1)
 
         self.set_job_done()
@@ -56,7 +56,7 @@ class MyHardwareDevice:
     def start_acq(self, session, params=None):
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
-        session.post_status('running')
+        session.set_status('running')
 
         n_frames = 0
         while True:
@@ -70,7 +70,7 @@ class MyHardwareDevice:
                     return 10
             n_frames += 100
             time.sleep(.5)
-            session.post_message('Acquired %i frames...' % n_frames)
+            session.add_message('Acquired %i frames...' % n_frames)
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'

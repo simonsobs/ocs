@@ -27,7 +27,7 @@ class MyHardwareDevice:
     def start_acq(self, session, params=None):
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
-        session.post_status('running')
+        session.set_status('running')
 
         n_frames = 0
         while True:
@@ -41,7 +41,7 @@ class MyHardwareDevice:
                     return 10
             n_frames += 100
             time.sleep(.5)
-            session.post_message('Acquired %i frames...' % n_frames)
+            session.add_message('Acquired %i frames...' % n_frames)
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'

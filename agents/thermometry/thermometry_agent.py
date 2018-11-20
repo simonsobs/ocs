@@ -37,15 +37,15 @@ class Thermometry:
         if not ok:
             return ok, msg
         
-        session.post_status('starting')    
+        session.set_status('starting')
         
         if self.fake_data:
-            session.post_message("No initialization since faking data")
+            session.add_message("No initialization since faking data")
         else:
             try: 
                 self.module = Module(port=self.port, num_channels=8)
                 print("Initialized Lakeshore module: {!s}".format(self.module))
-                session.post_message("Lakeshore initialized with ID: %s"%self.module.idn)
+                session.add_message("Lakeshore initialized with ID: %s"%self.module.idn)
             except Exception as e:
                 print(e)
 
@@ -63,7 +63,7 @@ class Thermometry:
     def start_acq(self, session, params=None):
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
-        session.post_status('running')
+        session.set_status('running')
     
     
         while True:
@@ -84,7 +84,7 @@ class Thermometry:
             
             print ("Reading: ", reading)
             
-            session.post_data(reading)
+            session.publish_data(reading)
 
 
         self.set_job_done()

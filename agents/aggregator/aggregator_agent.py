@@ -206,7 +206,7 @@ class DataAggregator:
 
         self.log.info("Starting data aggregation in directory {}".format(data_dir))
 
-        session.post_status('running')
+        session.set_status('running')
 
         new_file_time = True
         new_frame_time = True
@@ -223,7 +223,7 @@ class DataAggregator:
                 self.filename = os.path.join(data_dir, "{}.g3".format(time_string))
                 self.start_file()
 
-                session.post_message('Starting a new DAQ file: %s' % self.filename)
+                session.add_message('Starting a new DAQ file: %s' % self.filename)
 
                 new_file_time = False
 

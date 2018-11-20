@@ -47,16 +47,16 @@ class LS372_Agent:
         if not ok:
             return ok, msg
 
-        session.post_status('running')
+        session.set_status('running')
 
         if self.fake_data:
             self.res = random.randrange(1, 1000);
-            session.post_message("No initialization since faking data")
+            session.add_message("No initialization since faking data")
             self.thermometers = ["thermA", "thermB"]
         else:
             self.module = LS372(self.ip)
             print("Initialized Lakeshore module: {!s}".format(self.module))
-            session.post_message("Lakeshore initilized with ID: %s"%self.module.id)
+            session.add_message("Lakeshore initilized with ID: %s"%self.module.id)
 
             self.thermometers = [channel.name for channel in self.module.channels]
 
@@ -69,7 +69,7 @@ class LS372_Agent:
         if not ok:
              return ok, msg
 
-        session.post_status('running')
+        session.set_status('running')
         
         while True:
             with self.lock:
@@ -93,7 +93,7 @@ class LS372_Agent:
                 time.sleep(.01)
 
             print("Data: {}".format(data))
-            session.post_data(data)
+            session.publish_data(data)
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
@@ -124,7 +124,7 @@ class LS372_Agent:
         if not ok:
             return ok, msg
 
-        session.post_status('running')
+        session.set_status('running')
 
         current_range = self.module.sample_heater.get_heater_range()
 
@@ -148,10 +148,10 @@ class LS372_Agent:
         if not ok:
             return ok, msg
 
-        session.post_status('running')
+        session.set_status('running')
 
         self.module.channels[params['channel']].set_excitation_mode(params['mode'])
-        session.post_message(f'post message in agent for Set channel {params["channel"]} excitation mode to {params["mode"]}')
+        session.add_message(f'post message in agent for Set channel {params["channel"]} excitation mode to {params["mode"]}')
         print(f'print statement in agent for Set channel {params["channel"]} excitation mode to {params["mode"]}')
 
         self.set_job_done()
@@ -168,7 +168,7 @@ class LS372_Agent:
         if not ok:
             return ok, msg
 
-        session.post_status('running')
+        session.set_status('running')
 
         current_excitation = self.module.channels[params['channel']].get_excitation()
 
@@ -176,7 +176,7 @@ class LS372_Agent:
             print(f'Channel {params["channel"]} excitation already set to {params["value"]}')
         else:
             self.module.channels[params['channel']].set_excitation(params['value'])
-            session.post_message(f'Set channel {params["channel"]} excitation to {params["value"]}')
+            session.add_message(f'Set channel {params["channel"]} excitation to {params["value"]}')
             print(f'Set channel {params["channel"]} excitation to {params["value"]}')
 
         self.set_job_done()
@@ -193,10 +193,10 @@ class LS372_Agent:
         if not ok:
             return ok, msg
 
-        session.post_status('running')
+        session.set_status('running')
 
         self.module.sample_heater.set_pid(params["P"], params["I"], params["D"])
-        session.post_message(f'post message text for Set PID to {params["P"]}, {params["I"]}, {params["D"]}')
+        session.add_message(f'post message text for Set PID to {params["P"]}, {params["I"]}, {params["D"]}')
         print(f'print text for Set PID to {params["P"]}, {params["I"]}, {params["D"]}')
 
         self.set_job_done()
@@ -212,26 +212,26 @@ class LS372_Agent:
         if not ok:
             return ok, msg
 
-        session.post_status('running')
+        session.set_status('running')
 
         # Check we're in correct control mode for servo.
         if self.module.sample_heater.mode != 'Closed Loop':
-            session.post_message(f'Changing control to Closed Loop mode for servo.')
+            session.add_message(f'Changing control to Closed Loop mode for servo.')
             self.module.sample_heater.set_mode("Closed Loop")
 
         # Check we aren't autoscanning.
         if self.module.get_autoscan() is True:
-            session.post_message(f'Autoscan is enabled, disabling for PID control on dedicated channel.')
+            session.add_message(f'Autoscan is enabled, disabling for PID control on dedicated channel.')
             self.module.disable_autoscan()
 
         # Check we're scanning same channel expected by heater for control.
         if self.module.get_active_channel().channel_num != int(self.module.sample_heater.input):
-            session.post_message(f'Changing active channel to expected heater control input')
+            session.add_message(f'Changing active channel to expected heater control input')
             self.module.set_active_channel(int(self.module.sample_heater.input))
 
         # Check we're setup to take correct units.
         if self.module.get_active_channel().units != 'kelvin':
-            session.post_message(f'Setting preferred units to Kelvin on heater control input.')
+            session.add_message(f'Setting preferred units to Kelvin on heater control input.')
             self.module.get_active_channel().set_units('kelvin')
 
         # Make sure we aren't servoing too high in temperature.
@@ -257,7 +257,7 @@ class LS372_Agent:
         if not ok:
             return ok, msg
 
-        session.post_status('running')
+        session.set_status('running')
 
         setpoint = float(self.module.sample_heater.get_setpoint())
 
@@ -271,13 +271,13 @@ class LS372_Agent:
             time.sleep(.1)  # sampling rate is 10 readings/sec, so wait 0.1 s for a new reading
 
         mean = np.mean(test_temps)
-        session.post_message(f'Average of {params["measurements"]} measurements is {mean} K.')
+        session.add_message(f'Average of {params["measurements"]} measurements is {mean} K.')
         print(f'Average of {params["measurements"]} measurements is {mean} K.')
 
         if np.abs(mean - setpoint) < params['threshold']:
             print("passed threshold")
-            session.post_message(f'Setpoint Difference: ' + str(mean - setpoint))
-            session.post_message(f'Average is within {params["threshold"]} K threshold. Proceeding with calibration.')
+            session.add_message(f'Setpoint Difference: ' + str(mean - setpoint))
+            session.add_message(f'Average is within {params["threshold"]} K threshold. Proceeding with calibration.')
 
             self.set_job_done()
             return True, f"Servo temperature is stable within {params['threshold']} K"

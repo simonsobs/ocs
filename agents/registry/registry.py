@@ -66,7 +66,7 @@ class Registry:
 
 
         self.log.info("Registered agent {}".format(address))
-        session.post_message("Registered agent {}".format(address))
+        session.add_message("Registered agent {}".format(address))
         self.agent.publish_to_feed("agent_activity", (action, agent_data));
 
         return True, "Registered agent {}".format(address)
@@ -85,7 +85,7 @@ class Registry:
         try:
             del self.active_agents[agent_address]
             self.log.info("Agent {} has been removed".format(agent_address))
-            session.post_message("Agent {} has been removed".format(agent_address))
+            session.add_message("Agent {} has been removed".format(agent_address))
             self.agent.publish_to_feed("agent_activity", (action, agent_data))
 
         except KeyError:

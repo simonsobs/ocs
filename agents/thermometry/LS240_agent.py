@@ -44,7 +44,7 @@ class LS240_Agent:
         if not ok:
             return ok, msg
 
-        session.post_status('starting')
+        session.set_status('starting')
 
         # Registers agent
         try:
@@ -56,14 +56,14 @@ class LS240_Agent:
                 self.log.error("Registry is not running")
 
         if self.fake_data:
-            session.post_message("No initialization since faking data")
+            session.add_message("No initialization since faking data")
             self.thermometers = ["thermA", "thermB"]
 
         else:
             try:
                 self.module = Module(port=self.port)
                 print("Initialized Lakeshore module: {!s}".format(self.module))
-                session.post_message("Lakeshore initialized with ID: %s"%self.module.inst_sn)
+                session.add_message("Lakeshore initialized with ID: %s"%self.module.inst_sn)
 
                 self.thermometers = [channel._name for channel in self.module.channels]
 
@@ -90,7 +90,7 @@ class LS240_Agent:
         sleep_time = 1/f_sample - 0.01
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
-        session.post_status('running')
+        session.set_status('running')
 
         while True:
             with self.lock:

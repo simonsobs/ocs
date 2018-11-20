@@ -81,7 +81,7 @@ class LS240_Manager:
     def start_acq(self, session, params={}):
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
-        session.post_status('running')
+        session.set_status('running')
 
         while True:
             with self.lock:
@@ -102,7 +102,7 @@ class LS240_Manager:
 
 
             # self.log.info("Recieved data: {}".format(data))
-            session.post_data(data)
+            session.publish_data(data)
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'

@@ -4,8 +4,6 @@ import time
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
 
-import threading
-
 class MyHardwareDevice:
 
     """
@@ -23,9 +21,11 @@ class MyHardwareDevice:
 
         - perform any blocking I/O operations using standard python
           functions, and use time.sleep.
+
         - request that twisted operations be scheduled to run in the
-          reactor thread (this is done, implicitly, in
-          session.post_message).
+          reactor thread (for example, add_message will do this
+          automatically if it detects it's being called from a worker
+          thread).
 
         We may not:
         - use any twisted facilities, except those specifically
@@ -34,7 +34,7 @@ class MyHardwareDevice:
         Blocking Operation functions require no special decoration.
         """        
         for step in range(5):
-            session.post_message('task1-blocking step %i' % step)
+            session.add_message('task1-blocking step %i' % step)
             time.sleep(1)
 
         return True, 'task1-blocking complete.'

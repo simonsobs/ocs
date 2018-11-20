@@ -10,7 +10,10 @@ from twisted.internet.error import ReactorNotRunning
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 
+from .ocs_twisted import in_reactor_context
+
 import time
+from deprecation import deprecated
 
 def init_site_agent(args, address=None):
     """
@@ -431,17 +434,18 @@ class AgentProcess:
         self.blocking = blocking
 
 class OpSession:
-    """When a caller requests that an Operation (Process or Task) is
+    """
+    When a caller requests that an Operation (Process or Task) is
     started, an OpSession object is created and is associated with
-    that run of the Operation.  The running Operation may update the
-    status and post messages to the message buffer.  This is the
-    preferred means for communicating Operation status to the caller.
+    that run of the Operation.  The Operation codes are given access
+    to the OpSession object, and may update the status and post
+    messages to the message buffer.  This is the preferred means for
+    communicating Operation status to the caller.
 
-    In the OCSAgent model, Operations run in a separate device thread
-    from the main "Reactor".  To maintain data structure integrity,
-    code running in the device thread must use post_message() and
-    post_status().  In contrast, code running in the main reactor
-    thread may use add_message() and add_status().
+    In the OCSAgent model, Operations may run in the main, "reactor"
+    thread or in a worker "pool" thread.  Services provided by
+    OpSession must support both these contexts (see, for example,
+    add_message).
 
     The message buffer is purged periodically.
     """
@@ -499,10 +503,14 @@ class OpSession:
                 'session_id': self.session_id}
 
     def set_status(self, status, timestamp=None, log_status=True):
-        assert status in ['starting', 'running', 'stopping', 'done']
-        self.status = status
         if timestamp is None:
             timestamp = time.time()
+        if not in_reactor_context():
+            return reactor.callFromThread(self.set_status, status,
+                                          timestamp=timestamp,
+                                          log_status=log_status)
+        assert status in ['starting', 'running', 'stopping', 'done']
+        self.status = status
         if status == 'done':
             self.end_time = timestamp
         if log_status:
@@ -511,23 +519,32 @@ class OpSession:
     def add_message(self, message, timestamp=None):
         if timestamp is None:
             timestamp = time.time()
+        if not in_reactor_context():
+            return reactor.callFromThread(self.add_message, message,
+                                          timestamp=timestamp)
         self.messages.append((timestamp, message))
         self.app.publish_status('Message', self)
 
     def publish_data(self, message, timestamp=None):
         if timestamp is None:
             timestamp = time.time()
+        if not in_reactor_context():
+            return reactor.callFromThread(self.publish_data, message,
+                                          timestamp=timestamp)
         self.data = message
         self.app.publish_data('Message', self)
 
     # Callable from task / process threads.
 
+    @deprecated(details="Use set_status in all threading contexts.")
     def post_status(self, status):
         reactor.callFromThread(self.set_status, status)
         
+    @deprecated(details="Use add_message in all threading contexts.")
     def post_message(self, message):
         reactor.callFromThread(self.add_message, message)
 
+    @deprecated(details="Use publish_data in all threading contexts.")
     def post_data(self, data):
         reactor.callFromThread(self.publish_data, data)
 
@@ -598,10 +615,13 @@ class Feed:
             timestamp (float):
                 timestamp given to the message. Defaults to time.time()
         """
-        self.agent.publish(self.address,(message, self.encoded()))
-
         if timestamp is None:
             timestamp = time.time()
+        if not in_reactor_context():
+            return self.callFromThread(self.publish_message, message,
+                                       timestamp=timestamp)
+        self.agent.publish(self.address,(message, self.encoded()))
+
         self.messages.append((timestamp, message))
         if len(self.messages) > self.max_messages:
             self.messages.pop(0)

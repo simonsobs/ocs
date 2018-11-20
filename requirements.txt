@@ -2,6 +2,7 @@ crossbar
 autobahn
 twisted
 wampy
+deprecation
 
 # Lakeshore240
 pyserial

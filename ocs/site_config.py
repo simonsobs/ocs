@@ -166,6 +166,7 @@ def add_arguments(parser=None):
     group.add_argument('--site-realm')
     group.add_argument('--instance-id')
     group.add_argument('--address-root')
+    group.add_argument('--registry-address')
     return parser
     
 def get_config(args, agent_class=None):
@@ -208,6 +209,9 @@ def get_config(args, agent_class=None):
     # Override the realm?
     if args.site_realm is not None:
         site_config.hub.data['wamp_realm'] = args.site_realm
+
+    if args.registry_address is not None:
+        site_config.hub.data['registry_address'] = args.registry_address
 
     # Matching behavior.
     no_dev_match = (agent_class == '*control*')
@@ -274,6 +278,8 @@ def reparse_args(args, agent_class=None):
         args.site_realm = site.hub.data['wamp_realm']
     if args.address_root is None:
         args.address_root = site.hub.data['address_root']
+    if args.registry_address is None:
+        args.registry_address = site.hub.data.get('registry_address')
 
     if instance is not None:
         if args.instance_id is None:

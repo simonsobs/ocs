@@ -16,7 +16,6 @@ class Registry:
         self.active_agents = {}
         self.agent_timeout = 5.0 # Removes agent after 5 seconds of no heartbeat.
 
-
         self.agent.register_feed("agent_activity")
 
     def _monitor_active_agents(self):
@@ -27,6 +26,12 @@ class Registry:
         current_time = time.time()
         agents_to_remove = []
         for address, agent in self.active_agents.items():
+
+            # For some reason the registry has been unable to listen to its
+            # own heartbeat... This makes it so that the registry can't
+            # unregister itself.
+            if address == self.agent.agent_address:
+                continue
             if (current_time - agent["last_heartbeat"]) > self.agent_timeout:
                 agents_to_remove.append(address)
 
@@ -54,6 +59,7 @@ class Registry:
         """
 
         address = agent_data['agent_address']
+
         action = "added"
         if address in self.active_agents.keys():
             self.log.error("Address {} is already registered, agent info is being updated".format(address))

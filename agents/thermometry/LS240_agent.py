@@ -46,15 +46,6 @@ class LS240_Agent:
 
         session.set_status('starting')
 
-        # Registers agent
-        try:
-            register_t = client_t.TaskClient(session.app, 'observatory.registry', 'register_agent')
-            session.call_operation(register_t.start, self.agent.encoded(), block=True)
-            self.registered = True
-        except ApplicationError as e:
-            if e.error == u'wamp.error.no_such_procedure':
-                self.log.error("Registry is not running")
-
         if self.fake_data:
             session.add_message("No initialization since faking data")
             self.thermometers = ["thermA", "thermB"]

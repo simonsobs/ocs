@@ -58,15 +58,16 @@ class DataAggregator:
         """
         TASK: Registers the aggregator and subscribes to *agent_activity* feed.
         """
-        try:
-            register_t = client_t.TaskClient(session.app, 'observatory.registry', 'register_agent')
-            dump_agents_t = client_t.TaskClient(session.app, 'observatory.registry', 'dump_agent_info')
-            session.call_operation(register_t.start, self.agent.encoded(), block=True)
-            self.registered = True
-        except ApplicationError as e:
-            if e.error == u'wamp.error.no_such_procedure':
-                self.log.error("Registry is not running")
-                return True, "Initialized Aggregator but could not register"
+
+        # Only subscribes to registry feeds if agent is registered.
+        if not self.agent.registered:
+            return True, "Initialized Aggregator"
+
+        reg_address = self.agent.site_args.registry_address
+
+        dump_agents_t = client_t.TaskClient(session.app,
+                                            reg_address,
+                                            'dump_agent_info')
 
         def _new_agent_handler(_data):
             """Callback for whenever an agent is published to agent_activity"""
@@ -83,7 +84,9 @@ class DataAggregator:
                 if feed['agg_params'].get("aggregate", False):
                     self.add_feed(feed["agent_address"], feed["feed_name"])
 
-        self.agent.subscribe_to_feed('observatory.registry', 'agent_activity', _new_agent_handler)
+        self.agent.subscribe_to_feed(reg_address,
+                                     'agent_activity',
+                                     _new_agent_handler)
 
         session.call_operation(dump_agents_t.start)
         return True, "Initialized Aggregator"

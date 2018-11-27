@@ -9,11 +9,12 @@ from twisted.internet.error import ReactorNotRunning
 
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
-
+from autobahn.wamp.exception import ApplicationError
 from .ocs_twisted import in_reactor_context
 
 import time
 from deprecation import deprecated
+from ocs import client_t
 
 def init_site_agent(args, address=None):
     """
@@ -30,7 +31,7 @@ def init_site_agent(args, address=None):
         address = '%s.%s' % (args.address_root, args.instance_id)
     server, realm = args.site_hub, args.site_realm
     #txaio.start_logging(level='debug')
-    agent = OCSAgent(ComponentConfig(realm, {}), address=address)
+    agent = OCSAgent(ComponentConfig(realm, {}), args, address=address)
     runner = ApplicationRunner(server, realm)
     return agent, runner
 
@@ -74,8 +75,9 @@ class OCSAgent(ApplicationSession):
 
     """
 
-    def __init__(self, config, address=None):
+    def __init__(self, config, site_args, address=None):
         ApplicationSession.__init__(self, config)
+        self.site_args = site_args
         self.tasks = {}       # by op_name
         self.processes = {}   # by op_name
         self.feeds = {}
@@ -118,6 +120,7 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0) # Calls the hearbeat every second
 
+        self.register_agent()
 
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
@@ -203,6 +206,31 @@ class OCSAgent(ApplicationSession):
         self.processes[name] = AgentProcess(start_func, stop_func,
                                             blocking=blocking)
         self.sessions[name] = None
+
+    @inlineCallbacks
+    def register_agent(self):
+        """
+        Registers the agent with Registry. Uses Registry address from
+        Site config.
+        """
+
+        if self.site_args.registry_address in [None, "none", "None"]:
+            return
+
+        if not in_reactor_context():
+            reactor.callFromThread(self.register_agent)
+
+        reg_task = client_t.TaskClient(self, self.site_args.registry_address,
+                                         'register_agent')
+        try:
+            yield reg_task.start(self.encoded())
+            self.registered = True
+        except ApplicationError as e:
+            if e.error == u'wamp.error.no_such_procedure':
+                self.log.error("Operation {}.register_agent has not "
+                      "been registered".format(self.site_args.registry_address))
+            else:
+                raise e
 
     def register_feed(self, feed_name, **kwargs):
         """

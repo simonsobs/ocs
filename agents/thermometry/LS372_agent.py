@@ -1,10 +1,11 @@
-
-import ocs
-from ocs import ocs_agent, site_config
-from ocs.Lakeshore.Lakeshore372 import LS372
 import random
 import time, threading
 import numpy as np
+import ocs
+
+from autobahn.wamp.exception import ApplicationError
+from ocs import ocs_agent, site_config, client_t
+from ocs.Lakeshore.Lakeshore372 import LS372
 
 class LS372_Agent:
     """
@@ -27,6 +28,10 @@ class LS372_Agent:
 
         self.log = agent.log
 
+        self.agent = agent
+        self.agent.register_feed('temperatures', agg_params={'aggregate': True})
+        self.registered = False
+
     def try_set_job(self, job_name):
         print(self.job, job_name)
         with self.lock:
@@ -48,6 +53,15 @@ class LS372_Agent:
             return ok, msg
 
         session.set_status('running')
+
+        # Registers agent
+        try:
+            register_t = client_t.TaskClient(session.app, 'observatory.registry', 'register_agent')
+            session.call_operation(register_t.start, self.agent.encoded(), block=True)
+            self.registered = True
+        except ApplicationError as e:
+            if e.error == u'wamp.error.no_such_procedure':
+                self.log.error("Registry is not running")
 
         if self.fake_data:
             self.res = random.randrange(1, 1000);
@@ -93,7 +107,7 @@ class LS372_Agent:
                 time.sleep(.01)
 
             print("Data: {}".format(data))
-            session.publish_data(data)
+            session.app.publish_to_feed('temperatures', data)
 
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'

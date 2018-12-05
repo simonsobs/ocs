@@ -14,7 +14,8 @@
 #
 import os
 import sys
-sys.path.append(os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('..'))
+from ocs import __version__ as ocs_version
 
 # -- Project information -----------------------------------------------------
 
@@ -22,10 +23,10 @@ project = 'OCS'
 copyright = '2018, Simons Observatory DAQ Group'
 author = 'Simons Observatory DAQ Group'
 
-# The short X.Y version
-version = ''
-# The full version, including alpha/beta/rc tags
-release = '0.1.0'
+# The short X.Y version.
+version = ocs_version
+# The full version, including alpha/beta/rc tags.
+release = ocs_version
 
 
 # -- General configuration ---------------------------------------------------

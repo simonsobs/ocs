@@ -94,7 +94,7 @@ class LS372_Agent:
                 time.sleep(.1)
             else:
                 active_channel = self.module.get_active_channel()
-                data[active_channel.name] = (time.time(), self.module.get_temp(unit='S', chan=active_channel.channel_num))
+                data[active_channel.name] = (time.time(), self.module.get_temp(chan=active_channel.channel_num))
                 time.sleep(.01)
 
             print("Data: {}".format(data))

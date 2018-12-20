@@ -218,7 +218,17 @@ class LS372:
         """Get the ID number of the Lakeshore unit."""
         return self.msg('*IDN?')
 
-    def get_temp(self, unit="K", chan=-1):
+    def get_temp(self, unit=None, chan=-1):
+        """Get temperature from the Lakeshore.
+
+        Args:
+            unit (str): Unit to return reading for ('ohms' or 'kelvin')
+            chan (str): Channel to query, -1 for currently active channel
+
+        Returns:
+            float: The reading from the lakeshore, either in ohms or kelvin.
+
+        """
         if (chan == -1):
             resp = self.msg("SCAN?")
             c = resp.split(',')[0]
@@ -227,10 +237,16 @@ class LS372:
         else:
             c = str(chan)
 
-        if unit == 'S':
+        if unit is None:
+            active_ch = self.get_active_channel()
+            unit = active_ch.units
+
+        assert unit.lower() in ['ohms', 'kelvin']
+
+        if unit == 'ohms':
             # Sensor is same as Resistance Query
             return float(self.msg('SRDG? %s' % c))
-        if unit == 'K':
+        if unit == 'kelvin':
             return float(self.msg('KRDG? %s' % c))
 
     def get_autoscan(self):
@@ -921,7 +937,7 @@ class Channel:
 
     def __str__(self):
         string = "-" * 50 + "\n"
-        string += "Channel %d: %s\n" % (self.channel_num, self.name)
+        string += "Channel %s: %s\n" % (self.channel_num, self.name)
         string += "-" * 50 + "\n"
         string += "\t%-30s\t%r\n" % ("Enabled :", self.enabled)
         string += "\t%-30s\t%s %s\n" % ("Dwell:", self.dwell, "seconds")

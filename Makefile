@@ -14,6 +14,9 @@ default:
 install: default
 	$(PYTHON) setup.py install $(install_args)
 
+develop:
+	$(PYTHON) setup.py develop --user
+
 bundle:
 	git archive HEAD --format=tar --prefix=ocs/ | gzip -c > ocs.tar.gz
 

@@ -303,6 +303,8 @@ if __name__ == '__main__':
     pgroup.add_argument('--ip-address')
     pgroup.add_argument('--serial-number')
     pgroup.add_argument('--mode')
+    pgroup.add_argument('--fake-data', type=int, default=0,
+                        help='Set non-zero to fake data, without hardware.')
 
     # Parse comand line.
     args = parser.parse_args()

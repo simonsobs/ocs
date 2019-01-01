@@ -8,6 +8,7 @@ class SiteConfig:
     def __init__(self):
         self.hosts = {}
         self.hub = None
+        self.source_file = None
 
     @classmethod
     def from_dict(cls, data):
@@ -26,22 +27,26 @@ class SiteConfig:
         self = cls()
         for k,v in data.get('hosts', {}).items():
             assert (k not in self.hosts) # duplicate host name in config file!
-            self.hosts[k] = HostConfig.from_dict(v, parent=self)
+            self.hosts[k] = HostConfig.from_dict(v, parent=self, name=k)
         self.hub = HubConfig.from_dict(data['hub'], parent=self)
         return self
         
     @classmethod
     def from_yaml(cls, filename):
+        filename = os.path.abspath(filename)
         with open(filename) as f:
             data = yaml.safe_load(f)
-        return cls.from_dict(data)
+        self = cls.from_dict(data)
+        self.source_file = filename
+        return self
 
 class HostConfig:
-    def __init__(self):
+    def __init__(self, name=None):
         self.instances = []
+        self.name = name
  
     @classmethod
-    def from_dict(cls, data, parent=None):
+    def from_dict(cls, data, parent=None, name=None):
         """
         Args:
             data: The configuration dictionary.
@@ -53,7 +58,7 @@ class HostConfig:
         - ``agent-instances`` (required): A list of AgentConfig
             descriptions.
         """
-        self = cls()
+        self = cls(name=name)
         self.parent = parent
         self.data = data
         self.instances = data['agent-instances']

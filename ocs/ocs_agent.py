@@ -273,11 +273,27 @@ class OCSAgent(ApplicationSession):
             self.log.error("Feed {} is already subscribed to".format(address))
             return False
 
-    def handle_task_return_val(self, *args, **kw):
-        (ok, message), session = args
-        session.success = ok
-        session.add_message(message)
-        session.set_status('done')
+    def _handle_task_return_val(self, *args, **kw):
+        try:
+            (ok, message), session = args
+            session.success = ok
+            session.add_message(message)
+            session.set_status('done')
+        except:
+            print('Failed to decode _handle_task_return_val args:',
+                  args, kw)
+            raise
+
+    def _handle_task_error(self, *args, **kw):
+        try:
+            ex, session = args
+            session.success = ocs.ERROR
+            session.add_message('Crash in thread: %s' % str(ex))
+            session.set_status('done')
+        except:
+            print('Failure to decode _handle_task_error args:',
+                  args, kw)
+            raise
 
     """ The functions below define the OCS API for client control of an
     Agent's Operations.  Some methods are valid on Processs, some on
@@ -335,7 +351,8 @@ class OCSAgent(ApplicationSession):
             else:
                 # Launch, soon, in the main reactor thread.
                 session.d = task.deferLater(reactor, 0, op.launcher, session, params)
-            session.d.addCallback(self.handle_task_return_val, session)
+            session.d.addCallback(self._handle_task_return_val, session)
+            session.d.addErrback(self._handle_task_error, session)
             return (ocs.OK, msg, session.encoded())
         
         else:

@@ -191,6 +191,11 @@ class OCSAgent(ApplicationSession):
                     session = session.encoded()
                 result.append((k, session))
             return result
+        if q == 'get_feeds':
+            result = []
+            for k, v in self.feeds.items():
+                result.append((k, v.encoded()))
+            return result
 
     def publish_status(self, message, session):
         self.publish(self.agent_address + '.feed', session.encoded())

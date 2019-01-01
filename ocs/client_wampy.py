@@ -22,12 +22,43 @@ class ControlClient(WampyClient):
             raise RuntimeError(response.message)
         return response.yield_args[0]
 
+    # These are API we want to add.
+
     def get_tasks(self):
-        return self.call(self.agent_addr + '.get_tasks')
-    
+        """
+        Query the list of Tasks from the Agent management interface.
+        
+        Returns a list of items of the form (task_name, info_dict).
+        """
+        return self.call(self.agent_addr, 'get_tasks')
+
     def get_processes(self):
-        return self.call(self.agent_addr + '.get_processes')
+        """
+        Query the list of Processes from the Agent management interface.
+        
+        Returns a list of items of the form (process_name, info_dict).
+        """
+        return self.call(self.agent_addr, 'get_processes')
     
-    def request(self, action, op_name, args):
+    def get_feeds(self):
+        """
+        Query the list of Feeds from the Agent management interface.
+        
+        Returns a list of items of the form (feed_name, info_dict).
+        """
+        return self.call(self.agent_addr, 'get_processes')
+        
+
+    def request(self, action, op_name, params):
+        """
+        Issue a request on an Agent's .ops interface.
+
+        Args:
+          action (string): The action name (start, status, etc).
+          params (list): Parameters to pass to the action.
+
+        Returns:
+          Tuple (status, message, session).
+        """
         return self.call(self.agent_addr + '.ops', action, op_name)
     

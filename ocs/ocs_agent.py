@@ -574,6 +574,9 @@ class OpSession:
                                           timestamp=timestamp)
         self.messages.append((timestamp, message))
         self.app.publish_status('Message', self)
+        # Make the app log this message, too.  The op_name and
+        # session_id are an important provenance prefix.
+        self.app.log.info('%s:%i %s' % (self.op_name, self.session_id, message))
 
     def publish_data(self, message, timestamp=None):
         if timestamp is None:

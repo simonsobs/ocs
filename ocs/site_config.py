@@ -44,6 +44,7 @@ class HostConfig:
     def __init__(self, name=None):
         self.instances = []
         self.name = name
+        self.agent_paths = []
  
     @classmethod
     def from_dict(cls, data, parent=None, name=None):
@@ -62,6 +63,7 @@ class HostConfig:
         self.parent = parent
         self.data = data
         self.instances = data['agent-instances']
+        self.agent_paths = data.get('agent-paths', [])
         return self
 
 class HubConfig:
@@ -298,3 +300,28 @@ def reparse_args(args, agent_class=None):
             setattr(args, kprop, v)
 
     return args
+
+
+# We'll also keep the Agent script registry here.
+agent_script_reg = {}
+
+def register_agent_class(class_name, filename):
+    """
+    Register an Agent script in the site_config registry.
+    """
+    agent_script_reg[class_name] = filename
+
+def scan_for_agents(do_registration=True):
+    """
+    Identify and import ocs plugin scripts.
+    """
+    import pkgutil
+    import importlib
+    items = []
+    for modinfo in pkgutil.iter_modules():
+        if modinfo.name.startswith('ocs_plugin_'):
+            items.append(modinfo.name)
+            if do_registration:
+                importlib.import_module(modinfo.name)
+    return items
+                    

@@ -1,0 +1,112 @@
+#!/usr/bin/env python
+
+DESCRIPTION="""This is the high level control script for ocs.  Its principal uses
+are to inspect the local host's site configuration file, and to start
+and communicate with the HostMaster Agent for the local host."""
+
+import sys
+
+import ocs
+from ocs import client_wampy as cw
+
+import argparse
+parser = argparse.ArgumentParser(description=DESCRIPTION)
+parser = ocs.site_config.add_arguments(parser)
+parser.add_argument('command', choices=['config', 'plugins', 'status',
+                                        'start', 'stop'])
+
+args = parser.parse_args()
+ocs.site_config.reparse_args(args, '*host*')
+
+if args.command == 'config':
+    print('ocs configuration summary')
+    print('-------------------------')
+    print()
+    print('ocs import led to: %s' % (ocs.__file__))
+    print()
+    site, _, _ = ocs.site_config.get_config(args, '*host*')
+    print('Site file was determined to be: %s' % site.source_file)
+    print()
+    print('The site file describes %i hosts:' % len(site.hosts))
+    for k,v in site.hosts.items():
+        print('  Host %s includes %i agent instances:' % (k, len(v.instances)))
+        for inst in v.instances:
+            print('    %s::%s' % (inst['agent-class'], inst['instance-id']))
+        print()
+
+if args.command == 'plugins':
+    print('ocs plugin detection')
+    print('--------------------')
+    print('Scanning.')
+    site, host, _  = ocs.site_config.get_config(args, '*host*')
+    for p in host.agent_paths:
+        print('  ... adding to path: %s' % p)
+        sys.path.append(p)
+    ocs.site_config.scan_for_agents()
+    print('Found:')
+    for k,v in ocs.site_config.agent_script_reg.items():
+        print('  %-20s : %s' % (k,v))
+    print()
+
+elif args.command in ['status', 'start', 'stop']:
+
+    def decode_exception(args):
+        """
+        Decode certain RuntimeError raised by wampy.
+        """
+        try:
+            text, data = args[0][4:6]
+            assert(text.startswith('wamp.'))
+        except Exception as e:
+            return False, args, str(args)
+        return True, text, str(data)
+
+    # Parse the config to find this host's HostMaster instance info.
+    site, host, instance = ocs.site_config.get_config(args, 'HostMaster')
+
+    # Connect to crossbar.
+    master_addr = site.hub.data['address_root'] + '.hostmaster-grayjay'
+    client = cw.ControlClient(
+        master_addr,
+        url=site.hub.data['wamp_server'],
+        realm=site.hub.data['wamp_realm'])
+    try:
+        client.start()
+    except ConnectionRefusedError as e:
+        print('Failed to establish connection to crossbar server.')
+        print('  url: %s' % site.hub.data['wamp_server'])
+        print('  realm: %s' % site.hub.data['wamp_realm'])
+        sys.exit(1)
+
+    try:
+        if args.command == 'status':
+            stat = client.request('status', 'master', [])
+        elif args.command == 'start':
+            stat = client.request('start', 'master', [])
+        elif args.command == 'stop':
+            stat = client.request('stop', 'master', [])
+        
+    except RuntimeError as e:
+        parsed, err_name, text = decode_exception(e.args)
+        if parsed and err_name == 'wamp.error.no_such_procedure':
+            print('Failed to contact host master at %s' % master_addr)
+            sys.exit(1)
+        print('Unexpected error getting master process status:')
+        raise
+    
+    # Decode stat
+    err, msg, session = stat
+    is_running = (session.get('status') == 'running')
+
+    print('Status of the HostMaster: %s' % {True: 'running', False:
+                                            'not_running'}[is_running])
+    if session is None:
+        print('There is no recent session information.')
+    else:
+        n_trunc = 20
+        print('Most recent session log (truncated to %i lines):' % n_trunc)
+        for msg in session.get('messages',[])[-n_trunc:]:
+            print('  %.3f' % msg[0], msg[1])
+
+    client.stop()
+

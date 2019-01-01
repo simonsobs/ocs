@@ -186,6 +186,7 @@ def get_config(args, agent_class=None):
 
     Special values accepted for agent_class:
     - '*control*': do not insist on matching host or device.
+    - '*host*': do not insist on matching device (but do match host).
 
     Returns:
         The tuple (site_config, host_config, device_config).
@@ -219,14 +220,15 @@ def get_config(args, agent_class=None):
         site_config.hub.data['registry_address'] = args.registry_address
 
     # Matching behavior.
-    no_dev_match = (agent_class == '*control*')
+    no_host_match = (agent_class == '*control*')
+    no_dev_match = no_host_match or (agent_class == '*host*')
 
     # Identify our host.
     host = args.site_host
     if host is None:
         host = socket.gethostname()
 
-    if no_dev_match:
+    if no_host_match:
         host_config = None
     else:
         host_config = site_config.hosts[host]

@@ -65,7 +65,7 @@ elif args.command in ['status', 'start', 'stop']:
     site, host, instance = ocs.site_config.get_config(args, 'HostMaster')
 
     # Connect to crossbar.
-    master_addr = site.hub.data['address_root'] + '.hostmaster-grayjay'
+    master_addr = site.hub.data['address_root'] + '.hostmaster-%s' % host.name
     client = cw.ControlClient(
         master_addr,
         url=site.hub.data['wamp_server'],

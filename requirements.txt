@@ -1,7 +1,7 @@
 crossbar
 autobahn
 twisted
-wampy
+wampy>=0.9.20
 deprecation
 
 # Lakeshore240

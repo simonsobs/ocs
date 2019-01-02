@@ -89,7 +89,9 @@ class HostMaster:
         if prot.killed:
             return True, 'Instance already has kill set.'
         prot.killed = True
-        prot.transport.signalProcess('KILL')
+        # race condition, but it could be worse.
+        if prot.status[0] is None:
+            reactor.callFromThread(prot.transport.signalProcess, 'KILL')
         return True, 'Kill requested.'
         
     @inlineCallbacks
@@ -147,12 +149,23 @@ class HostMaster:
                         db['next_action'] = 'idle'
                     else:
                         session.add_message(
-                            'Launching {full_name}'.format(**db))
+                            'Requested launch for {full_name}'.format(**db))
                         self.pid_cache[key] = None
                         reactor.callFromThread(
                             self._launch_instance, key, db['agent_script'],
                             self.site_config_file, db['instance_id'])
+                        db['next_action'] = 'wait_start'
+                        db['at'] = time.time() + 1.
+                elif db['next_action'] == 'wait_start':
+                    if prot is not None:
+                        session.add_message('Launched {full_name}'.format(**db))
                         db['next_action'] = 'monitor'
+                    else:
+                        if time.time() >= db['at']:
+                            session.add_message('Launch not detected for '
+                                                '{full_name}!  Will retry.'.format(**db))
+                            db['next_action'] = 'start_at'
+                            db['at'] = time.time() + 5.
                 elif db['next_action'] == 'monitor':
                     stat, t = prot.status
                     if stat is not None:

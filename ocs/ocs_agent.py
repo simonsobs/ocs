@@ -213,11 +213,15 @@ class OCSAgent(ApplicationSession):
         self.sessions[name] = None
 
     @inlineCallbacks
-    def register_agent(self):
+    def register_agent(self, encoded=None):
         """
         Registers the agent with Registry. Uses Registry address from
         Site config.
         """
+        # Makes sure info sent to the registry is the same even if the agent
+        # does not connect immediately
+        if encoded is None:
+            encoded = self.encoded()
 
         if self.site_args.registry_address in [None, "none", "None"]:
             return
@@ -228,12 +232,15 @@ class OCSAgent(ApplicationSession):
         reg_task = client_t.TaskClient(self, self.site_args.registry_address,
                                          'register_agent')
         try:
-            yield reg_task.start(self.encoded())
+            yield reg_task.start(encoded)
             self.registered = True
         except ApplicationError as e:
             if e.error == u'wamp.error.no_such_procedure':
-                self.log.error("Operation {}.register_agent has not "
+                self.log.warn("Operation {}.register_agent has not "
                       "been registered".format(self.site_args.registry_address))
+                self.log.warn("Will try to register again in 5 seconds...")
+                
+                reactor.callLater(5, self.register_agent, encoded)
             else:
                 raise e
 

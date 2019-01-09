@@ -16,8 +16,10 @@ class DataAggregator:
         self.agent = agent
         self.log = agent.log
 
-        self.feed_data = {}
-        self.incoming_data = {}
+        self.subscribed_feeds = []
+
+        self.buffers = {}
+        self.buffer_start_times = {}
 
         self.aggregate = False
 
@@ -42,16 +44,36 @@ class DataAggregator:
 
         def _data_handler(_data):
             """Callback whenever data is published to an aggregated feed"""
+            if not self.aggregate:
+                return
+
             data, feed = _data
-            if self.aggregate:
-                self.incoming_data[feed["address"]].append(data)
+            addr = feed["address"]
+
+            if feed['buffered']:
+                # If data is buffered by the Feed, immediately write it to a frame.
+                self.write_frame_to_file(addr, data)
+
+            else:
+                # If not, the aggregator needs to buffer the data itself.
+                current_time = time.time()
+                if not self.buffers[addr]:
+                    self.buffer_start_times[addr] = current_time
+
+                if current_time - self.buffer_start_times[addr] > feed["buffer_time"]:
+                    self.write_frame_to_file(addr, self.buffers[addr])
+                    self.buffer_start_times[addr] = current_time
+                    self.buffers[addr] = []
+
+                self.buffers[addr].append(data)
 
         feed_address = "{}.feeds.{}".format(agent_address, feed_name)
-        if feed_address in self.incoming_data.keys():
+        if feed_address in self.subscribed_feeds:
             return
 
         self.agent.subscribe_to_feed(agent_address, feed_name, _data_handler)
-        self.incoming_data[feed_address] = []
+        self.subscribed_feeds.append(feed_address)
+        self.buffers[feed_address] = []
         self.log.info("Subscribed to feed {}".format(feed_address))
 
     def initialize(self, session, params={}):
@@ -110,7 +132,6 @@ class DataAggregator:
         agent_address = params["agent_address"]
         feed_name = params["feed_name"]
 
-
         feed_address = "{}.feeds.{}".format(agent_address, feed_name)
         if feed_address in self.incoming_data.keys():
             return False, "Already subscribed to feed {}".format(feed_address)
@@ -119,48 +140,43 @@ class DataAggregator:
         return True, 'Subscribed to data feeds.'
 
 
-    def write_data_to_file(self):
+    def write_frame_to_file(self, feed_address, buffer):
         """
-        Translates ``self.incoming_data`` to G3Frames, writes it to file.
-        Clears self.incoming_data.
+            Writes a feed buffer to G3Frame.
         """
-        for feed_name, data_list in self.incoming_data.items():
-            if len(data_list) == 0:
-                continue
-
-            # Creates frame from datastream
-            frame = core.G3Frame(core.G3FrameType.Housekeeping)
-
-            frame["feed"] = feed_name
-
-            tods = {}
-            timestamps = {}
-
-            # Creats tods and timestamps from frame data
-            for data_point in data_list:
-                for key, val in data_point.items():
-                    if key in tods.keys():
-                        tods[key].append(val[1])
-                        timestamps[key].append(val[0])
-                    else:
-                        tods[key] = [val[1]]
-                        timestamps[key] = [val[0]]
 
 
-            tod_map = core.G3TimestreamMap()
-            timestamp_map = core.G3TimestreamMap()
+        self.log.info("Writing feed {} to frame".format(feed_address))
 
-            for key in tods:
-                tod_map[key] = core.G3Timestream(tods[key])
-                timestamp_map[key] = core.G3Timestream(timestamps[key])
+        frame = core.G3Frame(core.G3FrameType.Housekeeping)
+        frame["feed"] = feed_address
 
-            frame["TODs"] = tod_map
-            frame["Timestamps"] = timestamp_map
+        tods = {}
+        timestamps = {}
 
-            self.file(frame)
+        # Creates tods and timestamps from frame data
+        for data_point in buffer:
+            for key, val in data_point.items():
+                if key in tods.keys():
+                    tods[key].append(val[1])
+                    timestamps[key].append(val[0])
+                else:
+                    tods[key] = [val[1]]
+                    timestamps[key] = [val[0]]
 
-            # clear data feed
-            self.incoming_data[feed_name] = []
+        tod_map = core.G3TimestreamMap()
+        timestamp_map = core.G3TimestreamMap()
+
+        for key in tods:
+            tod_map[key] = core.G3Timestream(tods[key])
+            timestamp_map[key] = core.G3Timestream(timestamps[key])
+
+        frame["TODs"] = tod_map
+        frame["Timestamps"] = timestamp_map
+
+        # Writes frame to file
+        self.file(frame)
+
 
     def start_file(self):
         """
@@ -174,11 +190,16 @@ class DataAggregator:
         """
         Ends current G3File with EndProcessing frame.
         """
-        self.write_data_to_file()
+
+        for k, v in self.buffers.items():
+            # Writes all non-empty buffers to File
+            if v:
+                self.write_frame_to_file(k, v)
+                self.buffers[k] = []
+
         self.file(core.G3Frame(core.G3FrameType.EndProcessing))
 
         print("Closing file: {}".format(self.filename))
-
         return
 
     def start_aggregate(self, session, params={}):
@@ -214,7 +235,6 @@ class DataAggregator:
         session.set_status('running')
 
         new_file_time = True
-        new_frame_time = True
 
         self.aggregate = True
         while self.aggregate:
@@ -230,17 +250,9 @@ class DataAggregator:
 
                 session.add_message('Starting a new DAQ file: %s' % self.filename)
 
-                new_file_time = False
-
-            if new_frame_time:
-                self.write_data_to_file()
-                new_frame_time = False
-                frame_start_time = time.time()
-
             time.sleep(.1)
             # Check if its time to write new frame/file
             new_file_time = (time.time() - file_start_time) > time_per_file
-            new_frame_time = (time.time() - frame_start_time) > time_per_frame
 
         self.end_file()
         return True, 'Acquisition exited cleanly.'

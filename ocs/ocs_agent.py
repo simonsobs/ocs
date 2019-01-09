@@ -239,7 +239,7 @@ class OCSAgent(ApplicationSession):
                 self.log.warn("Operation {}.register_agent has not "
                       "been registered".format(self.site_args.registry_address))
                 self.log.warn("Will try to register again in 5 seconds...")
-                
+
                 reactor.callLater(5, self.register_agent, encoded)
             else:
                 raise e
@@ -643,11 +643,24 @@ class Feed:
             name of the feed
         agg_params (dict, optional):
             Parameters used by the aggregator.
+        buffered (bool, optional):
+            Specifies if data is buffered by the feed.
+            If false, messages are published immediately.
+            If true, the feed waits until `buffer_time` seconds have passed
+            and then publishes all messages as a list.
+            Defaults to False.
+        buffer_time (int, optional):
+            Specifies time that messages should be buffered in seconds.
+            If buffered is true, this determines how long
+            If buffered by the aggregator, this specifies how long the aggregator
+            should wait before writing a frame.
+            If 0, messages are immediately published. Defaults to 10.
         max_messages (int, optional):
             Max number of messages stored. Defaults to 20.
     """
 
-    def __init__(self, agent, feed_name, agg_params={}, max_messages=20):
+    def __init__(self, agent, feed_name, agg_params={},
+                 buffered=False, buffer_time=10, max_messages=20):
         self.messages = []
         self.max_messages = max_messages
         self.agent = agent
@@ -656,6 +669,11 @@ class Feed:
         self.agg_params = agg_params
         self.address = "{}.feeds.{}".format(self.agent_address, self.feed_name)
 
+        self.buffer_time = buffer_time
+        self.buffered = buffered
+        self.buffer_start_time = 0
+        self.buffer = []
+
     def encoded(self):
         return {
             "agent_address": self.agent_address,
@@ -663,11 +681,22 @@ class Feed:
             "address": self.address,
             "messages": self.messages,
             "agg_params": self.agg_params,
+            "buffered": self.buffered,
+            "buffer_time": self.buffer_time
         }
 
-    def publish_message(self, message, timestamp = None):
+    def flush_buffer(self):
+        """Publishes all messages in buffer and empties it."""
+        if self.buffer:
+            self.agent.publish(self.address, (self.buffer, self.encoded()))
+        self.buffer = []
+
+    def publish_message(self, message, timestamp=None):
         """
         Publishes message to feed and stores it in ``self.messages``.
+        If self.buffered, message is stored in buffer and the feed
+        waits until `buffer_time` seconds have elapsed before publishing
+        the entire buffer as a list.
 
         Args:
             message:
@@ -675,13 +704,29 @@ class Feed:
             timestamp (float):
                 timestamp given to the message. Defaults to time.time()
         """
+        current_time = time.time()
         if timestamp is None:
-            timestamp = time.time()
+            timestamp = current_time
+
         if not in_reactor_context():
             return self.callFromThread(self.publish_message, message,
                                        timestamp=timestamp)
-        self.agent.publish(self.address,(message, self.encoded()))
 
+        if not self.buffered:   # Publishes message immediately
+            self.agent.publish(self.address, (message, self.encoded()))
+
+        else:   # Stores to buffer and publishes if enough time has passed
+
+            if not self.buffer:
+                self.buffer_start_time = current_time
+
+            if (current_time - self.buffer_start_time) > self.buffer_time:
+                self.flush_buffer()
+                self.buffer_start_time = current_time
+
+            self.buffer.append(message)
+
+        # Caches message
         self.messages.append((timestamp, message))
         if len(self.messages) > self.max_messages:
             self.messages.pop(0)

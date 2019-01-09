@@ -114,6 +114,9 @@ feed_name            Name of the feed
 address              Full WAMP address of the feed
 messages             Cache of previous messages
 agg_params           Parameters passed to the Aggregator
+buffered             Specifies if Feed data is buffered
+buffer_time          Specifies how long feed data is buffered,
+                     or how long it should be buffered by the aggregator
 ==================   =================================================
 
 

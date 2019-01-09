@@ -21,7 +21,8 @@ class LS240_Agent:
         self.thermometers = []
         self.log = agent.log
 
-        self.agent.register_feed('temperatures', agg_params={'aggregate': True})
+        self.agent.register_feed('temperatures', agg_params={'aggregate': True},
+                                 buffered=True, buffer_time=1)
         self.registered = False
 
     # Exclusive access management.
@@ -108,6 +109,7 @@ class LS240_Agent:
             print("Data: {}".format(data))
             session.app.publish_to_feed('temperatures', data)
 
+        self.agent.feeds['temperatures'].flush_buffer()
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
 

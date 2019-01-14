@@ -13,7 +13,7 @@ class ControlClient(WampyClient):
     def __init__(self, agent_addr, **kwargs):
         WampyClient.__init__(self, **kwargs)
         self.agent_addr = agent_addr
-        
+
     # This override is important.
     def call(self, procedure, *args, **kwargs):
         message = WampyCall(procedure=procedure, args=args, kwargs=kwargs)
@@ -27,7 +27,7 @@ class ControlClient(WampyClient):
     def get_tasks(self):
         """
         Query the list of Tasks from the Agent management interface.
-        
+
         Returns a list of items of the form (task_name, info_dict).
         """
         return self.call(self.agent_addr, 'get_tasks')
@@ -35,19 +35,19 @@ class ControlClient(WampyClient):
     def get_processes(self):
         """
         Query the list of Processes from the Agent management interface.
-        
+
         Returns a list of items of the form (process_name, info_dict).
         """
         return self.call(self.agent_addr, 'get_processes')
-    
+
     def get_feeds(self):
         """
         Query the list of Feeds from the Agent management interface.
-        
+
         Returns a list of items of the form (feed_name, info_dict).
         """
         return self.call(self.agent_addr, 'get_processes')
-        
+
 
     def request(self, action, op_name, params):
         """
@@ -60,5 +60,4 @@ class ControlClient(WampyClient):
         Returns:
           Tuple (status, message, session).
         """
-        return self.call(self.agent_addr + '.ops', action, op_name)
-    
+        return self.call(self.agent_addr + '.ops', action, op_name, params)

@@ -21,7 +21,7 @@ run_crossbar:
 	$(CROSSBAR) start --cbdir ../dot_crossbar/
 
 run_agent:
-	$(PYTHON) example_agent.py
+	$(PYTHON) example_agent.py --site-file ../example-site-config.yaml --site-host 'example'
 
 run_client:
 	$(PYTHON) example_ctrl.py

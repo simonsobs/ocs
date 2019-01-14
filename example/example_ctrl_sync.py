@@ -11,8 +11,9 @@ import time
 
 addr = 'ws://localhost:8001/ws'
 agent = 'observatory.dets1'
+realm = 'test_realm'
 
-with ControlClient(agent, url=addr) as client:
+with ControlClient(agent, url=addr, realm=realm) as client:
     print(client.call(agent, 'get_tasks'))
     # Request a task to start.
     print('I will request to start a task...')
@@ -27,7 +28,7 @@ with ControlClient(agent, url=addr) as client:
     print()
 
 # You don't have to use a context manager.
-client = ControlClient(agent_addr=agent, url=addr)
+client = ControlClient(agent_addr=agent, url=addr, realm=realm)
 client.start()
     
 while True:

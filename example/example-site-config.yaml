@@ -1,0 +1,22 @@
+# Site configuration for a fake observatory.
+hub:
+
+  wamp_server: ws://localhost:8001/ws
+  wamp_realm: test_realm
+  address_root: observatory
+  registry_address: observatory.registry
+
+hosts:
+
+  example: {
+
+    # Description of grumpy's Agents.  We have two readout devices;
+    # they are both Lakeshore 372s.  But they can be distinguished, on
+    # startup, by a device serial number.
+
+    'agent-instances': [
+      {'agent-class': 'ExampleAgent',
+       'instance-id': 'example1',
+       'arguments': [['--serial-number', 'EX123']]},
+    ]
+  }

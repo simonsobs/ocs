@@ -88,5 +88,5 @@ def my_script(app, agent_addr):
     print(x)
 
 if __name__ == '__main__':
-    client_t.run_control_script(my_script, u'observatory.dets1')
+    client_t.run_control_script(my_script, u'observatory.example1')
     

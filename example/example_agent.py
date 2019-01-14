@@ -1,4 +1,4 @@
-from ocs import ocs_agent
+from ocs import ocs_agent, site_config
 #import op_model as opm
 
 import time, threading
@@ -86,7 +86,23 @@ class MyHardwareDevice:
 
 
 if __name__ == '__main__':
-    agent, runner = ocs_agent.init_ocs_agent('observatory.dets1')
+    # Get an ArgumentParser
+    parser = site_config.add_arguments()
+
+    # Add arguments that are specific to this Agent's function.
+    pgroup = parser.add_argument_group('Agent Options')
+    pgroup.add_argument('--serial-number')
+
+    # Get the parser to process the command line.
+    args = parser.parse_args()
+
+    # Interpret options in the context of site_config.
+    site_config.reparse_args(args, 'ExampleAgent')
+    print('I am in charge of device with serial number: %s' % args.serial_number)
+
+    # Call launcher function (initiates connection to appropriate
+    # WAMP hub and realm).
+    agent, runner = ocs_agent.init_site_agent(args)
 
     my_hd = MyHardwareDevice()
     agent.register_task('squids', my_hd.squids_task) 

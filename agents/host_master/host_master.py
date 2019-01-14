@@ -29,17 +29,9 @@ class HostMaster:
         pid_cache.
         """
         # Load site config file.
-        site, _, _ = site_config.get_config(
-            self.agent.site_args, '*control*')
+        site, hc, _ = site_config.get_config(
+            self.agent.site_args, '*host*')
         self.site_config_file = site.source_file
-
-        this_host = socket.gethostname()
-        for k,hc in site.hosts.items():
-            if k == this_host:
-                break
-        else:
-            session.add_message('Entry for host not found: %s.' % this_host)
-            return True, 'No action taken.'
 
         # Add plugin paths and scan.
         for p in hc.agent_paths:
@@ -111,6 +103,9 @@ class HostMaster:
 
         # Update the list of Agent instances.
         self._init_instance_list(session)
+        session.add_message('Loaded %i agent instance configs.' %
+                             len(self.pid_cache.keys()))
+
         self.database = {
             key: {'next_action': 'start',
                   'class_name': key[0],

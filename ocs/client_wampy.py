@@ -8,6 +8,7 @@
 
 from wampy.peers import Client as WampyClient
 from wampy.messages.call import Call as WampyCall
+from wampy.roles.subscriber import subscribe
 
 class ControlClient(WampyClient):
     def __init__(self, agent_addr, **kwargs):

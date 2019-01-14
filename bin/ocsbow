@@ -22,8 +22,9 @@ import argparse
 parser = argparse.ArgumentParser(description=DESCRIPTION)
 parser = ocs.site_config.add_arguments(parser)
 parser.add_argument('command', choices=['config', 'plugins', 'status',
+                                        'monitor',
                                         'start', 'stop'])
-
+parser.add_argument('--follow', '-f', action='store_true')
 args = parser.parse_args()
 ocs.site_config.reparse_args(args, '*host*')
 
@@ -57,7 +58,7 @@ if args.command == 'plugins':
         print('  %-20s : %s' % (k,v))
     print()
 
-elif args.command in ['status', 'start', 'stop']:
+elif args.command in ['status', 'start', 'stop', 'monitor']:
 
     def decode_exception(args):
         """
@@ -75,7 +76,21 @@ elif args.command in ['status', 'start', 'stop']:
 
     # Connect to crossbar.
     master_addr = '%s.%s' % (site.hub.data['address_root'], instance.data['instance-id'])
-    client = cw.ControlClient(
+    
+    if args.command == 'monitor' or args.follow:
+        feed_addr = master_addr + '.feed'
+        class NosyClient(cw.ControlClient):
+            @cw.subscribe(topic=feed_addr)
+            def watch_events(self, *args, **kw):
+                print('FEED:', args, kw)
+            @cw.subscribe(topic='observatory.registry.feeds.agent_activity')
+            def watch_events(self, *args, **kw):
+                print('A2:', args, kw)
+        client_class = NosyClient
+    else:
+        client_class = cw.ControlClient
+
+    client = client_class(
         master_addr,
         url=site.hub.data['wamp_server'],
         realm=site.hub.data['wamp_realm'])
@@ -94,6 +109,11 @@ elif args.command in ['status', 'start', 'stop']:
             stat = client.request('start', 'master', [])
         elif args.command == 'stop':
             stat = client.request('stop', 'master', [])
+
+        if args.command == 'monitor' or args.follow:
+            import time
+            while True:
+                time.sleep(10)
         
     except RuntimeError as e:
         parsed, err_name, text = decode_exception(e.args)

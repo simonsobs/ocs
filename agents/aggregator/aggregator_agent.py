@@ -10,6 +10,25 @@ from autobahn.wamp.exception import ApplicationError
 
 
 class DataAggregator:
+    """
+    The Data Aggregator Agent listens to data provider feeds, and outputs the housekeeping data as G3Frames.
+
+    Attributes:
+         subscribed_feeds (list):
+            List of feeds that the aggregator is currently subscribed to.
+         buffers (dict):
+            Incoming data that is buffered by the aggregator. Keys are the feed address, and the values
+            are lists of data points. Each data point is a dict where the keys indicate the name of
+            the timestream which the value should be written to.
+         buffer_start_times (dict):
+            Start time for each buffer in `buffers`.
+         aggregate (bool):
+            Specifies if the agent is currently aggregating data.
+         filename (str):
+            Filename that the current data is writen to.
+         file (G3File):
+            Current G3File
+    """
 
     def __init__(self, agent):
 
@@ -25,8 +44,6 @@ class DataAggregator:
 
         self.filename = ""
         self.file = None
-
-        self.registered = False
 
 
 
@@ -142,7 +159,22 @@ class DataAggregator:
 
     def write_frame_to_file(self, feed_address, buffer):
         """
-            Writes a feed buffer to G3Frame.
+        Writes a feed buffer to G3Frame.
+
+        Args:
+            feed_address (str):
+                Address of the feed that is providing the data for this frame.
+            buffer (list):
+                List of data points to be written to the frame. Each point should be a dict where the key determines
+                what timestream the value will be written two. For instance, a buffer with data points::
+
+                    {
+                        "therm1": (timestamp_1, reading_1),
+                        "therm2": (timestamp_2, reading_2)
+                    }
+
+
+                will create write two G3Timestreams named "therm1" and "therm2".
         """
 
 

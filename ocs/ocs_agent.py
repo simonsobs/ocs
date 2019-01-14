@@ -253,6 +253,18 @@ class OCSAgent(ApplicationSession):
                 name of the feed
             agg_params (dict, optional):
                 Parameters used by the aggregator.
+            buffered (bool, optional):
+                Specifies if data is buffered by the feed.
+                If false, messages are published immediately.
+                If true, the feed waits until `buffer_time` seconds have passed
+                and then publishes all messages as a list.
+                Defaults to False.
+            buffer_time (int, optional):
+                Specifies time that messages should be buffered in seconds.
+                If buffered is true, this determines how long
+                If buffered by the aggregator, this specifies how long the aggregator
+                should wait before writing a frame.
+                If 0, messages are immediately published. Defaults to 10.
             max_messages (int, optional):
                 Max number of messages cached by the feed. Defaults to 20.
         """
@@ -687,6 +699,10 @@ class Feed:
 
     def flush_buffer(self):
         """Publishes all messages in buffer and empties it."""
+
+        if not in_reactor_context():
+            return self.callFromThread(self.flush_buffer)
+
         if self.buffer:
             self.agent.publish(self.address, (self.buffer, self.encoded()))
         self.buffer = []

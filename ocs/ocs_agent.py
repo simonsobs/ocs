@@ -701,7 +701,7 @@ class Feed:
         """Publishes all messages in buffer and empties it."""
 
         if not in_reactor_context():
-            return self.callFromThread(self.flush_buffer)
+            return reactor.callFromThread(self.flush_buffer)
 
         if self.buffer:
             self.agent.publish(self.address, (self.buffer, self.encoded()))
@@ -725,7 +725,7 @@ class Feed:
             timestamp = current_time
 
         if not in_reactor_context():
-            return self.callFromThread(self.publish_message, message,
+            return reactor.callFromThread(self.publish_message, message,
                                        timestamp=timestamp)
 
         if not self.buffered:   # Publishes message immediately

@@ -5,40 +5,42 @@ from ocs import client_t, site_config
 
 def my_script(app, pargs):
 
-    agg_addr = "{}.aggregator".format(pargs.address_root)
 
-    therm_addr = "{}.{}".format(pargs.address_root, pargs.target)
-    feed_name = 'temperatures'
+    root = 'observatory'
 
-    print('Entered control')
+    # Register addresses and operations
 
-    print("Registering tasks")
-    # Thermometry tasks
-    init_ls = client_t.TaskClient(app, therm_addr, 'init_lakeshore')
-    get_data = client_t.ProcessClient(app, therm_addr, 'acq')
+    agg_instance = 'aggregator'
+    agg_address = '{}.{}'.format(root, agg_instance)
+    agg_ops = {
+        'init': client_t.TaskClient(app, agg_address, 'initialize'),
+        'sub':  client_t.TaskClient(app, agg_address, 'subscribe'),
+        'agg':  client_t.ProcessClient(app, agg_address, 'aggregate')
+    }
 
-    # Aggregator tasks
-    subscribe = client_t.TaskClient(app, agg_addr, 'subscribe')
-    aggregate = client_t.ProcessClient(app, agg_addr, 'aggregate')
+    therm_instance = pargs.target
+    therm_address = '{}.{}'.format(root, therm_instance)
+    therm_ops = {
+        'init': client_t.TaskClient(app, therm_address, 'init_lakeshore'),
+        'acq': client_t.ProcessClient(app, therm_address, 'acq')
+    }
 
     # Start the aggregator running
     print("Starting Aggregator")
 
-    params = {'agent_address': therm_addr, 'feed_name': feed_name}
-    yield subscribe.start(params=params)
-    subscribe.wait(timeout=10)
+    yield agg_ops['init'].start()
+    yield therm_ops['init'].start()
+
+    yield agg_ops['init'].wait()
+    yield therm_ops['init'].wait()
 
     agg_params = {
-        "time_per_file": 5,
-        "time_per_frame": 10,
+        "time_per_file": 10,
         "data_dir": "data/"
     }
-    yield aggregate.start(params=agg_params)
 
-    print("Starting Data Acquisition")
-    yield init_ls.start()
-    yield init_ls.wait(timeout=10)
-    yield get_data.start()
+    yield agg_ops['agg'].start(params=agg_params)
+    yield therm_ops['acq'].start()
 
     sleep_time = 3
     for i in range(sleep_time):
@@ -46,13 +48,13 @@ def my_script(app, pargs):
         yield client_t.dsleep(1)
 
     print("Stopping Data Acquisition")
-    yield get_data.stop()
-    yield get_data.wait()
+    yield therm_ops['acq'].stop()
+    yield therm_ops['acq'].wait()
 
 
     print("Stopping Data Aggregator")
-    yield aggregate.stop()
-    yield aggregate.wait()
+    yield agg_ops['agg'].stop()
+    yield agg_ops['agg'].wait()
 
 
 

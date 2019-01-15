@@ -181,7 +181,7 @@ class DataAggregator:
         self.log.info("Writing feed {} to frame".format(feed_address))
 
         frame = core.G3Frame(core.G3FrameType.Housekeeping)
-        frame["feed"] = feed_address
+        frame["agent_address"], frame["feed"] = feed_address.split(".feeds.")
 
         tods = {}
         timestamps = {}

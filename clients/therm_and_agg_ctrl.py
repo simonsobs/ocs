@@ -35,7 +35,7 @@ def my_script(app, pargs):
     yield therm_ops['init'].wait()
 
     agg_params = {
-        "time_per_file": 10,
+        "time_per_file": 10 * 60,
         "data_dir": "data/"
     }
 

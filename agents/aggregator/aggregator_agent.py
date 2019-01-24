@@ -150,7 +150,7 @@ class DataAggregator:
         feed_name = params["feed_name"]
 
         feed_address = "{}.feeds.{}".format(agent_address, feed_name)
-        if feed_address in self.incoming_data.keys():
+        if feed_address in self.subscribed_feeds:
             return False, "Already subscribed to feed {}".format(feed_address)
 
         self.add_feed(agent_address, feed_name)
@@ -305,7 +305,7 @@ if __name__ == '__main__':
     data_aggregator = DataAggregator(agent)
 
     agent.register_task('initialize', data_aggregator.initialize)
-    agent.register_task('subscribe', data_aggregator.add_feed_task)
+    agent.register_task('add_feed', data_aggregator.add_feed_task)
     agent.register_process('aggregate', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
 
     runner.run(agent, auto_reconnect=True)

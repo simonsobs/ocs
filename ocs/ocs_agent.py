@@ -671,8 +671,10 @@ class Feed:
             Max number of messages stored. Defaults to 20.
     """
 
-    def __init__(self, agent, feed_name, agg_params={},
+    def __init__(self, agent, feed_name, aggregate=False, agg_params=None,
                  buffered=False, buffer_time=10, max_messages=20):
+
+        self.aggregate = aggregate
         self.messages = []
         self.max_messages = max_messages
         self.agent = agent
@@ -692,6 +694,7 @@ class Feed:
             "feed_name": self.feed_name,
             "address": self.address,
             "messages": self.messages,
+            "aggregate": self.aggregate,
             "agg_params": self.agg_params,
             "buffered": self.buffered,
             "buffer_time": self.buffer_time
@@ -728,11 +731,10 @@ class Feed:
             return reactor.callFromThread(self.publish_message, message,
                                        timestamp=timestamp)
 
-        if not self.buffered:   # Publishes message immediately
+        if not self.buffered:
+            # If not buffered, message should be published immediately
             self.agent.publish(self.address, (message, self.encoded()))
-
-        else:   # Stores to buffer and publishes if enough time has passed
-
+        else:
             if not self.buffer:
                 self.buffer_start_time = current_time
 

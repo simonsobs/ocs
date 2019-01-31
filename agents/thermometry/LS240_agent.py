@@ -21,9 +21,20 @@ class LS240_Agent:
         self.thermometers = []
         self.log = agent.log
 
-        self.agent.register_feed('temperatures', agg_params={'aggregate': True},
+        # Registers temperature feeds
+        agg_params = {
+            'blocking': {
+                         'temps':
+                             {'prefix': '',
+                              'data': ['chan_1', 'chan_2'],
+                              }
+                         }
+        }
+        self.agent.register_feed('temperatures',
+                                 aggregate=True,
+                                 agg_params=agg_params,
                                  buffered=True, buffer_time=1)
-        self.registered = False
+
 
     # Exclusive access management.
     def try_set_job(self, job_name):
@@ -49,7 +60,7 @@ class LS240_Agent:
 
         if self.fake_data:
             session.add_message("No initialization since faking data")
-            self.thermometers = ["thermA", "thermB"]
+            self.thermometers = ["chan_1", "chan_2"]
 
         else:
             try:
@@ -57,7 +68,7 @@ class LS240_Agent:
                 print("Initialized Lakeshore module: {!s}".format(self.module))
                 session.add_message("Lakeshore initialized with ID: %s"%self.module.inst_sn)
 
-                self.thermometers = [channel._name for channel in self.module.channels]
+                self.thermometers = ["chan_1", "chan_2"]
 
             except Exception as e:
                 print(e)
@@ -93,20 +104,24 @@ class LS240_Agent:
                 else:
                     return 10
 
-            data = {}
+            data = {
+                'timestamp': time.time(),
+                'block_name': 'temps',
+                'data': {}
+            }
 
             if self.fake_data:
                 for therm in self.thermometers:
-                    data[therm] = (time.time(), random.randrange(250, 350))
+                    data['data'][therm] = random.randrange(250, 350)
                 time.sleep(.2)
 
             else:
-                for i, channel in enumerate(self.module.channels):
-                    data[self.thermometers[i]] = (time.time(), channel.get_reading())
+                for i, therm in self.thermometers:
+                    data['data'][therm] = self.module.channels[i].get_reading()
 
                 time.sleep(sleep_time)
 
-            print("Data: {}".format(data))
+            # print("Data: {}".format(data))
             session.app.publish_to_feed('temperatures', data)
 
         self.agent.feeds['temperatures'].flush_buffer()

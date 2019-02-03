@@ -22,17 +22,39 @@ class DataAggregator:
     Attributes:
 
         providers (dict):
-            providers  = {
-              prov_id: int,
-              agent_address: string,
-              blocks: {},
-              buffered: False,
-              buffer_time: 10 [s]
-              buffer_start_time: None
-            }
+            The providers attribute stores all info on data providers that
+            the aggregator has subscribed to, including the data buffers for
+            the provider feeds. The data structure looks like::
+
+                providers  = {
+                    "prov_id": int,
+                    "agent_address: string,
+                    "buffered": bool if Feed is buffered,
+                    "buffer_time":  How long the feed should be buffered before
+                                    written to frame [s]
+                    "buffer_start_time": Time that the current buffer was started
+                    "blocks": {
+                        block_name1: {
+                            "timestamps": [ list of timestamps ],
+                            "data": {
+                                key1: [ buffer for key1 ],
+                                key2: [ buffer for key2 ]
+                            }
+                        },
+
+                        block_name2: {
+                            "timestamps": [ list of timestamps ],
+                            "data": {
+                                key3: [ buffer for key3 ]
+                            }
+                        }
+                    }
+                }
 
         next_prov_id (int):
-            test
+            Stores the prov_id to be used on the next registered agent
+        hksess (so3g HKSession):
+            The so3g HKSession that generates status, session, and data frames.
         aggregate (bool):
            Specifies if the agent is currently aggregating data.
         filename (str):
@@ -63,7 +85,8 @@ class DataAggregator:
         If the feed is already buffered, the data handler will immediately
         write it to a G3Frame when this is called.
 
-        If the feed is not buffered, it will add
+        If the feed is not buffered, it will add the data-point to the
+        buffer in the correct block.
         """
         if not self.aggregate:
             return
@@ -126,6 +149,10 @@ class DataAggregator:
     def _new_agent_handler(self, _data):
         """
             Callback for whenever the registry publishes new agent status.
+
+            If the agent has not yet been subscribed to and has an aggregated
+            feed, this will add it to `self.providers` and subscribe to the
+            feed.
         """
         (action, agent_data), feed_data = _data
 
@@ -232,7 +259,8 @@ class DataAggregator:
 
     def initialize(self, session, params={}):
         """
-        TASK: Registers the aggregator and subscribes to *agent_activity* feed.
+        TASK: Subscribes to `agent_activity` feed and has registry dump
+                info on all active agents.
         """
 
         reg_address = self.agent.site_args.registry_address
@@ -279,7 +307,7 @@ class DataAggregator:
 
     def start_file(self):
         """
-        Starts new G3File with filename ``self.filename``.
+        Starts new G3File with filename `self.filename`.
         """
         print("Creating file: {}".format(self.filename))
         self.writer = core.G3Writer(filename=self.filename)

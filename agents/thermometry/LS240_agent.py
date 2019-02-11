@@ -9,7 +9,11 @@ from autobahn.wamp.exception import ApplicationError
 
 class LS240_Agent:
 
-    def __init__(self, agent, fake_data = False, port="/dev/ttyUSB0"):
+    def __init__(self, agent,
+                 num_channels=2,
+                 fake_data=False,
+                 port="/dev/ttyUSB0"):
+        print(num_channels)
         self.active = True
         self.agent = agent
         self.log = agent.log
@@ -18,7 +22,7 @@ class LS240_Agent:
         self.fake_data = fake_data
         self.module = None
         self.port = port
-        self.thermometers = []
+        self.thermometers = ['chan_{}'.format(i + 1) for i in range(num_channels)]
         self.log = agent.log
 
         # Registers temperature feeds
@@ -26,7 +30,7 @@ class LS240_Agent:
             'blocking': {
                          'temps':
                              {'prefix': '',
-                              'data': ['chan_1', 'chan_2'],
+                              'data': self.thermometers
                               }
                          }
         }
@@ -60,7 +64,7 @@ class LS240_Agent:
 
         if self.fake_data:
             session.add_message("No initialization since faking data")
-            self.thermometers = ["chan_1", "chan_2"]
+            # self.thermometers = ["chan_1", "chan_2"]
 
         else:
             try:
@@ -68,7 +72,7 @@ class LS240_Agent:
                 print("Initialized Lakeshore module: {!s}".format(self.module))
                 session.add_message("Lakeshore initialized with ID: %s"%self.module.inst_sn)
 
-                self.thermometers = ["chan_1", "chan_2"]
+                # self.thermometers = ["chan_1", "chan_2"]
 
             except Exception as e:
                 print(e)
@@ -116,7 +120,7 @@ class LS240_Agent:
                 time.sleep(.2)
 
             else:
-                for i, therm in self.thermometers:
+                for i, therm in enumerate(self.thermometers):
                     data['data'][therm] = self.module.channels[i].get_reading()
 
                 time.sleep(sleep_time)
@@ -144,6 +148,7 @@ if __name__ == '__main__':
     # Add options specific to this agent.
     pgroup = parser.add_argument_group('Agent Options')
     pgroup.add_argument('--serial-number')
+    pgroup.add_argument('--num-channels', default=2, type=int)
     pgroup.add_argument('--mode')
     pgroup.add_argument('--fake-data', action="store_true")
 
@@ -168,7 +173,8 @@ if __name__ == '__main__':
     if device_port or args.fake_data:
         agent, runner = ocs_agent.init_site_agent(args)
 
-        therm = LS240_Agent(agent, fake_data=args.fake_data, port=device_port)
+        therm = LS240_Agent(agent, num_channels=args.num_channels,
+                            fake_data=args.fake_data, port=device_port)
 
         agent.register_task('init_lakeshore', therm.init_lakeshore_task)
         agent.register_process('acq', therm.start_acq, therm.stop_acq)

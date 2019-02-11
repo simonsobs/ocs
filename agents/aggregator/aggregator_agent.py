@@ -24,9 +24,10 @@ class DataAggregator:
         providers (dict):
             The providers attribute stores all info on data providers that
             the aggregator has subscribed to, including the data buffers for
-            the provider feeds. The data structure looks like::
+            the provider feeds. It is indexed by the agent_address, and the
+            data structure for each provider looks like::
 
-                providers  = {
+                providers[agent_address]  = {
                     "prov_id": int,
                     "agent_address: string,
                     "buffered": bool if Feed is buffered,
@@ -146,6 +147,27 @@ class DataAggregator:
                     for key in block['data'].keys():
                         block['data'][key] = []
 
+    def create_provider(self, feed, prov_id):
+        """
+        Creates new provider object from an encoded feed and a prov_id
+        """
+        prov = {
+            'prov_id': prov_id,
+            'agent_address': feed['agent_address'],
+            'buffer_time': feed['buffer_time'],
+            'buffered': feed['buffered'],
+            'buffer_start_time': None,
+            'blocks': {},
+        }
+        for (key, block) in feed['agg_params']['blocking'].items():
+            prov['blocks'][key] = {
+                'prefix': block.get('prefix', ''),
+                'timestamp': [],
+                'data': {name: [] for name in block['data']}
+            }
+
+        return prov
+
     def _new_agent_handler(self, _data):
         """
             Callback for whenever the registry publishes new agent status.
@@ -155,50 +177,60 @@ class DataAggregator:
             feed.
         """
         (action, agent_data), feed_data = _data
+        agent_address = agent_data['agent_address']
 
-        if action == "removed":
-            # TODO: Remove agent from providers list
+        # Finds the aggregated feed if there is one.
+        feed = None
+        for f in agent_data.get("feeds", []):
+            if f["aggregate"]:
+                feed = f
+                break
+
+        if feed is None:
+            #Then there are no aggregated feeds.
             return
 
-        for feed in agent_data.get("feeds", []):
-            if feed["aggregate"]:
+        # if feed is already stored in self.providers
+        is_registered = agent_address in self.providers.keys()
+        if action == 'status' and is_registered:
+            # Then aggregator probably called Dump_agents and we only need
+            # providers that we have not already registered
+            return
 
-                if feed['address'] in self.agent.subscribed_feeds:
-                    continue
+        if action == "removed" and is_registered:
+            # Writes remaining blocks to file, then
+            prov = self.providers[agent_address]
+            self.log.info("Removing provider: {}".format(agent_address))
 
-                prov = {
-                    'prov_id': self.next_prov_id,
-                    'agent_address': agent_data['agent_address'],
-                    'buffer_time': feed['buffer_time'],
-                    'buffered': feed['buffered'],
-                    'buffer_start_time': None,
-                    'blocks': {},
-                }
+            if (self.writer is not None) and self.aggregate:
+                self.write_blocks_to_file(prov)
 
-                for (key, block) in feed['agg_params']['blocking'].items():
-                    prov['blocks'][key] = {
-                        'prefix': block.get('prefix', ''),
-                        'timestamp': [],
-                        'data': {name: [] for name in block['data']}
-                    }
+            self.hksess.remove_provider(prov['prov_id'])
+            del(self.providers[agent_address])
 
-                self.providers[agent_data['agent_address']] = prov
+            if (self.writer is not None) and self.aggregate:
+                status_frame = self.hksess.status_frame()
+                self.writer(status_frame)
+            return
 
-                self.next_prov_id += 1
-                self.agent.subscribe_to_feed(feed['agent_address'],
-                                             feed['feed_name'],
-                                             self._data_handler)
+        if action in ['added', 'updated', 'status']:
+            self.log.info("Subscribing to provider {}".format(agent_address))
+            if is_registered:
+                # Writes all remaining blocks to file in case format is changed.
+                self.write_blocks_to_file(self.providers[agent_address])
+                prov_id = self.providers[agent_address]['prov_id']
+            else:
+                prov_id = self.hksess.add_provider(description=agent_address)
 
-                # Registers provider with hksess and writes session frame
-                self.hksess.add_provider(
-                    prov_id=prov['prov_id'],
-                    description=prov['agent_address']
-                )
+            prov = self.create_provider(feed, prov_id)
+            self.providers[agent_address] = prov
+            self.agent.subscribe_to_feed(agent_address,
+                                         feed['feed_name'],
+                                         self._data_handler)
 
-                if (self.writer is not None) and self.aggregate:
-                    print("HERE: ", prov)
-                    status_frame = self.hksess.status_frame()
-                    self.writer(status_frame)
+            if (self.writer is not None) and self.aggregate and (not is_registered):
+                status_frame = self.hksess.status_frame()
+                self.writer(status_frame)
 
     def add_feed(self, session, params={}):
         """

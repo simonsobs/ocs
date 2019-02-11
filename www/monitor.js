@@ -1,6 +1,6 @@
 var connection = null;
 var session = null;
-var agent_addr = 'observatory.dets1';
+var site_root = 'observatory';
 
 var debugs = {};
 
@@ -10,27 +10,27 @@ function log(msg) {
     log.innerHTML = msg + "<br>" + log.innerHTML;
 }
 
-function run_task(task_name) {
+function run_task(instance_id, task_name) {
     log('Requesting start of task "' + task_name + '"....');
-    connection.session.call(agent_addr + '.ops', ['start', task_name]).then(
+    connection.session.call(site_root + "." + instance_id + '.ops', ['start', task_name]).then(
         function (result) {
             // err, msg, session = result.
             log(result[1]);
         });
 }
 
-function start_proc(proc_name) {
+function start_proc(instance_id, proc_name) {
     log('Requesting start of process "' + proc_name + '"....');
-    connection.session.call(agent_addr + '.ops', ['start', proc_name]).then(
+    connection.session.call(site_root + "." + instance_id + '.ops', ['start', proc_name]).then(
         function (result) {
             // err, msg, session = result.
             log(result[1]);
         });
 }
 
-function stop_proc(proc_name) {
+function stop_proc(instance_id, proc_name) {
     log('Requesting stop of process "' + proc_name + '"....');
-    connection.session.call(agent_addr + '.ops', ['stop', proc_name]).then(
+    connection.session.call(site_root + "." + instance_id + '.ops', ['stop', proc_name]).then(
         function (result) {
             // err, msg, session = result.
             log(result[1]);
@@ -84,7 +84,7 @@ function init() {
 
         connection = new autobahn.Connection({
             url: url,
-            realm: "realm1"
+            realm: "debug_realm"
         });
         connection.onopen = function(_session, details) {
             session = _session;
@@ -97,8 +97,8 @@ function init() {
                     log('Reloading ' + row[0]);
                 });
             };
-            session.call(agent_addr, ['get_tasks']).then(pop_status);
-            session.call(agent_addr, ['get_processes']).then(pop_status);
+            // session.call(agent_addr, ['get_tasks']).then(pop_status);
+            // session.call(agent_addr, ['get_processes']).then(pop_status);
             
             session.subscribe(agent_addr + '.feed', function (args, kwargs, details) {
                 debugs.feed = args;

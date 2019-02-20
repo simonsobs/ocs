@@ -1,7 +1,6 @@
 import time, threading
+from datetime import datetime
 import numpy as np
-
-from collections import defaultdict
 from ocs import ocs_agent, site_config, client_t
 import os
 
@@ -388,9 +387,6 @@ class DataAggregator:
         time_per_file = params.get("time_per_file", 60 * 60) # [s]
         data_dir = params.get("data_dir", "data/")
 
-        if not os.path.exists(data_dir):
-            os.makedirs(data_dir)
-
         self.log.info("Starting data aggregation in directory {}".format(data_dir))
         session.set_status('running')
 
@@ -406,17 +402,24 @@ class DataAggregator:
                 if self.writer is not None:
                     self.end_file()
 
-                file_start_time = time.time()
-                time_string = time.strftime("%Y-%m-%d_T_%H:%M:%S",
-                                            time.localtime(file_start_time))
-                self.filename = os.path.join(data_dir, "{}.g3".format(time_string))
+                file_start_time = datetime.utcnow()
+                ts = file_start_time.timestamp()
+                sub_dir = os.path.join(data_dir, "{:.5}".format(str(ts)))
+
+                # Create new dir for current day
+                if not os.path.exists(sub_dir):
+                    os.makedirs(sub_dir)
+
+                time_string = file_start_time.strftime("%Y-%m-%d-%H-%M-%S")
+                self.filename = os.path.join(sub_dir, "{}.g3".format(time_string))
+
                 self.start_file()
 
                 session.add_message('Starting a new DAQ file: %s' % self.filename)
 
             time.sleep(.1)
             # Check if its time to write new frame/file
-            new_file_time = (time.time() - file_start_time) > time_per_file
+            new_file_time = (datetime.utcnow().timestamp() - ts) > time_per_file
 
         self.filename = ""
         self.end_file()

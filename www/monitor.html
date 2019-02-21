@@ -17,10 +17,14 @@
             <div id="controls" style="float: left; width: 40%; margin: 3%">
                 <h2>Controls</h2>
                 <hr />
-                <button onclick="run_task('squids');">Tune Squids</button>
-                <button onclick="run_task('dets');">IV Curve</button>
-                <button onclick="start_proc('acq');">Start Acq</button>
-                <button onclick="stop_proc('acq');">Stop Acq</button>
+                <button onclick="run_task('aggregator', 'initialize');">Init aggregator</button>
+                <button onclick="start_proc('aggregator', 'aggregate');">Start agg</button>
+                <button onclick="stop_proc('aggregator', 'aggregate');">Stop agg</button>
+
+                <button onclick="run_task('thermo1', 'init_lakeshore');">Init Lakehsore</button>
+                <button onclick="start_proc('thermo1', 'acq');">Start acq</button>
+                <button onclick="stop_proc('thermo1', 'acq');">Stop acq</button>
+
                 <div id="messages"></div>
             </div>
             <div id="browser" style="float: left; width: 40%; margin: 3%">

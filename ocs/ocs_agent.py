@@ -251,8 +251,30 @@ class OCSAgent(ApplicationSession):
         Args:
             feed_name (string):
                 name of the feed
+            aggregate (bool, optional):
+                Determines if feed should be aggregated. At the moment, each agent
+                can have at most one aggregated feed. Defaults to False
             agg_params (dict, optional):
                 Parameters used by the aggregator.
+
+                Params:
+                    **blocking**:
+                        Determines the blocking structure used by the aggregator.
+                        This is required fo all aggregated feeds.
+                        Must be of the format::
+
+                            blocking = {
+                                block_name1: {
+                                    'prefix': prefix of block 1 (optional)
+                                    'data': [key1, key2]
+                                },
+
+                                block_name2: {
+                                    'prefix': prefix of block 2(optional)
+                                    'data': [key3]
+                                }, .....
+                            }
+
             buffered (bool, optional):
                 Specifies if data is buffered by the feed.
                 If false, messages are published immediately.
@@ -266,8 +288,9 @@ class OCSAgent(ApplicationSession):
                 should wait before writing a frame.
                 If 0, messages are immediately published. Defaults to 10.
             max_messages (int, optional):
-                Max number of messages cached by the feed. Defaults to 20.
+                Max number of messages stored. Defaults to 20.
         """
+
         self.feeds[feed_name] = Feed(self, feed_name, **kwargs)
 
     def publish_to_feed(self, feed_name, message, from_reactor=False):
@@ -653,8 +676,30 @@ class Feed:
             agent that is registering the feed
         feed_name (string):
             name of the feed
+        aggregate (bool, optional):
+            Determines if feed should be aggregated. At the moment, each agent
+            can have at most one aggregated feed. Defaults to False
         agg_params (dict, optional):
             Parameters used by the aggregator.
+
+            Params:
+                **blocking**:
+                    Determines the blocking structure used by the aggregator.
+                    This is required fo all aggregated feeds.
+                    Must be of the format::
+
+                        blocking = {
+                            block_name1: {
+                                'prefix': prefix of block 1 (optional)
+                                'data': [key1, key2]
+                            },
+
+                            block_name2: {
+                                'prefix': prefix of block 2(optional)
+                                'data': [key3]
+                            }, .....
+                        }
+
         buffered (bool, optional):
             Specifies if data is buffered by the feed.
             If false, messages are published immediately.
@@ -671,8 +716,10 @@ class Feed:
             Max number of messages stored. Defaults to 20.
     """
 
-    def __init__(self, agent, feed_name, agg_params={},
+    def __init__(self, agent, feed_name, aggregate=False, agg_params=None,
                  buffered=False, buffer_time=10, max_messages=20):
+
+        self.aggregate = aggregate
         self.messages = []
         self.max_messages = max_messages
         self.agent = agent
@@ -692,6 +739,7 @@ class Feed:
             "feed_name": self.feed_name,
             "address": self.address,
             "messages": self.messages,
+            "aggregate": self.aggregate,
             "agg_params": self.agg_params,
             "buffered": self.buffered,
             "buffer_time": self.buffer_time
@@ -717,6 +765,21 @@ class Feed:
         Args:
             message:
                 Data to be published
+
+                If the feed is aggregated, the message must have the structure::
+
+                    message = {
+                        'block_name': Key given to the block in blocking param
+                        'timestamp': timestamp of data
+                        'data': {
+                                key1: datapoint1
+                                key2: datapoint2
+                            }
+                    }
+
+                Where they keys are exactly those specified in the one of the
+                block dicts in the blocking parameter.
+
             timestamp (float):
                 timestamp given to the message. Defaults to time.time()
         """
@@ -728,11 +791,11 @@ class Feed:
             return reactor.callFromThread(self.publish_message, message,
                                        timestamp=timestamp)
 
-        if not self.buffered:   # Publishes message immediately
+
+        if not self.buffered:
+            # If not buffered, message should be published immediately
             self.agent.publish(self.address, (message, self.encoded()))
-
-        else:   # Stores to buffer and publishes if enough time has passed
-
+        else:
             if not self.buffer:
                 self.buffer_start_time = current_time
 

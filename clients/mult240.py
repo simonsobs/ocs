@@ -11,7 +11,7 @@ def my_script(app, pargs):
     agg_address = '{}.{}'.format(root, agg_instance)
     agg_ops = {
         'init': client_t.TaskClient(app, agg_address, 'initialize'),
-        'sub':  client_t.TaskClient(app, agg_address, 'subscribe'),
+        'sub':  client_t.TaskClient(app, agg_address, 'add_feed'),
         'agg':  client_t.ProcessClient(app, agg_address, 'aggregate')
     }
 
@@ -38,8 +38,7 @@ def my_script(app, pargs):
 
     # Start Data Acquisition for thermometers
     agg_params = {
-        "time_per_file": 10,
-        "time_per_frame": 5,
+        "time_per_file": 60 * 60,
         "data_dir": "data/"
     }
     yield agg_ops['agg'].start(params=agg_params)

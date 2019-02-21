@@ -34,11 +34,12 @@ def my_script(app, pargs):
     yield agg_ops['init'].wait()
     yield therm_ops['init'].wait()
 
+    yield client_t.dsleep(.05)
+
     agg_params = {
         "time_per_file": 10 * 60,
         "data_dir": "data/"
     }
-
     yield agg_ops['agg'].start(params=agg_params)
     yield therm_ops['acq'].start()
 

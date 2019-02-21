@@ -6,10 +6,12 @@
 Aggregator
 ==============
 
-SPT3G File Format and Usage
+SO3G File Format and Usage
 --------------------------------
-An SPT3G file consists of a sequence of *Frame* objects, each containing
-a particular set of data. Each frame is a free-form mapping from strings to data
+To store data we use a modified version of the SPT3G file format
+tailored specifically to SO, called SO3g.
+Like SPT3G, an SO3G consists of a sequence of *Frame* objects each containing
+its own data. Each frame is a free-form mapping from strings to data
 of a type derived from G3FrameObject, which behave similarly to a python
 dictionary. Notably, SPT3G files cannot directly store python lists, tuples, or
 numpy arrays, but must be wrapped in appropriateG3FrameObject container classes.
@@ -27,62 +29,105 @@ Examples of useful G3FrameObjects:
 +------------------------+------------------------------------------+
 | G3TimestreamMap        | A map of strings to G3Timestreams.       |
 +------------------------+------------------------------------------+
+| IrregBlockDouble (so3g)| A map of multiple named elements along   |
+|                        | with a single vector of timestamps.      |
++------------------------+------------------------------------------+
 
-If you have SPT3G installed, you can view a g3 file by calling ``spt3g-dump``
-from the command line, which will display the contents of the file as a dict.
-For instance, calling::
+If you have SPT3G and so3g installed, you can view a g3 file by calling
+``spt3g-dump filename so3g`` from the command line, which will display the
+contents of the file as a dict. For instance, calling::
 
-    $ spt3g-dump 2018-10-14_T_19\:02\:40.g3
-
+    $ spt3g-dump 2019-02-18_T_23:04:15.g3 so3g
     Frame (Housekeeping) [
-    "TODs" (spt3g.core.G3TimestreamMap) => Timestreams from 2 detectors
-    "Timestamps" (spt3g.core.G3TimestreamMap) => Timestreams from 2 detectors
-    "feed" (spt3g.core.G3String) => "observatory.thermo1.feeds.temperatures"
+    "description" (spt3g.core.G3String) => "HK data"
+    "hkagg_type" (spt3g.core.G3Int) => 0
+    "session_id" (spt3g.core.G3Int) => 1
+    "start_time" (spt3g.core.G3Double) => 1.55056e+09
+    ]
+    Frame (Housekeeping) [
+    "hkagg_type" (spt3g.core.G3Int) => 1
+    "providers" (spt3g.core.G3VectorFrameObject) => [0x7fb6f4480130]
+    "session_id" (spt3g.core.G3Int) => 1
+    "timestamp" (spt3g.core.G3Double) => 1.55056e+09
+    ]
+    Frame (Housekeeping) [
+    "agent_address" (spt3g.core.G3String) => "observatory.thermo1"
+    "blocks" (spt3g.core.G3VectorFrameObject) => [0x7fb6f68840e0]
+    "hkagg_type" (spt3g.core.G3Int) => 2
+    "prov_id" (spt3g.core.G3Int) => 0
+    "session_id" (spt3g.core.G3Int) => 1
+    "timestamp" (spt3g.core.G3Double) => 1.55056e+09
+    ]
+    Frame (Housekeeping) [
+    "agent_address" (spt3g.core.G3String) => "observatory.thermo1"
+    "blocks" (spt3g.core.G3VectorFrameObject) => [0x7fb6f683fa20]
+    "hkagg_type" (spt3g.core.G3Int) => 2
+    "prov_id" (spt3g.core.G3Int) => 0
+    "session_id" (spt3g.core.G3Int) => 1
+    "timestamp" (spt3g.core.G3Double) => 1.55056e+09
+    ]
+    Frame (Housekeeping) [
+    "agent_address" (spt3g.core.G3String) => "observatory.thermo1"
+    "blocks" (spt3g.core.G3VectorFrameObject) => [0x7fb6f68635f0]
+    "hkagg_type" (spt3g.core.G3Int) => 2
+    "prov_id" (spt3g.core.G3Int) => 0
+    "session_id" (spt3g.core.G3Int) => 1
+    "timestamp" (spt3g.core.G3Double) => 1.55056e+09
     ]
 
-You can see that the g3 file has a single frame, containing two
-G3TimestreamMap's called ``TODs`` and ``Timestamps``, and a string ``feed``
-containing the aggregated feed name.
-In this case, ``TODs`` and ``Timestamps`` each contain two timestreams for
-thermometers *thermA* and *thermB* containing the temperature data and
-timestamps respectively.
+Each so3g file will start with a Session frame and a Status frame,
+giving information on the current aggregator session and active providers
+respectively. You can see that this aggregator session has a single provider
+writing data, and the agent address is ``aggregator.thermo1``.
 
 To read from a g3 file, you can call ``file = core.G3File(filename)``.
-``file`` is now an iterator that can loop through the frames in the file,
-and access the timestream data.
+``file`` is now an iterator that can loop through the frames in the file.
 
 Aggregator Agent
 --------------------------------
 The aggregator agent's purpose is to take data being published by a general
-Agent, and to write it to a SPT3G file. To make sure that a feed is picked up
-by the aggregator, it must be registered with
-``agg_params["aggregate"] = True``, for example::
+Agent, and to write it to a so3g file. To make sure that a feed is picked up
+by the aggregator, it must be registered with the option 'aggregate=True'.
+It also must be registered with the blocking structure that the aggregator should
+use when writing the file to disk. An example can be seen in LS240_agent.py::
 
-    agent.register_feed('temperatures', agg_params={'aggregate': True})
+    agg_params = {
+        'blocking': {
+                     'temps':
+                         {'prefix': '',
+                          'data': ['chan_1', 'chan_2'],
+                          }
+                     }
+    }
+    self.agent.register_feed('temperatures',
+                             aggregate=True,
+                             agg_params=agg_params,
+                             buffered=True, buffer_time=1)
 
-The aggregator will automatically find and subscribe to the aggregated feeds
-using the agent's data from the registry.
+A block is a set of timestreams that all share timestamps. They are written
+together to an so3g object called an  `IrregBlockDouble`. In the LS240 example,
+the agent says it will only need to write one block, with block_name `temps`
+and the block will have two timestreams called `chan_1` and `chan_2`.
+Here you can also add an optional block prefix that will be written to the so3g
+file.
 
-Currently, we require an aggregated feed to publish its data as a dictionary.
-The aggregator saves the data such that each feed is saved to a separate G3Frame,
-with G3TimestreamMaps called ``TODs`` and ``Timestamps``,
-containing the published data and timestamps respectively.
-The keys of the published dictionary are used as the keys of the two
-G3TimestreamMaps.
+When publishing data to this feed, the message must be structured as::
 
-For example, here is how data is published from the Lakeshore 240 agent::
+    message = {
+        'block_name': 'temps'
+        'timestamp': timestamp of data
+        'data': {
+                'chan_1': datapoint1
+                'chan_2': datapoint2
+            }
+    }
 
-    data = {}
-    for i, channel in enumerate(self.module.channels):
-        data[self.thermometers[i]] = (time.time(), channel.get_reading())
-
-    session.app.publish_to_feed('temperatures', data)
-
-The aggregator will then write a G3Timestream for each thermometer on the 240.
-
+The message must contain exactly one data-point for each field of the block.
+Timestreams that are not simultaneously sampled will have to be stored in
+separate blocks and published separately.
 
 .. autoclass:: agents.aggregator.aggregator_agent.DataAggregator
-    :members: initialize, start_aggregate, add_feed_task, write_frame_to_file
+    :members: initialize, start_aggregate, write_blocks_to_file, add_feed
 
 
 

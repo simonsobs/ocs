@@ -3,8 +3,12 @@ from datetime import datetime
 import numpy as np
 from ocs import ocs_agent, site_config, client_t
 import os
-if os.getenv('OCS_DOC_BUILD') != 'True':
-    from spt3g import core
+
+import so3g
+from spt3g import core
+
+# if os.getenv('OCS_DOC_BUILD') != 'True':
+#     from spt3g import core
 
 # import op_model as opm
 from autobahn.wamp.exception import ApplicationError
@@ -15,20 +19,48 @@ class DataAggregator:
     The Data Aggregator Agent listens to data provider feeds, and outputs the housekeeping data as G3Frames.
 
     Attributes:
-         subscribed_feeds (list):
-            List of feeds that the aggregator is currently subscribed to.
-         buffers (dict):
-            Incoming data that is buffered by the aggregator. Keys are the feed address, and the values
-            are lists of data points. Each data point is a dict where the keys indicate the name of
-            the timestream which the value should be written to.
-         buffer_start_times (dict):
-            Start time for each buffer in `buffers`.
-         aggregate (bool):
-            Specifies if the agent is currently aggregating data.
-         filename (str):
+
+        providers (dict):
+            The providers attribute stores all info on data providers that
+            the aggregator has subscribed to, including the data buffers for
+            the provider feeds. It is indexed by the agent_address, and the
+            data structure for each provider looks like::
+
+                providers[agent_address]  = {
+                    "prov_id": int,
+                    "agent_address: string,
+                    "buffered": bool if Feed is buffered,
+                    "buffer_time":  How long the feed should be buffered before
+                                    written to frame [s]
+                    "buffer_start_time": Time that the current buffer was started
+                    "blocks": {
+                        block_name1: {
+                            "timestamps": [ list of timestamps ],
+                            "data": {
+                                key1: [ buffer for key1 ],
+                                key2: [ buffer for key2 ]
+                            }
+                        },
+
+                        block_name2: {
+                            "timestamps": [ list of timestamps ],
+                            "data": {
+                                key3: [ buffer for key3 ]
+                            }
+                        }
+                    }
+                }
+
+        next_prov_id (int):
+            Stores the prov_id to be used on the next registered agent
+        hksess (so3g HKSession):
+            The so3g HKSession that generates status, session, and data frames.
+        aggregate (bool):
+           Specifies if the agent is currently aggregating data.
+        filename (str):
             Filename that the current data is writen to.
-         file (G3File):
-            Current G3File
+        writer (G3File):
+            Writer for the current G3File
     """
 
     def __init__(self, agent):
@@ -36,187 +68,288 @@ class DataAggregator:
         self.agent = agent
         self.log = agent.log
 
-        self.subscribed_feeds = []
+        self.providers = {} # by agent address
+        self.next_prov_id = 0
 
-        self.buffers = {}
-        self.buffer_start_times = {}
+        self.hksess = so3g.hkagg.HKSession(description="HK data")
 
         self.aggregate = False
 
         self.filename = ""
-        self.file = None
+        self.writer = None
 
-
-
-    def add_feed(self, agent_address, feed_name):
+    def _data_handler(self, _data):
         """
-        Subscribes to aggregated feed
+        Callback for whenever data is published to an aggregator feed.
 
-        Args:
-            agent_address (string):
-                agent address of the feed.
+        If the feed is already buffered, the data handler will immediately
+        write it to a G3Frame when this is called.
 
-            feed_name (string):
-                name of the feed.
+        If the feed is not buffered, it will add the data-point to the
+        buffer in the correct block.
         """
-
-        def _data_handler(_data):
-            """Callback whenever data is published to an aggregated feed"""
-            if not self.aggregate:
-                return
-
-            data, feed = _data
-            addr = feed["address"]
-
-            if feed['buffered']:
-                # If data is buffered by the Feed, immediately write it to a frame.
-                self.write_frame_to_file(addr, data)
-
-            else:
-                # If not, the aggregator needs to buffer the data itself.
-                current_time = time.time()
-                if not self.buffers[addr]:
-                    self.buffer_start_times[addr] = current_time
-
-                if current_time - self.buffer_start_times[addr] > feed["buffer_time"]:
-                    self.write_frame_to_file(addr, self.buffers[addr])
-                    self.buffer_start_times[addr] = current_time
-                    self.buffers[addr] = []
-
-                self.buffers[addr].append(data)
-
-        feed_address = "{}.feeds.{}".format(agent_address, feed_name)
-        if feed_address in self.subscribed_feeds:
+        if not self.aggregate:
             return
 
-        self.agent.subscribe_to_feed(agent_address, feed_name, _data_handler)
-        self.subscribed_feeds.append(feed_address)
-        self.buffers[feed_address] = []
-        self.log.info("Subscribed to feed {}".format(feed_address))
+        data, feed = _data
+        agent_addr = feed["agent_address"]
+
+        prov = self.providers[agent_addr]
+
+        if feed['buffered']:
+
+            # copies feed buffer to provider block
+            for d in data:
+                block_name = d['block_name']
+                block = prov['blocks'][block_name]
+
+                for key in block['data'].keys():
+                    block['data'][key].append(d['data'][key])
+
+                block['timestamp'].append(d['timestamp'])
+
+            # Write blocks to file
+            self.write_blocks_to_file(prov)
+
+            # Clear block
+            for _, block in prov['blocks'].items():
+                block['timestamp'] = []
+                for key in block['data'].keys():
+                    block['data'][key] = []
+
+        else:
+            # If not, the aggregator needs to buffer the data itself.
+            current_time = time.time()
+
+            if prov['buffer_start_time'] is None:
+                prov['buffer_start_time'] = current_time
+
+            # Write data to buffer
+            block_name = data['block_name']
+            block = prov['blocks'][block_name]
+
+            for key in block['data'].keys():
+                block['data'][key].append(data['data'][key])
+
+            block['timestamp'].append(data['timestamp'])
+
+            # If buffer_time has elapsed, write blocks to frame and clear
+            elapsed_time = current_time - prov['buffer_start_time']
+            if elapsed_time > prov['buffer_time']:
+                self.write_blocks_to_file(prov)
+
+                prov['buffer_start_time'] = None
+
+                # Clear block
+                for _, block in prov['blocks'].items():
+                    block['timestamp'] = []
+                    for key in block['data'].keys():
+                        block['data'][key] = []
+
+    def create_provider(self, feed, prov_id):
+        """
+        Creates new provider object from an encoded feed and a prov_id
+        """
+        prov = {
+            'prov_id': prov_id,
+            'agent_address': feed['agent_address'],
+            'buffer_time': feed['buffer_time'],
+            'buffered': feed['buffered'],
+            'buffer_start_time': None,
+            'blocks': {},
+        }
+        for (key, block) in feed['agg_params']['blocking'].items():
+            prov['blocks'][key] = {
+                'prefix': block.get('prefix', ''),
+                'timestamp': [],
+                'data': {name: [] for name in block['data']}
+            }
+
+        return prov
+
+    def _new_agent_handler(self, _data):
+        """
+            Callback for whenever the registry publishes new agent status.
+
+            If the agent has not yet been subscribed to and has an aggregated
+            feed, this will add it to `self.providers` and subscribe to the
+            feed.
+        """
+        (action, agent_data), feed_data = _data
+        agent_address = agent_data['agent_address']
+
+        # Finds the aggregated feed if there is one.
+        feed = None
+        for f in agent_data.get("feeds", []):
+            if f["aggregate"]:
+                feed = f
+                break
+
+        if feed is None:
+            #Then there are no aggregated feeds.
+            return
+
+        # if feed is already stored in self.providers
+        is_registered = agent_address in self.providers.keys()
+        if action == 'status' and is_registered:
+            # Then aggregator probably called Dump_agents and we only need
+            # providers that we have not already registered
+            return
+
+        if action == "removed" and is_registered:
+            # Writes remaining blocks to file, then
+            prov = self.providers[agent_address]
+            self.log.info("Removing provider: {}".format(agent_address))
+
+            if (self.writer is not None) and self.aggregate:
+                self.write_blocks_to_file(prov)
+
+            self.hksess.remove_provider(prov['prov_id'])
+            del(self.providers[agent_address])
+
+            if (self.writer is not None) and self.aggregate:
+                status_frame = self.hksess.status_frame()
+                self.writer(status_frame)
+            return
+
+        if action in ['added', 'updated', 'status']:
+            self.log.info("Subscribing to provider {}".format(agent_address))
+            if is_registered:
+                # Writes all remaining blocks to file in case format is changed.
+                self.write_blocks_to_file(self.providers[agent_address])
+                prov_id = self.providers[agent_address]['prov_id']
+            else:
+                prov_id = self.hksess.add_provider(description=agent_address)
+
+            prov = self.create_provider(feed, prov_id)
+            self.providers[agent_address] = prov
+            self.agent.subscribe_to_feed(agent_address,
+                                         feed['feed_name'],
+                                         self._data_handler)
+
+            if (self.writer is not None) and self.aggregate and (not is_registered):
+                status_frame = self.hksess.status_frame()
+                self.writer(status_frame)
+
+    def add_feed(self, session, params={}):
+        """
+        Task to subscribe to a feed.
+
+        Arguments:
+            address (str):
+                Full address of the feed
+            buffered (bool):
+                True if data is buffered by feed and not the aggregator
+            buffer_time:
+                time to buffer frame before writing to file
+            blocking:
+                Determines structure of the blocking
+        """
+
+        agent_addr, feed_name = params['address'].split('.feeds.')
+
+        # Registers provider
+        prov = {
+            'prov_id': self.next_prov_id,
+            'agent_address': agent_addr,
+            'buffer_time': params['buffer_time'],
+            'buffered': params['buffered'],
+            'buffer_start_time': None,
+            'blocks': {},
+        }
+
+        for (key, block) in params['blocking'].items():
+            prov['blocks'][key] = {
+                'prefix': block.get('prefix', ''),
+                'timestamp': [],
+                'data': {name: [] for name in block['data']}
+            }
+
+        self.providers[agent_addr] = prov
+
+        # If feed is already subscribed to, it is already a provider, and we
+        # can just update provider info without re-registering with so3g
+        # hksess.
+        if params['address'] not in self.agent.subscribed_feeds:
+            self.next_prov_id += 1
+            self.hksess.add_provider(
+                prov_id=prov['prov_id'],
+                description=prov['agent_address']
+            )
+
+            self.agent.subscribe_to_feed(agent_addr,
+                                         feed_name,
+                                         self._data_handler)
+
+            # Prints status frame to file
+            if (self.writer is not None) and self.aggregate:
+                status_frame = self.hksess.status_frame()
+                self.writer(status_frame)
+
+        return True, "Feed added"
 
     def initialize(self, session, params={}):
         """
-        TASK: Registers the aggregator and subscribes to *agent_activity* feed.
+        TASK: Subscribes to `agent_activity` feed and has registry dump
+                info on all active agents.
         """
-
-        # Only subscribes to registry feeds if agent is registered.
-        if not self.agent.registered:
-            return True, "Initialized Aggregator"
 
         reg_address = self.agent.site_args.registry_address
 
-        dump_agents_t = client_t.TaskClient(session.app,
-                                            reg_address,
-                                            'dump_agent_info')
-
-        def _new_agent_handler(_data):
-            """Callback for whenever an agent is published to agent_activity"""
-            (action, agent_data), feed_data = _data
-
-            if action == "removed":
-                return
-
-            feeds = agent_data.get("feeds")
-            if feeds is None:
-                return
-
-            for feed in agent_data["feeds"]:
-                if feed['agg_params'].get("aggregate", False):
-                    self.add_feed(feed["agent_address"], feed["feed_name"])
+        if reg_address is None:
+            self.log.warning("No registry address is in site args")
+            return True, "Initialized Aggregator"
 
         self.agent.subscribe_to_feed(reg_address,
                                      'agent_activity',
-                                     _new_agent_handler)
+                                     self._new_agent_handler)
 
-        session.call_operation(dump_agents_t.start)
+        if self.agent.registered:
+            dump_agents_t = client_t.TaskClient(session.app,
+                                            reg_address,
+                                            'dump_agent_info')
+            session.call_operation(dump_agents_t.start, block=True)
+
         return True, "Initialized Aggregator"
 
+    def write_blocks_to_file(self, prov):
+        frame = self.hksess.data_frame(prov_id=prov["prov_id"])
+        non_empty = False
+        frame['agent_address'] = prov['agent_address']
 
-    # Task to subscribe to data feeds
-    def add_feed_task(self, sessions, params=None):
-        """
-        TASK: Subscribes to specified feed.
+        for key, block in prov['blocks'].items():
 
-        Args:
-            agent_address (string):
-                agent address of the feed.
+            # Skip block if empty
+            if not block['timestamp']:
+                continue
+            non_empty = True
 
-            feed_name (string):
-                name of the feed.
-        """
-        if params is None:
-            params = {}
+            hk = so3g.IrregBlockDouble()
+            hk.prefix = block['prefix']
+            hk.t = block['timestamp']
+            for ts_name, ts in block['data'].items():
+                hk.data[ts_name] = ts
 
-        agent_address = params["agent_address"]
-        feed_name = params["feed_name"]
+            frame['blocks'].append(hk)
 
-        feed_address = "{}.feeds.{}".format(agent_address, feed_name)
-        if feed_address in self.subscribed_feeds:
-            return False, "Already subscribed to feed {}".format(feed_address)
-
-        self.add_feed(agent_address, feed_name)
-        return True, 'Subscribed to data feeds.'
-
-
-    def write_frame_to_file(self, feed_address, buffer):
-        """
-        Writes a feed buffer to G3Frame.
-
-        Args:
-            feed_address (str):
-                Address of the feed that is providing the data for this frame.
-            buffer (list):
-                List of data points to be written to the frame. Each point should be a dict where the key determines
-                what timestream the value will be written two. For instance, a buffer with data points::
-
-                    {
-                        "therm1": (timestamp_1, reading_1),
-                        "therm2": (timestamp_2, reading_2)
-                    }
-
-
-                will create write two G3Timestreams named "therm1" and "therm2".
-        """
-
-
-        self.log.info("Writing feed {} to frame".format(feed_address))
-
-        frame = core.G3Frame(core.G3FrameType.Housekeeping)
-        frame["agent_address"], frame["feed"] = feed_address.split(".feeds.")
-
-        tods = {}
-        timestamps = {}
-
-        # Creates tods and timestamps from frame data
-        for data_point in buffer:
-            for key, val in data_point.items():
-                if key in tods.keys():
-                    tods[key].append(val[1])
-                    timestamps[key].append(val[0])
-                else:
-                    tods[key] = [val[1]]
-                    timestamps[key] = [val[0]]
-
-        tod_map = core.G3TimestreamMap()
-        timestamp_map = core.G3TimestreamMap()
-
-        for key in tods:
-            tod_map[key] = core.G3Timestream(tods[key])
-            timestamp_map[key] = core.G3Timestream(timestamps[key])
-
-        frame["TODs"] = tod_map
-        frame["Timestamps"] = timestamp_map
-
-        # Writes frame to file
-        self.file(frame)
-
+        # Only writes frame if there are non-empty blocks
+        if non_empty:
+            self.writer.Process(frame)
 
     def start_file(self):
         """
-        Starts new G3File with filename ``self.filename``.
+        Starts new G3File with filename `self.filename`.
         """
         print("Creating file: {}".format(self.filename))
-        self.file = core.G3Writer(filename=self.filename)
+        self.writer = core.G3Writer(filename=self.filename)
+
+        session_frame = self.hksess.session_frame()
+        status_frame = self.hksess.status_frame()
+
+
+        self.writer(session_frame)
+        self.writer(status_frame)
+
         return
 
     def end_file(self):
@@ -224,13 +357,10 @@ class DataAggregator:
         Ends current G3File with EndProcessing frame.
         """
 
-        for k, v in self.buffers.items():
-            # Writes all non-empty buffers to File
-            if v:
-                self.write_frame_to_file(k, v)
-                self.buffers[k] = []
+        for _, prov in self.providers.items():
+            self.write_blocks_to_file(prov)
 
-        self.file(core.G3Frame(core.G3FrameType.EndProcessing))
+        self.writer(core.G3Frame(core.G3FrameType.EndProcessing))
 
         print("Closing file: {}".format(self.filename))
         return
@@ -251,18 +381,17 @@ class DataAggregator:
             data_dir (string, optional):
                 Path of directory to store data. Defaults to 'data/'.
         """
-
         if params is None:
-            print("No params specified")
             params = {}
 
         time_per_file = params.get("time_per_file", 60 * 60) # [s]
-        time_per_frame = params.get("time_per_frame", 60 * 10)  # [s]
         data_dir = params.get("data_dir", "data/")
 
         self.log.info("Starting data aggregation in directory {}".format(data_dir))
-
         session.set_status('running')
+
+        self.hksess.session_id = session.session_id
+        self.hksess.start_time = time.time()
 
         new_file_time = True
 
@@ -270,7 +399,7 @@ class DataAggregator:
         while self.aggregate:
 
             if new_file_time:
-                if self.file is not None:
+                if self.writer is not None:
                     self.end_file()
 
                 file_start_time = datetime.utcnow()
@@ -292,9 +421,12 @@ class DataAggregator:
             # Check if its time to write new frame/file
             new_file_time = (datetime.utcnow().timestamp() - ts) > time_per_file
 
+        self.filename = ""
         self.end_file()
+        self.writer = None
+
         return True, 'Acquisition exited cleanly.'
-            
+
     def stop_aggregate(self, session, params=None):
         self.aggregate = False
         return (True, "Stopped aggregation")
@@ -311,7 +443,7 @@ if __name__ == '__main__':
     data_aggregator = DataAggregator(agent)
 
     agent.register_task('initialize', data_aggregator.initialize)
-    agent.register_task('add_feed', data_aggregator.add_feed_task)
+    agent.register_task('add_feed', data_aggregator.add_feed)
     agent.register_process('aggregate', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
 
     runner.run(agent, auto_reconnect=True)

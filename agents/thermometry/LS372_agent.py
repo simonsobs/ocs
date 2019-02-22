@@ -29,8 +29,33 @@ class LS372_Agent:
         self.log = agent.log
 
         self.agent = agent
-        self.agent.register_feed('temperatures', agg_params={'aggregate': True})
-        self.registered = False
+        # Registers temperature feeds
+        agg_params = {
+            'blocking': {
+                         'Channel 01': {'data': ['Channel 01']},
+                         'Channel 02': {'data': ['Channel 02']},
+                         'Channel 03': {'data': ['Channel 03']},
+                         'Channel 04': {'data': ['Channel 04']},
+                         'Channel 05': {'data': ['Channel 05']},
+                         'Channel 06': {'data': ['Channel 06']},
+                         'Channel 07': {'data': ['Channel 07']},
+                         'Channel 08': {'data': ['Channel 08']},
+                         'Channel 09': {'data': ['Channel 09']},
+                         'Channel 10': {'data': ['Channel 10']},
+                         'Channel 11': {'data': ['Channel 11']},
+                         'Channel 12': {'data': ['Channel 12']},
+                         'Channel 13': {'data': ['Channel 13']},
+                         'Channel 14': {'data': ['Channel 14']},
+                         'Channel 15': {'data': ['Channel 15']},
+                         'Channel 16': {'data': ['Channel 16']},
+                        }
+        }
+        self.agent.register_feed('temperatures',
+                                 aggregate=True,
+                                 agg_params=agg_params,
+                                 buffered=True, buffer_time=1)
+
+
 
     def try_set_job(self, job_name):
         print(self.job, job_name)
@@ -85,16 +110,20 @@ class LS372_Agent:
                 else:
                     return 10
 
-            data = {}
-
             if self.fake_data:
                 for therm in self.thermometers:
                     reading = np.random.normal(self.res, 20)
-                    data[therm] = (time.time(), reading)
+                    data['data'][therm] = reading
                 time.sleep(.1)
             else:
                 active_channel = self.module.get_active_channel()
-                data[active_channel.name] = (time.time(), self.module.get_temp(chan=active_channel.channel_num))
+                data = {
+                    'timestamp': time.time(),
+                    'block_name': active_channel.name,
+                    'data': {}
+                }
+
+                data['data'][active_channel.name] = self.module.get_temp(chan=active_channel.channel_num)
                 time.sleep(.01)
 
             print("Data: {}".format(data))

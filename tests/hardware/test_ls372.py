@@ -9,9 +9,10 @@ unit that is being used for something, you'll probably want to reset the
 parameters you require.
 """
 
+import time
 from ocs.Lakeshore.Lakeshore372 import LS372, Channel, Curve, Heater
 
-ls = LS372('172.16.127.192')
+ls = LS372('10.10.10.3')
 ch = Channel(ls, 4)
 cv = Curve(ls, 21)
 ht = Heater(ls, 0)
@@ -241,7 +242,6 @@ def test_disable_excitation():
     else:
         ch.enable_excitation()
 
-
 def test_set_get_resistance_range():
     """Test setting the resistance range. This can't exactly be an arbitrary
     setting. If it's too low (if the excitation isn't high enough) then it just
@@ -258,11 +258,30 @@ def test_set_get_resistance_range():
 
         return min(ranges, key=lambda x: abs(x-num))
 
+    # turn off autoscan (but remember if we had to)
+    init_autoscan = ls.get_autoscan()
+    ls.disable_autoscan()
+
+    # check autorange setting
+    init_autorange = ch.autorange
+
+    # enable auto_range (which should make increasing by one safe)
+    ch.enable_autorange()
+    time.sleep(3) # wait for autorange to settle
+    ch.disable_autorange()
+
     init_range = ch.range
     ch.set_resistance_range(init_range*3)
     assert ch.get_resistance_range() == get_closest_range(init_range*3)
     ch.set_resistance_range(init_range)
 
+    # turn back on autorange if it was on
+    if init_autorange == 'on':
+        ch.enable_autorange()
+
+    # turn back on autoscan if it was on
+    if init_autoscan:
+        ls.enable_autoscan()
 
 def test_set_get_excitation():
     """Test setting the excitation. We try to set it to the lowest setting to

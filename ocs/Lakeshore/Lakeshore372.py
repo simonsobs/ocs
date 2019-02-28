@@ -157,6 +157,12 @@ format_lock = {"Ohm/K (linear)": '3',
                "log Ohm/K (linear)": '4',
                "Ohm/K (cubic spline)": '7'}
 
+# Heater lock/keys
+heater_output_key = {'0': 'sample',
+                     '1': 'warm-up',
+                     '2': 'still'}
+heater_output_lock = {v.lower():k for k, v in heater_output_key.items()}
+
 heater_range_key = {"0": "Off", "1": 31.6e-6, "2": 100e-6, "3": 316e-6,
                     "4": 1e-3, "5": 3.16e-3, "6": 10e-3, "7": 31.6e-3,
                     "8": 100e-3}
@@ -1155,14 +1161,20 @@ class Curve:
         :param index: index of breakpoint to query
         :type index: int
 
-        :returns: (units, tempertaure, curvature) values for the given breakpoint
-        :rtype: 3-tuple of floats
+        :returns: (units, tempertaure) values for the given breakpoint, will have curvature if it exists
+        :rtype: 2-tuple of floats (optionally a 3-tuple if curvature is set)
         """
         resp = self.ls.msg(f"CRVPT? {self.curve_num},{index}").split(',')
-        _units = float(resp[0])
-        _temp = float(resp[1])
-        _curvature = float(resp[2])
-        return (_units, _temp, _curvature)
+        _units, _temp, *other = resp
+
+        _units = float(_units)
+        _temp = float(_temp)
+
+        if other:
+            _curvature = float(other[0])
+            return (_units, _temp, _curvature)
+        else:
+            return (_units, _temp)
 
     def _set_data_point(self, index, units, kelvin, curvature=None):
         """Set a single data point with the CRVPT command.
@@ -1199,9 +1211,13 @@ class Curve:
                 break
             breakpoints.append(x)
 
-        struct_array = np.array(breakpoints, dtype=[('units', 'f8'),
-                                                    ('temperature', 'f8'),
-                                                    ('curvature', 'f8')])
+        if len(breakpoints[0]) == 3:
+            struct_array = np.array(breakpoints, dtype=[('units', 'f8'),
+                                                        ('temperature', 'f8'),
+                                                        ('curvature', 'f8')])
+        else:
+            struct_array = np.array(breakpoints, dtype=[('units', 'f8'),
+                                                        ('temperature', 'f8')])
 
         self.breakpoints = struct_array
 
@@ -1289,6 +1305,7 @@ class Heater:
     def __init__(self, ls, output):
         self.ls = ls
         self.output = output
+        #self.output = heater_output_key[str(output)]
         self.mode = None
         self.input = None
         self.powerup = None
@@ -1362,8 +1379,13 @@ class Heater:
 
         :returns: the response from the OUTMODE command
         """
-        # TODO: Make assertions check specific output and it's validity in mode selection
         assert mode.lower() in output_modes_lock.keys(), f"{mode} not a valid mode"
+
+        valid_modes = {0: [0, 2, 3, 5],
+                       1: [0, 2, 3, 5, 6],
+                       2: [0, 1, 2, 4]}
+
+        assert int(output_modes_lock[mode.lower()]) in valid_modes[self.output], f"{mode} not valid for {self.output} heater"
 
         resp = self.get_output_mode()
         resp[0] = output_modes_lock[mode.lower()]
@@ -1393,6 +1415,7 @@ class Heater:
         return self._set_output_mode(resp)
 
     def get_powerup(self):
+        # OUTMODE
         pass
 
     def set_powerup(self, powerup):
@@ -1401,12 +1424,14 @@ class Heater:
                         after power cycle. True for on after powerup
         :type powerup: bool
         """
+        # OUTMODE
         # assert powerup in [True, False], f"{powerup} not valid powerup parameter"
         # set_powerup = str(int(powerup))
         #
         pass
 
     def get_polarity(self):
+        # OUTMODE
         pass
 
     def set_polarity(self):
@@ -1414,6 +1439,7 @@ class Heater:
         :param polarity: specifies output polarity: 'unipolar' or 'bipolar'
         :type polarity: str
         """
+        # OUTMODE
         # polarity_key = {0: 'unipolar', 1: 'bipolar'}
         # polarity_lock = {v:k for k, v in polarity_key.items()}
         #
@@ -1423,9 +1449,11 @@ class Heater:
         pass
 
     def get_filter(self):
+        # OUTMODE
         pass
 
     def set_filter(self, _filter):
+        # OUTMODE
         """
         :param _filter: specifies controlling on unfiltered or filtered readings, True = filtered, False = unfiltered
         :type _filter: bool
@@ -1436,6 +1464,7 @@ class Heater:
         pass
 
     def get_delay(self):
+        # OUTMODE
         pass
 
     def set_delay(self, delay):
@@ -1443,6 +1472,7 @@ class Heater:
         :param delay: delay in seconds for setpoint change during autoscanning, 1-255 seconds
         :type delay: int
         """
+        # OUTMODE
         # assert delay in range(1, 256), f"{delay} not a valid delay parameter"
         #
         pass
@@ -1454,6 +1484,7 @@ class Heater:
     # Presumably we're going to know and have set values for heat resistance,
     # max current, etc, maybe that'll simplify this in the future.
     def set_heater_output(self, heater, resistance, max_current, max_user_current, current):
+        # HTRSET
         pass
 
     def get_heater_setup(self, heater):

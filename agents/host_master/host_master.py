@@ -32,6 +32,7 @@ class HostMaster:
         site, hc, _ = site_config.get_config(
             self.agent.site_args, '*host*')
         self.site_config_file = site.source_file
+        self.host_name = hc.name
 
         # Add plugin paths and scan.
         for p in hc.agent_paths:
@@ -51,7 +52,8 @@ class HostMaster:
 
         return True, ''
 
-    def _launch_instance(self, pid_key, script_file, site_file, instance_id):
+    def _launch_instance(self, pid_key, script_file, site_file,
+                         host_name, instance_id):
         """
         Launch an Agent instance using reactor.spawnProcess.  The
         ProcessProtocol, which holds communication pathways to the
@@ -66,8 +68,10 @@ class HostMaster:
         pyth = sys.executable
         cmd = [pyth, script_file,
                '--instance-id', instance_id,
-               '--site-file', site_file]
+               '--site-file', site_file,
+               '--site-host', host_name]
         prot = AgentProcessProtocol()
+        prot.instance_id = instance_id # probably only used for logging.
         reactor.spawnProcess(prot, cmd[0], cmd[:], env=os.environ)
         self.pid_cache[pid_key] = prot
 
@@ -148,7 +152,8 @@ class HostMaster:
                         self.pid_cache[key] = None
                         reactor.callFromThread(
                             self._launch_instance, key, db['agent_script'],
-                            self.site_config_file, db['instance_id'])
+                            self.site_config_file, self.host_name,
+                            db['instance_id'])
                         db['next_action'] = 'wait_start'
                         db['at'] = time.time() + 1.
                 elif db['next_action'] == 'wait_start':
@@ -164,6 +169,8 @@ class HostMaster:
                 elif db['next_action'] == 'monitor':
                     stat, t = prot.status
                     if stat is not None:
+                        # Right here would be a great place to check
+                        # the stat return code, and include a traceback from stderr 
                         session.add_message('Detected exit of {full_name} '
                                             'with code {stat}.'.format(stat=stat, **db))
                         db['next_action'] = 'start_at'
@@ -203,10 +210,38 @@ class HostMaster:
 
 class AgentProcessProtocol(protocol.ProcessProtocol):
     # See https://twistedmatrix.com/documents/current/core/howto/process.html
+    #
+    # These notes, and the useless prototypes below them, are to get
+    # us started when we come back here later to feed the process
+    # output to high level loggin somehow.
+    #
+    # In a successful launch, we see:
+    # - connectionMade (at which point we closeStdin)
+    # - inConnectionLost (which is then expected)
+    # - childDataReceived(counter, message), output from the script.
+    # - later, when process exits: processExited(status).  Status is some
+    #   kind of object that knows the return code...
+    # In a failed launch, it's the same except note that:
+    # - The childDataReceived message contains the python traceback, on,
+    #   e.g. realm error.  +1 - Informative.
+    # - The processExited(status) knows the return code was not 0.
+    #
+    # Note that you implement childDataReceived instead of
+    # "outReceived" and "errReceived".
     status = None, None
     killed = False
+    instance_id = '(none)'
+    def connectionMade(self):
+        self.transport.closeStdin()
+    def inConnectionLost(self):
+        pass
     def processExited(self, status):
+        print('%s.status:' % self.instance_id, status)
         self.status = status, time.time()
+    def outReceived(self, data):
+        print('%s.stdin:' % self.instance_id, data)
+    def errReceived(self, data):
+        print('%s.stderr:' % self.instance_id, data)
 
 
 if __name__ == '__main__':

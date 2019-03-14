@@ -23,6 +23,7 @@ parser = argparse.ArgumentParser(description=DESCRIPTION)
 parser = ocs.site_config.add_arguments(parser)
 parser.add_argument('command', choices=['config', 'plugins', 'status',
                                         'monitor',
+                                        'launch',
                                         'start', 'stop'])
 parser.add_argument('--follow', '-f', action='store_true')
 args = parser.parse_args()
@@ -57,6 +58,24 @@ if args.command == 'plugins':
     for k,v in ocs.site_config.agent_script_reg.items():
         print('  %-20s : %s' % (k,v))
     print()
+
+elif args.command in ['launch']:
+    # This is specifically for starting the host master agent process;
+    # that's different than starting the host master's main process
+    # (see start/stop for that).
+
+    # Parse the config to find this host's HostMaster instance info.
+    site, host, instance = ocs.site_config.get_config(args, 'HostMaster')
+
+    # Most important is the site filename and host alias.
+    import os
+    hm_script = os.path.join(host.agent_paths[0], 'host_master/host_master.py')
+    cmd = [sys.executable, hm_script,
+           '--site-file', site.source_file,
+           '--site-host', host.name]
+    print('Launching host_master (%s)...' % cmd[1])
+    pid = os.spawnv(os.P_NOWAIT, cmd[0], cmd)
+    print('... pid is %i' % pid)
 
 elif args.command in ['status', 'start', 'stop', 'monitor']:
 

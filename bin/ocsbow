@@ -15,7 +15,7 @@ import ocs
 from ocs import client_wampy as cw
 from ocs import ocsbow
 
-parser = ocwbow.get_parser()
+parser = ocsbow.get_parser()
 
 
 args = parser.parse_args()

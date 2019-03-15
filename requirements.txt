@@ -6,3 +6,7 @@ deprecation
 
 # Lakeshore240
 pyserial
+
+# Documentation generation
+sphinx
+sphinx-argparse

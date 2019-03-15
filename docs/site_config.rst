@@ -315,12 +315,14 @@ live at ``master-{host}``.
 ocsbow (Host Master / site_config command line tool)
 ----------------------------------------------------
 
-The script ``ocsbow`` is used to communicate with the HMA and to help
-diagnose issues related to site configuration.
+(The output from ``ocsbow --help`` should be rendered here.)
 
-When ``ocs`` is installed, the ocsbow script will be installed as an
-executable script.  It's likely that you can run it right from the
-source tree (``bin/ocsbow``), though.
+.. argparse::
+   :module: ocs.ocsbow
+   :func: get_parser
+   :prog: ocsbow
+
+
 
 Systemd Integration [empty]
 ---------------------------

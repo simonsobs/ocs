@@ -54,7 +54,9 @@ may be shared between multiple hosts, providing distinct
 configurations for each one.
 
 Here is an example of an SCF for a site with two hosts, and 4 agent
-instances (running two different classes of agent)::
+instances (running two different classes of agent):
+
+.. code-block:: yaml
 
   hub:
   
@@ -139,7 +141,9 @@ Agent Site-related Command Line Parameters
 ==========================================
 
 Agent code can connect to the ``ocs.site_config`` using the following
-boilerplate code::
+boilerplate code:
+
+.. code-block:: python
 
   from ocs import site_config
 
@@ -242,9 +246,10 @@ behaves as follows:
 
 
 The control client script might look something like this (see also
-river_ctrl.py in the examples)::
-  
+river_ctrl.py in the examples):  
     
+.. code-block:: python
+
   def my_script(app, pargs):
       from ocs import client_t
 

@@ -263,10 +263,65 @@ river_ctrl.py in the examples)::
 OCS Host Manager Agent
 ======================
 
-There's nothing in the rulebook that says we can't use OCS Agents to
-restart OCS Agents.  It would be particularly useful to have an Agent
-that is in charge of starting, stopping, and monitoring all agent
-instances that are running on a single host.
+The Host Master Agent (HMA) helps to manage the many Agent instances
+that need to run on a single host machine.  The HMA is [will be] able
+to:
 
-.. todo:: Create this Agent, and explain how to use it.
+- Parse the entire site configuration file, and help to start, stop,
+  and monitor each Agent instance running on a certain host.
+- Integrate with systemd as a daemon, to allow the process to be
+  controlled using standard systemctl commands, including how it
+  behaves on system start up.
+- Accept control commands through the usual OCS channels, i.e. from
+  anywhere in the network.
+
+Direct user interaction with an HMA can be achieved through the
+``ocsbow`` command line script.
+
+Host Master Agent configuration
+-------------------------------
+
+The Host Master Agent is an optional component.  In order to function
+properly, it requires that site_config be in use.  It should be listed
+in the SCF like other agents.  There should only be a single HMA per
+host definition block.
+
+Here's an abbreviated SCF showing the correct configuration:
+
+.. code-block:: yaml
+
+  ...
+  hosts:
+    ...
+    host-1: {
+      ...
+      'agent-instances': [
+        ...
+        {'agent-class': 'HostMaster',
+         'instance-id': 'master-host-1',
+         'arguments': []}
+        ...
+      ]
+      ...
+    }
+    ...
+  ...
+
+The ``agent-class`` should be ``HostMaster``.  The ``instance-id`` in
+this example is based on a (recommended) convention that HostMaster
+live at ``master-{host}``.
+
+
+ocsbow (Host Master / site_config command line tool)
+----------------------------------------------------
+
+The script ``ocsbow`` is used to communicate with the HMA and to help
+diagnose issues related to site configuration.
+
+When ``ocs`` is installed, the ocsbow script will be installed as an
+executable script.  It's likely that you can run it right from the
+source tree (``bin/ocsbow``), though.
+
+Systemd Integration [empty]
+---------------------------
 

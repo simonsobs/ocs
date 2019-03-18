@@ -83,7 +83,7 @@ class Module:
 
 
 if __name__ == "__main__":
-    ls = Module(port="/dev/ttyUSB0")
+    ls = Module(port=sys.argv[1])
     print (ls)
     
  

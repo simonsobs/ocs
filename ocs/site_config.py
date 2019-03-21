@@ -12,17 +12,17 @@ class SiteConfig:
 
     @classmethod
     def from_dict(cls, data):
-        """
-        Args:
+        """Args:
             data: The configuration dictionary.
 
         The configuration dictionary should have the following elements:
 
-        - ``hub`` (required): Describes what WAMP server and realm
-          Agents and Clients should use.
-        - ``hosts`` (required): A dictionary of HostConfig
+        ``hub`` (required): Describes what WAMP server and realm
+            Agents and Clients should use.
+        ``hosts`` (required): A dictionary of HostConfig
             descriptions.  The keys in this dictionary can be real
             host names on the network, or pseudo-host names if needed.
+
         """
         self = cls()
         for k,v in data.get('hosts', {}).items():
@@ -48,16 +48,19 @@ class HostConfig:
  
     @classmethod
     def from_dict(cls, data, parent=None, name=None):
-        """
-        Args:
+        """Args:
             data: The configuration dictionary.
             parent: the SiteConfig from which this data was extracted
                 (this is stored as self.parent, but not used).
 
         The configuration dictionary should have the following elements:
        
-        - ``agent-instances`` (required): A list of AgentConfig
+        ``agent-instances`` (required): A list of AgentConfig
             descriptions.
+
+        ``agent-paths`` (optional): A list of additional paths where
+            OCS is permitted to search for Agent plugin modules.
+
         """
         self = cls(name=name)
         self.parent = parent
@@ -69,19 +72,34 @@ class HostConfig:
 class HubConfig:
     @classmethod
     def from_dict(cls, data, parent=None):
-        """
-        Args:
+        """Args:
             data: The configuration dictionary.
             parent: the SiteConfig from which this data was extracted
                 (this is stored as self.parent, but not used).
 
         The configuration dictionary should have the following elements:
 
-        - ``wamp_server`` (required): Address of the WAMP server
-            (e.g. ws://host-1:8001/ws).
-        - ``wamp_realm`` (required): Name of the WAMP realm to use.
-        - ``address_root`` (required): Root to use when constructing
-            agent addresses.  Do not include trailing '.'.
+        ``wamp_server`` (required): URL to the WAMP router's websocket
+            access point for ocs.  E.g., ``ws://host-2:8001/ws``.
+            WAMP routers can have multiple access points, with
+            different protocols, security layers, and permissions.
+            (Command line override: ``--site-hub``.)
+
+        ``wamp_realm`` (required): The WAMP realm to use.  WAMP
+            clients operating in a particular realm are isolated from
+            clients connected to other realms.  Example and test code
+            will often use ``debug_realm`` here.  (Command line
+            override: ``--site-realm``.)
+
+        ``address_root`` (required): The base address to be used by
+            all OCS Agents.  This is normally something simple like
+            ``observatory`` or ``detlab.system1``.  (Command line
+            override: ``--address-root``.)
+
+        ``registry_agent`` (optional): The address of the OCS Registry
+            Agent.  See :ref:`registry`.  (Command line override:
+            ``--registry-agent``.)
+
         """
         self = cls()
         self.parent = parent
@@ -94,24 +112,32 @@ class InstanceConfig:
 
     @classmethod
     def from_dict(cls, data, parent=None):
-        """
-        Args:
+        """Args:
             data: The configuration dictionary.
             parent: the HostConfig from which this data was extracted
                 (this is stored as self.parent, but not used).
 
         The configuration dictionary should have the following elements:
        
-        - ``instance-id`` (required): This string is used to set the
-            Agent instance's base address.  This may also be matched
-            against the instance-id provided by the Agent instance, as
-            a way of finding the right InstanceConfig.
-        - ``agent-class`` (optional): Name of the Agent class.  This
+        ``instance-id`` (str, required)
+            This string is used to set the Agent instance's base
+            address.  This may also be matched against the instance-id
+            provided by the Agent instance, as a way of finding the
+            right InstanceConfig.
+
+        ``agent-class`` (str, optional)
+            Name of the Agent class.  This
             may be matched against the agent_class name provided by
             the Agent instance, as a way of finding the right
             InstanceConfig.
-        - ``arguments`` (optional): A list of arguments that should be
-            passed back to the agent.
+
+        ``arguments`` (list, optional):
+            A list of arguments that should be passed back to the
+            agent.  Each element of the list should be a pair of
+            strings, like ``['--option-name', 'value']``.  This is not
+            as general as one might like, but is required in the
+            current scheme.
+
         """
         self = cls()
         self.parent = parent
@@ -132,8 +158,13 @@ def add_arguments(parser=None):
     Returns:
         The ArgumentParser that was passed in, or the new one.
 
-    The arguments added are:
+    Arguments include the ``--site-*`` family.  See code or online
+    documentation for details.
+    """
+    # Note that we use sphinxarg.ext to expose the help=... text in
+    # the online sphinx docs.
 
+    """
     ``--site=...``
         Instead of the default site, use the configuration
         for the specified site.  The configuration is loaded from
@@ -161,19 +192,35 @@ def add_arguments(parser=None):
 
     ``--address-root=...``:
         Override the site default address root.
+
     """
     if parser is None:
         import argparse
         parser = argparse.ArgumentParser()
     group = parser.add_argument_group('Site Config Options')
-    group.add_argument('--site')
-    group.add_argument('--site-file')
-    group.add_argument('--site-host')
-    group.add_argument('--site-hub')
-    group.add_argument('--site-realm')
-    group.add_argument('--instance-id')
-    group.add_argument('--address-root')
-    group.add_argument('--registry-address')
+    group.add_argument('--site', help=
+    """Instead of the default site, use the configuration for the
+       specified site.  The configuration is loaded from
+       ``$OCS_CONFIG_DIR/{site}.yaml``.  If ``--site=none``, the
+       site_config facility will not be used at all.""")
+    group.add_argument('--site-file', help=
+    """Instead of the default site config, use the specified file.  Full
+       path must be specified.""")
+    group.add_argument('--site-host', help=
+    """Override the OCS determination of what host this instance is
+       running on, and instead use the configuration for the indicated
+       host.""")
+    group.add_argument('--site-hub', help=
+    """Override the ocs hub url (wamp_server).""")
+    group.add_argument('--site-realm', help=
+    """Override the ocs hub realm (wamp_realm).""")
+    group.add_argument('--instance-id', help=
+    """Look in the SCF for Agent-instance specific configuration options,
+       and use those to launch the Agent.""")
+    group.add_argument('--address-root', help=
+    """Override the site default address root.""")
+    group.add_argument('--registry-address', help=
+    """Override the site default registry address.""")
     return parser
     
 def get_config(args, agent_class=None):
@@ -306,14 +353,29 @@ def reparse_args(args, agent_class=None):
 agent_script_reg = {}
 
 def register_agent_class(class_name, filename):
-    """
-    Register an Agent script in the site_config registry.
+    """Register an Agent script in the site_config registry.
+
+    Args:
+        class_name (str): The Agent class name, e.g. "HostManager".
+        filename (str): The full path to the script that launches an
+            instance of this Agent class.
+
     """
     agent_script_reg[class_name] = filename
 
 def scan_for_agents(do_registration=True):
-    """
-    Identify and import ocs plugin scripts.
+    """Identify and import ocs Agent plugin scripts.  This will find all
+    modules in the current module search path (sys.path) that begin
+    with the name 'ocs_plugin_'.
+
+    Args:
+        do_registration (bool): If True, the modules are imported,
+            which likely causes them to call register_agent_class on
+            each agent they represent.
+
+    Returns:
+        The list of discovered module names.
+
     """
     import pkgutil
     import importlib

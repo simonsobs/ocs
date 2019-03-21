@@ -37,7 +37,7 @@ class LS240_Agent:
         self.agent.register_feed('temperatures',
                                  aggregate=True,
                                  agg_params=agg_params,
-                                 buffered=True, buffer_time=1)
+                                 buffered=True, buffer_time=60)
 
 
     # Exclusive access management.

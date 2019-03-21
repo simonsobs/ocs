@@ -22,7 +22,7 @@ class LS240_Agent:
         self.fake_data = fake_data
         self.module = None
         self.port = port
-        self.thermometers = ['chan_{}'.format(i + 1) for i in range(num_channels)]
+        self.thermometers = ['Channel {}'.format(i + 1) for i in range(num_channels)]
         self.log = agent.log
 
         # Registers temperature feeds
@@ -125,7 +125,7 @@ class LS240_Agent:
 
                 time.sleep(sleep_time)
 
-            # print("Data: {}".format(data))
+            print("Data: {}".format(data))
             session.app.publish_to_feed('temperatures', data)
 
         self.agent.feeds['temperatures'].flush_buffer()

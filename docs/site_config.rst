@@ -63,11 +63,17 @@ instances (running two different classes of agent):
     wamp_server: ws://host-2:8001/ws
     wamp_realm: detlab_realm
     address_root: detlab.cryo
+    registry_agent: observatory.registry
   
   hosts:
   
     host-1: {
   
+      # List of additional paths to Agent plugin modules.
+      'agent-paths': [
+        '/sobs/ocs/agents/',
+      ],
+
       # Description of host-1's Agents?  We have two readout devices;
       # they are both Riverbank 320.  But they can be distinguished, on
       # startup, by a device serial number.
@@ -86,6 +92,11 @@ instances (running two different classes of agent):
   
     host-2: {
   
+      # List of additional paths to Agent plugin modules.
+      'agent-paths': [
+        '/sobs/ocs/agents/',
+      ],
+
       # Description of host-2's Agents?  We have two devices: another
       # Riverbank 320, and a motor controller of some kind.
   
@@ -108,6 +119,10 @@ configuration.  During development, multiple YAML files may be in
 active use; then users will identify their config file through command
 line arguments when launching Agents and Control Clients (see below).
 
+
+SiteConfig
+----------
+
 At root level, the configuration file should encode a SiteConfig
 object.  The structure is described in the ``from_dict`` method of
 the SiteConfig class:
@@ -115,12 +130,22 @@ the SiteConfig class:
 .. autoclass:: ocs.site_config.SiteConfig
    :members: from_dict
 
-
 The difference between a host name and a "pseudo-host name" is that a
 host name might plausibly be computed automatically by calling
 ``socket.gethostname``, while a pseudo-host name is something the user
 will have to specify explicitly (perhaps through the command line
 argument ``--site-host``) when invoking the agent.
+
+The ``hub`` information is used by all Agent and Control Clients to
+connect to the OCS WAMP router.  This WAMP router (probably crossbar)
+usually has its own configuration file.  The settings in SCF ``hub``
+block are parsed by the ``from_dict`` method of the HubConfig class:
+
+.. autoclass:: ocs.site_config.HubConfig
+   :members: from_dict
+
+HostConfig
+----------
 
 The structure of HostConfig encoding is described in the ``from_dict``
 method of the HostConfig class:
@@ -128,13 +153,16 @@ method of the HostConfig class:
 .. autoclass:: ocs.site_config.HostConfig
    :members: from_dict
 
+The significance of ``agent-paths`` is described more in :ref:`agent_plugins`.
+
+InstanceConfig
+--------------
 
 The structure of InstanceConfig encoding is described in the
 ``from_dict`` method of the InstanceConfig class:
 
 .. autoclass:: ocs.site_config.InstanceConfig
    :members: from_dict
-
 
 
 Agent Site-related Command Line Parameters
@@ -265,10 +293,10 @@ river_ctrl.py in the examples):
       #...
 
 
-OCS Host Manager Agent
-======================
+HostMaster Agent
+================
 
-The Host Master Agent (HMA) helps to manage the many Agent instances
+The HostMaster Agent (HMA) helps to manage the many Agent instances
 that need to run on a single host machine.  The HMA is [will be] able
 to:
 
@@ -283,8 +311,47 @@ to:
 Direct user interaction with an HMA can be achieved through the
 ``ocsbow`` command line script.
 
-Host Master Agent configuration
--------------------------------
+
+.. _agent_plugins:
+
+Agent Script Discovery
+----------------------
+
+Agent scripts are currently written as stand-alone python scripts (and
+thus not not importable through the main ``ocs`` python module).  To
+support automatic launching of Agents, ``site_config`` includes a
+plugin-style system to register Agent scripts.  This is flexible
+enough to support both the natively packaged Agents and any
+"third-party" agents needed in a particular installation.  The system
+works like this:
+
+- A bundle of Agent scripts is assembled at some location.  There are
+  no restrictions on where these scripts can live in the file system.
+  For example, a script called ``riverbank_agent.py`` might live in
+  ``/sobs/agents/``.
+- A special "registration script" is written, with a filename of the
+  form ``ocs_plugin_*.py``.  This script should live in Python's
+  import path, or else (and this is better), the path to the script
+  should be included in the ``agent-paths`` variable in the SCF for
+  this host.  For example, we might put the file in ``/sob/agents``
+  and call it ``ocs_plugin_sobs.py``.
+- When the site_config system (specifically the HostMaster agent)
+  needs to find a particular agent script, it:
+  - Adds any directories in ``agent-paths`` to the Python import path.
+  - Scans through all importable modules, and imports them if they
+    match the ``ocs_plugin_*`` name pattern.
+- The ``ocs_plugin`` script makes calls into ocs to associate a
+  particular script filenames to agent class names.  In our example,
+  ``ocs_plugin_sobs.py`` would call
+  ``ocs.site_config.register_agent_class('RiverBank',
+  '/sobs/agents/riverbank_agent.py')``.
+
+A good example of a plugin script can be found in the OCS agents
+directory, ``ocs_plugins_standard.py``.
+
+
+Agent Configuration
+-------------------
 
 The Host Master Agent is an optional component.  In order to function
 properly, it requires that site_config be in use.  It should be listed

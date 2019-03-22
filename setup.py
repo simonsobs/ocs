@@ -7,5 +7,6 @@ setup (name = 'ocs',
        package_dir={'ocs': 'ocs'},
        packages=['ocs', 'ocs/Lakeshore', 'ocs/util'],
        scripts=['bin/ocsbow'],
+       package_data={'': ['support/*json']}, 
        version=versioneer.get_version(),
        cmdclass=versioneer.get_cmdclass())

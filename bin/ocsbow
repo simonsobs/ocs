@@ -9,6 +9,7 @@ try:
 except ImportError:
     pass
 
+import os
 import sys
 import time
 
@@ -23,34 +24,99 @@ args = parser.parse_args()
 ocs.site_config.reparse_args(args, '*host*')
 
 if args.command == 'config':
-    print('ocs configuration summary')
-    print('-------------------------')
-    print()
-    print('ocs import led to: %s' % (ocs.__file__))
-    print()
-    site, _, _ = ocs.site_config.get_config(args, '*host*')
-    print('Site file was determined to be: %s' % site.source_file)
-    print()
-    print('The site file describes %i hosts:' % len(site.hosts))
-    for k,v in site.hosts.items():
-        print('  Host %s includes %i agent instances:' % (k, len(v.instances)))
-        for inst in v.instances:
-            print('    %s::%s' % (inst['agent-class'], inst['instance-id']))
+
+    if args.cfg_request == 'summary':
+        print('ocs configuration summary')
+        print('-------------------------')
+        print()
+        print('ocs import led to: %s' % (ocs.__file__))
+        print()
+        site, _, _ = ocs.site_config.get_config(args, '*host*')
+        print('Site file was determined to be: %s' % site.source_file)
+        print()
+        print('The site file describes %i hosts:' % len(site.hosts))
+        for k,v in site.hosts.items():
+            print('  Host %s includes %i agent instances:' % (k, len(v.instances)))
+            for inst in v.instances:
+                print('    %s::%s' % (inst['agent-class'], inst['instance-id']))
+            print()
+
+    if args.cfg_request == 'plugins':
+        print('ocs plugin detection')
+        print('--------------------')
+        print('Scanning.')
+        site, host, _  = ocs.site_config.get_config(args, '*host*')
+        for p in host.agent_paths:
+            print('  ... adding to path: %s' % p)
+            sys.path.append(p)
+        ocs.site_config.scan_for_agents()
+        print('Found:')
+        for k,v in ocs.site_config.agent_script_reg.items():
+            print('  %-20s : %s' % (k,v))
         print()
 
-if args.command == 'plugins':
-    print('ocs plugin detection')
-    print('--------------------')
-    print('Scanning.')
-    site, host, _  = ocs.site_config.get_config(args, '*host*')
-    for p in host.agent_paths:
-        print('  ... adding to path: %s' % p)
-        sys.path.append(p)
-    ocs.site_config.scan_for_agents()
-    print('Found:')
-    for k,v in ocs.site_config.agent_script_reg.items():
-        print('  %-20s : %s' % (k,v))
-    print()
+    if args.cfg_request == 'crossbar':
+        print('ocs crossbar configuration')
+        print('--------------------------')
+        print()
+        site, host, _  = ocs.site_config.get_config(args, '*host*')
+        print('Configuration for the OCS hub:')
+        print(site.hub.summary())
+        print()
+        print('Configuration for crossbar service on this host (%s):' % host.name)
+        if host.crossbar is None:
+            print('  Not configured.')
+        else:
+            print(host.crossbar.summary())
+        print()
+
+elif args.command in ['crossbar']:
+    site, host, instance = ocs.site_config.get_config(args, '*host*')
+
+    if args.cb_request == 'generate_config':
+        import urllib
+        urld = urllib.parse.urlparse(site.hub.data['wamp_server'])
+        pars = {
+            'realm': site.hub.data['wamp_realm'],
+            'address_root': site.hub.data['address_root'],
+            'port': urld.port,
+        }
+        print('Writing crossbar config to stdout...', file=sys.stderr)
+        print(ocsbow.render_crossbar_config_example(pars))
+        text = '\n'
+        if host.crossbar is None:
+            text += 'There is no crossbar entry in this host config.\n\n'
+        else:
+            if host.crossbar.cbdir is None:
+                text += 'The crossbar config-dir is not set in this host config.\n\n'
+            else:
+                text += ('The crossbar config-dir is set to "%s";\nthe config '
+                         'text should be copied to the file config.json in '
+                         'that directory.\n' % host.crossbar.cbdir)
+        print(text, file=sys.stderr)
+    else:
+        # Start / stop / check the crossbar server.
+        cmd = host.crossbar.get_cmd(args.cb_request)
+        flags = os.P_WAIT
+        monitor_time = None
+        if args.cb_request == 'start' and not args.fg:
+            # By default, we launch to background.  We leave error logging
+            # on, becausee start-up issues (such as trying to start when
+            # another session is already active) will otherwise be
+            # annoying to diagnose.
+            cmd.extend(['--loglevel', 'error'])
+            flags = os.P_NOWAIT
+            monitor_time = 2.
+        print('Executing: ', cmd)
+        pid = os.spawnv(flags, cmd[0], cmd)
+        if monitor_time is not None:
+            time.sleep(monitor_time)
+            try:
+                os.kill(pid, 0)
+                print('New crossbar instance running as pid %i' % pid)
+            except OSError:
+                print('New crossbar instance exited within %.1f seconds.' % monitor_time)
+                sys.exit(10)
 
 elif args.command in ['launch']:
     # This is specifically for starting the host master agent process;
@@ -61,7 +127,6 @@ elif args.command in ['launch']:
     site, host, instance = ocs.site_config.get_config(args, 'HostMaster')
 
     # Most important is the site filename and host alias.
-    import os
     hm_script = os.path.join(host.agent_paths[0], 'host_master/host_master.py')
     cmd = [sys.executable, hm_script,
            '--site-file', site.source_file,

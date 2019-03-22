@@ -92,6 +92,9 @@ instances (running two different classes of agent):
   
     host-2: {
   
+      # Crossbar start-up instructions (optional).
+      'crossbar': {'config-dir': /sobs/ocs/dot_crossbar/'},
+
       # List of additional paths to Agent plugin modules.
       'agent-paths': [
         '/sobs/ocs/agents/',
@@ -130,16 +133,11 @@ the SiteConfig class:
 .. autoclass:: ocs.site_config.SiteConfig
    :members: from_dict
 
-The difference between a host name and a "pseudo-host name" is that a
-host name might plausibly be computed automatically by calling
-``socket.gethostname``, while a pseudo-host name is something the user
-will have to specify explicitly (perhaps through the command line
-argument ``--site-host``) when invoking the agent.
-
-The ``hub`` information is used by all Agent and Control Clients to
-connect to the OCS WAMP router.  This WAMP router (probably crossbar)
-usually has its own configuration file.  The settings in SCF ``hub``
-block are parsed by the ``from_dict`` method of the HubConfig class:
+The ``hub`` information is used by all Agent and Control Clients, on
+all hosts, to connect to the OCS WAMP router.  This WAMP router
+(probably crossbar) usually has its own configuration file.  The
+settings in SCF ``hub`` block are parsed by the ``from_dict`` method
+of the HubConfig class:
 
 .. autoclass:: ocs.site_config.HubConfig
    :members: from_dict
@@ -153,7 +151,17 @@ method of the HostConfig class:
 .. autoclass:: ocs.site_config.HostConfig
    :members: from_dict
 
-The significance of ``agent-paths`` is described more in :ref:`agent_plugins`.
+To allow ocs to manipulate the ``crossbar`` router (e.g. if you want
+to easily start and stop it using ``ocsbow``), then the ``crossbar``
+variable should be defined, with (at least) an empty dictionary.  The
+details of the options are described in the ``from_dict`` method of
+the CrossbarConfig class:
+
+.. autoclass:: ocs.site_config.CrossbarConfig
+   :members: from_dict
+
+The significance of ``agent-paths`` is described more in
+:ref:`agent_plugins`.
 
 InstanceConfig
 --------------

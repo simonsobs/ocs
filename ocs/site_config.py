@@ -3,6 +3,7 @@ import ocs
 import socket
 import os
 import yaml
+
     
 class SiteConfig:
     def __init__(self):
@@ -17,11 +18,27 @@ class SiteConfig:
 
         The configuration dictionary should have the following elements:
 
-        ``hub`` (required): Describes what WAMP server and realm
-            Agents and Clients should use.
-        ``hosts`` (required): A dictionary of HostConfig
-            descriptions.  The keys in this dictionary can be real
-            host names on the network, or pseudo-host names if needed.
+        ``hub`` (required)
+            Describes what WAMP server and realm Agents and Clients
+            should use.
+
+        ``hosts`` (required)
+            A dictionary of HostConfig descriptions.  The keys in this
+            dictionary can be real host names on the network,
+            pseudo-host names, or the special value "localhost".
+
+        A HostConfig marked for "localhost" will match any host that
+        does not have an exact match in the hosts dictionary.  This
+        should normally be used only in single-host test systems or
+        examples.
+
+        Client programs will normally (i.e., by default) try to load
+        the HostConfig associated with the system hostname (that which
+        is returned by socket.gethostname()). But this can be
+        overridden easily, for example by using the ``--site-host``
+        command line argument.  It is thus quite reasonable to use the
+        hosts dictionary to hold a set of useful configurations
+        indexed by a user-specified string (a pseudo-host).
 
         """
         self = cls()
@@ -55,11 +72,22 @@ class HostConfig:
 
         The configuration dictionary should have the following elements:
        
-        ``agent-instances`` (required): A list of AgentConfig
-            descriptions.
+        ``agent-instances`` (required)
+            A list of AgentConfig descriptions.
 
-        ``agent-paths`` (optional): A list of additional paths where
-            OCS is permitted to search for Agent plugin modules.
+        ``agent-paths`` (optional)
+            A list of additional paths where OCS is permitted to
+            search for Agent plugin modules.
+
+        ``crossbar`` (optional)
+            Settings to assist with starting / stopping / monitoring a
+            crossbar server running on this host.  There is a single
+            crossbar server for an OCS network and thus this entry
+            should be defined for at most one of the hosts in the site
+            config file.  Note that setting this to None (or null)
+            will disable host crossbar control, while setting it to an
+            empty dictionary, {}, will enable local host crossbar
+            control with default settings.
 
         """
         self = cls(name=name)
@@ -67,7 +95,49 @@ class HostConfig:
         self.data = data
         self.instances = data['agent-instances']
         self.agent_paths = data.get('agent-paths', [])
+        self.crossbar = CrossbarConfig.from_dict(data.get('crossbar'))
         return self
+
+class CrossbarConfig:
+    @classmethod
+    def from_dict(cls, data, parent=None):
+        """Args:
+            data: The configuration dictionary, or None.
+            parent: the HostConfig from which this data was extracted
+                (this is stored as self.parent, but not used).
+
+        The configuration dictionary should have the following elements:
+
+        ``config-dir`` (optional): Location of crossbar config.json;
+            this gets passed to ``--cbdir``, if specified..
+
+        ``bin`` (optional): The path to the crossbar executable.
+            Defaults to /usr/bin/crossbar.
+
+        If data is None, returns None.  Otherwise returns a
+        CrossbarConfig object.
+        """
+        if data is None:
+            return None
+        self = cls()
+        self.parent = parent
+        self.binary = data.get('bin', '/usr/bin/crossbar')
+        self.cbdir = data.get('config-dir')
+        if self.cbdir is None:
+            self.cbdir_args = []
+        else:
+            self.cbdir_args = ['--cbdir', self.cbdir]
+        return self
+
+    def get_cmd(self, cmd):
+        return [self.binary, cmd] + self.cbdir_args
+
+    def summary(self):
+        return summarize_dict({
+            'bin': self.binary,
+            'config-dir': self.cbdir,
+            })
+
 
 class HubConfig:
     @classmethod
@@ -105,6 +175,10 @@ class HubConfig:
         self.parent = parent
         self.data = data
         return self
+
+    def summary(self):
+        return summarize_dict(self.data)
+
 
 class InstanceConfig:
     def __init__(self):
@@ -145,8 +219,12 @@ class InstanceConfig:
         self.arguments = self.data['arguments']
         return self
 
-    
-    
+
+def summarize_dict(d):
+    output = '\n'.join(['  %s: %s,' % (repr(k), repr(v))
+                        for k,v in d.items()])
+    return '{\n%s\n}' % output
+
 def add_arguments(parser=None):
     """
     Add OCS site_config options to an ArgumentParser.
@@ -280,7 +358,15 @@ def get_config(args, agent_class=None):
     if no_host_match:
         host_config = None
     else:
-        host_config = site_config.hosts[host]
+        for host_try in [host, 'localhost']:
+            try:
+                host_config = site_config.hosts[host_try]
+                break
+            except KeyError:
+                pass
+        else: # No matches.
+            raise KeyError('Site config has no entry in "hosts" for "%s"'
+                           ' (nor for "localhost")' % host)
 
     # Identify our agent-instance.
     instance_config = None

@@ -109,8 +109,14 @@ class OCSAgent(ApplicationSession):
             self.agent_address = 'observatory.random'
         # Register our processes...
         # Register the device interface functions.
-        yield self.register(self.my_device_handler, self.agent_address + '.ops')
-        yield self.register(self.my_management_handler, self.agent_address)
+        try:
+            yield self.register(self.my_device_handler, self.agent_address + '.ops')
+            yield self.register(self.my_management_handler, self.agent_address)
+        except ApplicationError:
+            self.log.error('Failed to register basic handlers @ %s; '
+                           'agent probably running already.' % self.agent_address)
+            self.leave()
+            return
 
         self.register_feed("heartbeat", max_messages=1)
 

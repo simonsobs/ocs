@@ -1243,7 +1243,7 @@ class Curve:
         # Skip to the R and T values in the file and strip them of tabs, newlines, etc
         values = []
         for i in range(9, len(content)):
-            values.append(content[i].replace('\t', ' ').strip().replace(' ', ', ').split(','))
+            values.append(content[i].strip().split())
 
         self.delete_curve()  # remove old curve first, so old breakpoints don't remain
 

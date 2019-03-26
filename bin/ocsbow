@@ -120,12 +120,47 @@ elif args.command in ['status', 'start', 'stop', 'monitor']:
             stat = client.request('start', 'master', [])
         elif args.command == 'stop':
             stat = client.request('stop', 'master', [])
+        else:
+            stat = None
 
-        if args.command == 'monitor' or args.follow:
+        if stat is not None:
+            # Decode stat
+            err, msg, session = stat
+            if err != ocs.OK:
+                print('Error when requesting master Process "%s":\n  %s' %
+                      (args.command, msg))
+            print('Status of the master Process: %s' % session['status'])
+
+        if args.command == 'stop' and err == ocs.OK:
+            # Block for it to exit.
+            print('Waiting for exit...')
+            stat = client.request('wait', 'master', timeout=5)
+            err, msg, session = stat
+            if err == ocs.TIMEOUT:
+                print(" ... timed-out!  Last status report is: %s" % session['status'])
+            elif err == ocs.OK:
+                print(" ... done.")
+            else:
+                print(" ... Error! : %s" % msg)
+
+        elif args.command == 'monitor' or args.follow:
             import time
-            while True:
-                time.sleep(10)
+            session = None
+            try:
+                while True:
+                    print('[Blocking for logs; Ctrl-C to exit.]')
+                    time.sleep(10)
+            except KeyboardInterrupt:
+                pass
         
+        if session is not None:
+            n_trunc = 20
+            print('Most recent session log (truncated to %i lines):' % n_trunc)
+            for msg in session.get('messages',[])[-n_trunc:]:
+                print('  %.3f' % msg[0], msg[1])
+
+
+
     except RuntimeError as e:
         parsed, err_name, text = decode_exception(e.args)
         if parsed and err_name == 'wamp.error.no_such_procedure':
@@ -134,19 +169,5 @@ elif args.command in ['status', 'start', 'stop', 'monitor']:
         print('Unexpected error getting master process status:')
         raise
     
-    # Decode stat
-    err, msg, session = stat
-    is_running = (session.get('status') == 'running')
-
-    print('Status of the HostMaster: %s' % {True: 'running', False:
-                                            'not_running'}[is_running])
-    if session is None:
-        print('There is no recent session information.')
-    else:
-        n_trunc = 20
-        print('Most recent session log (truncated to %i lines):' % n_trunc)
-        for msg in session.get('messages',[])[-n_trunc:]:
-            print('  %.3f' % msg[0], msg[1])
-
     client.stop()
 

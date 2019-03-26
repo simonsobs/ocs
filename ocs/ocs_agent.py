@@ -531,6 +531,9 @@ class AgentProcess:
         self.stopper = stopper
         self.blocking = blocking
 
+
+SESSION_STATUS_CODES = [None, 'starting', 'running', 'stopping', 'done']
+
 class OpSession:
     """
     When a caller requests that an Operation (Process or Task) is
@@ -557,6 +560,7 @@ class OpSession:
         self.end_time = None
         self.app = app
         self.success = None
+        self.status = None
 
         # This has to be the last call since it depends on init...
         self.set_status(status, log_status=log_status, timestamp=self.start_time)
@@ -601,13 +605,46 @@ class OpSession:
                 'session_id': self.session_id}
 
     def set_status(self, status, timestamp=None, log_status=True):
+        """Update the OpSession status and possibly post a message about it.
+
+        Args:
+            status (string): New value for status (see below).
+            timestamp (float): timestamp for the operation.
+            log_status (bool): Determines whether change is logged in 
+                message buffer.
+
+        The possible values for status are:
+
+        'starting'
+            This status object has just been created, and the
+            Operation launch code has yet to run.
+
+        'running'
+            The Operation is running.
+
+        'stopping'
+            The Operation is running, but a stop or abort has been
+            requested.
+
+        'done'
+            The Operation is has terminated.  (Failure / success must
+            be determined separately.)
+
+        The only valid transitions are forward in the sequence
+        [starting, running, stopping, done]; i.e. it is forbidden for
+        the status of an OpSession to move from stopping to running.
+        """
         if timestamp is None:
             timestamp = time.time()
         if not in_reactor_context():
             return reactor.callFromThread(self.set_status, status,
                                           timestamp=timestamp,
                                           log_status=log_status)
-        assert status in ['starting', 'running', 'stopping', 'done']
+        # Sanity check the status value.
+        from_index = SESSION_STATUS_CODES.index(self.status) # current status valid?
+        to_index = SESSION_STATUS_CODES.index(status)        # new status valid?
+        assert (to_index >= from_index)  # Only forward moves in status are permitted.
+
         self.status = status
         if status == 'done':
             self.end_time = timestamp

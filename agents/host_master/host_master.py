@@ -203,6 +203,8 @@ class HostMaster:
         return True, 'Exited.'
 
     def master_process_stop(self, session, params=None):
+        if session.status == 'done':
+            return
         session.set_status('stopping')
         self.running = False
         return True, 'Stop initiated.'

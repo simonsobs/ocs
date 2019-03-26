@@ -50,7 +50,7 @@ class ControlClient(WampyClient):
         return self.call(self.agent_addr, 'get_processes')
 
 
-    def request(self, action, op_name, params):
+    def request(self, action, op_name, params=[], **kw):
         """
         Issue a request on an Agent's .ops interface.
 
@@ -61,4 +61,4 @@ class ControlClient(WampyClient):
         Returns:
           Tuple (status, message, session).
         """
-        return self.call(self.agent_addr + '.ops', action, op_name, params)
+        return self.call(self.agent_addr + '.ops', action, op_name, params, **kw)

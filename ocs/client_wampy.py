@@ -8,7 +8,6 @@
 
 from wampy.peers import Client as WampyClient
 from wampy.messages.call import Call as WampyCall
-from wampy.roles.subscriber import subscribe
 
 class ControlClient(WampyClient):
     def __init__(self, agent_addr, **kwargs):
@@ -22,6 +21,17 @@ class ControlClient(WampyClient):
         if not hasattr(response, 'yield_args'):
             raise RuntimeError(response.message)
         return response.yield_args[0]
+
+    def subscribe(self, topic, handler):
+        """Assign a handler function to a pubsub topic.
+
+        Discussion: the wampy documentation suggests using the
+        decorator @subscribe to connect pubsub channels with handling
+        functions.  The main problem with this is that channels can't
+        be added dynamically, and a single function can be associated
+        with multiple pubsub topics.
+        """
+        self.session._subscribe_to_topic(handler, topic)
 
     # These are API we want to add.
 

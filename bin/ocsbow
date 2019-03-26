@@ -10,6 +10,7 @@ except ImportError:
     pass
 
 import sys
+import time
 
 import ocs
 from ocs import client_wampy as cw
@@ -87,21 +88,8 @@ elif args.command in ['status', 'start', 'stop', 'monitor']:
 
     # Connect to crossbar.
     master_addr = '%s.%s' % (site.hub.data['address_root'], instance.data['instance-id'])
-    
-    if args.command == 'monitor' or args.follow:
-        feed_addr = master_addr + '.feed'
-        class NosyClient(cw.ControlClient):
-            @cw.subscribe(topic=feed_addr)
-            def watch_events(self, *args, **kw):
-                print('FEED:', args, kw)
-            @cw.subscribe(topic='observatory.registry.feeds.agent_activity')
-            def watch_events(self, *args, **kw):
-                print('A2:', args, kw)
-        client_class = NosyClient
-    else:
-        client_class = cw.ControlClient
 
-    client = client_class(
+    client = cw.ControlClient(
         master_addr,
         url=site.hub.data['wamp_server'],
         realm=site.hub.data['wamp_realm'])
@@ -112,6 +100,25 @@ elif args.command in ['status', 'start', 'stop', 'monitor']:
         print('  url: %s' % site.hub.data['wamp_server'])
         print('  realm: %s' % site.hub.data['wamp_realm'])
         sys.exit(1)
+
+    # Subscriptions?
+    if args.command == 'monitor' or args.follow:
+        last_msg = 0.
+        def monitor_func(*args, **kwargs):
+            # This is a general monitoring function that just prints
+            # whatever was sent.  Most pubsub sources output
+            # structured information (such as Operation Session
+            # blocks) so we can eventually tailor the output to the
+            # topic.
+            global last_msg
+            topic = kwargs.get('meta', {}).get('topic', '(unknown)')
+            print('==%s== : ' % topic, args)
+            last_msg = time.time()
+
+        feed_addr = master_addr + '.feed'
+        client.subscribe(feed_addr, monitor_func)
+        client.subscribe('observatory.registry.feeds.agent_activity',
+                         monitor_func)
 
     try:
         if args.command == 'status':
@@ -144,12 +151,13 @@ elif args.command in ['status', 'start', 'stop', 'monitor']:
                 print(" ... Error! : %s" % msg)
 
         elif args.command == 'monitor' or args.follow:
-            import time
             session = None
             try:
                 while True:
-                    print('[Blocking for logs; Ctrl-C to exit.]')
-                    time.sleep(10)
+                    if last_msg is not None and time.time() - last_msg > 5:
+                        print('[Blocking for logs; Ctrl-C to exit.]')
+                        last_msg = None
+                    time.sleep(5)
             except KeyboardInterrupt:
                 pass
         

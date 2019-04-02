@@ -45,6 +45,12 @@ def get_parser():
     p = cmdsubp.add_parser('launch', help=
                            'Launch an instance of the HostMaster agent.')
 
+    p = cmdsubp.add_parser('relaunch', help=
+                           'Unlaunch then Launch the HostMaster agent.')
+
+    p = cmdsubp.add_parser('unlaunch', help=
+                           'Unlaunch, i.e. cause to exit, the running HostMaster agent.')
+
     p = cmdsubp.add_parser('monitor', help=
                            'Connect to the HostMaster log feed and copy to '
                            'the terminal.')

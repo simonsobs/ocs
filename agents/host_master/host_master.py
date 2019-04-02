@@ -209,6 +209,17 @@ class HostMaster:
         self.running = False
         return True, 'Stop initiated.'
 
+    def die(self, session, params=None):
+        # Lock-out new starts.
+        ##...
+        # Request master_process stop.
+        ##...
+        # Wait for stop, with timeout.
+        ##...
+        # Die.
+        self.agent.leave()
+        return True, 'Quitting.'
+
 
 class AgentProcessProtocol(protocol.ProcessProtocol):
     # See https://twistedmatrix.com/documents/current/core/howto/process.html
@@ -258,6 +269,6 @@ if __name__ == '__main__':
                            host_master.master_process,
                            host_master.master_process_stop,
                            blocking=False)
-
+    agent.register_task('die', host_master.die, blocking=False)
     runner.run(agent, auto_reconnect=True)
 

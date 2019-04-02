@@ -6,6 +6,15 @@
 # own call function, which returns the first element of arglist (see
 # WAMP "RESULT" specification).
 
+try:
+    # wampy (0.9.20) requires this gevent patch, but a warning is
+    # issued because the patch occurs too late.  So this avoids the
+    # warning, and maybe makes the patch work better?
+    import gevent.monkey
+    gevent.monkey.patch_all()
+except ImportError:
+    pass
+
 from wampy.peers import Client as WampyClient
 from wampy.messages.call import Call as WampyCall
 
@@ -57,16 +66,16 @@ class ControlClient(WampyClient):
 
         Returns a list of items of the form (feed_name, info_dict).
         """
-        return self.call(self.agent_addr, 'get_processes')
+        return self.call(self.agent_addr, 'get_feeds')
 
 
-    def request(self, action, op_name, params=[], **kw):
+    def request(self, action, op_name, params={}, **kw):
         """
         Issue a request on an Agent's .ops interface.
 
         Args:
           action (string): The action name (start, status, etc).
-          params (list): Parameters to pass to the action.
+          params (dict): Parameters to pass to the action.
 
         Returns:
           Tuple (status, message, session).

@@ -8,6 +8,18 @@ import ocs
 from ocs import client_wampy as cw
 from ocs import ocsbow
 
+def decode_exception(args):
+    """
+    Decode certain RuntimeError raised by wampy.
+    """
+    try:
+        text, data = args[0][4:6]
+        assert(text.startswith('wamp.'))
+    except Exception as e:
+        return False, args, str(args)
+    return True, text, str(data)
+
+
 parser = ocsbow.get_parser()
 
 
@@ -109,7 +121,7 @@ elif args.command in ['crossbar']:
                 print('New crossbar instance exited within %.1f seconds.' % monitor_time)
                 sys.exit(10)
 
-elif args.command in ['launch']:
+elif args.command in ['launch', 'unlaunch', 'relaunch']:
     # This is specifically for starting the host master agent process;
     # that's different than starting the host master's main process
     # (see start/stop for that).
@@ -117,27 +129,35 @@ elif args.command in ['launch']:
     # Parse the config to find this host's HostMaster instance info.
     site, host, instance = ocs.site_config.get_config(args, 'HostMaster')
 
-    # Most important is the site filename and host alias.
-    hm_script = os.path.join(host.agent_paths[0], 'host_master/host_master.py')
-    cmd = [sys.executable, hm_script,
-           '--site-file', site.source_file,
-           '--site-host', host.name]
-    print('Launching host_master (%s)...' % cmd[1])
-    pid = os.spawnv(os.P_NOWAIT, cmd[0], cmd)
-    print('... pid is %i' % pid)
+    if args.command in ['unlaunch', 'relaunch']:
+        print('Trying to stop HostMaster agent...')
+        master_addr = '%s.%s' % (site.hub.data['address_root'],
+                                 instance.data['instance-id'])
+        client = ocs.site_config.get_control_client(
+            instance.data['instance-id'], args=args)
+        try:
+            stat = client.request('start', 'die', [])
+        except RuntimeError as e:
+            parsed, err_name, text = decode_exception(e.args)
+            if parsed and err_name == 'wamp.error.no_such_procedure':
+                print('Failed to contact host master at %s' % master_addr)
+                print('That probably means the Agent is not running.')
+            else:
+                print('Unexpected error getting master process status:')
+                raise
+
+    if args.command in ['launch', 'relaunch']:
+        # Most important is the site filename and host alias.
+        hm_script = os.path.join(host.agent_paths[0], 'host_master/host_master.py')
+        print('Launching HostMaster through %s' % hm_script)
+        cmd = [sys.executable, hm_script,
+               '--site-file', site.source_file,
+               '--site-host', host.name]
+        print('Launching host_master (%s)...' % cmd[1])
+        pid = os.spawnv(os.P_NOWAIT, cmd[0], cmd)
+        print('... pid is %i' % pid)
 
 elif args.command in ['status', 'start', 'stop', 'monitor']:
-
-    def decode_exception(args):
-        """
-        Decode certain RuntimeError raised by wampy.
-        """
-        try:
-            text, data = args[0][4:6]
-            assert(text.startswith('wamp.'))
-        except Exception as e:
-            return False, args, str(args)
-        return True, text, str(data)
 
     # Parse the config to find this host's HostMaster instance info.
     site, host, instance = ocs.site_config.get_config(args, 'HostMaster')

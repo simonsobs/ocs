@@ -166,9 +166,9 @@ class HubConfig:
             ``observatory`` or ``detlab.system1``.  (Command line
             override: ``--address-root``.)
 
-        ``registry_agent`` (optional): The address of the OCS Registry
+        ``registry_address`` (optional): The address of the OCS Registry
             Agent.  See :ref:`registry`.  (Command line override:
-            ``--registry-agent``.)
+            ``--registry-address``.)
 
         """
         self = cls()

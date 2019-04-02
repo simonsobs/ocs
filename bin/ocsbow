@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
 
-try:
-    # wampy (0.9.20) requires this gevent patch, but a warning is
-    # issued because the patch occurs too late.  So this avoids the
-    # warning, and maybe makes the patch work better?
-    import gevent.monkey
-    gevent.monkey.patch_all()
-except ImportError:
-    pass
-
 import os
 import sys
 import time

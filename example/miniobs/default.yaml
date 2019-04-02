@@ -1,0 +1,32 @@
+# Site configuration for a fake observatory.
+hub:
+
+  wamp_server: ws://localhost:8001/ws
+  wamp_realm: debug_realm
+  address_root: observatory
+  registry_address: observatory.registry
+
+hosts:
+
+  localhost: {
+    'crossbar': {'config-dir': './dot_crossbar/'},
+    'log-dir': './logs',
+    'agent-paths': [
+        '../../agents/',
+        './',
+        ],
+    'agent-instances': [
+      {'agent-class': 'HostMaster',
+       'instance-id': 'hm1',
+       'arguments': []},
+      {'agent-class': 'RegistryAgent',
+       'instance-id': 'registry',
+       'arguments': []},
+      {'agent-class': 'AggregatorAgent',
+       'instance-id': 'agg1',
+       'arguments': []},
+      {'agent-class': 'FakeDataAgent',
+       'instance-id': 'data1',
+       'arguments': []},
+    ]
+  }

@@ -297,7 +297,7 @@ class DataAggregator:
         reg_address = self.agent.site_args.registry_address
 
         if reg_address is None:
-            self.log.warning("No registry address is in site args")
+            self.log.warn("No registry address is in site args")
             return True, "Initialized Aggregator"
 
         self.agent.subscribe_to_feed(reg_address,

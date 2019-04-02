@@ -24,6 +24,8 @@ parser = ocsbow.get_parser()
 
 
 args = parser.parse_args()
+if args.working_dir is None:
+    args.working_dir = os.getcwd()
 ocs.site_config.reparse_args(args, '*host*')
 
 if args.command == 'config':
@@ -34,9 +36,10 @@ if args.command == 'config':
         print()
         print('ocs import led to: %s' % (ocs.__file__))
         print()
-        site, _, _ = ocs.site_config.get_config(args, '*host*')
+        site, host, _ = ocs.site_config.get_config(args, '*host*')
         print('Site file was determined to be: %s' % site.source_file)
         print()
+        print('Logging directory is: %s' % host.log_dir)
         print('The site file describes %i hosts:' % len(site.hosts))
         for k,v in site.hosts.items():
             print('  Host %s includes %i agent instances:' % (k, len(v.instances)))
@@ -104,7 +107,7 @@ elif args.command in ['crossbar']:
         monitor_time = None
         if args.cb_request == 'start' and not args.fg:
             # By default, we launch to background.  We leave error logging
-            # on, becausee start-up issues (such as trying to start when
+            # on, because start-up issues (such as trying to start when
             # another session is already active) will otherwise be
             # annoying to diagnose.
             cmd.extend(['--loglevel', 'error'])
@@ -147,12 +150,21 @@ elif args.command in ['launch', 'unlaunch', 'relaunch']:
                 raise
 
     if args.command in ['launch', 'relaunch']:
+        log_dir = host.log_dir
+        if log_dir is not None and not log_dir.startswith('/'):
+            log_dir = os.path.join(host.working_dir, log_dir)
+        if log_dir is not None:
+            if not os.path.exists(log_dir):
+                print('\nWARNING: the expected log dir, %s, does not exist!\n' %
+                      log_dir)
         # Most important is the site filename and host alias.
         hm_script = os.path.join(host.agent_paths[0], 'host_master/host_master.py')
         print('Launching HostMaster through %s' % hm_script)
+        print('Log dir is: %s' % log_dir)
         cmd = [sys.executable, hm_script,
                '--site-file', site.source_file,
-               '--site-host', host.name]
+               '--site-host', host.name,
+               '--working-dir', args.working_dir]
         print('Launching host_master (%s)...' % cmd[1])
         pid = os.spawnv(os.P_NOWAIT, cmd[0], cmd)
         print('... pid is %i' % pid)
@@ -193,8 +205,6 @@ elif args.command in ['status', 'start', 'stop', 'monitor']:
 
         feed_addr = master_addr + '.feed'
         client.subscribe(feed_addr, monitor_func)
-        client.subscribe('observatory.registry.feeds.agent_activity',
-                         monitor_func)
 
     try:
         if args.command == 'status':

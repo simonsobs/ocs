@@ -7,12 +7,15 @@ from twisted.internet import reactor, task, threads
 from twisted.internet.defer import inlineCallbacks, Deferred, DeferredList, FirstError
 from twisted.internet.error import ReactorNotRunning
 
+from twisted.python import log
+from twisted.logger import formatEvent, FileLogObserver
+
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from autobahn.wamp.exception import ApplicationError
 from .ocs_twisted import in_reactor_context
 
-import time
+import time, datetime
 from deprecation import deprecated
 from ocs import client_t
 
@@ -44,6 +47,12 @@ def init_ocs_agent(address=None):
     runner = ApplicationRunner(server, realm)
     return agent, runner
 
+
+def log_formatter(event):
+    text = formatEvent(event)
+    t = datetime.datetime.utcnow()
+    date_str = t.strftime("%Y-%m-%dT%H-%M-%S.%f")
+    return '%s %s\n' % (date_str, text)
 
 class OCSAgent(ApplicationSession):
     """OCSAgent is used to connect blocking device control code to the
@@ -89,6 +98,28 @@ class OCSAgent(ApplicationSession):
         self.registered = False
         self.log = txaio.make_logger()
         self.heartbeat_call = None
+
+        # Attach the logger.
+        log_dir, log_file = site_args.log_dir, None
+        if log_dir is not None:
+            if not log_dir.startswith('/'):
+                import os
+                log_dir = os.path.join(site_args.working_dir, log_dir)
+            if os.path.exists(log_dir):
+                log_file = '%s/%s.log' % (log_dir, self.agent_address)
+                try:
+                    fout = open(log_file, 'a')
+                    log.addObserver(FileLogObserver(fout, log_formatter))
+                except PermissionError:
+                    self.log.error('Permissions error writing to log file %s' % log_file)
+            else:
+                self.log.error('Log directory does not exist: %s' % log_dir)
+
+        log.addObserver(self.log_publish)
+
+        # Can we log already?
+        self.log.info('ocs: starting %s @ %s' % (str(self.__class__), address))
+        self.log.info('log_file is apparently %s' % (log_file))
 
     """
     Methods below are implementations of the ApplicationSession.
@@ -151,6 +182,10 @@ class OCSAgent(ApplicationSession):
                 reactor.stop()
             except ReactorNotRunning:
                 pass
+
+    def log_publish(self, event):
+        text = log_formatter(event)
+        #self.publish('observatory.%s.log', text)
 
     """The methods below provide OCS framework support."""
             
@@ -229,6 +264,7 @@ class OCSAgent(ApplicationSession):
         if encoded is None:
             encoded = self.encoded()
 
+        self.log.info('register_agent() @ %s' % self.site_args.registry_address)
         if self.site_args.registry_address in [None, "none", "None"]:
             return
 

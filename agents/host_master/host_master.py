@@ -33,6 +33,7 @@ class HostMaster:
             self.agent.site_args, '*host*')
         self.site_config_file = site.source_file
         self.host_name = hc.name
+        self.working_dir = hc.working_dir
 
         # Add plugin paths and scan.
         for p in hc.agent_paths:
@@ -52,24 +53,26 @@ class HostMaster:
 
         return True, ''
 
-    def _launch_instance(self, pid_key, script_file, site_file,
-                         host_name, instance_id):
+    def _launch_instance(self, pid_key, script_file, instance_id):
         """
         Launch an Agent instance using reactor.spawnProcess.  The
         ProcessProtocol, which holds communication pathways to the
         process, will be registered in self.pid_cache.  The site_file
         and instance_id are passed on the command line; this means
         that any weird config overrides passed to this HostMaster are
-        not propagated.
+        not propagated.  One exception is working_dir, which is
+        propagated in order that relative paths can make any sense.
 
         Because of the use of spawnProcess, this should be called in
         the reactor thread.
+
         """
         pyth = sys.executable
         cmd = [pyth, script_file,
                '--instance-id', instance_id,
-               '--site-file', site_file,
-               '--site-host', host_name]
+               '--site-file', self.site_config_file,
+               '--site-host', self.host_name,  # why does host prop?
+               '--working-dir', self.working_dir]
         prot = AgentProcessProtocol()
         prot.instance_id = instance_id # probably only used for logging.
         reactor.spawnProcess(prot, cmd[0], cmd[:], env=os.environ)
@@ -152,7 +155,6 @@ class HostMaster:
                         self.pid_cache[key] = None
                         reactor.callFromThread(
                             self._launch_instance, key, db['agent_script'],
-                            self.site_config_file, self.host_name,
                             db['instance_id'])
                         db['next_action'] = 'wait_start'
                         db['at'] = time.time() + 1.
@@ -261,6 +263,9 @@ if __name__ == '__main__':
     parser = site_config.add_arguments()
     args = parser.parse_args()
     site_config.reparse_args(args, 'HostMaster')
+
+    # To reduce "try again" noise, don't tell Registry about HostMaster.
+    args.registry_address = 'none'
 
     agent, runner = ocs_agent.init_site_agent(args)
     host_master = HostMaster(agent)

@@ -62,6 +62,8 @@ class HostConfig:
         self.instances = []
         self.name = name
         self.agent_paths = []
+        self.log_dir = None
+        self.working_dir = os.getcwd()
  
     @classmethod
     def from_dict(cls, data, parent=None, name=None):
@@ -89,6 +91,10 @@ class HostConfig:
             empty dictionary, {}, will enable local host crossbar
             control with default settings.
 
+        ``log-dir`` (optional)
+            Path at which to write log files.  Relative paths will be
+            interpreted relative to the "working directory"; see
+            --working-dir command line option.
         """
         self = cls(name=name)
         self.parent = parent
@@ -96,6 +102,7 @@ class HostConfig:
         self.instances = data['agent-instances']
         self.agent_paths = data.get('agent-paths', [])
         self.crossbar = CrossbarConfig.from_dict(data.get('crossbar'))
+        self.log_dir = data.get('log-dir', None)
         return self
 
 class CrossbarConfig:
@@ -271,6 +278,12 @@ def add_arguments(parser=None):
     ``--address-root=...``:
         Override the site default address root.
 
+    ``--log-dir=...``:
+        Override the host default logging directory.
+
+    ``--working-dir=...``:
+        Propagate the working directory.
+
     """
     if parser is None:
         import argparse
@@ -299,6 +312,10 @@ def add_arguments(parser=None):
     """Override the site default address root.""")
     group.add_argument('--registry-address', help=
     """Override the site default registry address.""")
+    group.add_argument('--log-dir', help=
+    """Set the logging directory.""")
+    group.add_argument('--working-dir', help=
+    """Propagate the working directory.""")
     return parser
     
 def get_config(args, agent_class=None):
@@ -368,6 +385,11 @@ def get_config(args, agent_class=None):
             raise KeyError('Site config has no entry in "hosts" for "%s"'
                            ' (nor for "localhost")' % host)
 
+        if args.working_dir is not None:
+            host_config.working_dir = args.working_dir
+        if args.log_dir is not None:
+            host_config.log_dir = args.log_dir
+
     # Identify our agent-instance.
     instance_config = None
     if no_dev_match:
@@ -422,6 +444,8 @@ def reparse_args(args, agent_class=None):
         args.address_root = site.hub.data['address_root']
     if args.registry_address is None:
         args.registry_address = site.hub.data.get('registry_address')
+    if args.log_dir is None:
+        args.log_dir = host.log_dir
 
     if instance is not None:
         if args.instance_id is None:

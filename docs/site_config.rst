@@ -69,9 +69,12 @@ instances (running two different classes of agent):
   
     host-1: {
   
+      # Directory for logs.
+      'log-dir': '/simonsobs/log/ocs/',
+
       # List of additional paths to Agent plugin modules.
       'agent-paths': [
-        '/sobs/ocs/agents/',
+        '/simonsobs/ocs/agents/',
       ],
 
       # Description of host-1's Agents?  We have two readout devices;
@@ -93,11 +96,14 @@ instances (running two different classes of agent):
     host-2: {
   
       # Crossbar start-up instructions (optional).
-      'crossbar': {'config-dir': /sobs/ocs/dot_crossbar/'},
+      'crossbar': {'config-dir': /simonsobs/ocs/dot_crossbar/'},
+
+      # Directory for logs.
+      'log-dir': '/simonsobs/log/ocs/',
 
       # List of additional paths to Agent plugin modules.
       'agent-paths': [
-        '/sobs/ocs/agents/',
+        '/simonsobs/ocs/agents/',
       ],
 
       # Description of host-2's Agents?  We have two devices: another
@@ -336,23 +342,25 @@ works like this:
 - A bundle of Agent scripts is assembled at some location.  There are
   no restrictions on where these scripts can live in the file system.
   For example, a script called ``riverbank_agent.py`` might live in
-  ``/sobs/agents/``.
+  ``/simonsobs/agents/``.
 - A special "registration script" is written, with a filename of the
   form ``ocs_plugin_*.py``.  This script should live in Python's
   import path, or else (and this is better), the path to the script
   should be included in the ``agent-paths`` variable in the SCF for
-  this host.  For example, we might put the file in ``/sob/agents``
-  and call it ``ocs_plugin_sobs.py``.
+  this host.  For example, we might put the file in ``/simonsobs/agents``
+  and call it ``ocs_plugin_simonsobs.py``.
 - When the site_config system (specifically the HostMaster agent)
   needs to find a particular agent script, it:
+
   - Adds any directories in ``agent-paths`` to the Python import path.
   - Scans through all importable modules, and imports them if they
     match the ``ocs_plugin_*`` name pattern.
+
 - The ``ocs_plugin`` script makes calls into ocs to associate a
   particular script filenames to agent class names.  In our example,
-  ``ocs_plugin_sobs.py`` would call
+  ``ocs_plugin_simonsobs.py`` would call
   ``ocs.site_config.register_agent_class('RiverBank',
-  '/sobs/agents/riverbank_agent.py')``.
+  '/simonsobs/agents/riverbank_agent.py')``.
 
 A good example of a plugin script can be found in the OCS agents
 directory, ``ocs_plugins_standard.py``.

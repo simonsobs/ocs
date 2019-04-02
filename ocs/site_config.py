@@ -435,6 +435,41 @@ def reparse_args(args, agent_class=None):
     return args
 
 
+def get_control_client(instance_id, site=None, args=None, start=True):
+    """Instantiate and return a wampy_client.ControlClient, targeting the
+    specified instance_id.
+
+    Args:
+        site (SiteConfig): All configuration will be taken from this
+            object, if it is not None.
+
+        args (argparse.Namespace or similar): Arguments from which to
+            derive the site configuration; this will be populated from
+            the command line using the usual site_config calls if args
+            is None.
+
+        start (bool): Determines whether to call .start() on the client before
+            returning it.
+
+    Returns a ControlClient.
+    """
+    from ocs import client_wampy
+    if site is None:
+        if args is None:
+            parser = ocs.site_config.add_arguments()
+            args = parser.parse_args()
+            ocs.site_config.reparse_args(args, '*host*')
+        site, _, _ = ocs.site_config.get_config(args, '*host*')
+    master_addr = '%s.%s' % (site.hub.data['address_root'], instance_id)
+    client = client_wampy.ControlClient(
+        master_addr,
+        url=site.hub.data['wamp_server'],
+        realm=site.hub.data['wamp_realm'])
+    if start:
+        client.start()
+    return client
+
+
 # We'll also keep the Agent script registry here.
 agent_script_reg = {}
 

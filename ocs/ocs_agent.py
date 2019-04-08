@@ -89,6 +89,7 @@ class OCSAgent(ApplicationSession):
         self.registered = False
         self.log = txaio.make_logger()
         self.heartbeat_call = None
+        self.agent_session_id = str(time.time())
 
     """
     Methods below are implementations of the ApplicationSession.
@@ -161,6 +162,7 @@ class OCSAgent(ApplicationSession):
         """
         return {
             'agent_address': self.agent_address,
+            'agent_session_id': self.agent_session_id,
             'feeds': [f[1].encoded() for f in self.feeds.items()],
             'tasks': list(self.tasks.keys()),
             'processes': list(self.processes.keys())

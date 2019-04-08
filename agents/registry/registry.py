@@ -2,6 +2,16 @@ from ocs import ocs_agent, site_config
 import time
 from twisted.internet import task
 
+class RegisteredAgent:
+    def __init__(self, agent_encoded, reg_agent):
+        self.encoded = agent_encoded
+        for k,v in self.encoded.items():
+            setattr(self, k, v)
+
+        self.time_registered = time.time()
+        self.last_heartbeat = time.time()
+
+
 class Registry:
     """
     The Registry agent is in charge of keeping track of which agents are
@@ -32,26 +42,37 @@ class Registry:
             # unregister itself.
             if address == self.agent.agent_address:
                 continue
-            if (current_time - agent["last_heartbeat"]) > self.agent_timeout:
+            if (current_time - agent.last_heartbeat) > self.agent_timeout:
                 agents_to_remove.append(address)
 
         for address in agents_to_remove:
-            del(self.active_agents[address])
-            self.log.info("Agent {} has been removed due to inactivity".format(address))
-            self.agent.publish_to_feed("agent_activity", ("removed", agent))
-
+            if self.remove_agent(address):
+                self.log.info("Agent {} has been removed due to inactivity"
+                              .format(address))
 
     def _register_heartbeat(self, data):
         """Registers the heartbeats of active_agents"""
         _, feed_data = data
         agent_address = feed_data['agent_address']
         if agent_address in self.active_agents.keys():
-            self.active_agents[agent_address]['last_heartbeat'] = time.time()
+            self.active_agents[agent_address].last_heartbeat = time.time()
+
+    def remove_agent(self, agent_address):
+        agent = self.active_agents.get(agent_address)
+        if not agent:
+            self.log.warn("Tried to remove {}, but agent was not registered"
+                          .format(agent_address))
+            return False
+
+        self.log.info("Removing agent {}".format(agent_address))
+        self.agent.publish_to_feed("agent_activity", ("removed", agent.encoded))
+        del(self.active_agents[agent_address])
+        return True
 
 
     def register_agent(self, session, agent_data):
         """
-        Adds agent to list of active agents and subscribes to heartbeat feed.
+        TASK: Adds agent to list of active agents and subscribes to heartbeat feed.
 
         Args
             agent_data (dict):  Encoded agent data.
@@ -62,43 +83,25 @@ class Registry:
 
         action = "added"
         if address in self.active_agents.keys():
-            self.log.error("Address {} is already registered, agent info is being updated".format(address))
-            action = "updated"
+            if agent_data['agent_session_id'] != self.active_agents[address].agent_session_id:
+                self.log.info("Address {} is already registered. Removing old"
+                              "instance and replacing it with new one"
+                              .format(address))
 
-        self.active_agents[address] = agent_data
-        self.active_agents[address]["time_registered"] = time.time()
-        self.active_agents[address]["last_heartbeat"] = time.time()
+                self.remove_agent(address)
+            else:
+                self.log.info("Agent with session id {} has already been registered."
+                              .format(agent_data['agent_session_id']))
+                return False, "Agent already registered with session id {}".format(agent_data['agent_session_id'])
+
+        self.active_agents[address] = RegisteredAgent(agent_data, self.agent)
         self.agent.subscribe_to_feed(address, 'heartbeat', self._register_heartbeat)
-
 
         self.log.info("Registered agent {}".format(address))
         session.add_message("Registered agent {}".format(address))
         self.agent.publish_to_feed("agent_activity", (action, agent_data));
 
         return True, "Registered agent {}".format(address)
-
-    def unregister_agent(self, session, agent_data):
-        """
-        Removes agent from list of active agents.
-
-        Args
-            agent_data (dict):  Encoded agent data.
-                Must contain at least agent address.
-        """
-
-        agent_address = agent_data["address"]
-        action = "removed"
-        try:
-            del self.active_agents[agent_address]
-            self.log.info("Agent {} has been removed".format(agent_address))
-            session.add_message("Agent {} has been removed".format(agent_address))
-            self.agent.publish_to_feed("agent_activity", (action, agent_data))
-
-        except KeyError:
-            self.log.error("{} is not a registered agent".format(agent_address))
-            return False, "Agent not registered"
-
-        return True, "Removed agent {}".format(agent_address)
 
     def dump_agent_info(self, session, params = {}):
         """
@@ -107,7 +110,7 @@ class Registry:
         """
         action = "status"
         for address, agent in self.active_agents.items():
-            self.agent.publish_to_feed("agent_activity", (action, agent))
+            self.agent.publish_to_feed("agent_activity", (action, agent.encoded))
 
         return True, "Dumped agent info"
 
@@ -122,7 +125,6 @@ if __name__ == '__main__':
 
     agent.register_task('dump_agent_info', registry.dump_agent_info)
     agent.register_task('register_agent', registry.register_agent)
-    agent.register_task('unregister_agent', registry.unregister_agent)
 
     # Starts looping call that calls _motitor_active_agent every second
     loop_call = task.LoopingCall(registry._monitor_active_agents)

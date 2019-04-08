@@ -121,7 +121,8 @@ class LS240_Agent:
 
             if self.fake_data:
                 for therm in self.thermometers:
-                    data['data'][therm] = random.randrange(250, 350)
+                    data['data'][therm + ' T'] = random.randrange(250, 350)
+                    data['data'][therm + ' V'] = random.randrange(250, 350)
                 time.sleep(.2)
 
             else:

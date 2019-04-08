@@ -148,15 +148,18 @@ if __name__ == '__main__':
     # Add options specific to this agent.
     pgroup = parser.add_argument_group('Agent Options')
     pgroup.add_argument('--serial-number')
-    pgroup.add_argument('--num-channels', default=2, type=int)
+    pgroup.add_argument('--num-channels', default='2')
     pgroup.add_argument('--mode')
-    pgroup.add_argument('--fake-data', action="store_true")
+    pgroup.add_argument('--fake-data', default='0')
 
     # Parse comand line.
     args = parser.parse_args()
 
     # Interpret options in the context of site_config.
     site_config.reparse_args(args, 'Lakeshore240Agent')
+
+    num_channels = int(args.num_channels)
+    fake_data = int(args.fake_data)
     
     # Finds usb-port for device
     # This should work for devices with the cp210x driver
@@ -170,11 +173,11 @@ if __name__ == '__main__':
                 print("Found port {}".format(device_port))
                 break
 
-    if device_port or args.fake_data:
+    if device_port or fake_data:
         agent, runner = ocs_agent.init_site_agent(args)
 
-        therm = LS240_Agent(agent, num_channels=args.num_channels,
-                            fake_data=args.fake_data, port=device_port)
+        therm = LS240_Agent(agent, num_channels=num_channels,
+                            fake_data=fake_data, port=device_port)
 
         agent.register_task('init_lakeshore', therm.init_lakeshore_task)
         agent.register_process('acq', therm.start_acq, therm.stop_acq)

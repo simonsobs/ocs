@@ -32,22 +32,22 @@ class LS372_Agent:
         # Registers temperature feeds
         agg_params = {
             'blocking': {
-                         'Channel 01': {'data': ['Channel 01']},
-                         'Channel 02': {'data': ['Channel 02']},
-                         'Channel 03': {'data': ['Channel 03']},
-                         'Channel 04': {'data': ['Channel 04']},
-                         'Channel 05': {'data': ['Channel 05']},
-                         'Channel 06': {'data': ['Channel 06']},
-                         'Channel 07': {'data': ['Channel 07']},
-                         'Channel 08': {'data': ['Channel 08']},
-                         'Channel 09': {'data': ['Channel 09']},
-                         'Channel 10': {'data': ['Channel 10']},
-                         'Channel 11': {'data': ['Channel 11']},
-                         'Channel 12': {'data': ['Channel 12']},
-                         'Channel 13': {'data': ['Channel 13']},
-                         'Channel 14': {'data': ['Channel 14']},
-                         'Channel 15': {'data': ['Channel 15']},
-                         'Channel 16': {'data': ['Channel 16']},
+                         'Channel 01': {'data': ['Channel 01 T', 'Channel 01 R']},
+                         'Channel 02': {'data': ['Channel 02 T', 'Channel 02 R']},
+                         'Channel 03': {'data': ['Channel 03 T', 'Channel 03 R']},
+                         'Channel 04': {'data': ['Channel 04 T', 'Channel 04 R']},
+                         'Channel 05': {'data': ['Channel 05 T', 'Channel 05 R']},
+                         'Channel 06': {'data': ['Channel 06 T', 'Channel 06 R']},
+                         'Channel 07': {'data': ['Channel 07 T', 'Channel 07 R']},
+                         'Channel 08': {'data': ['Channel 08 T', 'Channel 08 R']},
+                         'Channel 09': {'data': ['Channel 09 T', 'Channel 09 R']},
+                         'Channel 10': {'data': ['Channel 10 T', 'Channel 10 R']},
+                         'Channel 11': {'data': ['Channel 11 T', 'Channel 11 R']},
+                         'Channel 12': {'data': ['Channel 12 T', 'Channel 12 R']},
+                         'Channel 13': {'data': ['Channel 13 T', 'Channel 13 R']},
+                         'Channel 14': {'data': ['Channel 14 T', 'Channel 14 R']},
+                         'Channel 15': {'data': ['Channel 15 T', 'Channel 15 R']},
+                         'Channel 16': {'data': ['Channel 16 T', 'Channel 16 R']},
                         }
         }
         self.agent.register_feed('temperatures',
@@ -123,7 +123,9 @@ class LS372_Agent:
                     'data': {}
                 }
 
-                data['data'][active_channel.name] = self.module.get_temp(chan=active_channel.channel_num)
+                # Collect both temperature and resistance values from each Channel
+                data['data'][active_channel.name + ' T'] = self.module.get_temp(unit='kelvin', chan=active_channel.channel_num)
+                data['data'][active_channel.name + ' R'] = self.module.get_temp(unit='ohms', chan=active_channel.channel_num)
                 time.sleep(.01)
 
             print("Data: {}".format(data))

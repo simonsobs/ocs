@@ -25,12 +25,17 @@ class LS240_Agent:
         self.thermometers = ['Channel {}'.format(i + 1) for i in range(num_channels)]
         self.log = agent.log
 
-        # Registers temperature feeds
+        # Registers Temperature and Voltage feeds
+        data_block = []
+        for channel in self.thermometers:
+            data_block.append("{} T".format(channel))
+            data_block.append("{} V".format(channel))
+
         agg_params = {
             'blocking': {
                          'temps':
                              {'prefix': '',
-                              'data': self.thermometers
+                              'data': data_block
                               }
                          }
         }
@@ -121,7 +126,8 @@ class LS240_Agent:
 
             else:
                 for i, therm in enumerate(self.thermometers):
-                    data['data'][therm] = self.module.channels[i].get_reading()
+                    data['data'][therm + ' T'] = self.module.channels[i].get_reading(unit='K')
+                    data['data'][therm + ' V'] = self.module.channels[i].get_reading(unit='S')
 
                 time.sleep(sleep_time)
 

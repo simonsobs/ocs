@@ -165,7 +165,7 @@ class LS372_Agent:
         if params['range'] == current_range:
             print("Current heater range matches commanded value. Proceeding unchanged.")
         else:
-            self.module.sample_heater.set_heater_range(params)
+            self.module.sample_heater.set_heater_range(params['range'])
             time.sleep(params['wait'])
 
         self.set_job_done()

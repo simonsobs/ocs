@@ -3,10 +3,11 @@ import time
 from twisted.internet import task
 
 class RegisteredAgent:
-    def __init__(self, agent_encoded, reg_agent):
+    def __init__(self, agent_encoded):
         self.encoded = agent_encoded
-        for k,v in self.encoded.items():
-            setattr(self, k, v)
+
+        for key in ['agent_session_id']:
+            setattr(self, key, self.encoded[key])
 
         self.time_registered = time.time()
         self.last_heartbeat = time.time()
@@ -58,6 +59,12 @@ class Registry:
             self.active_agents[agent_address].last_heartbeat = time.time()
 
     def remove_agent(self, agent_address):
+        """
+        Removes agent from the registry and publishes removal to the status feed.
+
+        Args
+            agent_address (string): address of agent to be removed.
+        """
         agent = self.active_agents.get(agent_address)
         if not agent:
             self.log.warn("Tried to remove {}, but agent was not registered"
@@ -94,7 +101,7 @@ class Registry:
                               .format(agent_data['agent_session_id']))
                 return False, "Agent already registered with session id {}".format(agent_data['agent_session_id'])
 
-        self.active_agents[address] = RegisteredAgent(agent_data, self.agent)
+        self.active_agents[address] = RegisteredAgent(agent_data)
         self.agent.subscribe_to_feed(address, 'heartbeat', self._register_heartbeat)
 
         self.log.info("Registered agent {}".format(address))

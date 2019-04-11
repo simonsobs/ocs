@@ -3,6 +3,7 @@ include Makefile.local
 endif
 
 PYTHON ?= python
+VERSION := $(shell python -c 'import ocs; print (ocs.__version__)')
 
 ifneq ($(PREFIX),)
 install_args = --prefix=$(PREFIX)
@@ -20,5 +21,10 @@ develop:
 bundle:
 	git archive HEAD --format=tar --prefix=ocs/ | gzip -c > ocs.tar.gz
 
+docker-image:
+	docker build -t ocs:$(VERSION) .
+	docker tag ocs:$(VERSION) ocs:latest
 
 .dummy: default install
+
+# vim: set expandtab!:

@@ -16,6 +16,7 @@ from autobahn.wamp.exception import ApplicationError
 from .ocs_twisted import in_reactor_context
 
 import time, datetime
+import os
 from deprecation import deprecated
 from ocs import client_t
 
@@ -104,7 +105,6 @@ class OCSAgent(ApplicationSession):
         log_dir, log_file = site_args.log_dir, None
         if log_dir is not None:
             if not log_dir.startswith('/'):
-                import os
                 log_dir = os.path.join(site_args.working_dir, log_dir)
             if os.path.exists(log_dir):
                 log_file = '%s/%s.log' % (log_dir, self.agent_address)

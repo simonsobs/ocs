@@ -444,7 +444,7 @@ def reparse_args(args, agent_class=None):
         args.address_root = site.hub.data['address_root']
     if args.registry_address is None:
         args.registry_address = site.hub.data.get('registry_address')
-    if args.log_dir is None:
+    if (args.log_dir is None) and (host is not None):
         args.log_dir = host.log_dir
 
     if instance is not None:

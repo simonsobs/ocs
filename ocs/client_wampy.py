@@ -11,7 +11,11 @@ try:
     # issued because the patch occurs too late.  So this avoids the
     # warning, and maybe makes the patch work better?
     import gevent.monkey
-    gevent.monkey.patch_all()
+
+    # Checks if patch_all has already been run.
+    if '_gevent_saved_patch_all' not in gevent.monkey.saved:
+        gevent.monkey.patch_all()
+
 except ImportError:
     pass
 

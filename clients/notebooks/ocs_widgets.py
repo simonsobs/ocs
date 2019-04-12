@@ -26,7 +26,6 @@ class ProcessWidget(wd.Box):
         self.params = params
 
         self.label = wd.Label("{}: {}".format(client.agent_addr, process))
-        self.label.layout.
 
         self.start = wd.Button(description="Start")
         self.start.on_click(self.cb)

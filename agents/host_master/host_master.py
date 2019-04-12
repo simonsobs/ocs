@@ -20,13 +20,15 @@ class HostMaster:
     def __init__(self, agent):
         self.agent = agent
         self.running = False
-        self.pid_cache = {} # key is (class_name, instance_id)
+        self.database = {} # key is (class_name, instance_id)
         self.site_file = None
  
-    def _init_instance_list(self, session):
-        """
-        Parse the site config and register all of this host's instances in
-        pid_cache.
+    def _get_instance_list(self):
+        """Parse the site config and return a list of this host's Agent
+        instances.
+
+        Returns:
+            List of (agent_class, instance_id) pairs.
         """
         # Load site config file.
         site, hc, _ = site_config.get_config(
@@ -41,23 +43,20 @@ class HostMaster:
                 sys.path.append(p)
         site_config.scan_for_agents()
         
-        # Loop through all Agent instances on this host and add them
-        # to pid_cache.
+        # Construct the list; exclude HostMaster class.
+        keys = []
         for inst in hc.instances:
             class_name, instance_id = inst['agent-class'], inst['instance-id']
             if class_name == 'HostMaster':
                 continue
-            key = (class_name, instance_id)
-            if not key in self.pid_cache:
-                self.pid_cache[key] = None
-
-        return True, ''
+            keys.append((class_name, instance_id))
+        return keys
 
     def _launch_instance(self, pid_key, script_file, instance_id):
         """
         Launch an Agent instance using reactor.spawnProcess.  The
         ProcessProtocol, which holds communication pathways to the
-        process, will be registered in self.pid_cache.  The site_file
+        process, will be registered in self.database.  The site_file
         and instance_id are passed on the command line; this means
         that any weird config overrides passed to this HostMaster are
         not propagated.  One exception is working_dir, which is
@@ -76,13 +75,13 @@ class HostMaster:
         prot = AgentProcessProtocol()
         prot.instance_id = instance_id # probably only used for logging.
         reactor.spawnProcess(prot, cmd[0], cmd[:], env=os.environ)
-        self.pid_cache[pid_key] = prot
+        self.database[pid_key]['prot'] = prot
 
     def _terminate_instance(self, key):
         """
         Use the ProcessProtocol to request the Agent instance to exit.
         """
-        prot = self.pid_cache.get(key) # Get the ProcessProtocol.
+        prot = self.database[key]['prot'] # Get the ProcessProtocol.
         if prot is None:
             return True, 'Instance was not running.'
         if prot.killed:
@@ -109,17 +108,18 @@ class HostMaster:
         session.set_status('running')
 
         # Update the list of Agent instances.
-        self._init_instance_list(session)
+        agent_keys = self._get_instance_list()
         session.add_message('Loaded %i agent instance configs.' %
-                             len(self.pid_cache.keys()))
+                             len(agent_keys))
 
         self.database = {
             key: {'next_action': 'start',
                   'class_name': key[0],
                   'instance_id': key[1],
+                  'prot': None,
                   'full_name': ('%s:%s' % tuple(key)),
                   'agent_script': site_config.agent_script_reg.get(key[0])
-            } for key in self.pid_cache.keys() }
+            } for key in agent_keys}
         
         any_jobs = False
         dying_words = ['idle', 'kill', 'wait_dead']  #allowed during shutdown
@@ -129,9 +129,9 @@ class HostMaster:
             sleep_time = 1.
             any_jobs = False
 
-            for key, prot in self.pid_cache.items():
+            for key, db in self.database.items():
                 # State machine.
-                db = self.database[key]
+                prot = db['prot']
 
                 if not self.running and db['next_action'] not in dying_words:
                     db['next_action'] = 'kill'
@@ -152,7 +152,7 @@ class HostMaster:
                     else:
                         session.add_message(
                             'Requested launch for {full_name}'.format(**db))
-                        self.pid_cache[key] = None
+                        db['prot'] = None
                         reactor.callFromThread(
                             self._launch_instance, key, db['agent_script'],
                             db['instance_id'])
@@ -177,7 +177,6 @@ class HostMaster:
                                             'with code {stat}.'.format(stat=stat, **db))
                         db['next_action'] = 'start_at'
                         db['at'] = time.time() + 3
-                    self.pid_cache[key]
                 elif db['next_action'] == 'kill':
                     session.add_message('Requesting termination of '
                                         '{full_name}'.format(**db))

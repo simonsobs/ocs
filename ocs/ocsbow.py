@@ -19,7 +19,6 @@ and communicate with the HostMaster Agent for the local host."""
 def get_parser():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser = ocs.site_config.add_arguments(parser)
-    parser.add_argument('--follow', '-f', action='store_true')
     cmdsubp = parser.add_subparsers(dest='command')
 
     # config
@@ -44,26 +43,32 @@ def get_parser():
                    'than spawning to background.')
 
     # hostmaster agent instance
-    p = cmdsubp.add_parser('launch', help=
-                           'Launch an instance of the HostMaster agent.')
+    p = cmdsubp.add_parser('hostmaster', help=
+                           'Manipulate the local HostMaster agent instance.')
 
-    p = cmdsubp.add_parser('relaunch', help=
-                           'Unlaunch then Launch the HostMaster agent.')
+    p.add_argument('hm_request', choices=['start', 'stop', 'restart', 'status'],
+                   help=
+                   'Use these commands to start, stop, restart, or request '
+                   'status from the HostMaster Agent instance.')
 
-    p = cmdsubp.add_parser('unlaunch', help=
-                           'Unlaunch, i.e. cause to exit, the running HostMaster agent.')
+    # agent-set
+    p = cmdsubp.add_parser('agent', help=
+                           'Manipulate child Agent instances controlled by the HostMaster.')
 
-    p = cmdsubp.add_parser('monitor', help=
-                           'Connect to the HostMaster log feed and copy to '
-                           'the terminal.')
+    p.add_argument('agent_request', choices=['start','stop','restart','status'],
+                   help='Use these commands to start, stop, or request the '
+                   'status of individual Agents controlled by the HostMaster.')
 
-    # start, stop
-    p = cmdsubp.add_parser('start', help=
-                           'Start the HostMaster agent.')
-    p = cmdsubp.add_parser('stop', help=
-                           'Stop the HostMaster agent.')
+    p.add_argument('target', nargs='*', default=['all'], help=
+                   'Agent instance_id to which the command should be applied.')
+
+    # up, down.
+    p = cmdsubp.add_parser('up', help=
+                           'Start EVERYTHING.')
+    p = cmdsubp.add_parser('down', help=
+                           'Stop EVERYTHING.')
     p = cmdsubp.add_parser('status', help=
-                           'Show status of the HostMaster agent.')
+                           'Show status of EVERYTHING.')
     
     return parser
 
@@ -196,22 +201,47 @@ def main_crossbar(args):
                 print('New crossbar instance exited within %.1f seconds.' % monitor_time)
                 sys.exit(10)
 
-def main_launch(args):
-    # This is specifically for starting the host master agent process;
-    # that's different than starting the host master's main process
-    # (see start/stop for that).
+def main_hostmaster(args):
+    # This is specifically for starting/stopping/restarting the host
+    # master agent; that's different than starting the host master's
+    # main Process (see agent start/stop for that).
 
     # Parse the config to find this host's HostMaster instance info.
     site, host, instance = ocs.site_config.get_config(args, 'HostMaster')
 
-    if args.command in ['unlaunch', 'relaunch']:
-        print('Trying to stop HostMaster agent...')
-        master_addr = '%s.%s' % (site.hub.data['address_root'],
-                                 instance.data['instance-id'])
-        client = ocs.site_config.get_control_client(
-            instance.data['instance-id'], args=args)
+    master_addr = '%s.%s' % (site.hub.data['address_root'],
+                             instance.data['instance-id'])
+    client = ocs.site_config.get_control_client(
+        instance.data['instance-id'], args=args)
+
+    if args.hm_request == 'status':
+        print('Getting status of HostMaster agent...')
         try:
-            stat = client.request('start', 'die', [])
+            stat = client.request('status', 'master')
+        except RuntimeError as e:
+            parsed, err_name, text = decode_exception(e.args)
+            if parsed and err_name == 'wamp.error.no_such_procedure':
+                print('Failed to contact host master at %s' % master_addr)
+                print('That probably means the Agent is not running.')
+            else:
+                print('Unexpected error getting master process status:')
+                raise
+        else:
+            ok, msg, session = stat
+            if ok == ocs.OK:
+                status_text = session.get('status', '<unknown>')
+                if status_text == 'running':
+                    status_text += ' for %i seconds' % \
+                        (time.time()  - session['start_time'])
+                print('Master Process is:', status_text)
+            else:
+                print('Error requesting master Process status: %s' % msg)
+                return
+
+    if args.hm_request in ['stop', 'restart']:
+        print('Trying to stop HostMaster agent...')
+        try:
+            stat = client.request('start', 'die')
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':
@@ -221,7 +251,7 @@ def main_launch(args):
                 print('Unexpected error getting master process status:')
                 raise
 
-    if args.command in ['launch', 'relaunch']:
+    if args.hm_request in ['start', 'restart']:
         log_dir = host.log_dir
         if log_dir is not None and not log_dir.startswith('/'):
             log_dir = os.path.join(host.working_dir, log_dir)
@@ -241,90 +271,67 @@ def main_launch(args):
         pid = os.spawnv(os.P_NOWAIT, cmd[0], cmd)
         print('... pid is %i' % pid)
 
-def main_masterproc(args):
+def main_agent(args):
     # Parse the config to find this host's HostMaster instance info.
     site, host, instance = ocs.site_config.get_config(args, 'HostMaster')
 
-    # Connect to crossbar.
+    client = ocs.site_config.get_control_client(
+            instance.data['instance-id'], args=args)
     master_addr = '%s.%s' % (site.hub.data['address_root'], instance.data['instance-id'])
 
-    client = cw.ControlClient(
-        master_addr,
-        url=site.hub.data['wamp_server'],
-        realm=site.hub.data['wamp_realm'])
-    try:
-        client.start()
-    except ConnectionRefusedError as e:
-        print('Failed to establish connection to crossbar server.')
-        print('  url: %s' % site.hub.data['wamp_server'])
-        print('  realm: %s' % site.hub.data['wamp_realm'])
-        sys.exit(1)
-
-    # Subscriptions?
-    if args.command == 'monitor' or args.follow:
-        last_msg = 0.
+    if 0:
+        # Subscriptions?
+        # Keeping this, disabled, as a place-holder.  It can be used
+        # to subscribe to log feeds from arbitrary agents.
+        #
         def monitor_func(*args, **kwargs):
             # This is a general monitoring function that just prints
             # whatever was sent.  Most pubsub sources output
             # structured information (such as Operation Session
             # blocks) so we can eventually tailor the output to the
             # topic.
-            global last_msg
             topic = kwargs.get('meta', {}).get('topic', '(unknown)')
             print('==%s== : ' % topic, args)
-            last_msg = time.time()
-
         feed_addr = master_addr + '.feed'
         client.subscribe(feed_addr, monitor_func)
 
     try:
-        if args.command == 'status':
-            stat = client.request('status', 'master', [])
-        elif args.command == 'start':
-            stat = client.request('start', 'master', [])
-        elif args.command == 'stop':
-            stat = client.request('stop', 'master', [])
-        else:
-            stat = None
+        # In all cases, make sure process is running.
+        stat = client.request('status', 'master')
+        err, msg, session = stat
+        master_proc_running = (session.get('status') == 'running')
 
-        if stat is not None:
-            # Decode stat
-            err, msg, session = stat
-            if err != ocs.OK:
-                print('Error when requesting master Process "%s":\n  %s' %
-                      (args.command, msg))
-            print('Status of the master Process: %s' % session['status'])
-
-        if args.command == 'stop' and err == ocs.OK:
-            # Block for it to exit.
-            print('Waiting for exit...')
-            stat = client.request('wait', 'master', timeout=5)
-            err, msg, session = stat
-            if err == ocs.TIMEOUT:
-                print(" ... timed-out!  Last status report is: %s" % session['status'])
-            elif err == ocs.OK:
-                print(" ... done.")
+        if args.agent_request == 'status':
+            if not master_proc_running:
+                print('The master Process is not running.')
             else:
-                print(" ... Error! : %s" % msg)
+                print('The master Process is running.')
+                print('In the future, I will tell you about what child '
+                      'Agents are detected / active.')
+            return
 
-        elif args.command == 'monitor' or args.follow:
-            session = None
-            try:
-                while True:
-                    if last_msg is not None and time.time() - last_msg > 5:
-                        print('[Blocking for logs; Ctrl-C to exit.]')
-                        last_msg = None
-                    time.sleep(5)
-            except KeyboardInterrupt:
-                pass
+        if args.agent_request == 'start':
+            params = {'requests': [(t, 'up') for t in args.target]}
+        elif args.agent_request == 'stop':
+            params = {'requests': [(t, 'down') for t in args.target]}
+        elif args.agent_request == 'restart':
+            params = {'requests': [(t, 'cycle') for t in args.target]}
 
-        if session is not None:
-            n_trunc = 20
-            print('Most recent session log (truncated to %i lines):' % n_trunc)
-            for msg in session.get('messages',[])[-n_trunc:]:
-                print('  %.3f' % msg[0], msg[1])
+        if not master_proc_running:
+            print('Starting master process.')
+            # If starting process for the first time, set all agents
+            # to 'down'.
+            params['requests'].insert(0, ('all', 'down'))
+            err, msg, session = \
+                client.request('start', 'master', params)
+        else:
+            err, msg, session = \
+                client.request('start', 'update', params)
 
-
+        if err != ocs.OK:
+            print('Error when requesting master Process "%s":\n  %s' %
+                  (args.agent_request, msg))
+        print('Status of the master Process: %s' % session['status'])
 
     except RuntimeError as e:
         parsed, err_name, text = decode_exception(e.args)
@@ -347,9 +354,9 @@ def main():
 
     if args.command == 'config':
         main_config(args)
-    elif args.command in ['crossbar']:
+    elif args.command == 'crossbar':
         main_crossbar(args)
-    elif args.command in ['launch', 'unlaunch', 'relaunch']:
-        main_launch(args)
-    elif args.command in ['status', 'start', 'stop', 'monitor']:
-        main_masterproc(args)
+    elif args.command == 'hostmaster':
+        main_hostmaster(args)
+    elif args.command == 'agent':
+        main_agent(args)

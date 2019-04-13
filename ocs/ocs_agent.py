@@ -256,6 +256,42 @@ class OCSAgent(ApplicationSession):
         self.sessions[name] = None
 
     @inlineCallbacks
+    def call_op(self, agent_address, op_name, action, params=None, timeout=None):
+        """
+        Calls ocs_agent operation.
+
+        Args:
+            agent_address (string):
+                Address of the agent who registered operation
+            op_name (string):
+                Name of the operation
+            action (string):
+                Action of operation. start, stop , wait, etc.
+            params (dict):
+                Params passed to operation
+            timeout (float):
+                timeout for operation
+        """
+        if not in_reactor_context():
+            x = yield reactor.callFromThread(
+                self.call_op, agent_address, op_name, action, params=params, timeout=timeout
+            )
+            return x
+
+        op = client_t.OperationClient(self, agent_address, op_name)
+        try:
+            x = yield op.request(action, params=params, timeout=timeout)
+            return x
+        except ApplicationError as e:
+            self.log.warn(e.error)
+            if e.error == u'wamp.error.no_such_procedure':
+                self.log.warn("Operation {}.ops.{} has not been registered"
+                              .format(agent_address, op_name))
+            else:
+                self.log.warn(e.error)
+            return False
+
+    @inlineCallbacks
     def register_agent(self, encoded=None):
         """
         Registers the agent with Registry. Uses Registry address from
@@ -271,7 +307,7 @@ class OCSAgent(ApplicationSession):
             return
 
         if not in_reactor_context():
-            reactor.callFromThread(self.register_agent)
+            return reactor.callFromThread(self.register_agent)
 
         reg_task = client_t.TaskClient(self, self.site_args.registry_address,
                                          'register_agent')
@@ -442,6 +478,7 @@ class OCSAgent(ApplicationSession):
             return (ocs.OK, msg, session.encoded())
         
         else:
+            self.log.warn("No task called {}".format(op_name))
             return (ocs.ERROR, 'No task or process called "%s"' % op_name, {})
 
     @inlineCallbacks
@@ -723,30 +760,6 @@ class OpSession:
     @deprecated(details="Use publish_data in all threading contexts.")
     def post_data(self, data):
         reactor.callFromThread(self.publish_data, data)
-
-    def call_operation(self, operation, params=None, timeout=None, block=False):
-        """
-        Calls ocs_agent operation.
-
-        Args:
-            operation (function):
-                operation to call
-            params (dict):
-                Parameters passed to operation
-            timeout (float):
-                Operation timeout
-            block (bool):
-                Whether or not operation should be called in a blocking thread.
-        """
-
-
-        kwargs = {'params': params}
-        if timeout is not None:
-            kwargs['timeout'] = timeout
-        if block:
-            return threads.blockingCallFromThread(reactor, operation, **kwargs)
-        else:
-            reactor.callFromThread(operation, **kwargs)
 
 class Feed:
     """

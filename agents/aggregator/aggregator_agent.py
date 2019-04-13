@@ -4,15 +4,12 @@ import numpy as np
 from ocs import ocs_agent, site_config, client_t
 import os
 
-import so3g
-from spt3g import core
+from twisted.internet.defer import inlineCallbacks
+from twisted.internet import reactor
 
-# if os.getenv('OCS_DOC_BUILD') != 'True':
-#     from spt3g import core
-
-# import op_model as opm
-from autobahn.wamp.exception import ApplicationError
-
+if os.getenv('OCS_DOC_BUILD') != 'True':
+    from spt3g import core
+    import so3g
 
 class DataAggregator:
     """
@@ -63,10 +60,13 @@ class DataAggregator:
             Writer for the current G3File
     """
 
-    def __init__(self, agent):
+    def __init__(self, agent, time_per_file, data_dir):
 
         self.agent = agent
         self.log = agent.log
+
+        self.time_per_file = time_per_file
+        self.data_dir = data_dir
 
         self.providers = {} # by agent address
         self.next_prov_id = 0
@@ -293,7 +293,6 @@ class DataAggregator:
         TASK: Subscribes to `agent_activity` feed and has registry dump
                 info on all active agents.
         """
-
         reg_address = self.agent.site_args.registry_address
 
         if reg_address is None:
@@ -304,11 +303,7 @@ class DataAggregator:
                                      'agent_activity',
                                      self._new_agent_handler)
 
-        if self.agent.registered:
-            dump_agents_t = client_t.TaskClient(session.app,
-                                            reg_address,
-                                            'dump_agent_info')
-            session.call_operation(dump_agents_t.start, block=True)
+        self.agent.call_op(reg_address, 'dump_agent_info', 'start')
 
         return True, "Initialized Aggregator"
 
@@ -384,8 +379,8 @@ class DataAggregator:
         if params is None:
             params = {}
 
-        time_per_file = params.get("time_per_file", 60 * 60) # [s]
-        data_dir = params.get("data_dir", "data/")
+        time_per_file = params.get("time_per_file", self.time_per_file) # [s]
+        data_dir = params.get("data_dir", self.data_dir)
 
         self.log.info("Starting data aggregation in directory {}".format(data_dir))
         session.set_status('running')
@@ -435,15 +430,33 @@ class DataAggregator:
 if __name__ == '__main__':
 
     parser = site_config.add_arguments()
+
+    # Add options specific to this agent.
+    pgroup = parser.add_argument_group('Agent Options')
+    pgroup.add_argument('--initial-state', default='idle')
+    pgroup.add_argument('--time-per-file', default='3600')
+    pgroup.add_argument('--data-dir', default='data/')
+
     args = parser.parse_args()
     site_config.reparse_args(args, 'AggregatorAgent')
 
     agent, runner = ocs_agent.init_site_agent(args)
 
-    data_aggregator = DataAggregator(agent)
+    data_aggregator = DataAggregator(agent, int(args.time_per_file), args.data_dir)
 
     agent.register_task('initialize', data_aggregator.initialize)
     agent.register_task('add_feed', data_aggregator.add_feed)
     agent.register_process('aggregate', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
 
+    @inlineCallbacks
+    def on_start():
+        agent.log.info("Starting aggregator with initial state {}".format(args.initial_state))
+
+        yield agent.call_op(agent.agent_address, 'initialize', 'start')
+        yield agent.call_op(agent.agent_address, 'initialize', 'wait')
+
+        if args.initial_state == 'record':
+            yield agent.call_op(agent.agent_address, 'aggregate', 'start')
+
+    reactor.callLater(1, on_start)
     runner.run(agent, auto_reconnect=True)

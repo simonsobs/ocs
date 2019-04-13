@@ -4,8 +4,8 @@ import random
 import time
 import threading
 import os
-from autobahn.wamp.exception import ApplicationError
 
+from autobahn.wamp.exception import ApplicationError
 
 class LS240_Agent:
 
@@ -96,9 +96,10 @@ class LS240_Agent:
 
         """
         if params is None:
-            f_sample = 2.5 #Hz
-        else:
-            f_sample = params['sampling_frequency']
+            params = {}
+
+        f_sample = params.get('sampling_frequency', 2.5)
+
         sleep_time = 1/f_sample - 0.01
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg

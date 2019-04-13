@@ -86,7 +86,28 @@ To read from a g3 file, you can call ``file = core.G3File(filename)``.
 Aggregator Agent
 --------------------------------
 The aggregator agent's purpose is to take data being published by a general
-Agent, and to write it to a so3g file. To make sure that a feed is picked up
+Agent, and to write it to a so3g file.
+
+The aggregator agent takes three site-config arguments.
+``--initial-state`` can be either ``record`` or ``idle``,
+and determines whether or not the aggregator starts recording
+as soon as it is initialized.
+``--time-per-file`` specifies how long each file should be in seconds,
+and ``--data-dir`` specifies the default data directory.
+Both of these can also be manually specified in ``params`` when
+the ``record`` process is started.
+An example site-config entry is
+::
+
+    {'agent-class': 'AggregatorAgent',
+       'instance-id': 'aggregator',
+       'arguments': [['--initial-state', 'record'],
+                     ['--time-per-file', '3600'],
+                     ['--data-dir', '/data/hk']
+       ]},
+
+
+To make sure that a feed is picked up
 by the aggregator, it must be registered with the option 'aggregate=True'.
 It also must be registered with the blocking structure that the aggregator should
 use when writing the file to disk. An example can be seen in LS240_agent.py::

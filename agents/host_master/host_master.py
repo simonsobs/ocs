@@ -1,3 +1,4 @@
+import ocs
 from ocs import ocs_agent, site_config
 import time
 
@@ -341,13 +342,19 @@ class HostMaster:
         self._update_target_states(session, params)
         return True, 'Update requested.'
 
+    @inlineCallbacks
     def die(self, session, params=None):
-        # Lock-out new starts.
-        ##...
-        # Request master_process stop.
-        ##...
-        # Wait for stop, with timeout.
-        ##...
+        session.set_status('running')
+        if not self.running:
+            session.add_message('Master process is not running.')
+        else:
+            session.add_message('Requesting exit of master process.')
+            ok, msg, mp_session = self.agent.stop('master')
+            ok, msg, mp_session = yield self.agent.wait('master', timeout=10.)
+            if ok == ocs.OK:
+                session.add_message('... master Process has exited.')
+            else:
+                session.add_message('... timed-out waiting for master Process exit!')
         # Die.
         self.agent.leave()
         return True, 'Quitting.'

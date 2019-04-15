@@ -238,6 +238,26 @@ class LS372_Agent:
         self.set_job_done()
         return True, f'return text for Set PID to {params["P"]}, {params["I"]}, {params["D"]}'
 
+    def set_active_channel(self, session, params):
+        """
+        Set the active channel on the LS372.
+
+        :param params: dict with "channel" number
+        :type params: dict
+        """
+        ok, msg = self.try_set_job('set_active_channel')
+        if not ok:
+            return ok, msg
+
+        session.set_status('running')
+
+        self.module.set_active_channel(params["channel"])
+        session.add_message(f'post message text for set channel to {params["channel"]}')
+        print(f'print text for set channel to {params["channel"]}')
+
+        self.set_job_done()
+        return True, f'return text for set channel to {params["channel"]}'
+
     def servo_to_temperature(self, session, params):
         """Servo to temperature passed into params.
 
@@ -353,6 +373,7 @@ if __name__ == '__main__':
     agent.register_task('set_excitation_mode', lake_agent.set_excitation_mode)
     agent.register_task('set_excitation', lake_agent.set_excitation)
     agent.register_task('set_pid', lake_agent.set_pid)
+    agent.register_task('set_active_channel', lake_agent.set_active_channel)
     agent.register_task('servo_to_temperature', lake_agent.servo_to_temperature)
     agent.register_task('check_temperature_stability', lake_agent.check_temperature_stability)
     agent.register_process('acq', lake_agent.start_acq, lake_agent.stop_acq)

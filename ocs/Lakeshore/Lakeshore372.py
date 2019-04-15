@@ -200,12 +200,41 @@ class LS372:
         self.sample_heater = Heater(self, 0)
 
     def msg(self, message):
+        """Send message to the Lakeshore 372 over ethernet.
+
+        If we're asking for something from the Lakeshore (indicated by a ? in
+        the message string), then we will attempt to ask twice before giving up
+        due to potential communication timeouts.
+
+        Parameters
+        ----------
+        message : str
+            Message string as described in the Lakeshore 372 manual.
+
+        Returns
+        -------
+        str
+            Response string from the Lakeshore, if any. Else, an empty string.
+
+        """
         msg_str = f'{message}\r\n'.encode()
-        self.com.send(msg_str)
+
         if '?' in message:
-            time.sleep(0.01)
-            resp = str(self.com.recv(4096)[:-2], 'utf-8')
+            # Try once, if we timeout, try again. Usually gets around single event glitches.
+            for attempt in range(2):
+                try:
+                    self.com.send(msg_str)
+                    time.sleep(0.01)
+                    resp = str(self.com.recv(4096)[:-2], 'utf-8')
+                    break
+                except socket.timeout:
+                    print("Warning: Caught timeout waiting for response to '%s', trying again " \
+                          "before giving up"%message)
+                    if attempt == 1:
+                        raise RuntimeError('Query response to Lakeshore timed out after two ' \
+                                           'attempts. Check connection.')
         else:
+            self.com.send(msg_str)
             resp = ''
 
         if 'RDG' in message:

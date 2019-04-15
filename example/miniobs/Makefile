@@ -13,16 +13,16 @@ prepare:
 
 up:
 	$(OCSBOW) crossbar start
-	$(OCSBOW) launch
-	$(OCSBOW) start
+	$(OCSBOW) hostmaster start
+	$(OCSBOW) agent start
 
 run:
 	$(PYTHON) run_acq.py $(SITE_ARGS)
 
 down:
-	$(OCSBOW) stop
-	$(OCSBOW) unlaunch
-	$(OCSBOW) crossbar stop
+	-$(OCSBOW) agent stop
+	-$(OCSBOW) hostmaster stop
+	-$(OCSBOW) crossbar stop
 
 cleanup:
 	-rm -r dot_crossbar logs data __pycache__

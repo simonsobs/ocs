@@ -30,7 +30,16 @@ class Module:
         """
         self.com = Serial(port=port, baudrate=baud, timeout=timeout)
 
-        idn = self.msg("*IDN?")
+        # First comms usually fails if this is your first time communicating
+        # after plugging in the LS240. Try three times, then give up.
+        for i in range(3):
+            try:
+                print('attempt %s'%i)
+                idn = self.msg("*IDN?")
+                break
+            except TimeoutError:
+                print("Comms failed on attempt %s"%i)
+
         self.manufacturer, self.model, self.inst_sn, self.firmware_version = idn.split(',')
         num_channels = int(self.model[-2])
 

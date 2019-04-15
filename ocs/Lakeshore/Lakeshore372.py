@@ -1279,6 +1279,7 @@ class Curve:
         self._set_header(header[:-1])  # ignore num of breakpoints
 
         for point in values:
+            print("uploading %s"%point)
             self._set_data_point(point[0], point[1], point[2])
 
         # refresh curve attributes

@@ -12,7 +12,7 @@ def my_script(app, pargs):
     agg_ops = {
         'init': client_t.TaskClient(app, agg_address, 'initialize'),
         'sub':  client_t.TaskClient(app, agg_address, 'add_feed'),
-        'agg':  client_t.ProcessClient(app, agg_address, 'aggregate')
+        'agg':  client_t.ProcessClient(app, agg_address, 'record')
     }
 
     therm_instances = ['thermo1', 'thermo2']

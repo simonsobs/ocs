@@ -15,11 +15,11 @@ def my_script(app, pargs):
     # Thermometry tasks
     # Aggregator tasks
     subscribe = client_t.TaskClient(app, agg_addr, 'subscribe')
-    aggregate = client_t.ProcessClient(app, agg_addr, 'aggregate')
+    record = client_t.ProcessClient(app, agg_addr, 'record')
 
     #print("Stopping Data Aggregator")
-    yield aggregate.stop()
-    yield aggregate.wait()
+    yield record.stop()
+    yield record.wait()
 
 
 

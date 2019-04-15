@@ -18,7 +18,7 @@ def my_script(app, pargs):
     agg_ops = {
         'init': client_t.TaskClient(app, agg_addr, 'initialize'),
         'sub':  client_t.TaskClient(app, agg_addr, 'subscribe'),
-        'agg':  client_t.ProcessClient(app, agg_addr, 'aggregate')
+        'agg':  client_t.ProcessClient(app, agg_addr, 'record')
     }
 
     yield therm_ops['init'].start()

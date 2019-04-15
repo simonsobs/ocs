@@ -19,7 +19,7 @@ def my_script(app, pargs):
 
     # Aggregator tasks
     subscribe = client_t.TaskClient(app, agg_addr, 'subscribe')
-    aggregate = client_t.ProcessClient(app, agg_addr, 'aggregate')
+    record = client_t.ProcessClient(app, agg_addr, 'record')
 
     # Start the aggregator running
     #print("Starting Aggregator")
@@ -33,7 +33,7 @@ def my_script(app, pargs):
     #    "time_per_frame": 60*10,
     #    "data_dir": "data/"
     #}
-    #yield aggregate.start(params=agg_params)
+    #yield record.start(params=agg_params)
 
     #print("Starting Data Acquisition")
     yield init_ls.start()
@@ -51,8 +51,8 @@ def my_script(app, pargs):
 
 
     #print("Stopping Data Aggregator")
-    #yield aggregate.stop()
-    #yield aggregate.wait()
+    #yield record.stop()
+    #yield record.wait()
 
 
 

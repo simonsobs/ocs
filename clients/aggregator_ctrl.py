@@ -31,7 +31,7 @@ def my_script(app, agent_addr):
 
 
     cw1 = client_t.TaskClient(app, agent_addr, 'subscribe')
-    cw2 = client_t.ProcessClient(app, agent_addr, 'aggregate')
+    cw2 = client_t.ProcessClient(app, agent_addr, 'record')
 
     print("Subscribing to Topics")
     d1 = yield cw1.start()

@@ -331,7 +331,7 @@ class OCSAgent(ApplicationSession):
         Args:
             feed_name (string):
                 name of the feed
-            aggregate (bool, optional):
+            record (bool, optional):
                 Determines if feed should be aggregated. At the moment, each agent
                 can have at most one aggregated feed. Defaults to False
             agg_params (dict, optional):
@@ -770,7 +770,7 @@ class Feed:
             agent that is registering the feed
         feed_name (string):
             name of the feed
-        aggregate (bool, optional):
+        record (bool, optional):
             Determines if feed should be aggregated. At the moment, each agent
             can have at most one aggregated feed. Defaults to False
         agg_params (dict, optional):
@@ -810,10 +810,10 @@ class Feed:
             Max number of messages stored. Defaults to 20.
     """
 
-    def __init__(self, agent, feed_name, aggregate=False, agg_params=None,
+    def __init__(self, agent, feed_name, record=False, agg_params=None,
                  buffered=False, buffer_time=10, max_messages=20):
 
-        self.aggregate = aggregate
+        self.record = record
         self.messages = []
         self.max_messages = max_messages
         self.agent = agent
@@ -833,7 +833,7 @@ class Feed:
             "feed_name": self.feed_name,
             "address": self.address,
             "messages": self.messages,
-            "aggregate": self.aggregate,
+            "record": self.record,
             "agg_params": self.agg_params,
             "buffered": self.buffered,
             "buffer_time": self.buffer_time

@@ -181,7 +181,7 @@ class DataAggregator:
         # Finds the aggregated feed if there is one.
         feed = None
         for f in agent_data.get("feeds", []):
-            if f["aggregate"]:
+            if f["record"]:
                 feed = f
                 break
 
@@ -446,7 +446,7 @@ if __name__ == '__main__':
 
     agent.register_task('initialize', data_aggregator.initialize)
     agent.register_task('add_feed', data_aggregator.add_feed)
-    agent.register_process('aggregate', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
+    agent.register_process('record', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
 
     @inlineCallbacks
     def on_start():
@@ -456,7 +456,7 @@ if __name__ == '__main__':
         yield agent.call_op(agent.agent_address, 'initialize', 'wait')
 
         if args.initial_state == 'record':
-            yield agent.call_op(agent.agent_address, 'aggregate', 'start')
+            yield agent.call_op(agent.agent_address, 'record', 'start')
 
     reactor.callLater(1, on_start)
     runner.run(agent, auto_reconnect=True)

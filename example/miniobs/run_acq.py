@@ -9,7 +9,7 @@ if 1:
     agg.request('start', 'initialize')
     print(agg.request('wait', 'initialize'))
     print(' - start aggregator.')
-    agg.request('start', 'aggregate')
+    agg.request('start', 'record')
 
 if 1:
     print('Data Faker -- start 30 second acq.')
@@ -22,6 +22,6 @@ if 1:
 
 if 1:
     print(' stop aggregator.')
-    agg.request('stop', 'aggregate')
+    agg.request('stop', 'record')
 
 

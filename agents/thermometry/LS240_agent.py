@@ -40,7 +40,7 @@ class LS240_Agent:
                          }
         }
         self.agent.register_feed('temperatures',
-                                 aggregate=True,
+                                 record=True,
                                  agg_params=agg_params,
                                  buffered=True, buffer_time=60)
 

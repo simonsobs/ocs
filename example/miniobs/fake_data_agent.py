@@ -23,7 +23,7 @@ class FakeDataAgent:
         }
         print('registering')
         self.agent.register_feed('false_temperatures',
-                                 aggregate=True,
+                                 record=True,
                                  agg_params=agg_params,
                                  buffered=True, buffer_time=10)
 

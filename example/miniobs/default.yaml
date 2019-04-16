@@ -24,7 +24,7 @@ hosts:
        'arguments': []},
       {'agent-class': 'AggregatorAgent',
        'instance-id': 'agg1',
-       'arguments': []},
+       'arguments': [['--initial-state', 'record']]},
       {'agent-class': 'FakeDataAgent',
        'instance-id': 'data1',
        'arguments': []},

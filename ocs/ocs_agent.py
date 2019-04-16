@@ -100,6 +100,7 @@ class OCSAgent(ApplicationSession):
         self.log = txaio.make_logger()
         self.heartbeat_call = None
         self.agent_session_id = str(time.time())
+        self.startup_ops = []  # list of (op_type, op_name)
 
         # Attach the logger.
         log_dir, log_file = site_args.log_dir, None
@@ -159,6 +160,13 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call.start(1.0) # Calls the hearbeat every second
 
         self.register_agent()
+
+        # Now do the startup activities.
+        for op_type, op_name, op_params in self.startup_ops:
+            self.log.info('startup-op: launching %s' % op_name)
+            if op_params is True:
+                op_params = {}
+            self.start(op_name, op_params)
 
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
@@ -246,14 +254,55 @@ class OCSAgent(ApplicationSession):
     def publish_data(self, message, session):
         self.publish(self.agent_address + '.data', session.data_encoded())
 
-    def register_task(self, name, func, blocking=True):
+    def register_task(self, name, func, blocking=True, startup=False):
+        """Register a Task for this agent.
+
+        Args:
+            name (string): The name of the Task.
+            func (callable): The function that will be called to
+                handle the "start" operation of the Task.
+            blocking (bool): Indicates that ``func`` should be
+               launched in a worker thread, rather than running in the
+               main reactor thread.
+            startup (bool or dict): Controls if and how the Operation
+                is launched when the Agent successfully starts up and
+                connects to the WAMP realm.  If False, the Operation
+                does not auto-start.  Otherwise, the Operation is
+                launched on startup.  If the ``startup`` argument is a
+                dictionary, this is passed to the Operation's start
+                function.
+        """
         self.tasks[name] = AgentTask(func, blocking=blocking)
         self.sessions[name] = None
+        if startup is not False:
+            self.startup_ops.append(('task', name, startup))
 
-    def register_process(self, name, start_func, stop_func, blocking=True):
+    def register_process(self, name, start_func, stop_func, blocking=True, startup=False):
+        """Register a Process for this agent.
+
+        Args:
+            name (string): The name of the Process.
+            start_func (callable): The function that will be called to
+                handle the "start" operation of the Process.
+            stop_func (callable): The function that will be called to
+                handle the "stop" operation of the Process.
+            blocking (bool): Indicates that ``func`` should be
+               launched in a worker thread, rather than running in the
+               main reactor thread.
+            startup (bool or dict): Controls if and how the Operation
+                is launched when the Agent successfully starts up and
+                connects to the WAMP realm.  If False, the Operation
+                does not auto-start.  Otherwise, the Operation is
+                launched on startup.  If the ``startup`` argument is a
+                dictionary, this is passed to the Operation's start
+                function.
+
+        """
         self.processes[name] = AgentProcess(start_func, stop_func,
                                             blocking=blocking)
         self.sessions[name] = None
+        if startup is not False:
+            self.startup_ops.append(('task', name, startup))
 
     @inlineCallbacks
     def call_op(self, agent_address, op_name, action, params=None, timeout=None):

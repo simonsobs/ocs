@@ -71,9 +71,14 @@ directory.
 
 **3. Run an acquisition, saving data to data/**
 
-The data producer and aggregator agents start up in an idle state.
-The run_acq.py script starts the right agent Operations to obtain a 30
-second acquisition.
+The aggregator will begin writing files automatically on startup.  The
+data producer will not generate and send data to the aggregator until
+the data production Process is explicitly told to do so.  The script
+run_acq.py commands the start of a data production operation, and then
+stops it 30 seconds later.  Note that if you interrupt the run_acq.py
+script, the agent will keep generating data in the background, and it
+will keep being written to disk.  If that happens, run "ocsbow stop"
+to terminate all agents.
 
 .. code-block:: shell
 

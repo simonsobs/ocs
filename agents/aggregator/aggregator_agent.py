@@ -289,9 +289,14 @@ class DataAggregator:
         return True, "Feed added"
 
     def initialize(self, session, params={}):
-        """
-        TASK: Subscribes to `agent_activity` feed and has registry dump
-                info on all active agents.
+        """TASK: Subscribes to `agent_activity` feed and has registry dump
+        info on all active agents.  Optionally starts the "record"
+        Process.
+
+        ``params`` is a dict with the following keys:
+
+        - 'start_record' (bool, optional): Default is False.  If True,
+            start the "record" Process after performing registration.
         """
         reg_address = self.agent.site_args.registry_address
 
@@ -304,6 +309,9 @@ class DataAggregator:
                                      self._new_agent_handler)
 
         self.agent.call_op(reg_address, 'dump_agent_info', 'start')
+
+        if params.get('start_record', False):
+            self.agent.start('record')
 
         return True, "Initialized Aggregator"
 
@@ -433,7 +441,8 @@ if __name__ == '__main__':
 
     # Add options specific to this agent.
     pgroup = parser.add_argument_group('Agent Options')
-    pgroup.add_argument('--initial-state', default='idle')
+    pgroup.add_argument('--initial-state', default='idle',
+                        choices=['idle', 'record'])
     pgroup.add_argument('--time-per-file', default='3600')
     pgroup.add_argument('--data-dir', default='data/')
 
@@ -444,19 +453,9 @@ if __name__ == '__main__':
 
     data_aggregator = DataAggregator(agent, int(args.time_per_file), args.data_dir)
 
-    agent.register_task('initialize', data_aggregator.initialize)
+    agent.register_task('initialize', data_aggregator.initialize,
+                        blocking=False, startup={'start_record': True})
     agent.register_task('add_feed', data_aggregator.add_feed)
     agent.register_process('record', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
 
-    @inlineCallbacks
-    def on_start():
-        agent.log.info("Starting aggregator with initial state {}".format(args.initial_state))
-
-        yield agent.call_op(agent.agent_address, 'initialize', 'start')
-        yield agent.call_op(agent.agent_address, 'initialize', 'wait')
-
-        if args.initial_state == 'record':
-            yield agent.call_op(agent.agent_address, 'record', 'start')
-
-    reactor.callLater(1, on_start)
     runner.run(agent, auto_reconnect=True)

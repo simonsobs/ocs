@@ -453,8 +453,13 @@ if __name__ == '__main__':
 
     data_aggregator = DataAggregator(agent, int(args.time_per_file), args.data_dir)
 
+    # Run 'initialize' Task and start 'record' Process?
+    init_params = False
+    if args.initial_state == 'record':
+        init_params = {'start_record': True}
+
     agent.register_task('initialize', data_aggregator.initialize,
-                        blocking=False, startup={'start_record': True})
+                        blocking=False, startup=init_params)
     agent.register_task('add_feed', data_aggregator.add_feed)
     agent.register_process('record', data_aggregator.start_aggregate, data_aggregator.stop_aggregate)
 

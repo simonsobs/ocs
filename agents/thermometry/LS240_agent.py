@@ -26,23 +26,13 @@ class LS240_Agent:
         self.log = agent.log
 
         # Registers Temperature and Voltage feeds
-        data_block = []
-        for channel in self.thermometers:
-            data_block.append("{} T".format(channel))
-            data_block.append("{} V".format(channel))
-
         agg_params = {
-            'blocking': {
-                         'temps':
-                             {'prefix': '',
-                              'data': data_block
-                              }
-                         }
+            'frame_length': 60,
         }
         self.agent.register_feed('temperatures',
                                  record=True,
                                  agg_params=agg_params,
-                                 buffered=True, buffer_time=60)
+                                 buffer_time=1)
 
 
     # Exclusive access management.

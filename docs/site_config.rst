@@ -400,8 +400,12 @@ this example is based on a (recommended) convention that HostMaster
 live at ``master-{host}``.
 
 
-ocsbow (Host Master / site_config command line tool)
-----------------------------------------------------
+Systemd Integration [empty]
+---------------------------
+
+
+ocsbow command line tool
+========================
 
 (The output from ``ocsbow --help`` should be rendered here.)
 
@@ -409,9 +413,4 @@ ocsbow (Host Master / site_config command line tool)
    :module: ocs.ocsbow
    :func: get_parser
    :prog: ocsbow
-
-
-
-Systemd Integration [empty]
----------------------------
 

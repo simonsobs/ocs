@@ -25,6 +25,14 @@ def get_parser():
     parser = ocs.site_config.add_arguments(parser)
     cmdsubp = parser.add_subparsers(dest='command')
 
+    # basic catch-alls
+    p = cmdsubp.add_parser('status', help=
+                           'Show status of the HostMaster.')
+    p = cmdsubp.add_parser('up', help=
+                           'Start everything on the target host.')
+    p = cmdsubp.add_parser('down', help=
+                           'Stop everything on the target host.')
+
     # config
     p = cmdsubp.add_parser('config', help=
                            'Query the local OCS config.')
@@ -66,14 +74,6 @@ def get_parser():
     p.add_argument('target', nargs='*', default=['all'], help=
                    'Agent instance_id to which the command should be applied.')
 
-    # up, down.
-    p = cmdsubp.add_parser('up', help=
-                           'Start EVERYTHING.')
-    p = cmdsubp.add_parser('down', help=
-                           'Stop EVERYTHING.')
-    p = cmdsubp.add_parser('status', help=
-                           'Show status of EVERYTHING.')
-    
     return parser
 
 def render_crossbar_config_example(pars):
@@ -110,7 +110,7 @@ def decode_exception(args):
         return False, args, str(args)
     return True, text, str(data)
 
-def main_config(args):
+def print_config(args):
     site, host, _ = ocs.site_config.get_config(args, '*host*')
     if args.cfg_request == 'summary':
         print('ocs configuration summary')
@@ -172,7 +172,7 @@ def generate_crossbar_config(hm):
               (hm.crossbar.cbdir, cb_filename))
 
     print('Generating crossbar config text.')
-    config_text = hm.generate_config()
+    config_text = hm.generate_crossbar_config()
 
     if os.path.exists(cb_filename):
         lines0 = open(cb_filename).readlines()
@@ -299,6 +299,7 @@ class HostMasterManager:
                     result['message'] = (
                         'Master Process has been running for %i seconds.' %
                         (time.time()  - session['start_time']))
+                    result['child_states'] = session['data']
                 else:
                     result['message'] = 'Master Process is in state: %s' % status_text
             else:
@@ -337,7 +338,7 @@ class HostMasterManager:
                 return True, 'Agent has exited and relinquished registrations.'
         return False, 'Agent did not die within %.1f seconds.' % timeout
 
-    def start(self, check=True, timeout=5.):
+    def start(self, check=True, timeout=5., up=False):
         site, host, instance = self.SHI
         log_dir = host.log_dir
         if log_dir is not None and not log_dir.startswith('/'):
@@ -354,6 +355,9 @@ class HostMasterManager:
                '--site-file', site.source_file,
                '--site-host', host.name,
                '--working-dir', self.working_dir]
+        if up:
+            cmd.extend(['--initial-state', 'up'])
+
         print('Launching host_master (%s)...' % cmd[1])
         pid = os.spawnv(os.P_NOWAIT, cmd[0], cmd)
         print('... pid is %i' % pid)
@@ -426,7 +430,6 @@ class HostMasterManager:
             if err != ocs.OK:
                 print('Error when requesting master Process "%s":\n  %s' %
                       (request, msg))
-            print('Status of the master Process: %s' % session['status'])
 
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
@@ -436,12 +439,21 @@ class HostMasterManager:
             print('Unexpected error getting master process status:')
             raise
 
+
 def print_status(stat):
     print('Status:\n'
           '  crossbar connection ok: {0[crossbar_running]}\n'
           '  HostMaster agent found: {0[agent_running]}\n'
           '  Master Process running: {0[master_process_running]}\n'
           .format(stat))
+    if 'child_states' in stat:
+        fmt = '  {child_id:30} {next_action:>20} {target_state:>20}'
+        print(fmt.format(child_id='[child-identifier]',
+                         next_action='[current_state]',
+                         target_state='[target_state]'))
+        for d in stat['child_states']:
+            print(fmt.format(child_id=d['class_name']+'::'+d['instance_id'], **d))
+        print()
 
 
 def main():
@@ -453,8 +465,7 @@ def main():
     ocs.site_config.reparse_args(args, '*host*')
 
     if args.command == 'config':
-        main_config(args)
-        return
+        return print_config(args)
 
     # Other actions will need some form of...
     hm = HostMasterManager(args)
@@ -470,19 +481,13 @@ def main():
         is_running = status_info['agent_running']
         do_stop = is_running and args.hm_request in ['stop', 'restart']
         do_start = ((not is_running and args.hm_request == 'start') or
-                    (is_running and args.hm_request == 'restart'))
+                    (args.hm_request == 'restart'))
         ok, msg = True, ''
         if do_stop:
-            if status_info['agent_running']:
-                ok, msg = hm.stop()
-            else:
-                print('Stop not requested because Agent is not running.')
+            ok, msg = hm.stop()
 
         if ok and do_start:
-            if not status_info['agent_running']:
-                ok, msg = hm.start()
-            else:
-                print('Start not requested because Agent is already running.')
+            ok, msg = hm.start()
 
         if not ok:
             raise OcsbowError(msg)
@@ -507,11 +512,15 @@ def main():
         # And the agent...
         if not stat['agent_running']:
             print('Trying to launch hostmaster agent...')
-            ok, message = hm.start()
+            ok, message = hm.start(up=True)
             if not ok:
                 raise OcsbowError('Failed to start master process: %s' % message)
-        # Always run 'start all' now.
-        hm.agent_control('start', ['all'])
+        # Reinforce that we want all child agents up, now.
+        stat = hm.status()
+        if not all([c['target_state']=='up' for c in stat.get('child_states', [])]):
+            hm.agent_control('start', ['all'])
+            time.sleep(2) # Master Process has a 1 second sleep, so we
+                          # need to wait even longer here.
         stat = hm.status()
         print_status(stat)
 

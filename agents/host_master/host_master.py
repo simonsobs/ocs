@@ -25,7 +25,7 @@ class HostMaster:
         self.running = False
         self.database = {} # key is (class_name, instance_id)
         self.site_file = None
- 
+
     def _get_instance_list(self):
         """Parse the site config and return a list of this host's Agent
         instances.
@@ -156,7 +156,7 @@ class HostMaster:
             for k in agent_keys:
                 if not k in self.database:
                     self.database[k] = {
-                        'next_action': 'idle',
+                        'next_action': 'down',
                         'target_state': 'down',
                         'class_name': k[0],
                         'instance_id': k[1],
@@ -181,6 +181,7 @@ class HostMaster:
             if not state in VALID_TARGETS:
                 session.add_message('Ignoring request for "%s" -> invalid state "%s".' %
                                     (key, state))
+                continue
             if key == 'all':
                 for v in addressable.values():
                     v['target_state'] = state
@@ -209,7 +210,9 @@ class HostMaster:
         session.set_status('running')
         self._update_target_states(session, params)
 
-        dying_words = ['idle', 'kill', 'wait_dead']  #allowed during shutdown
+        session.data = {}
+
+        dying_words = ['down', 'kill', 'wait_dead']  #allowed during shutdown
 
         any_jobs = False
         while self.running or any_jobs:
@@ -228,11 +231,11 @@ class HostMaster:
                 # The uninterruptible transition state(s) are most easily handled
                 # in the same way regardless of target state.
 
-                # Transitional: wait_start, which bridges from start -> monitor.
+                # Transitional: wait_start, which bridges from start -> up.
                 if db['next_action'] == 'wait_start':
                     if prot is not None:
                         session.add_message('Launched {full_name}'.format(**db))
-                        db['next_action'] = 'monitor'
+                        db['next_action'] = 'up'
                     else:
                         if time.time() >= db['at']:
                             session.add_message('Launch not detected for '
@@ -247,12 +250,12 @@ class HostMaster:
                     else:
                         stat, t = prot.status
                     if stat is not None:
-                        db['next_action'] = 'idle'
+                        db['next_action'] = 'down'
                     elif time.time() >= db['at']:
                         if stat is None:
                             session.add_message('Agent instance {full_name} '
                                                 'refused to die.'.format(**db))
-                            db['next_action'] = 'idle'
+                            db['next_action'] = 'down'
                     else:
                         sleep_time = min(sleep_time, db['at'] - time.time())
 
@@ -268,7 +271,7 @@ class HostMaster:
                         if db['agent_script'] is None:
                             session.add_message('No Agent script registered for '
                                                 'class: {class_name}'.format(**db))
-                            db['next_action'] = 'idle'
+                            db['next_action'] = 'down'
                         else:
                             session.add_message(
                                 'Requested launch for {full_name}'.format(**db))
@@ -278,7 +281,7 @@ class HostMaster:
                                 db['instance_id'])
                             db['next_action'] = 'wait_start'
                             db['at'] = time.time() + 1.
-                    elif db['next_action'] == 'monitor':
+                    elif db['next_action'] == 'up':
                         stat, t = prot.status
                         if stat is not None:
                             # Right here would be a great place to check
@@ -287,14 +290,14 @@ class HostMaster:
                                                 'with code {stat}.'.format(stat=stat, **db))
                             db['next_action'] = 'start_at'
                             db['at'] = time.time() + 3
-                    else:  # 'idle'
+                    else:  # 'down'
                         db['next_action'] = 'start'
 
                 # State handling when target is to be 'down'.
                 elif db['target_state'] == 'down':
-                    if db['next_action'] == 'idle':
+                    if db['next_action'] == 'down':
                         pass
-                    elif db['next_action'] == 'monitor':
+                    elif db['next_action'] == 'up':
                         session.add_message('Requesting termination of '
                                             '{full_name}'.format(**db))
                         self._terminate_instance(key)
@@ -303,7 +306,7 @@ class HostMaster:
                     else: # 'start_at', 'start'
                         session.add_message('Modifying state of {full_name} from '
                                             '{next_action} to idle'.format(**db))
-                        db['next_action'] = 'idle'
+                        db['next_action'] = 'down'
 
                 # Should not get here.
                 else:
@@ -311,11 +314,21 @@ class HostMaster:
                         'State machine failure: state={next_action}, target_state'
                         '={target_state}'.format(**db))
 
-                any_jobs = (any_jobs or (db['next_action'] != 'idle'))
+                any_jobs = (any_jobs or (db['next_action'] != 'down'))
 
             # Clean up retired items.
             self.database = {k:v for k,v in self.database.items()
-                             if not v.get('retired') or v['next_action'] != 'idle'}
+                             if not v.get('retired') or v['next_action'] != 'down'}
+
+            # Update session info.
+            child_states = []
+            for k,v in self.database.items():
+                child_states.append({_k: v[_k] for _k in
+                                     ['next_action' ,
+                                      'target_state',
+                                      'class_name',
+                                      'instance_id']})
+            session.data = child_states
 
             yield dsleep(max(sleep_time, .001))
         return True, 'Exited.'
@@ -398,6 +411,9 @@ class AgentProcessProtocol(protocol.ProcessProtocol):
 
 if __name__ == '__main__':
     parser = site_config.add_arguments()
+    pgroup = parser.add_argument_group('Agent Options')
+    pgroup.add_argument('--initial-state', default='down',
+                        choices=['up', 'down'])
     args = parser.parse_args()
     site_config.reparse_args(args, 'HostMaster')
 
@@ -407,10 +423,12 @@ if __name__ == '__main__':
     agent, runner = ocs_agent.init_site_agent(args)
     host_master = HostMaster(agent)
 
+    startup_params = {'requests': [('all', args.initial_state)]}
     agent.register_process('master',
                            host_master.master_process,
                            host_master.master_process_stop,
-                           blocking=False)
+                           blocking=False,
+                           startup=startup_params)
     agent.register_task('update', host_master.update_task, blocking=False)
     agent.register_task('die', host_master.die, blocking=False)
     runner.run(agent, auto_reconnect=True)

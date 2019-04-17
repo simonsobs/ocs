@@ -412,7 +412,7 @@ class DataAggregator:
         self.aggregate = True
 
         while self.aggregate:
-            time.sleep(5)
+            time.sleep(1)
 
             if new_file_time:
                 if self.writer is not None:

@@ -251,9 +251,6 @@ class OCSAgent(ApplicationSession):
     def publish_status(self, message, session):
         self.publish(self.agent_address + '.feed', session.encoded())
 
-    def publish_data(self, message, session):
-        self.publish(self.agent_address + '.data', session.data_encoded())
-
     def register_task(self, name, func, blocking=True, startup=False):
         """Register a Task for this agent.
 
@@ -676,8 +673,11 @@ class OpSession:
     """
     def __init__(self, session_id, op_name, status='starting', log_status=True,
                  app=None, purge_policy=None):
+        # Note that some data members are used internally, while others are
+        # communicated over WAMP to Agent control clients.
+
         self.messages = []  # entries are time-ordered (timestamp, text).
-        self.data = None # timestamp, data point
+        self.data = {}      # Operation-specific data structures.
         self.session_id = session_id
         self.op_name = op_name
         self.start_time = time.time()
@@ -720,13 +720,8 @@ class OpSession:
                 'start_time': self.start_time,
                 'end_time': self.end_time,
                 'success': self.success,
+                'data': self.data,
                 'messages': self.messages}
-
-    def data_encoded(self):
-        return {'data': self.data,
-                'op_name': self.op_name,
-                'agent_address': self.app.agent_address,
-                'session_id': self.session_id}
 
     def set_status(self, status, timestamp=None, log_status=True):
         """Update the OpSession status and possibly post a message about it.
@@ -776,6 +771,15 @@ class OpSession:
             self.add_message('Status is now "%s".' % status, timestamp=timestamp)
 
     def add_message(self, message, timestamp=None):
+        """Add a log message to the OpSession messages buffer.
+
+        Args:
+            message (string): Message to append.
+            timestamp (float): timestamp to tag the message.  The
+                default, which is None, will cause the timestamp to be
+                computed here and should be used in most cases.
+
+        """
         if timestamp is None:
             timestamp = time.time()
         if not in_reactor_context():
@@ -787,28 +791,6 @@ class OpSession:
         # session_id are an important provenance prefix.
         self.app.log.info('%s:%i %s' % (self.op_name, self.session_id, message))
 
-    def publish_data(self, message, timestamp=None):
-        if timestamp is None:
-            timestamp = time.time()
-        if not in_reactor_context():
-            return reactor.callFromThread(self.publish_data, message,
-                                          timestamp=timestamp)
-        self.data = message
-        self.app.publish_data('Message', self)
-
-    # Callable from task / process threads.
-
-    @deprecated(details="Use set_status in all threading contexts.")
-    def post_status(self, status):
-        reactor.callFromThread(self.set_status, status)
-        
-    @deprecated(details="Use add_message in all threading contexts.")
-    def post_message(self, message):
-        reactor.callFromThread(self.add_message, message)
-
-    @deprecated(details="Use publish_data in all threading contexts.")
-    def post_data(self, data):
-        reactor.callFromThread(self.publish_data, data)
 
 class Feed:
     """

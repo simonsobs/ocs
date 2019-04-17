@@ -9,7 +9,7 @@ prepare:
 	-mkdir dot_crossbar
 	-mkdir logs
 	-mkdir data
-	$(OCSBOW) crossbar generate_config > dot_crossbar/config.json
+	crossbar generate_config
 
 up:
 	$(OCSBOW) crossbar start

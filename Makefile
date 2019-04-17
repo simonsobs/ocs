@@ -3,7 +3,7 @@ include Makefile.local
 endif
 
 PYTHON ?= python
-VERSION := $(shell python -c 'import ocs; print (ocs.__version__)')
+VERSION := $(shell python -c 'import ocs; print (ocs.__version__.replace("+", "-"))')
 
 ifneq ($(PREFIX),)
 install_args = --prefix=$(PREFIX)

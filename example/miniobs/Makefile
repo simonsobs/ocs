@@ -9,20 +9,16 @@ prepare:
 	-mkdir dot_crossbar
 	-mkdir logs
 	-mkdir data
-	crossbar generate_config
+	$(OCSBOW) crossbar generate_config
 
 up:
-	$(OCSBOW) crossbar start
-	$(OCSBOW) hostmaster start
-	$(OCSBOW) agent start
+	$(OCSBOW) up
 
 run:
 	$(PYTHON) run_acq.py $(SITE_ARGS)
 
 down:
-	-$(OCSBOW) agent stop
-	-$(OCSBOW) hostmaster stop
-	-$(OCSBOW) crossbar stop
+	-$(OCSBOW) down
 
 cleanup:
 	-rm -r dot_crossbar logs data __pycache__

@@ -8,6 +8,7 @@ import ocs
 from ocs import client_wampy as cw
 
 import argparse
+import difflib
 import os
 import sys
 import time
@@ -15,6 +16,9 @@ import time
 DESCRIPTION="""This is the high level control script for ocs.  Its principal uses
 are to inspect the local host's site configuration file, and to start
 and communicate with the HostMaster Agent for the local host."""
+
+class OcsbowError(Exception):
+    pass
 
 def get_parser():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
@@ -107,13 +111,13 @@ def decode_exception(args):
     return True, text, str(data)
 
 def main_config(args):
+    site, host, _ = ocs.site_config.get_config(args, '*host*')
     if args.cfg_request == 'summary':
         print('ocs configuration summary')
         print('-------------------------')
         print()
         print('ocs import led to: %s' % (ocs.__file__))
         print()
-        site, host, _ = ocs.site_config.get_config(args, '*host*')
         print('Site file was determined to be: %s' % site.source_file)
         print()
         print('Logging directory is: %s' % host.log_dir)
@@ -128,7 +132,6 @@ def main_config(args):
         print('ocs plugin detection')
         print('--------------------')
         print('Scanning.')
-        site, host, _  = ocs.site_config.get_config(args, '*host*')
         for p in host.agent_paths:
             print('  ... adding to path: %s' % p)
             sys.path.append(p)
@@ -142,7 +145,6 @@ def main_config(args):
         print('ocs crossbar configuration')
         print('--------------------------')
         print()
-        site, host, _  = ocs.site_config.get_config(args, '*host*')
         print('Configuration for the OCS hub:')
         print(site.hub.summary())
         print()
@@ -150,13 +152,68 @@ def main_config(args):
         if host.crossbar is None:
             print('  Not configured.')
         else:
-            print(host.crossbar.summary())
+             print(host.crossbar.summary())
         print()
 
-def main_crossbar(args):
-    site, host, instance = ocs.site_config.get_config(args, '*host*')
 
-    if args.cb_request == 'generate_config':
+def generate_crossbar_config(hm):
+    cb_filename = './config.json'
+    if hm.crossbar is None:
+        print('There is no crossbar entry in this host config.\n\n'
+              'A crossbar configuration cannot be generated without this info.')
+        return False
+    if hm.crossbar.cbdir is None:
+        print('The crossbar config-dir is not set in this host config.\n\n'
+              'Using %s as the target output file.\n' % cb_filename)
+    else:
+        cb_filename = os.path.join(hm.crossbar.cbdir, 'config.json')
+        print('The crossbar config-dir is set to:\n  %s\n'
+              'Using\n  %s\nas the target output file.\n' % 
+              (hm.crossbar.cbdir, cb_filename))
+
+    print('Generating crossbar config text.')
+    config_text = hm.generate_config()
+
+    if os.path.exists(cb_filename):
+        lines0 = open(cb_filename).readlines()
+        lines1 = config_text.splitlines(keepends=True)
+        if lines0 == lines1:
+            print('No changes to %s are needed.' % cb_filename)
+        else:
+            print('\nThe target output file differs from the new one:')
+            diff = difflib.unified_diff(
+                lines0, lines1,fromfile=cb_filename, tofile='new')
+            for line in diff:
+                print(line, end='')
+            print('\n')
+            print('To adopt the new config, remove %s and re-run me.' % cb_filename)
+    else:
+        open(cb_filename, 'w').write(config_text)
+        print('Wrote %s' % cb_filename)
+
+class HostMasterManager:
+    def __init__(self, args):
+        """Note we save and use a reference to args... if it's modified,
+        reinstantiate me..
+
+        """
+        # site, host, instance configs.
+        self.args = args
+        self.SHI = ocs.site_config.get_config(args, 'HostMaster')
+        site, host, instance = self.SHI
+        self.crossbar = host.crossbar
+
+        self.master_addr = '%s.%s' % (site.hub.data['address_root'],
+                                 instance.data['instance-id'])
+        self.working_dir = args.working_dir
+        try:
+            self.client = ocs.site_config.get_control_client(
+                instance.data['instance-id'], args=args)
+        except ConnectionError:
+            self.client = None
+
+    def generate_crossbar_config(self):
+        site, host, instance = self.SHI
         import urllib
         urld = urllib.parse.urlparse(site.hub.data['wamp_server'])
         pars = {
@@ -164,33 +221,26 @@ def main_crossbar(args):
             'address_root': site.hub.data['address_root'],
             'port': urld.port,
         }
-        print('Writing crossbar config to stdout...', file=sys.stderr)
-        print(render_crossbar_config_example(pars))
-        text = '\n'
-        if host.crossbar is None:
-            text += 'There is no crossbar entry in this host config.\n\n'
-        else:
-            if host.crossbar.cbdir is None:
-                text += 'The crossbar config-dir is not set in this host config.\n\n'
-            else:
-                text += ('The crossbar config-dir is set to "%s";\nthe config '
-                         'text should be copied to the file config.json in '
-                         'that directory.\n' % host.crossbar.cbdir)
-        print(text, file=sys.stderr)
-    else:
+        return render_crossbar_config_example(pars)
+
+    def crossbar_action(self, cb_cmd, foreground=False):
         # Start / stop / check the crossbar server.
-        cmd = host.crossbar.get_cmd(args.cb_request)
-        flags = os.P_WAIT
-        monitor_time = None
-        if args.cb_request == 'start' and not args.fg:
-            # By default, we launch to background.  We leave error logging
-            # on, because start-up issues (such as trying to start when
-            # another session is already active) will otherwise be
-            # annoying to diagnose.
+        cmd = self.crossbar.get_cmd(cb_cmd)
+        if cb_cmd == 'start' and not foreground:
+            # Unless user specifically requests foreground (blocking),
+            # send crossbar start to the background.  But leave error
+            # logging on, because start-up issues (such as trying to
+            # start when another session is already active) will
+            # otherwise be annoying to diagnose.
             cmd.extend(['--loglevel', 'error'])
             flags = os.P_NOWAIT
             monitor_time = 2.
-        print('Executing: ', cmd)
+        else:
+            # For stop and status and sometimes start, run crossbar in
+            # the foreground.
+            flags = os.P_WAIT
+            monitor_time = None
+
         pid = os.spawnv(flags, cmd[0], cmd)
         if monitor_time is not None:
             time.sleep(monitor_time)
@@ -201,57 +251,94 @@ def main_crossbar(args):
                 print('New crossbar instance exited within %.1f seconds.' % monitor_time)
                 sys.exit(10)
 
-def main_hostmaster(args):
-    # This is specifically for starting/stopping/restarting the host
-    # master agent; that's different than starting the host master's
-    # main Process (see agent start/stop for that).
+    def status(self):
+        """Try to get the status of the master Process.  This will indirectly
+        tell us whether the HostMaster agent is running, too.
 
-    # Parse the config to find this host's HostMaster instance info.
-    site, host, instance = ocs.site_config.get_config(args, 'HostMaster')
+        Returns a dictionary with elements:
 
-    master_addr = '%s.%s' % (site.hub.data['address_root'],
-                             instance.data['instance-id'])
-    client = ocs.site_config.get_control_client(
-        instance.data['instance-id'], args=args)
+        - 'success' (bool): indicates only that the requests completed
+          without error, and that the other reported results can be
+          trusted.
+        - 'agent_running' (bool)
+        - 'master_process_running' (bool)
+        - 'message' (string): Text you can report to "the user".
 
-    if args.hm_request == 'status':
-        print('Getting status of HostMaster agent...')
+        """
+        result = {
+            'success': True,
+            'crossbar_running': False,
+            'agent_running': False,
+            'master_process_running': False,
+            'message': ''}
+        if self.client is None:
+            result['message'] = 'Could not connect to crossbar.'
+            return result
+        else:
+            result['crossbar_running'] = True
+
         try:
-            stat = client.request('status', 'master')
+            stat = self.client.request('status', 'master')
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':
-                print('Failed to contact host master at %s' % master_addr)
-                print('That probably means the Agent is not running.')
+                result['message'] = (
+                    'Failed to contact host master at %s; that probably means '
+                    'that the HostMaster Agent is not running.' % self.master_addr)
             else:
-                print('Unexpected error getting master process status:')
+                print('Unhandled exception when querying status.', file=sys.stderr)
                 raise
         else:
+            result['agent_running'] = True
             ok, msg, session = stat
             if ok == ocs.OK:
                 status_text = session.get('status', '<unknown>')
-                if status_text == 'running':
-                    status_text += ' for %i seconds' % \
-                        (time.time()  - session['start_time'])
-                print('Master Process is:', status_text)
+                is_running = (status_text == 'running')
+                result['master_process_running'] = is_running
+                if is_running:
+                    result['message'] = (
+                        'Master Process has been running for %i seconds.' %
+                        (time.time()  - session['start_time']))
+                else:
+                    result['message'] = 'Master Process is in state: %s' % status_text
             else:
-                print('Error requesting master Process status: %s' % msg)
-                return
+                result['Unexpected error querying master Process status: %s' % msg]
+                result['ok'] = False
+        return result
 
-    if args.hm_request in ['stop', 'restart']:
+    def stop(self, check=True, timeout=5.):
         print('Trying to stop HostMaster agent...')
         try:
-            stat = client.request('start', 'die')
+            stat = self.client.request('start', 'die')
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':
-                print('Failed to contact host master at %s' % master_addr)
+                print('Failed to contact host master at %s' % self.master_addr)
                 print('That probably means the Agent is not running.')
             else:
                 print('Unexpected error getting master process status:')
                 raise
+        if not check:
+            return True, 'Agent exit requested.'
+        stop_time = time.time() + timeout
+        try:
+            ok, msg, session = self.client.request('wait', 'die', timeout=timeout)
+            if not ok:
+                return False, 'Agent "die" Task reported an error: %s' % msg
+            while time.time() < stop_time:
+                status = self.status()
+                if not status['agent_running']:
+                    return True, 'Agent has exited and relinquished registrations.'
+                time.sleep(.1)
+        except RuntimeError as e:
+            parsed, err_name, text = decode_exception(e.args)
+            if parsed and err_name in ['wamp.error.no_such_procedure',
+                                       'wamp.error.canceled']:
+                return True, 'Agent has exited and relinquished registrations.'
+        return False, 'Agent did not die within %.1f seconds.' % timeout
 
-    if args.hm_request in ['start', 'restart']:
+    def start(self, check=True, timeout=5.):
+        site, host, instance = self.SHI
         log_dir = host.log_dir
         if log_dir is not None and not log_dir.startswith('/'):
             log_dir = os.path.join(host.working_dir, log_dir)
@@ -266,82 +353,95 @@ def main_hostmaster(args):
         cmd = [sys.executable, hm_script,
                '--site-file', site.source_file,
                '--site-host', host.name,
-               '--working-dir', args.working_dir]
+               '--working-dir', self.working_dir]
         print('Launching host_master (%s)...' % cmd[1])
         pid = os.spawnv(os.P_NOWAIT, cmd[0], cmd)
         print('... pid is %i' % pid)
+        if check:
+            stop_time = time.time() + timeout
+            while time.time() < stop_time:
+                status = self.status()
+                if status['agent_running']:
+                    return True, 'Agent is running and registered.'
+                time.sleep(.1)
+            return False, 'Agent did not register within %.1f seconds.' % timeout
+        return True, 'Agent launched.'
 
-def main_agent(args):
-    # Parse the config to find this host's HostMaster instance info.
-    site, host, instance = ocs.site_config.get_config(args, 'HostMaster')
+    def agent_control(self, request, targets):
+        # Parse the config to find this host's HostMaster instance info.
+        site, host, instance = ocs.site_config.get_config(self.args, 'HostMaster')
 
-    client = ocs.site_config.get_control_client(
-            instance.data['instance-id'], args=args)
-    master_addr = '%s.%s' % (site.hub.data['address_root'], instance.data['instance-id'])
+        client = ocs.site_config.get_control_client(
+                instance.data['instance-id'], args=self.args)
 
-    if 0:
-        # Subscriptions?
-        # Keeping this, disabled, as a place-holder.  It can be used
-        # to subscribe to log feeds from arbitrary agents.
-        #
-        def monitor_func(*args, **kwargs):
-            # This is a general monitoring function that just prints
-            # whatever was sent.  Most pubsub sources output
-            # structured information (such as Operation Session
-            # blocks) so we can eventually tailor the output to the
-            # topic.
-            topic = kwargs.get('meta', {}).get('topic', '(unknown)')
-            print('==%s== : ' % topic, args)
-        feed_addr = master_addr + '.feed'
-        client.subscribe(feed_addr, monitor_func)
+        if 0:
+            # Subscriptions?
+            # Keeping this, disabled, as a place-holder.  It can be used
+            # to subscribe to log feeds from arbitrary agents.
+            #
+            def monitor_func(*args, **kwargs):
+                # This is a general monitoring function that just prints
+                # whatever was sent.  Most pubsub sources output
+                # structured information (such as Operation Session
+                # blocks) so we can eventually tailor the output to the
+                # topic.
+                topic = kwargs.get('meta', {}).get('topic', '(unknown)')
+                print('==%s== : ' % topic, args)
+            feed_addr = self.master_addr + '.feed'
+            client.subscribe(feed_addr, monitor_func)
 
-    try:
-        # In all cases, make sure process is running.
-        stat = client.request('status', 'master')
-        err, msg, session = stat
-        master_proc_running = (session.get('status') == 'running')
+        try:
+            # In all cases, make sure process is running.
+            stat = client.request('status', 'master')
+            err, msg, session = stat
+            master_proc_running = (session.get('status') == 'running')
 
-        if args.agent_request == 'status':
+            if request == 'status':
+                if not master_proc_running:
+                    print('The master Process is not running.')
+                else:
+                    print('The master Process is running.')
+                    print('In the future, I will tell you about what child '
+                          'Agents are detected / active.')
+                return
+
+            if request == 'start':
+                params = {'requests': [(t, 'up') for t in targets]}
+            elif request == 'stop':
+                params = {'requests': [(t, 'down') for t in targets]}
+            elif request == 'restart':
+                params = {'requests': [(t, 'cycle') for t in targets]}
+
             if not master_proc_running:
-                print('The master Process is not running.')
+                print('Starting master process.')
+                # If starting process for the first time, set all agents
+                # to 'down'.
+                params['requests'].insert(0, ('all', 'down'))
+                err, msg, session = \
+                    client.request('start', 'master', params)
             else:
-                print('The master Process is running.')
-                print('In the future, I will tell you about what child '
-                      'Agents are detected / active.')
-            return
+                err, msg, session = \
+                    client.request('start', 'update', params)
 
-        if args.agent_request == 'start':
-            params = {'requests': [(t, 'up') for t in args.target]}
-        elif args.agent_request == 'stop':
-            params = {'requests': [(t, 'down') for t in args.target]}
-        elif args.agent_request == 'restart':
-            params = {'requests': [(t, 'cycle') for t in args.target]}
+            if err != ocs.OK:
+                print('Error when requesting master Process "%s":\n  %s' %
+                      (request, msg))
+            print('Status of the master Process: %s' % session['status'])
 
-        if not master_proc_running:
-            print('Starting master process.')
-            # If starting process for the first time, set all agents
-            # to 'down'.
-            params['requests'].insert(0, ('all', 'down'))
-            err, msg, session = \
-                client.request('start', 'master', params)
-        else:
-            err, msg, session = \
-                client.request('start', 'update', params)
+        except RuntimeError as e:
+            parsed, err_name, text = decode_exception(e.args)
+            if parsed and err_name == 'wamp.error.no_such_procedure':
+                print('Failed to contact host master at %s' % self.master_addr)
+                sys.exit(1)
+            print('Unexpected error getting master process status:')
+            raise
 
-        if err != ocs.OK:
-            print('Error when requesting master Process "%s":\n  %s' %
-                  (args.agent_request, msg))
-        print('Status of the master Process: %s' % session['status'])
-
-    except RuntimeError as e:
-        parsed, err_name, text = decode_exception(e.args)
-        if parsed and err_name == 'wamp.error.no_such_procedure':
-            print('Failed to contact host master at %s' % master_addr)
-            sys.exit(1)
-        print('Unexpected error getting master process status:')
-        raise
-
-    client.stop()
+def print_status(stat):
+    print('Status:\n'
+          '  crossbar connection ok: {0[crossbar_running]}\n'
+          '  HostMaster agent found: {0[agent_running]}\n'
+          '  Master Process running: {0[master_process_running]}\n'
+          .format(stat))
 
 
 def main():
@@ -354,9 +454,79 @@ def main():
 
     if args.command == 'config':
         main_config(args)
-    elif args.command == 'crossbar':
-        main_crossbar(args)
+        return
+
+    # Other actions will need some form of...
+    hm = HostMasterManager(args)
+
+    if args.command == 'crossbar':
+        if args.cb_request == 'generate_config':
+            generate_crossbar_config(hm)
+        else:
+            hm.crossbar_action(args.cb_request, args.fg)
+
     elif args.command == 'hostmaster':
-        main_hostmaster(args)
+        status_info = hm.status()
+        is_running = status_info['agent_running']
+        do_stop = is_running and args.hm_request in ['stop', 'restart']
+        do_start = ((not is_running and args.hm_request == 'start') or
+                    (is_running and args.hm_request == 'restart'))
+        ok, msg = True, ''
+        if do_stop:
+            if status_info['agent_running']:
+                ok, msg = hm.stop()
+            else:
+                print('Stop not requested because Agent is not running.')
+
+        if ok and do_start:
+            if not status_info['agent_running']:
+                ok, msg = hm.start()
+            else:
+                print('Start not requested because Agent is already running.')
+
+        if not ok:
+            raise OcsbowError(msg)
+
     elif args.command == 'agent':
-        main_agent(args)
+        hm.agent_control(args.agent_request, args.target)
+
+    elif args.command == 'status':
+        stat = hm.status()
+        print_status(stat)
+
+    elif args.command == 'up':
+        stat = hm.status()
+        if not stat['crossbar_running']:
+            print('Trying to start crossbar...')
+            hm.crossbar_action('start')
+            # Re-instantiate.
+            hm = HostMasterManager(args)
+            stat = hm.status()
+        if not stat['crossbar_running']:
+            raise OcsbowError('Failed to start crossbar!')
+        # And the agent...
+        if not stat['agent_running']:
+            print('Trying to launch hostmaster agent...')
+            ok, message = hm.start()
+            if not ok:
+                raise OcsbowError('Failed to start master process: %s' % message)
+        # Always run 'start all' now.
+        hm.agent_control('start', ['all'])
+        stat = hm.status()
+        print_status(stat)
+
+    elif args.command == 'down':
+        # Stop the agent.
+        stat = hm.status()
+        if stat['agent_running']:
+            print('Requesting HostMaster termination.')
+            hm.stop()
+        if hm.crossbar is not None:
+            if stat['crossbar_running']:
+                print('Stopping crossbar.')
+                hm.crossbar_action('stop')
+            else:
+                print('No running crossbar detected, system is already "down".')
+        hm = HostMasterManager(args)
+        stat = hm.status()
+        print_status(stat)

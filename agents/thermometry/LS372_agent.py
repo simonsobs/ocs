@@ -10,11 +10,11 @@ from ocs.Lakeshore.Lakeshore372 import LS372
 class LS372_Agent:
     """
         Agent to connect to a single Lakeshore 372 device.
-        
+
         Params:
             name: Application Session
-            ip:  ip address of agent 
-            fake_data: generates random numbers without connecting to LS if True. 
+            ip:  ip address of agent
+            fake_data: generates random numbers without connecting to LS if True.
     """
     def __init__(self, agent, name, ip, fake_data=False):
         self.lock = threading.Semaphore()
@@ -31,30 +31,12 @@ class LS372_Agent:
         self.agent = agent
         # Registers temperature feeds
         agg_params = {
-            'blocking': {
-                         'Channel 01': {'data': ['Channel 01 T', 'Channel 01 R']},
-                         'Channel 02': {'data': ['Channel 02 T', 'Channel 02 R']},
-                         'Channel 03': {'data': ['Channel 03 T', 'Channel 03 R']},
-                         'Channel 04': {'data': ['Channel 04 T', 'Channel 04 R']},
-                         'Channel 05': {'data': ['Channel 05 T', 'Channel 05 R']},
-                         'Channel 06': {'data': ['Channel 06 T', 'Channel 06 R']},
-                         'Channel 07': {'data': ['Channel 07 T', 'Channel 07 R']},
-                         'Channel 08': {'data': ['Channel 08 T', 'Channel 08 R']},
-                         'Channel 09': {'data': ['Channel 09 T', 'Channel 09 R']},
-                         'Channel 10': {'data': ['Channel 10 T', 'Channel 10 R']},
-                         'Channel 11': {'data': ['Channel 11 T', 'Channel 11 R']},
-                         'Channel 12': {'data': ['Channel 12 T', 'Channel 12 R']},
-                         'Channel 13': {'data': ['Channel 13 T', 'Channel 13 R']},
-                         'Channel 14': {'data': ['Channel 14 T', 'Channel 14 R']},
-                         'Channel 15': {'data': ['Channel 15 T', 'Channel 15 R']},
-                         'Channel 16': {'data': ['Channel 16 T', 'Channel 16 R']},
-                        }
+            'frame_length': 10*60 #[sec]
         }
         self.agent.register_feed('temperatures',
                                  record=True,
                                  agg_params=agg_params,
-                                 buffered=True, buffer_time=60)
-
+                                 buffer_time=1)
 
 
     def try_set_job(self, job_name):
@@ -100,7 +82,7 @@ class LS372_Agent:
              return ok, msg
 
         session.set_status('running')
-        
+        self.log.info("Starting data aqcuisitio for {}".format(self.agent.agent_address))
         while True:
             with self.lock:
                 if self.job == '!acq':
@@ -128,7 +110,6 @@ class LS372_Agent:
                 data['data'][active_channel.name + ' R'] = self.module.get_temp(unit='ohms', chan=active_channel.channel_num)
                 time.sleep(.01)
 
-            print("Data: {}".format(data))
             session.app.publish_to_feed('temperatures', data)
 
         self.set_job_done()
@@ -258,6 +239,28 @@ class LS372_Agent:
         self.set_job_done()
         return True, f'return text for set channel to {params["channel"]}'
 
+    def set_autoscan(self, session, params):
+        """
+        Sets autoscan on the LS372.
+
+        :param params: dict with "autoscan" value
+        """
+        ok, msg = self.try_set_job('set_autoscan')
+        if not ok:
+            return ok, msg
+
+        session.set_status('running')
+
+        if params['autoscan']:
+            self.module.enable_autoscan()
+            self.log.info('enabled autoscan')
+        else:
+            self.module.disable_autoscan()
+            self.log.info('disabled autoscan')
+
+        self.set_job_done()
+        return True, 'Set autoscan to {}'.format(params['autoscan'])
+
     def servo_to_temperature(self, session, params):
         """Servo to temperature passed into params.
 
@@ -373,6 +376,7 @@ if __name__ == '__main__':
     agent.register_task('set_excitation_mode', lake_agent.set_excitation_mode)
     agent.register_task('set_excitation', lake_agent.set_excitation)
     agent.register_task('set_pid', lake_agent.set_pid)
+    agent.register_task('set_autoscan', lake_agent.set_autoscan)
     agent.register_task('set_active_channel', lake_agent.set_active_channel)
     agent.register_task('servo_to_temperature', lake_agent.servo_to_temperature)
     agent.register_task('check_temperature_stability', lake_agent.check_temperature_stability)

@@ -166,6 +166,10 @@ output_modes = {'0': 'Off', '1': 'Monitor Out', '2': 'Open Loop', '3': 'Zone', '
                 '5': 'Closed Loop', '6': 'Warm up'}
 output_modes_lock = {v.lower():k for k, v in output_modes.items()}
 
+heater_display_key = { '1': 'current',
+                '2': 'power'}
+heater_display_lock = {v: k for k,v in heater_display_key.items()}
+
 
 class LS372:
     """
@@ -1328,7 +1332,13 @@ class Heater:
 
         self.range = None
 
+        self.resistance = None
+        self.max_current = None
+        self.max_user_current = None
+        self.display = None
+
         self.get_output_mode()
+        self.get_heater_setup()
 
     def get_output_mode(self):
         """Query the heater mode using the OUTMODE? command.
@@ -1374,6 +1384,15 @@ class Heater:
         param_str = ','.join(reply)
         return self.ls.msg(f"OUTMODE {param_str}")
 
+    def _set_heater_setup(self, params):
+        assert len(params) == 4
+
+        reply = [str(self.output)]
+        [reply.append(x) for x in params]
+
+        param_str = ','.join(reply)
+        return self.ls.msg("HTRSET {}".format(param_str))
+
     def get_mode(self):
         """Set output mode with OUTMODE? commnd.
 
@@ -1399,6 +1418,11 @@ class Heater:
         resp[0] = output_modes_lock[mode.lower()]
         self.mode = mode
         return self._set_output_mode(resp)
+
+    def get_manual_out(self):
+        resp = ls.msg("MOUT? {}".format(self.output))
+        return float(resp)
+
 
     def get_input_channel(self):
         """Get the control channel with the OUTMODE? command.
@@ -1477,17 +1501,56 @@ class Heater:
         #
         pass
 
-    # HTRSET/HTRSET?
-    def get_heater_output(self, heater):
-        pass
+
+    def set_heater_display(self, display):
+        assert display.lower() in heater_display_lock.keys(), f"{display} is not a valid display"
+
+        resp = self.get_heater_setup()
+        resp[3] = heater_display_lock[display.lower()]
+        self.display = display.lower()
+
+        return self._set_heater_setup(resp)
 
     # Presumably we're going to know and have set values for heat resistance,
     # max current, etc, maybe that'll simplify this in the future.
-    def set_heater_output(self, heater, resistance, max_current, max_user_current, current):
-        pass
+    def set_heater_output(self, display_type, output):
+        """Set heater output with MOUT command.
 
-    def get_heater_setup(self, heater):
-        pass
+        :param output: heater output
+        :type output: float
+        :param output: display_type
+        :type output: string
+
+        :returns: heater output
+        :rtype: float
+        """
+        self.get_heater_range
+        self.set_heater_display(display_type)
+
+        max_pow = self.range**2 * self.resistance
+
+        if display_type == 'power' and not (0 < output < max_pow):
+            print("Cannot set to {} W, max power is {:2e} W".format(output, max_pow))
+            return False
+        if display_type == 'current' and not (0 < output < 100):
+            print("Display is current: output must be between 0 and 100")
+            return False
+
+
+        self.ls.msg(f"MOUT {self.output} {output}")
+
+        return self.ls.msg("MOUT?")
+
+    def get_heater_setup(self):
+        resp = self.ls.msg("HTRSET? {}".format(self.output)).split(',')
+
+        self.resistance = float(resp[0])
+        self.max_current = int(resp[1])
+        self.max_user_current = float(resp[2])
+        self.display = heater_display_key[resp[3]]
+
+        return resp
+
 
     # RAMP, RAMP? - in heater class
     def set_ramp_rate(self, rate):
@@ -1549,7 +1612,7 @@ class Heater:
 
     # SETP - heater class
     def set_setpoint(self, value):
-        self.ls.msg(f"SETP {self.output},{value}") 
+        self.ls.msg(f"SETP {self.output},{value}")
 
     # SETP? - heater class
     def get_setpoint(self):

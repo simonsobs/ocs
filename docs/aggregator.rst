@@ -108,22 +108,18 @@ An example site-config entry is
 
 
 To make sure that a feed is picked up
-by the aggregator, it must be registered with the option 'aggregate=True'.
-It also must be registered with the blocking structure that the aggregator should
-use when writing the file to disk. An example can be seen in LS240_agent.py::
+by the aggregator, it must be registered with the option 'record=True'.
+It also must be registered with the frame_length, which tells the aggregator
+how long each frame should be in seconds.
+An example can be seen in LS240_agent.py::
 
     agg_params = {
-        'blocking': {
-                     'temps':
-                         {'prefix': '',
-                          'data': ['chan_1', 'chan_2'],
-                          }
-                     }
+        'frame_length': 60
     }
     self.agent.register_feed('temperatures',
                              aggregate=True,
                              agg_params=agg_params,
-                             buffered=True, buffer_time=1)
+                             buffer_time=1)
 
 A block is a set of timestreams that all share timestamps. They are written
 together to an so3g object called an  `IrregBlockDouble`. In the LS240 example,

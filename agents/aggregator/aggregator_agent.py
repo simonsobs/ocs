@@ -6,10 +6,141 @@ import os
 
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet import reactor
+from threading import RLock
 
 if os.getenv('OCS_DOC_BUILD') != 'True':
     from spt3g import core
     import so3g
+
+
+class Block:
+    def __init__(self, name, keys, prefix=''):
+        """
+        Structure of block for a so3g IrregBlockDouble.
+        """
+        self.name = name
+        self.prefix = prefix
+        self.timestamps = []
+        self.data = {
+            k: [] for k in keys
+        }
+
+    def clear(self):
+        """
+        Empties block's buffers
+        """
+        self.timestamps = []
+        for key in self.data:
+            self.data[key] = []
+
+    def add(self, d):
+        """
+        Adds a single data point to the block
+        """
+        self.timestamps.append(d['timestamp'])
+
+        if d['data'].keys() != self.data.keys():
+            raise Exception("Block structure does not match: {}".format(self.name))
+
+        for k in self.data:
+            self.data[k].append(d['data'][k])
+
+
+class Provider:
+    """
+    Stores data for a single provider (OCS Feed).
+
+    Attributes:
+        addresss (string):
+            Full address of the Provider feed
+        agent_id (string):
+            session_id of agent who owns the Feed
+        frame_length (float):
+            Time before data should be written into a frame
+        remove (bool):
+            If set true, Provider will be written to disk and deleted
+            next iteration of the aggregator
+        frame_start_time (float):
+            Start time of current frame
+        blocks (dict):
+            All blocks that are written by provider.
+    """
+    def __init__(self, feed, prov_id):
+        self.prov_id = prov_id
+
+        self.address = feed['address']
+        self.agent_id = feed['agent_session_id']
+        self.frame_length = feed['agg_params']['frame_length']
+
+        self.lock = RLock()
+
+        # When set to True, provider will be written and removed next agg cycle
+        self.remove = False
+        self.frame_start_time = None
+        self.blocks = {}
+
+    def write(self, data):
+        """
+        Saves a list of data points into blocks.
+        A block will be created for any new block_name.
+        """
+        if self.frame_start_time is None:
+            self.frame_start_time = data[0]['timestamp']
+
+
+        for d in data:
+
+            try:
+                b = self.blocks[d['block_name']]
+            except KeyError:
+                self.blocks[d['block_name']] = Block(
+                    d['block_name'], d['data'].keys(),
+                    prefix=d.get('prefix', '')
+                )
+                b = self.blocks[d['block_name']]
+            b.add(d)
+
+    def clear(self):
+        """
+        Clears all blocks and resets the frame_start_time
+        """
+        for _,b in self.blocks.items():
+            b.clear()
+
+        self.frame_start_time = None
+
+    def to_frame(self, hksess=None):
+        """
+        Returns a G3Frame based on the provider's blocks.
+
+        Args:
+            hksess (optional):
+                If provided, the frame will be based off of hksession's data frame.
+                If the data will be put into a clean frame.
+
+        """
+        if hksess is not None:
+            frame = hksess.data_frame(prov_id=self.prov_id)
+        else:
+            frame = core.G3Frame(core.G3FrameType.Housekeeping)
+
+        frame['address'] = self.address
+        frame['agent_session_id'] = self.agent_id
+
+        for block_name, block in self.blocks.items():
+            if not block.timestamps:
+                continue
+
+            hk = so3g.IrregBlockDouble()
+            hk.prefix = block.prefix
+            hk.t = block.timestamps
+            for key, ts in block.data.items():
+                hk.data[key] = ts
+
+            frame['blocks'].append(hk)
+
+        return frame
+
 
 class DataAggregator:
     """
@@ -18,44 +149,13 @@ class DataAggregator:
     Attributes:
 
         providers (dict):
-            The providers attribute stores all info on data providers that
-            the aggregator has subscribed to, including the data buffers for
-            the provider feeds. It is indexed by the agent_address, and the
-            data structure for each provider looks like::
-
-                providers[agent_address]  = {
-                    "prov_id": int,
-                    "agent_address: string,
-                    "buffered": bool if Feed is buffered,
-                    "buffer_time":  How long the feed should be buffered before
-                                    written to frame [s]
-                    "buffer_start_time": Time that the current buffer was started
-                    "blocks": {
-                        block_name1: {
-                            "timestamps": [ list of timestamps ],
-                            "data": {
-                                key1: [ buffer for key1 ],
-                                key2: [ buffer for key2 ]
-                            }
-                        },
-
-                        block_name2: {
-                            "timestamps": [ list of timestamps ],
-                            "data": {
-                                key3: [ buffer for key3 ]
-                            }
-                        }
-                    }
-                }
-
+            All active providers that the aggregator is subscribed to.
         next_prov_id (int):
             Stores the prov_id to be used on the next registered agent
         hksess (so3g HKSession):
             The so3g HKSession that generates status, session, and data frames.
         aggregate (bool):
            Specifies if the agent is currently aggregating data.
-        filename (str):
-            Filename that the current data is writen to.
         writer (G3File):
             Writer for the current G3File
     """
@@ -68,14 +168,14 @@ class DataAggregator:
         self.time_per_file = time_per_file
         self.data_dir = data_dir
 
-        self.providers = {} # by agent address
+        self.providers = {} # by prov_id
+        self.prov_ids = {} # by provider address
         self.next_prov_id = 0
 
+        self.should_write_status =False
         self.hksess = so3g.hkagg.HKSession(description="HK data")
 
         self.aggregate = False
-
-        self.filename = ""
         self.writer = None
 
     def _data_handler(self, _data):
@@ -92,80 +192,12 @@ class DataAggregator:
             return
 
         data, feed = _data
-        agent_addr = feed["agent_address"]
+        prov_id = self.prov_ids[feed["address"]]
+        prov = self.providers[prov_id]
 
-        prov = self.providers[agent_addr]
-
-        if feed['buffered']:
-
-            # copies feed buffer to provider block
-            for d in data:
-                block_name = d['block_name']
-                block = prov['blocks'][block_name]
-
-                for key in block['data'].keys():
-                    block['data'][key].append(d['data'][key])
-
-                block['timestamp'].append(d['timestamp'])
-
-            # Write blocks to file
-            self.write_blocks_to_file(prov)
-
-            # Clear block
-            for _, block in prov['blocks'].items():
-                block['timestamp'] = []
-                for key in block['data'].keys():
-                    block['data'][key] = []
-
-        else:
-            # If not, the aggregator needs to buffer the data itself.
-            current_time = time.time()
-
-            if prov['buffer_start_time'] is None:
-                prov['buffer_start_time'] = current_time
-
-            # Write data to buffer
-            block_name = data['block_name']
-            block = prov['blocks'][block_name]
-
-            for key in block['data'].keys():
-                block['data'][key].append(data['data'][key])
-
-            block['timestamp'].append(data['timestamp'])
-
-            # If buffer_time has elapsed, write blocks to frame and clear
-            elapsed_time = current_time - prov['buffer_start_time']
-            if elapsed_time > prov['buffer_time']:
-                self.write_blocks_to_file(prov)
-
-                prov['buffer_start_time'] = None
-
-                # Clear block
-                for _, block in prov['blocks'].items():
-                    block['timestamp'] = []
-                    for key in block['data'].keys():
-                        block['data'][key] = []
-
-    def create_provider(self, feed, prov_id):
-        """
-        Creates new provider object from an encoded feed and a prov_id
-        """
-        prov = {
-            'prov_id': prov_id,
-            'agent_address': feed['agent_address'],
-            'buffer_time': feed['buffer_time'],
-            'buffered': feed['buffered'],
-            'buffer_start_time': None,
-            'blocks': {},
-        }
-        for (key, block) in feed['agg_params']['blocking'].items():
-            prov['blocks'][key] = {
-                'prefix': block.get('prefix', ''),
-                'timestamp': [],
-                'data': {name: [] for name in block['data']}
-            }
-
-        return prov
+        prov.lock.acquire()
+        prov.write(data)
+        prov.lock.release()
 
     def _new_agent_handler(self, _data):
         """
@@ -177,59 +209,66 @@ class DataAggregator:
         """
         (action, agent_data), feed_data = _data
         agent_address = agent_data['agent_address']
+        agent_id = agent_data['agent_session_id']
 
-        # Finds the aggregated feed if there is one.
-        feed = None
-        for f in agent_data.get("feeds", []):
-            if f["record"]:
-                feed = f
-                break
+        self.log.debug("Agent activity --- Agent: {}, sess: {}, action: {}"
+                      .format(agent_address, agent_id, action))
 
-        if feed is None:
-            #Then there are no aggregated feeds.
-            return
+        for feed in agent_data['feeds']:
+            if not feed['record']:
+                continue
 
-        # if feed is already stored in self.providers
-        is_registered = agent_address in self.providers.keys()
-        if action == 'status' and is_registered:
-            # Then aggregator probably called Dump_agents and we only need
-            # providers that we have not already registered
-            return
-
-        if action == "removed" and is_registered:
-            # Writes remaining blocks to file, then
-            prov = self.providers[agent_address]
-            self.log.info("Removing provider: {}".format(agent_address))
-
-            if (self.writer is not None) and self.aggregate:
-                self.write_blocks_to_file(prov)
-
-            self.hksess.remove_provider(prov['prov_id'])
-            del(self.providers[agent_address])
-
-            if (self.writer is not None) and self.aggregate:
-                status_frame = self.hksess.status_frame()
-                self.writer(status_frame)
-            return
-
-        if action in ['added', 'updated', 'status']:
-            self.log.info("Subscribing to provider {}".format(agent_address))
-            if is_registered:
-                # Writes all remaining blocks to file in case format is changed.
-                self.write_blocks_to_file(self.providers[agent_address])
-                prov_id = self.providers[agent_address]['prov_id']
+            pid = self.prov_ids.get(feed['address'])
+            if pid is not None:
+                prov = self.providers[pid]
             else:
-                prov_id = self.hksess.add_provider(description=agent_address)
+                prov = None
 
-            prov = self.create_provider(feed, prov_id)
-            self.providers[agent_address] = prov
-            self.agent.subscribe_to_feed(agent_address,
-                                         feed['feed_name'],
-                                         self._data_handler)
+            # Assumes agent ids are ordered
+            if prov is not None:
+                if prov.agent_id < agent_id:
+                    # If somehow its an old version of the feed, remove it
+                    self.log.warn("Somehow there is a new instance of {}."
+                                  "Scheduling removal of old instance".format(feed['address']))
+                    prov.remove = True
 
-            if (self.writer is not None) and self.aggregate and (not is_registered):
-                status_frame = self.hksess.status_frame()
-                self.writer(status_frame)
+            if action == 'removed' and prov.agent_id == agent_id:
+                self.log.info("Scheduled remove for provider {}"
+                              .format(feed['address']))
+                prov.remove = True
+
+            if action == 'added':
+                prov_id = self.hksess.add_provider(
+                    description="{}: {}".format(feed['address'],feed['agent_session_id'])
+                )
+                self.providers[prov_id] = Provider(feed, prov_id)
+                self.prov_ids[feed['address']] = prov_id
+                self.log.info("Added provider {} (agent sess: {}) with id {}"
+                              .format(feed['address'], agent_id, prov_id))
+                self.should_write_status = True
+                self.agent.subscribe_to_feed(agent_address,
+                                             feed['feed_name'],
+                                             self._data_handler)
+
+            if action == 'status':
+                if prov is not None:
+                    if prov.agent_id >= agent_id:
+                        continue
+                else:
+                    # If no prov exists or provider's agent_id is old
+                    prov_id = self.hksess.add_provider(
+                        description="{}: {}".format(feed['address'],
+                                                    feed['agent_session_id'])
+                    )
+                    self.providers[prov_id] = Provider(feed, prov_id)
+                    self.prov_ids[feed['address']] = prov_id
+                    self.log.info("Added provider {} (agent sess: {}) with id {}"
+                                  .format(feed['address'], agent_id, prov_id))
+                    self.should_write_status = True
+                    self.agent.subscribe_to_feed(agent_address,
+                                                 feed['feed_name'],
+                                                 self._data_handler)
+
 
     def add_feed(self, session, params={}):
         """
@@ -238,54 +277,25 @@ class DataAggregator:
         Arguments:
             address (str):
                 Full address of the feed
-            buffered (bool):
-                True if data is buffered by feed and not the aggregator
-            buffer_time:
-                time to buffer frame before writing to file
-            blocking:
-                Determines structure of the blocking
+            frame_length:
+                Time before frames should be written to disk
         """
-
         agent_addr, feed_name = params['address'].split('.feeds.')
+        prov_id = self.hksess.add_provider(
+            description="{}: ?".format(params['address'])
+        )
 
-        # Registers provider
-        prov = {
-            'prov_id': self.next_prov_id,
-            'agent_address': agent_addr,
-            'buffer_time': params['buffer_time'],
-            'buffered': params['buffered'],
-            'buffer_start_time': None,
-            'blocks': {},
+        x = {
+            'agent_session_id': -1,
+            'address': params['address'],
+            'frame_length': params['frame_length'],
         }
 
-        for (key, block) in params['blocking'].items():
-            prov['blocks'][key] = {
-                'prefix': block.get('prefix', ''),
-                'timestamp': [],
-                'data': {name: [] for name in block['data']}
-            }
-
-        self.providers[agent_addr] = prov
-
-        # If feed is already subscribed to, it is already a provider, and we
-        # can just update provider info without re-registering with so3g
-        # hksess.
-        if params['address'] not in self.agent.subscribed_feeds:
-            self.next_prov_id += 1
-            self.hksess.add_provider(
-                prov_id=prov['prov_id'],
-                description=prov['agent_address']
-            )
-
-            self.agent.subscribe_to_feed(agent_addr,
-                                         feed_name,
-                                         self._data_handler)
-
-            # Prints status frame to file
-            if (self.writer is not None) and self.aggregate:
-                status_frame = self.hksess.status_frame()
-                self.writer(status_frame)
-
+        self.providers[prov_id] = Provider(x, prov_id)
+        self.agent.subscribe_to_feed(agent_addr,
+                                     feed_name,
+                                     self._data_handler)
+        self.should_write_status = True
         return True, "Feed added"
 
     def initialize(self, session, params={}):
@@ -315,57 +325,61 @@ class DataAggregator:
 
         return True, "Initialized Aggregator"
 
-    def write_blocks_to_file(self, prov):
-        frame = self.hksess.data_frame(prov_id=prov["prov_id"])
-        non_empty = False
-        frame['agent_address'] = prov['agent_address']
-
-        for key, block in prov['blocks'].items():
-
-            # Skip block if empty
-            if not block['timestamp']:
-                continue
-            non_empty = True
-
-            hk = so3g.IrregBlockDouble()
-            hk.prefix = block['prefix']
-            hk.t = block['timestamp']
-            for ts_name, ts in block['data'].items():
-                hk.data[ts_name] = ts
-
-            frame['blocks'].append(hk)
-
-        # Only writes frame if there are non-empty blocks
-        if non_empty:
-            self.writer.Process(frame)
-
-    def start_file(self):
+    def start_file(self, data_dir):
         """
-        Starts new G3File with filename `self.filename`.
+        Starts new G3File with in directory `data_dir`.
         """
-        print("Creating file: {}".format(self.filename))
-        self.writer = core.G3Writer(filename=self.filename)
+
+        file_start_time = datetime.utcnow()
+        timestamp = file_start_time.timestamp()
+        sub_dir = os.path.join(data_dir, "{:.5}".format(str(timestamp)))
+
+        # Create new dir for current day
+        if not os.path.exists(sub_dir):
+            os.makedirs(sub_dir)
+
+        time_string = file_start_time.strftime("%Y-%m-%d-%H-%M-%S")
+        filename = os.path.join(sub_dir, "{}.g3".format(time_string))
+
+        self.log.info("Creating file: {}".format(filename))
+        self.writer = core.G3Writer(filename)
 
         session_frame = self.hksess.session_frame()
-        status_frame = self.hksess.status_frame()
-
-
         self.writer(session_frame)
-        self.writer(status_frame)
 
-        return
+        self.write_status()
+
+    def write_status(self):
+        """
+        Writes hksess status frame to disk and sets write_status flag to False
+        """
+        if self.writer is None:
+            return
+
+        status = self.hksess.status_frame()
+        self.writer(status)
+        self.should_write_status = False
 
     def end_file(self):
         """
-        Ends current G3File with EndProcessing frame.
+        Writes all non-empty providers to disk, clears them,
+        and then writes an EndProcessing frame
         """
+        self.log.info("Ending file")
 
-        for _, prov in self.providers.items():
-            self.write_blocks_to_file(prov)
+        for pid, prov in self.providers.items():
+            if prov.frame_start_time is None:
+                continue
+
+            with prov.lock:
+                frame = prov.to_frame(self.hksess)
+                prov.clear()
+
+            self.writer(frame)
 
         self.writer(core.G3Frame(core.G3FrameType.EndProcessing))
+        self.writer = None
 
-        print("Closing file: {}".format(self.filename))
         return
 
     def start_aggregate(self, session, params={}):
@@ -399,35 +413,55 @@ class DataAggregator:
         new_file_time = True
 
         self.aggregate = True
+
         while self.aggregate:
+            time.sleep(1)
 
             if new_file_time:
                 if self.writer is not None:
                     self.end_file()
+                self.start_file(data_dir)
+                ts = datetime.utcnow().timestamp()
 
-                file_start_time = datetime.utcnow()
-                ts = file_start_time.timestamp()
-                sub_dir = os.path.join(data_dir, "{:.5}".format(str(ts)))
+            to_remove = [p for _, p in self.providers.items() if p.remove]
+            if to_remove != []:
+                self.should_write_status = True
 
-                # Create new dir for current day
-                if not os.path.exists(sub_dir):
-                    os.makedirs(sub_dir)
+            # If any providers have been removed, write those to disk first
+            # And remove provider from hksess
+            for prov in to_remove:
+                if prov.frame_start_time is not None:
+                    with prov.lock:
+                        frame = prov.to_frame(self.hksess)
+                        prov.clear()
+                    self.writer(frame)
 
-                time_string = file_start_time.strftime("%Y-%m-%d-%H-%M-%S")
-                self.filename = os.path.join(sub_dir, "{}.g3".format(time_string))
+                self.log.info("Removing provider {} with agent id {}"
+                              .format(prov.address, prov.agent_id))
+                pid = prov.prov_id
+                self.hksess.remove_provider(pid)
+                del self.providers[pid]
 
-                self.start_file()
+            # Then write status if we need to
+            if self.should_write_status:
+                self.write_status()
 
-                session.add_message('Starting a new DAQ file: %s' % self.filename)
+            # Write to disk any active providers that have surpassed frame_length
+            for pid, prov in self.providers.items():
+                if prov.frame_start_time is None:
+                    continue
 
-            time.sleep(.1)
+                if prov.remove or (time.time() - prov.frame_start_time > prov.frame_length):
+                    with prov.lock:
+                        frame = prov.to_frame(self.hksess)
+                        prov.clear()
+                    self.writer(frame)
+
+
             # Check if its time to write new frame/file
             new_file_time = (datetime.utcnow().timestamp() - ts) > time_per_file
 
-        self.filename = ""
         self.end_file()
-        self.writer = None
-
         return True, 'Acquisition exited cleanly.'
 
     def stop_aggregate(self, session, params=None):

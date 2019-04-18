@@ -17,15 +17,13 @@ class FakeDataAgent:
 
         # Register feed
         agg_params = {
-            'blocking': {
-                'temps': {'data': self.channel_names}
-            }
+            'frame_length': 60
         }
         print('registering')
         self.agent.register_feed('false_temperatures',
                                  record=True,
                                  agg_params=agg_params,
-                                 buffered=True, buffer_time=10)
+                                 buffer_time=1)
 
 
     # Exclusive access management.

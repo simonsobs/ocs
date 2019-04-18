@@ -387,35 +387,13 @@ class OCSAgent(ApplicationSession):
                 Parameters used by the aggregator.
 
                 Params:
-                    **blocking**:
-                        Determines the blocking structure used by the aggregator.
-                        This is required fo all aggregated feeds.
-                        Must be of the format::
+                    **frame_length** (float):
+                        Deterimes the amount of time each G3Frame should be (in seconds).
 
-                            blocking = {
-                                block_name1: {
-                                    'prefix': prefix of block 1 (optional)
-                                    'data': [key1, key2]
-                                },
-
-                                block_name2: {
-                                    'prefix': prefix of block 2(optional)
-                                    'data': [key3]
-                                }, .....
-                            }
-
-            buffered (bool, optional):
-                Specifies if data is buffered by the feed.
-                If false, messages are published immediately.
-                If true, the feed waits until `buffer_time` seconds have passed
-                and then publishes all messages as a list.
-                Defaults to False.
             buffer_time (int, optional):
                 Specifies time that messages should be buffered in seconds.
-                If buffered is true, this determines how long
-                If buffered by the aggregator, this specifies how long the aggregator
-                should wait before writing a frame.
-                If 0, messages are immediately published. Defaults to 10.
+                If 0, message will be published immediately.
+                Defaults to 0.
             max_messages (int, optional):
                 Max number of messages stored. Defaults to 20.
         """
@@ -826,41 +804,19 @@ class Feed:
             Parameters used by the aggregator.
 
             Params:
-                **blocking**:
-                    Determines the blocking structure used by the aggregator.
-                    This is required fo all aggregated feeds.
-                    Must be of the format::
+                **frame_length** (float):
+                    Deterimes the amount of time each G3Frame should be (in seconds).
 
-                        blocking = {
-                            block_name1: {
-                                'prefix': prefix of block 1 (optional)
-                                'data': [key1, key2]
-                            },
-
-                            block_name2: {
-                                'prefix': prefix of block 2(optional)
-                                'data': [key3]
-                            }, .....
-                        }
-
-        buffered (bool, optional):
-            Specifies if data is buffered by the feed.
-            If false, messages are published immediately.
-            If true, the feed waits until `buffer_time` seconds have passed
-            and then publishes all messages as a list.
-            Defaults to False.
         buffer_time (int, optional):
             Specifies time that messages should be buffered in seconds.
-            If buffered is true, this determines how long
-            If buffered by the aggregator, this specifies how long the aggregator
-            should wait before writing a frame.
-            If 0, messages are immediately published. Defaults to 10.
+            If 0, message will be published immediately.
+            Defaults to 0.
         max_messages (int, optional):
             Max number of messages stored. Defaults to 20.
     """
 
-    def __init__(self, agent, feed_name, record=False, agg_params=None,
-                 buffered=False, buffer_time=10, max_messages=20):
+    def __init__(self, agent, feed_name, record=False, agg_params={},
+                buffer_time=0, max_messages=20):
 
         self.record = record
         self.messages = []
@@ -872,20 +828,19 @@ class Feed:
         self.address = "{}.feeds.{}".format(self.agent_address, self.feed_name)
 
         self.buffer_time = buffer_time
-        self.buffered = buffered
         self.buffer_start_time = 0
         self.buffer = []
 
     def encoded(self):
         return {
             "agent_address": self.agent_address,
+            "agg_params": self.agg_params,
             "feed_name": self.feed_name,
             "address": self.address,
             "messages": self.messages,
             "record": self.record,
-            "agg_params": self.agg_params,
-            "buffered": self.buffered,
-            "buffer_time": self.buffer_time
+            "frame_time": self.agg_params,
+            "agent_session_id": self.agent.agent_session_id
         }
 
     def flush_buffer(self):
@@ -896,6 +851,7 @@ class Feed:
 
         if self.buffer:
             self.agent.publish(self.address, (self.buffer, self.encoded()))
+
         self.buffer = []
 
     def publish_message(self, message, timestamp=None):
@@ -935,9 +891,13 @@ class Feed:
                                        timestamp=timestamp)
 
 
-        if not self.buffered:
+        if self.buffer_time == 0:
             # If not buffered, message should be published immediately
-            self.agent.publish(self.address, (message, self.encoded()))
+            if not self.record:
+                self.agent.publish(self.address, (message, self.encoded()))
+            else:
+                self.agent.publish(self.address, ([message], self.encoded()))
+
         else:
             if not self.buffer:
                 self.buffer_start_time = current_time

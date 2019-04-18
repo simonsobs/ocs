@@ -388,7 +388,7 @@ class OCSAgent(ApplicationSession):
 
                 Params:
                     **frame_length** (float):
-                        Deterimes the amount of time each G3Frame should be.
+                        Deterimes the amount of time each G3Frame should be (in seconds).
 
             buffer_time (int, optional):
                 Specifies time that messages should be buffered in seconds.
@@ -805,7 +805,7 @@ class Feed:
 
             Params:
                 **frame_length** (float):
-                    Deterimes the amount of time each G3Frame should be.
+                    Deterimes the amount of time each G3Frame should be (in seconds).
 
         buffer_time (int, optional):
             Specifies time that messages should be buffered in seconds.

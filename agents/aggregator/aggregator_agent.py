@@ -39,12 +39,12 @@ class Block:
         """
         self.timestamps.append(d['timestamp'])
 
-        try:
-            for k in self.data:
-                self.data[k].append(d['data'][k])
-        except KeyError:
-            raise Exception("Block structure does not match: {}"
-                            .format(self.name))
+        if d['data'].keys() != self.data.keys():
+            raise Exception("Block structure does not match: {}".format(self.name))
+
+        for k in self.data:
+            self.data[k].append(d['data'][k])
+
 
 class Provider:
     """
@@ -89,13 +89,16 @@ class Provider:
 
 
         for d in data:
+
             try:
-                self.blocks[d['block_name']].add(d)
+                b = self.blocks[d['block_name']]
             except KeyError:
                 self.blocks[d['block_name']] = Block(
-                    d['block_name'], d['data'].keys(), prefix=d.get('prefix', '')
+                    d['block_name'], d['data'].keys(),
+                    prefix=d.get('prefix', '')
                 )
-                self.blocks[d['block_name']].add(d)
+                b = self.blocks[d['block_name']]
+            b.add(d)
 
     def clear(self):
         """
@@ -372,7 +375,7 @@ class DataAggregator:
                 frame = prov.to_frame(self.hksess)
                 prov.clear()
 
-                self.writer(frame)
+            self.writer(frame)
 
         self.writer(core.G3Frame(core.G3FrameType.EndProcessing))
         self.writer = None

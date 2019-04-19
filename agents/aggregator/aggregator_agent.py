@@ -1,7 +1,7 @@
 import time, threading
 from datetime import datetime
 import numpy as np
-from ocs import ocs_agent, site_config, client_t
+from ocs import ocs_agent, site_config, client_t, ocs_feed
 import os
 
 from twisted.internet.defer import inlineCallbacks
@@ -11,39 +11,6 @@ from threading import RLock
 if os.getenv('OCS_DOC_BUILD') != 'True':
     from spt3g import core
     import so3g
-
-
-class Block:
-    def __init__(self, name, keys, prefix=''):
-        """
-        Structure of block for a so3g IrregBlockDouble.
-        """
-        self.name = name
-        self.prefix = prefix
-        self.timestamps = []
-        self.data = {
-            k: [] for k in keys
-        }
-
-    def clear(self):
-        """
-        Empties block's buffers
-        """
-        self.timestamps = []
-        for key in self.data:
-            self.data[key] = []
-
-    def add(self, d):
-        """
-        Adds a single data point to the block
-        """
-        self.timestamps.append(d['timestamp'])
-
-        if d['data'].keys() != self.data.keys():
-            raise Exception("Block structure does not match: {}".format(self.name))
-
-        for k in self.data:
-            self.data[k].append(d['data'][k])
 
 
 class Provider:
@@ -84,21 +51,26 @@ class Provider:
         Saves a list of data points into blocks.
         A block will be created for any new block_name.
         """
+
         if self.frame_start_time is None:
-            self.frame_start_time = data[0]['timestamp']
+            # Get min frame time out of all blocks
+            self.frame_start_time = time.time()
+            for _,b in data.items():
+                if b['timestamps']:
+                    self.frame_start_time = min(self.frame_start_time, b['timestamps'][0])
 
-
-        for d in data:
-
+        for key,block in data.items():
             try:
-                b = self.blocks[d['block_name']]
+                b = self.blocks[key]
             except KeyError:
-                self.blocks[d['block_name']] = Block(
-                    d['block_name'], d['data'].keys(),
-                    prefix=d.get('prefix', '')
+                self.blocks[key] = ocs_feed.Block(
+                    key, block['data'].keys(),
+                    prefix=block['prefix']
                 )
-                b = self.blocks[d['block_name']]
-            b.add(d)
+                b = self.blocks[key]
+
+            b.extend(block)
+
 
     def clear(self):
         """
@@ -207,6 +179,7 @@ class DataAggregator:
             feed, this will add it to `self.providers` and subscribe to the
             feed.
         """
+
         (action, agent_data), feed_data = _data
         agent_address = agent_data['agent_address']
         agent_id = agent_data['agent_session_id']

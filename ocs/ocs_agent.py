@@ -15,10 +15,12 @@ from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from autobahn.wamp.exception import ApplicationError
 from .ocs_twisted import in_reactor_context
 
+
 import time, datetime
 import os
 from deprecation import deprecated
 from ocs import client_t
+from ocs import ocs_feed
 
 def init_site_agent(args, address=None):
     """
@@ -251,9 +253,6 @@ class OCSAgent(ApplicationSession):
     def publish_status(self, message, session):
         self.publish(self.agent_address + '.feed', session.encoded())
 
-    def publish_data(self, message, session):
-        self.publish(self.agent_address + '.data', session.data_encoded())
-
     def register_task(self, name, func, blocking=True, startup=False):
         """Register a Task for this agent.
 
@@ -396,9 +395,12 @@ class OCSAgent(ApplicationSession):
                 Defaults to 0.
             max_messages (int, optional):
                 Max number of messages stored. Defaults to 20.
-        """
 
-        self.feeds[feed_name] = Feed(self, feed_name, **kwargs)
+        Returns:
+            The Feed object (which is also cached in self.feeds).
+        """
+        self.feeds[feed_name] = ocs_feed.Feed(self, feed_name, **kwargs)
+        return self.feeds[feed_name]
 
     def publish_to_feed(self, feed_name, message, from_reactor=False):
         if feed_name not in self.feeds.keys():
@@ -654,8 +656,11 @@ class OpSession:
     """
     def __init__(self, session_id, op_name, status='starting', log_status=True,
                  app=None, purge_policy=None):
+        # Note that some data members are used internally, while others are
+        # communicated over WAMP to Agent control clients.
+
         self.messages = []  # entries are time-ordered (timestamp, text).
-        self.data = None # timestamp, data point
+        self.data = {}      # Operation-specific data structures.
         self.session_id = session_id
         self.op_name = op_name
         self.start_time = time.time()
@@ -698,13 +703,8 @@ class OpSession:
                 'start_time': self.start_time,
                 'end_time': self.end_time,
                 'success': self.success,
+                'data': self.data,
                 'messages': self.messages}
-
-    def data_encoded(self):
-        return {'data': self.data,
-                'op_name': self.op_name,
-                'agent_address': self.app.agent_address,
-                'session_id': self.session_id}
 
     def set_status(self, status, timestamp=None, log_status=True):
         """Update the OpSession status and possibly post a message about it.
@@ -754,6 +754,15 @@ class OpSession:
             self.add_message('Status is now "%s".' % status, timestamp=timestamp)
 
     def add_message(self, message, timestamp=None):
+        """Add a log message to the OpSession messages buffer.
+
+        Args:
+            message (string): Message to append.
+            timestamp (float): timestamp to tag the message.  The
+                default, which is None, will cause the timestamp to be
+                computed here and should be used in most cases.
+
+        """
         if timestamp is None:
             timestamp = time.time()
         if not in_reactor_context():
@@ -765,151 +774,4 @@ class OpSession:
         # session_id are an important provenance prefix.
         self.app.log.info('%s:%i %s' % (self.op_name, self.session_id, message))
 
-    def publish_data(self, message, timestamp=None):
-        if timestamp is None:
-            timestamp = time.time()
-        if not in_reactor_context():
-            return reactor.callFromThread(self.publish_data, message,
-                                          timestamp=timestamp)
-        self.data = message
-        self.app.publish_data('Message', self)
-
-    # Callable from task / process threads.
-
-    @deprecated(details="Use set_status in all threading contexts.")
-    def post_status(self, status):
-        reactor.callFromThread(self.set_status, status)
-        
-    @deprecated(details="Use add_message in all threading contexts.")
-    def post_message(self, message):
-        reactor.callFromThread(self.add_message, message)
-
-    @deprecated(details="Use publish_data in all threading contexts.")
-    def post_data(self, data):
-        reactor.callFromThread(self.publish_data, data)
-
-class Feed:
-    """
-    Manages publishing to a specific feed and storing of messages.
-
-    Args:
-        agent (OCSAgent):
-            agent that is registering the feed
-        feed_name (string):
-            name of the feed
-        record (bool, optional):
-            Determines if feed should be aggregated. At the moment, each agent
-            can have at most one aggregated feed. Defaults to False
-        agg_params (dict, optional):
-            Parameters used by the aggregator.
-
-            Params:
-                **frame_length** (float):
-                    Deterimes the amount of time each G3Frame should be (in seconds).
-
-        buffer_time (int, optional):
-            Specifies time that messages should be buffered in seconds.
-            If 0, message will be published immediately.
-            Defaults to 0.
-        max_messages (int, optional):
-            Max number of messages stored. Defaults to 20.
-    """
-
-    def __init__(self, agent, feed_name, record=False, agg_params={},
-                buffer_time=0, max_messages=20):
-
-        self.record = record
-        self.messages = []
-        self.max_messages = max_messages
-        self.agent = agent
-        self.agent_address = agent.agent_address
-        self.feed_name = feed_name
-        self.agg_params = agg_params
-        self.address = "{}.feeds.{}".format(self.agent_address, self.feed_name)
-
-        self.buffer_time = buffer_time
-        self.buffer_start_time = 0
-        self.buffer = []
-
-    def encoded(self):
-        return {
-            "agent_address": self.agent_address,
-            "agg_params": self.agg_params,
-            "feed_name": self.feed_name,
-            "address": self.address,
-            "messages": self.messages,
-            "record": self.record,
-            "frame_time": self.agg_params,
-            "agent_session_id": self.agent.agent_session_id
-        }
-
-    def flush_buffer(self):
-        """Publishes all messages in buffer and empties it."""
-
-        if not in_reactor_context():
-            return reactor.callFromThread(self.flush_buffer)
-
-        if self.buffer:
-            self.agent.publish(self.address, (self.buffer, self.encoded()))
-
-        self.buffer = []
-
-    def publish_message(self, message, timestamp=None):
-        """
-        Publishes message to feed and stores it in ``self.messages``.
-        If self.buffered, message is stored in buffer and the feed
-        waits until `buffer_time` seconds have elapsed before publishing
-        the entire buffer as a list.
-
-        Args:
-            message:
-                Data to be published
-
-                If the feed is aggregated, the message must have the structure::
-
-                    message = {
-                        'block_name': Key given to the block in blocking param
-                        'timestamp': timestamp of data
-                        'data': {
-                                key1: datapoint1
-                                key2: datapoint2
-                            }
-                    }
-
-                Where they keys are exactly those specified in the one of the
-                block dicts in the blocking parameter.
-
-            timestamp (float):
-                timestamp given to the message. Defaults to time.time()
-        """
-        current_time = time.time()
-        if timestamp is None:
-            timestamp = current_time
-
-        if not in_reactor_context():
-            return reactor.callFromThread(self.publish_message, message,
-                                       timestamp=timestamp)
-
-
-        if self.buffer_time == 0:
-            # If not buffered, message should be published immediately
-            if not self.record:
-                self.agent.publish(self.address, (message, self.encoded()))
-            else:
-                self.agent.publish(self.address, ([message], self.encoded()))
-
-        else:
-            if not self.buffer:
-                self.buffer_start_time = current_time
-
-            if (current_time - self.buffer_start_time) > self.buffer_time:
-                self.flush_buffer()
-                self.buffer_start_time = current_time
-
-            self.buffer.append(message)
-
-        # Caches message
-        self.messages.append((timestamp, message))
-        if len(self.messages) > self.max_messages:
-            self.messages.pop(0)
 

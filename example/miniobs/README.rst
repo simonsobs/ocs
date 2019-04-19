@@ -52,22 +52,32 @@ configuration file for crossbar.
    mkdir logs
    mkdir data
 
-   ocsbow crossbar generate_config > dot_crosssbar/config.json
+   ocsbow crossbar generate_config
 
 
 **2. Bringing up the system**
 
-These commands will start up the crossbar server, the HostMaster, and
-then the other Agents defined in default.yaml.  After ``launch`` the
-HostMaster agent will log to the file ``logs/observatory.hm1.log``.
-After ``start``, the other agents will log to other files in that
-directory.
+To start up all components of the system, run:
 
 .. code-block:: shell
 
-   ocsbow crossbar start
-   ocsbow launch
-   ocsbow start
+   ocsbow up
+
+This will result in the following things starting up (in order):
+
+- the crossbar server.
+- the HostMaster Agent instance.
+- the HostMaster Agent's "master" Process.
+- the child agent instances that are managed by the HostMaster in this
+  example:
+
+  - Registry
+  - Aggregator (this will begin writing an HK archive)
+  - FakeData (this will /not/ begin producing data, yet)
+
+
+Once launched, each of these Agent instances will begin logging to
+files in ``logs/``.
 
 **3. Run an acquisition, saving data to data/**
 
@@ -77,7 +87,7 @@ the data production Process is explicitly told to do so.  The script
 run_acq.py commands the start of a data production operation, and then
 stops it 30 seconds later.  Note that if you interrupt the run_acq.py
 script, the agent will keep generating data in the background, and it
-will keep being written to disk.  If that happens, run "ocsbow stop"
+will keep being written to disk.  If that happens, run "ocsbow down"
 to terminate all agents.
 
 .. code-block:: shell
@@ -86,10 +96,9 @@ to terminate all agents.
 
 **4. Bringing down the system**
 
-These ocsbow commands undo the ones from step 2, in reverse order.
+This ocsbow command brings down all the things you started in step 2,
+in reverse order.
 
 .. code-block:: shell
 
-   ocsbow stop
-   ocsbow unlaunch
-   ocsbow crossbar stop
+   ocsbow down

@@ -27,6 +27,7 @@ class LS372_Agent:
         self.thermometers = []
 
         self.log = agent.log
+        self.initialized = False
 
         self.agent = agent
         # Registers temperature feeds
@@ -53,6 +54,13 @@ class LS372_Agent:
             self.job = None
 
     def init_lakeshore_task(self, session, params=None):
+        if params is None:
+            params = {}
+
+        if self.initialized and not params.get('force', False):
+            self.log.info("Lakeshore already initialized. Returning...")
+            return True, "Already initialized"
+
         ok, msg = self.try_set_job('init')
 
         self.log.info('Initialized Lakeshore: {status}', status=ok)
@@ -71,7 +79,7 @@ class LS372_Agent:
             session.add_message("Lakeshore initilized with ID: %s"%self.module.id)
 
             self.thermometers = [channel.name for channel in self.module.channels]
-
+        self.initialized = True
         self.set_job_done()
         return True, 'Lakeshore module initialized.'
 
@@ -143,16 +151,22 @@ class LS372_Agent:
 
         session.set_status('running')
 
-        current_range = self.module.sample_heater.get_heater_range()
+        heater_string = params.get('heater', 'sample')
+        if heater_string.lower() == 'sample':
+            heater = self.module.sample_heater
+        elif heater_string.lower() == 'still':
+            heater = self.module.still_heater
+
+        current_range = heater.get_heater_range()
 
         if params['range'] == current_range:
             print("Current heater range matches commanded value. Proceeding unchanged.")
         else:
-            self.module.sample_heater.set_heater_range(params['range'])
+            heater.set_heater_range(params['range'])
             time.sleep(params['wait'])
 
         self.set_job_done()
-        return True, f'Set heater range to {params["range"]}'
+        return True, f'Set {heater_string} heater range to {params["range"]}'
 
     def set_excitation_mode(self, session, params):
         """
@@ -347,6 +361,61 @@ class LS372_Agent:
             self.set_job_done()
             return False, f"Temperature not stable within {params['threshold']}."
 
+    def set_output_mode(self, session, params=None):
+        """
+        Set output mode of the heater.
+
+        :param params: dict with "heater" and "mode" parameters
+        :type params: dict
+
+        heater - Specifies which heater to control. Either 'sample' or 'still'
+        mode - Specifies mode of heater. Can be "Off", "Monitor Out", "Open Loop",
+                    "Zone", "Still", "Closed Loop", or "Warm up"
+        """
+
+        ok, msg = self.try_set_job('set_ouput_mode')
+        if not ok:
+            return ok, msg
+
+        session.set_status('running')
+
+        if params['heater'].lower() == 'still':
+            self.module.still_heater.set_mode(params['mode'])
+        if params['heater'].lower() == 'sample':
+            self.module.sample_heater.set_mode(params['mode'])
+        self.log.info("Set {} output mode to {}".format(params['heater'], params['mode']))
+
+        self.set_job_done()
+        return True, "Set {} output mode to {}".format(params['heater'], params['mode'])
+
+    def set_heater_output(self, session, params=None):
+        """
+        Set display type and output of the heater.
+
+        :param params: dict with "heater", "display", and "output" parameters
+        :type params: dict
+
+        heater - Specifies which heater to control. Either 'sample' or 'still'
+        display - Specifies heater display type. Can be "Current" or "Power"
+        output - Specifies heater output value. If display is set to "Current", can be any number between 0 and 100.
+        If display is set to "Power", can be any number between 0 and the maximum allowed power.
+        """
+
+        ok, msg = self.try_set_job('set_heater_output')
+        if not ok:
+            return ok, msg
+
+        session.set_status('running')
+
+        if params['heater'].lower() == 'still':
+            self.module.still_heater.set_heater_output(params['display'],params['output'])
+        if params['heater'].lower() == 'sample':
+            self.log.info("display: {}\toutput: {}".format(params['display'], params['output']))
+            self.module.sample_heater.set_heater_output(params['display'],params['output'])
+        self.log.info("Set {} heater display to {}, output to {}".format(params['heater'], params['display'], params['output']))
+
+        self.set_job_done()
+        return True, "Set {} display to {}, output to {}".format(params['heater'], params['display'], params['output'])
 
 if __name__ == '__main__':
     # Get the default ocs argument parser.
@@ -380,6 +449,8 @@ if __name__ == '__main__':
     agent.register_task('set_active_channel', lake_agent.set_active_channel)
     agent.register_task('servo_to_temperature', lake_agent.servo_to_temperature)
     agent.register_task('check_temperature_stability', lake_agent.check_temperature_stability)
+    agent.register_task('set_output_mode', lake_agent.set_output_mode)
+    agent.register_task('set_heater_output', lake_agent.set_heater_output)
     agent.register_process('acq', lake_agent.start_acq, lake_agent.stop_acq)
 
     runner.run(agent, auto_reconnect=True)

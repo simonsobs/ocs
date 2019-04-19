@@ -161,6 +161,7 @@ heater_range_key = {"0": "Off", "1": 31.6e-6, "2": 100e-6, "3": 316e-6,
                     "4": 1e-3, "5": 3.16e-3, "6": 10e-3, "7": 31.6e-3,
                     "8": 100e-3}
 heater_range_lock = {v:k for k, v in heater_range_key.items()}
+heater_range_lock["On"] = "1"
 
 output_modes = {'0': 'Off', '1': 'Monitor Out', '2': 'Open Loop', '3': 'Zone', '4': 'Still',
                 '5': 'Closed Loop', '6': 'Warm up'}
@@ -202,6 +203,7 @@ class LS372:
             self.channels.append(c)
 
         self.sample_heater = Heater(self, 0)
+        self.still_heater = Heater(self, 2)
 
     def msg(self, message):
         """Send message to the Lakeshore 372 over ethernet.
@@ -1524,18 +1526,23 @@ class Heater:
         :returns: heater output
         :rtype: float
         """
-        self.get_heater_range
+        self.get_heater_range()
         self.set_heater_display(display_type)
 
-        max_pow = self.range**2 * self.resistance
+        if type(self.range) == str:
+            if (self.range.lower() == "Off"):
+                print("Heater range is off... not setting output")
+                return
+        else:
+            max_pow = self.range**2 * self.resistance
 
-        if display_type == 'power' and not (0 < output < max_pow):
-            print("Cannot set to {} W, max power is {:2e} W".format(output, max_pow))
-            return False
-        if display_type == 'current' and not (0 < output < 100):
+        if display_type == 'power':
+            if (0 <= output <= max_pow):
+                print("Cannot set to {} W, max power is {:2e} W".format(output, max_pow))
+                return False
+        if display_type == 'current' and not (0 <= output <= 100):
             print("Display is current: output must be between 0 and 100")
             return False
-
 
         self.ls.msg(f"MOUT {self.output} {output}")
 
@@ -1583,6 +1590,8 @@ class Heater:
 
         if str(_range).lower() == 'off':
             _range = "Off"
+        if str(_range).lower() == 'on':
+            _range = "On"
 
         if self.output == 0:
             resp = self.ls.msg(f"RANGE {self.output} {heater_range_lock[_range]}").strip()

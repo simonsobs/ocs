@@ -92,7 +92,7 @@ class HostMaster:
         prot.killed = True
         # race condition, but it could be worse.
         if prot.status[0] is None:
-            reactor.callFromThread(prot.transport.signalProcess, 'TERM')
+            reactor.callFromThread(prot.transport.signalProcess, 'INT')
         return True, 'Kill requested.'
 
     def _update_target_states(self, session, params):

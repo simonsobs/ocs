@@ -92,10 +92,6 @@ class Feed:
         self.buffer_start_time = None
 
         self.blocks = {}
-        self.buffer = []
-
-        self.max_messages = max_messages
-        self.messages = []
 
         self.agent_address = self.agent.agent_address
         self.address = "{}.feeds.{}".format(self.agent_address, self.feed_name)
@@ -106,7 +102,6 @@ class Feed:
             "agg_params": self.agg_params,
             "feed_name": self.feed_name,
             "address": self.address,
-            "messages": self.messages,
             "record": self.record,
             "agent_session_id": self.agent.agent_session_id
         }
@@ -128,16 +123,11 @@ class Feed:
             for k,b in self.blocks.items():
                 b.clear()
 
-        else:
-            self.agent.publish(self.address, (self.buffer, self.encoded()))
-            self.buffer = []
-
     def publish_message(self, message, timestamp=None):
         """
-        Publishes message to feed and stores it in ``self.messages``.
-        If self.buffered, message is stored in buffer and the feed
-        waits until `buffer_time` seconds have elapsed before publishing
-        the entire buffer as a list.
+        Publishes message to feed.  If this is an aggregatable feed
+        (record=True), then it may be buffered.  Otherwise it is
+        dispatched immediately.
 
         Args:
             message:
@@ -179,26 +169,14 @@ class Feed:
                 self.blocks[block_name] = b
 
             b.add(message)
-        else:
-            if self.buffer_time == 0:
-                # Publish message immediately
-                self.agent.publish(self.address, (message, self.encoded()))
-            else:
-                # Will there be buffered feeds that are not recorded?
-                self.buffer.append(message)
 
-
-        if self.record or self.buffer_time != 0:
             if self.buffer_start_time is None:
                 self.buffer_start_time = current_time
 
             if (current_time - self.buffer_start_time) >= self.buffer_time:
-
                 self.flush_buffer()
                 self.buffer_start_time = None
 
-        # Caches message
-        if self.max_messages > 0:
-            self.messages.append((timestamp, message))
-            if len(self.messages) > self.max_messages:
-                self.messages.pop(0)
+        else:
+            # Publish message immediately
+            self.agent.publish(self.address, (message, self.encoded()))

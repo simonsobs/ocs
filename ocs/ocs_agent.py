@@ -398,9 +398,12 @@ class OCSAgent(ApplicationSession):
                 Defaults to 0.
             max_messages (int, optional):
                 Max number of messages stored. Defaults to 20.
-        """
 
+        Returns:
+            The Feed object (which is also cached in self.feeds).
+        """
         self.feeds[feed_name] = ocs_feed.Feed(self, feed_name, **kwargs)
+        return self.feeds[feed_name]
 
     def publish_to_feed(self, feed_name, message, from_reactor=False):
         if feed_name not in self.feeds.keys():

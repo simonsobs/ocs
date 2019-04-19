@@ -298,7 +298,7 @@ class DataAggregator:
         self.should_write_status = True
         return True, "Feed added"
 
-    def initialize(self, session, params={}):
+    def initialize(self, session, params=None):
         """TASK: Subscribes to `agent_activity` feed and has registry dump
         info on all active agents.  Optionally starts the "record"
         Process.
@@ -308,6 +308,9 @@ class DataAggregator:
         - 'start_record' (bool, optional): Default is False.  If True,
             start the "record" Process after performing registration.
         """
+        if params is None:
+            params = {}
+
         reg_address = self.agent.site_args.registry_address
 
         if reg_address is None:

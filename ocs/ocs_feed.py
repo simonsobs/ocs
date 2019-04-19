@@ -22,7 +22,7 @@ class Block:
         for key in self.data:
             self.data[key] = []
 
-    def add(self, d):
+    def append(self, d):
         """
         Adds a single data point to the block
         """
@@ -46,8 +46,10 @@ class Block:
             self.data[k].extend(block['data'][k])
 
     def encoded(self):
+        n = len(self.timestamps)
+        assert(all([n==len(v) for v in self.data.values()]))
         return {
-            'name': self.name,
+            'block_name': self.name,
             'data': {k: self.data[k] for k in self.data.keys()},
             'timestamps': self.timestamps,
             'prefix': self.prefix
@@ -111,7 +113,6 @@ class Feed:
 
         if not in_reactor_context():
             return reactor.callFromThread(self.flush_buffer)
-        print(len(self.buffer))
         if self.buffer_start_time is None:
             return
 
@@ -131,24 +132,50 @@ class Feed:
 
         Args:
             message:
-                Data to be published
-
-                If the feed is aggregated, the message must have the structure::
-
-                    message = {
-                        'block_name': Key given to the block in blocking param
-                        'timestamp': timestamp of data
-                        'data': {
-                                key1: datapoint1
-                                key2: datapoint2
-                            }
-                    }
-
-                Where they keys are exactly those specified in the one of the
-                block dicts in the blocking parameter.
-
+                Data to be published (see notes about acceptable formats).
             timestamp (float):
                 timestamp given to the message. Defaults to time.time()
+
+        If this feed is not intended to provide structured data for
+        aggregation, then the format of the message is unrestricted as
+        long as it is WAMP-serializable.
+
+        For aggregated feeds, the message should be a dict with one of
+        the following formats:
+
+        1. A single sample for several co-sampled channels.  The
+           structure is::
+
+             message = {
+                 'block_name': Key given to the block in blocking param
+                 'timestamp': timestamp of data
+                 'data': {
+                      key1: datapoint1
+                      key2: datapoint2
+                  }
+             }
+
+           Samples recorded in this way may be buffered, if
+           self.sample_time > 0.
+
+        2. Multiple or more samples for several co-sampled channels.
+           The structure is::
+
+
+             message = {
+                 'block_name': Key given to the block in blocking param
+                 'timestamps': [timestamp, timestamp...]
+                 'data': {
+                      key1: [datapoint, datapoint...]
+                      key2: [datapoint, datapoint...]
+                  }
+             }
+
+           Note that the code distinguishes between these cases based
+           on the presence of the key 'timestamps' rather than
+           'timestamp'.  These data can be buffered, too, if
+           self.sample_time > 0.
+
         """
         current_time = time.time()
 
@@ -156,6 +183,8 @@ class Feed:
             timestamp = current_time
 
         if not in_reactor_context():
+            # Take a copy, for thread-safety.
+            message = message.copy()
             return reactor.callFromThread(self.publish_message, message,
                                           timestamp=timestamp)
 
@@ -168,7 +197,13 @@ class Feed:
                 b = Block(block_name, message['data'].keys(), message.get('prefix', ''))
                 self.blocks[block_name] = b
 
-            b.add(message)
+            if 'timestamp' in message:
+                b.append(message)
+            elif 'timestamps' in message:
+                b.extend(message)
+            else:
+                raise RuntimeError('Invalid message when record=True.  keys=%s' %
+                                   message.keys())
 
             if self.buffer_start_time is None:
                 self.buffer_start_time = current_time

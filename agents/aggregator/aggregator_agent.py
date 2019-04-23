@@ -212,7 +212,7 @@ class DataAggregator:
 
             if action == 'added':
                 prov_id = self.hksess.add_provider(
-                    description="{}: {}".format(feed['address'],feed['agent_session_id'])
+                    description="{}".format(feed['address'])
                 )
                 self.providers[prov_id] = Provider(feed, prov_id)
                 self.prov_ids[feed['address']] = prov_id
@@ -230,8 +230,7 @@ class DataAggregator:
                 else:
                     # If no prov exists or provider's agent_id is old
                     prov_id = self.hksess.add_provider(
-                        description="{}: {}".format(feed['address'],
-                                                    feed['agent_session_id'])
+                        description="{}".format(feed['address'])
                     )
                     self.providers[prov_id] = Provider(feed, prov_id)
                     self.prov_ids[feed['address']] = prov_id
@@ -255,7 +254,7 @@ class DataAggregator:
         """
         agent_addr, feed_name = params['address'].split('.feeds.')
         prov_id = self.hksess.add_provider(
-            description="{}: ?".format(params['address'])
+            description="{}".format(params['address'])
         )
 
         x = {

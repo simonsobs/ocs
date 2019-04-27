@@ -163,6 +163,10 @@ class HubConfig:
             different protocols, security layers, and permissions.
             (Command line override: ``--site-hub``.)
 
+        ``wamp_http`` (optional): URL to the WAMP router's http bridge
+            interface.  This is the best interface for simple clients
+            to use.  E.g., ``http://host-2:8001/call``.
+
         ``wamp_realm`` (required): The WAMP realm to use.  WAMP
             clients operating in a particular realm are isolated from
             clients connected to other realms.  Example and test code
@@ -269,6 +273,9 @@ def add_arguments(parser=None):
     ``--site-hub=...``:
         Override the ocs hub url (wamp_server).
 
+    ``--site-http=...``:
+        Override the ocs hub http url (wamp_http).
+
     ``--site-realm=...``:
         Override the ocs hub realm (wamp_realm).
 
@@ -304,6 +311,8 @@ def add_arguments(parser=None):
        host.""")
     group.add_argument('--site-hub', help=
     """Override the ocs hub url (wamp_server).""")
+    group.add_argument('--site-http', help=
+    """Override the ocs hub http url (wamp_http).""")
     group.add_argument('--site-realm', help=
     """Override the ocs hub realm (wamp_realm).""")
     group.add_argument('--instance-id', help=
@@ -356,6 +365,9 @@ def get_config(args, agent_class=None):
     # Override the WAMP hub?
     if args.site_hub is not None:
         site_config.hub.data['wamp_server'] = args.site_hub
+
+    if args.site_http is not None:
+        site_config.hub.data['wamp_http'] = args.site_http
 
     # Override the realm?
     if args.site_realm is not None:
@@ -439,6 +451,8 @@ def reparse_args(args, agent_class=None):
 
     if args.site_hub is None:
         args.site_hub = site.hub.data['wamp_server']
+    if args.site_http is None:
+        args.site_http = site.hub.data['wamp_http']
     if args.site_realm is None:
         args.site_realm = site.hub.data['wamp_realm']
     if args.address_root is None:
@@ -460,9 +474,10 @@ def reparse_args(args, agent_class=None):
     return args
 
 
-def get_control_client(instance_id, site=None, args=None, start=True):
-    """Instantiate and return a wampy_client.ControlClient, targeting the
-    specified instance_id.
+def get_control_client(instance_id, site=None, args=None, start=True,
+                       client_type=None):
+    """Instantiate and return a wampy_http.ControlClient or a
+    wampy_client.ControlClient, targeting the specified instance_id.
 
     Args:
         site (SiteConfig): All configuration will be taken from this
@@ -476,9 +491,15 @@ def get_control_client(instance_id, site=None, args=None, start=True):
         start (bool): Determines whether to call .start() on the client before
             returning it.
 
+        client_type (str): Insist on 'wampy' or 'http' type client.
+            Default is None, which will return an http client if
+            hub_http address is known or a wampy client otherwise.
+
     Returns a ControlClient.
+
     """
     from ocs import client_wampy
+    from ocs import client_http
     if site is None:
         if args is None:
             parser = ocs.site_config.add_arguments()
@@ -486,12 +507,25 @@ def get_control_client(instance_id, site=None, args=None, start=True):
             ocs.site_config.reparse_args(args, '*host*')
         site, _, _ = ocs.site_config.get_config(args, '*host*')
     master_addr = '%s.%s' % (site.hub.data['address_root'], instance_id)
-    client = client_wampy.ControlClient(
-        master_addr,
-        url=site.hub.data['wamp_server'],
-        realm=site.hub.data['wamp_realm'])
-    if start:
-        client.start()
+    if client_type is None:
+        if site.hub.data.get('wamp_http'):
+            client_type = 'http'
+        else:
+            client_type = 'wampy'
+    if client_type == 'wampy':
+        client = client_wampy.ControlClient(
+            master_addr,
+            url=site.hub.data['wamp_server'],
+            realm=site.hub.data['wamp_realm'])
+        if start:
+            client.start()
+    elif client_type == 'http':
+        client = client_http.ControlClient(
+            master_addr,
+            url=site.hub.data['wamp_http'],
+            realm=site.hub.data['wamp_realm'])
+    else:
+        raise ValueError('Unknown client_type request: %s' % client_type)
     return client
 
 

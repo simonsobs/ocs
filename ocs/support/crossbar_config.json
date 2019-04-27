@@ -57,17 +57,29 @@
             ],
             "transports": [
                 {
-                    "type": "websocket",
+		    "type": "web",
                     "endpoint": {
                         "type": "tcp",
                         "port": {port}
                     },
-                    "auth": {
-                        "anonymous": {
-                            "type": "static",
-                            "role": "iocs_agent"
-                        }
-                    }
+		    "paths": {
+			"ws": {
+			    "type": "websocket",
+			    "auth": {
+				"anonymous": {
+				    "type": "static",
+				    "role": "iocs_agent"
+				}
+			    }
+			},
+			"call": {
+			    "type": "caller",
+			    "realm": "{realm}",
+			    "role": "iocs_controller",
+			    "options": {
+				}
+			}
+		    }
                 }
             ]
         }

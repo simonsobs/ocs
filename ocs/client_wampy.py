@@ -21,6 +21,7 @@ except ImportError:
 
 from wampy.peers import Client as WampyClient
 from wampy.messages.call import Call as WampyCall
+from wampy.errors import WampyError
 
 class ControlClient(WampyClient):
     def __init__(self, agent_addr, **kwargs):

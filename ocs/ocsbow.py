@@ -5,7 +5,8 @@ ocsbow is used to launch and communicate with the HostMaster agent.
 """
 
 import ocs
-from ocs import client_wampy as cw
+from ocs import client_wampy
+from ocs import client_http
 
 import argparse
 import difflib
@@ -105,7 +106,7 @@ def decode_exception(args):
     """
     try:
         text, data = args[0][4:6]
-        assert(text.startswith('wamp.'))
+        assert(text.startswith('wamp.') or text.startswith('client_http.'))
     except Exception as e:
         return False, args, str(args)
     return True, text, str(data)
@@ -211,6 +212,9 @@ class HostMasterManager:
                 instance.data['instance-id'], args=args)
         except ConnectionError:
             self.client = None
+        except client_wampy.WampyError as e:
+            print('WampyError: %s' % e)
+            self.client = None
 
     def generate_crossbar_config(self):
         site, host, instance = self.SHI
@@ -285,7 +289,13 @@ class HostMasterManager:
                 result['message'] = (
                     'Failed to contact host master at %s; that probably means '
                     'that the HostMaster Agent is not running.' % self.master_addr)
+            elif parsed and err_name == 'client_http.error.connection_error':
+                result['message'] = (
+                    'Connection error: %s; probably crossbar is down.' % text)
+                result['crossbar_running'] = False
+                return result
             else:
+                print(parsed, err_name)
                 print('Unhandled exception when querying status.', file=sys.stderr)
                 raise
         else:

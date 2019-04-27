@@ -1,5 +1,6 @@
 import ocs
 
+import shutil
 import socket
 import os
 import yaml
@@ -119,7 +120,7 @@ class CrossbarConfig:
             this gets passed to ``--cbdir``, if specified..
 
         ``bin`` (optional): The path to the crossbar executable.
-            Defaults to /usr/bin/crossbar.
+            This defaults to shutil.which('crossbar').
 
         If data is None, returns None.  Otherwise returns a
         CrossbarConfig object.
@@ -128,7 +129,7 @@ class CrossbarConfig:
             return None
         self = cls()
         self.parent = parent
-        self.binary = data.get('bin', '/usr/bin/crossbar')
+        self.binary = data.get('bin', shutil.which('crossbar'))
         self.cbdir = data.get('config-dir')
         if self.cbdir is None:
             self.cbdir_args = []

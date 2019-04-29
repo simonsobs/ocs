@@ -13,8 +13,8 @@ class LS372_Agent:
         
         Params:
             name: Application Session
-            ip:  ip address of agent 
-            fake_data: generates random numbers without connecting to LS if True. 
+            ip:  ip address of agent
+            fake_data: generates random numbers without connecting to LS if True.
     """
     def __init__(self, agent, name, ip, fake_data=False):
         self.lock = threading.Semaphore()
@@ -27,16 +27,18 @@ class LS372_Agent:
         self.thermometers = []
 
         self.log = agent.log
+        self.initialized = False
 
         self.agent = agent
         # Registers temperature feeds
         agg_params = {
-            'frame_length': 60,
+            'frame_length': 10*60 #[sec]
         }
         self.agent.register_feed('temperatures',
                                  record=True,
                                  agg_params=agg_params,
                                  buffer_time=1)
+
 
     def try_set_job(self, job_name):
         print(self.job, job_name)
@@ -52,6 +54,13 @@ class LS372_Agent:
             self.job = None
 
     def init_lakeshore_task(self, session, params=None):
+        if params is None:
+            params = {}
+
+        if self.initialized and not params.get('force', False):
+            self.log.info("Lakeshore already initialized. Returning...")
+            return True, "Already initialized"
+
         ok, msg = self.try_set_job('init')
 
         self.log.info('Initialized Lakeshore: {status}', status=ok)
@@ -70,7 +79,7 @@ class LS372_Agent:
             session.add_message("Lakeshore initilized with ID: %s"%self.module.id)
 
             self.thermometers = [channel.name for channel in self.module.channels]
-
+        self.initialized = True
         self.set_job_done()
         return True, 'Lakeshore module initialized.'
 
@@ -81,7 +90,7 @@ class LS372_Agent:
              return ok, msg
 
         session.set_status('running')
-        
+        self.log.info("Starting data acquisition for {}".format(self.agent.agent_address))
         while True:
             with self.lock:
                 if self.job == '!acq':
@@ -109,7 +118,6 @@ class LS372_Agent:
                 data['data'][active_channel.name + ' R'] = self.module.get_temp(unit='ohms', chan=active_channel.channel_num)
                 time.sleep(.01)
 
-            print("Data: {}".format(data))
             session.app.publish_to_feed('temperatures', data)
 
         self.set_job_done()
@@ -143,16 +151,22 @@ class LS372_Agent:
 
         session.set_status('running')
 
-        current_range = self.module.sample_heater.get_heater_range()
+        heater_string = params.get('heater', 'sample')
+        if heater_string.lower() == 'sample':
+            heater = self.module.sample_heater
+        elif heater_string.lower() == 'still':
+            heater = self.module.still_heater
+
+        current_range = heater.get_heater_range()
 
         if params['range'] == current_range:
             print("Current heater range matches commanded value. Proceeding unchanged.")
         else:
-            self.module.sample_heater.set_heater_range(params['range'])
+            heater.set_heater_range(params['range'])
             time.sleep(params['wait'])
 
         self.set_job_done()
-        return True, f'Set heater range to {params["range"]}'
+        return True, f'Set {heater_string} heater range to {params["range"]}'
 
     def set_excitation_mode(self, session, params):
         """
@@ -238,6 +252,27 @@ class LS372_Agent:
 
         self.set_job_done()
         return True, f'return text for set channel to {params["channel"]}'
+
+    def set_autoscan(self, session, params):
+        """
+        Sets autoscan on the LS372.
+        :param params: dict with "autoscan" value
+        """
+        ok, msg = self.try_set_job('set_autoscan')
+        if not ok:
+            return ok, msg
+
+        session.set_status('running')
+
+        if params['autoscan']:
+            self.module.enable_autoscan()
+            self.log.info('enabled autoscan')
+        else:
+            self.module.disable_autoscan()
+            self.log.info('disabled autoscan')
+
+        self.set_job_done()
+        return True, 'Set autoscan to {}'.format(params['autoscan'])
 
     def servo_to_temperature(self, session, params):
         """Servo to temperature passed into params.
@@ -325,6 +360,66 @@ class LS372_Agent:
             self.set_job_done()
             return False, f"Temperature not stable within {params['threshold']}."
 
+    def set_output_mode(self, session, params=None):
+        """
+        Set output mode of the heater.
+
+        :param params: dict with "heater" and "mode" parameters
+        :type params: dict
+
+        heater - Specifies which heater to control. Either 'sample' or 'still'
+        mode - Specifies mode of heater. Can be "Off", "Monitor Out", "Open Loop",
+                    "Zone", "Still", "Closed Loop", or "Warm up"
+        """
+
+        ok, msg = self.try_set_job('set_ouput_mode')
+        if not ok:
+            return ok, msg
+
+        session.set_status('running')
+
+        if params['heater'].lower() == 'still':
+            self.module.still_heater.set_mode(params['mode'])
+        if params['heater'].lower() == 'sample':
+            self.module.sample_heater.set_mode(params['mode'])
+        self.log.info("Set {} output mode to {}".format(params['heater'], params['mode']))
+
+        self.set_job_done()
+        return True, "Set {} output mode to {}".format(params['heater'], params['mode'])
+
+    def set_heater_output(self, session, params=None):
+        """
+        Set display type and output of the heater.
+
+        :param params: dict with "heater", "display", and "output" parameters
+        :type params: dict
+
+        heater - Specifies which heater to control. Either 'sample' or 'still'
+        display - Specifies heater display type. Can be "Current" or "Power"
+        output - Specifies heater output value. If display is set to "Current", can be any number between 0 and 100.
+        If display is set to "Power", can be any number between 0 and the maximum allowed power.
+        """
+
+        ok, msg = self.try_set_job('set_heater_output')
+        if not ok:
+            return ok, msg
+
+        session.set_status('running')
+        data = {'timestamp': time.time(),
+                'block_name': '{}_heater_out'.format(params['heater'].lower()),
+                'data': {'{}_heater_out'.format(params['heater'].lower()): params['output']}
+        }
+        session.app.publish_to_feed('temperatures', data)
+
+        if params['heater'].lower() == 'still':
+            self.module.still_heater.set_heater_output(params['display'],params['output'])
+        if params['heater'].lower() == 'sample':
+            self.log.info("display: {}\toutput: {}".format(params['display'], params['output']))
+            self.module.sample_heater.set_heater_output(params['display'],params['output'])
+        self.log.info("Set {} heater display to {}, output to {}".format(params['heater'], params['display'], params['output']))
+
+        self.set_job_done()
+        return True, "Set {} display to {}, output to {}".format(params['heater'], params['display'], params['output'])
 
 if __name__ == '__main__':
     # Get the default ocs argument parser.
@@ -354,9 +449,12 @@ if __name__ == '__main__':
     agent.register_task('set_excitation_mode', lake_agent.set_excitation_mode)
     agent.register_task('set_excitation', lake_agent.set_excitation)
     agent.register_task('set_pid', lake_agent.set_pid)
+    agent.register_task('set_autoscan', lake_agent.set_autoscan)
     agent.register_task('set_active_channel', lake_agent.set_active_channel)
     agent.register_task('servo_to_temperature', lake_agent.servo_to_temperature)
     agent.register_task('check_temperature_stability', lake_agent.check_temperature_stability)
+    agent.register_task('set_output_mode', lake_agent.set_output_mode)
+    agent.register_task('set_heater_output', lake_agent.set_heater_output)
     agent.register_process('acq', lake_agent.start_acq, lake_agent.stop_acq)
 
     runner.run(agent, auto_reconnect=True)

@@ -161,16 +161,20 @@ heater_range_key = {"0": "Off", "1": 31.6e-6, "2": 100e-6, "3": 316e-6,
                     "4": 1e-3, "5": 3.16e-3, "6": 10e-3, "7": 31.6e-3,
                     "8": 100e-3}
 heater_range_lock = {v:k for k, v in heater_range_key.items()}
+heater_range_lock["On"] = "1"
 
 output_modes = {'0': 'Off', '1': 'Monitor Out', '2': 'Open Loop', '3': 'Zone', '4': 'Still',
                 '5': 'Closed Loop', '6': 'Warm up'}
 output_modes_lock = {v.lower():k for k, v in output_modes.items()}
 
+heater_display_key = { '1': 'current',
+                '2': 'power'}
+heater_display_lock = {v: k for k,v in heater_display_key.items()}
+
 
 class LS372:
     """
         Lakeshore 372 class.
-
     Attributes:
         channels - list of channels, index corresponds to channel number with
                    index 0 corresponding to the control channel, 'A'
@@ -198,24 +202,21 @@ class LS372:
             self.channels.append(c)
 
         self.sample_heater = Heater(self, 0)
+        self.still_heater = Heater(self, 2)
 
     def msg(self, message):
         """Send message to the Lakeshore 372 over ethernet.
-
         If we're asking for something from the Lakeshore (indicated by a ? in
         the message string), then we will attempt to ask twice before giving up
         due to potential communication timeouts.
-
         Parameters
         ----------
         message : str
             Message string as described in the Lakeshore 372 manual.
-
         Returns
         -------
         str
             Response string from the Lakeshore, if any. Else, an empty string.
-
         """
         msg_str = f'{message}\r\n'.encode()
 
@@ -249,14 +250,11 @@ class LS372:
 
     def get_temp(self, unit=None, chan=-1):
         """Get temperature from the Lakeshore.
-
         Args:
             unit (str): Unit to return reading for ('ohms' or 'kelvin')
             chan (str): Channel to query, -1 for currently active channel
-
         Returns:
             float: The reading from the lakeshore, either in ohms or kelvin.
-
         """
         if (chan == -1):
             resp = self.msg("SCAN?")
@@ -280,7 +278,6 @@ class LS372:
 
     def get_autoscan(self):
         """Determine state of autoscan.
-
         :returns: state of autoscanner
         :rtype: bool
         """
@@ -291,7 +288,6 @@ class LS372:
 
     def _set_autoscan(self, start=1, autoscan=0):
         """Set the autoscan state and start channel for scanning.
-
         :param start: Channel number to start scanning
         :type start: int
         :param autoscan: State of autoscan, 0 for off, 1 for on
@@ -304,7 +300,6 @@ class LS372:
 
     def enable_autoscan(self):
         """Enable the autoscan feature of the Lakeshore 372.
-
         Will query active channel to pass already selected channel to SCAN
         command.
         """
@@ -314,7 +309,6 @@ class LS372:
 
     def disable_autoscan(self):
         """Disable the autoscan feature of the Lakeshore 372.
-
         Will query active channel to pass already selected channel to SCAN
         command.
         """
@@ -324,7 +318,6 @@ class LS372:
 
     def get_active_channel(self):
         """Query the Lakeshore for which channel it's currently scanning.
-
         :returns: channel object describing the scanned channel
         :rtype: Channel Object
         """
@@ -336,10 +329,8 @@ class LS372:
 
     def set_active_channel(self, channel):
         """Set the active scanner channel.
-
         Query using SCAN? to determine autoscan parameter and set active
         channel.
-
         :param channel: Channel number to switch scanner to. 1-8 or 1-16
                         depending on scanner type
         :type channel: int
@@ -359,7 +350,6 @@ class LS372:
 
 class Channel:
     """Lakeshore 372 Channel Object
-
     :param ls: Lakeshore unit for communication
     :type ls: LS372 Object
     :param channel_num: The channel number (1-8 or 1-16 depending on scanner
@@ -377,9 +367,7 @@ class Channel:
 
     def get_input_channel_parameter(self):
         """Run Input Channel Parameter Query
-
         ::
-
           Input channel parameters include:
               off/on - Specifies whether the input/channel is disabled or enabled
                   type off/on - bool
@@ -392,9 +380,7 @@ class Channel:
               tempco - Sets the temperature coefficien that will be used for
                        temperature control if no curve is selected
                   type tempco - str
-
         :returns: response from INSET? command
-
         Reference: LakeShore 372 Manual - pg177
         """
         resp = self.ls.msg(f"INSET? {self.channel_num}").split(',')
@@ -409,15 +395,12 @@ class Channel:
 
     def _set_input_channel_parameter(self, params):
         """Set INSET.
-
         Parameters should be <disabled/enabled>, <dwell>, <pause>, <curve
         number>, <tempco>. Will determine <input/channel> from attributes. This
         allows us to use output from get_input_channel_parameters directly, as
         it doesn't return <input/channel>.
-
         :param params: INSET parameters
         :type params: list of str
-
         :returns: response from ls.msg
         """
         assert len(params) == 5
@@ -430,9 +413,7 @@ class Channel:
 
     def get_input_setup(self):
         """Run Input Setup Query, storing results in human readable format.
-
         ::
-
           Input setup parameters include:
               mode - Sensor excitation mode.
                      Measurement input: 0 = Voltage Excitation Mode,
@@ -457,9 +438,7 @@ class Channel:
                           1 = kelvin,
                           2 = ohms
                   type units - int
-
         :returns: response from INTYPE? command
-
         Reference: LakeShore 372 Manual - pg178-179
         """
         resp = self.ls.msg(f"INTYPE? {self.channel_num}").split(',')
@@ -508,13 +487,10 @@ class Channel:
 
     def _set_input_setup(self, params):
         """Set INTYPE.
-
         Parameters are <mode>, <excitation>, <autorange>, <range>, <cs shunt>,
         <units>. Will determine <input/channel> from attributes.
-
         :param params: INTYPE parameters
         :type params: list of str
-
         :returns: response from ls.msg
         """
         assert len(params) == 6
@@ -529,7 +505,6 @@ class Channel:
 
     def get_excitation_mode(self):
         """Get the excitation mode form INTYPE?
-
         :returns: excitation mode, 'current' or 'voltage'
         :rtype: str"""
         resp = self.get_input_setup()
@@ -539,10 +514,8 @@ class Channel:
     def set_excitation_mode(self, excitation_mode):
         """Set the excitation mode to either voltage excitation or current
         exitation.
-
         :param excitation_mode: mode we want, must be 'current' or 'voltage'
         :type excitation_mode: str
-
         :returns: reply from INTYPE call
         :rtype: str
         """
@@ -557,7 +530,6 @@ class Channel:
 
     def get_excitation(self):
         """Get excitation value from INTYPE?
-
         :returns: excitation value in volts or amps, depending on mode
         :rtype: float
         """
@@ -587,10 +559,8 @@ class Channel:
 
     def set_excitation(self, excitation_value):
         """Set voltage/current exitation to specified value via INTYPE command.
-
         :param excitation_value: value in volts/amps of excitation
         :type excitation_value: float
-
         :returns: response from INTYPE command
         :rtype: str
         """
@@ -637,13 +607,11 @@ class Channel:
 
     def set_resistance_range(self, resistance_range):
         """Set the resistance range.
-
         :param resistance_range: range in ohms we want to measure. Doesn't need
                                  to be exactly one of the options on the
                                  lakeshore, will select closest valid range,
                                  though note these are in increments of 2, 6.32, 20, 63.2, etc.
         :type resistance_range: float
-
         :returns: response from INTYPE command
         :rtype: str
         """
@@ -665,7 +633,6 @@ class Channel:
 
     def get_resistance_range(self):
         """Get the resistance range.
-
         :returns: resistance range in Ohms
         :rtype: float
         """
@@ -676,7 +643,6 @@ class Channel:
 
     def enable_excitation(self):
         """Enable excitation by not shunting the current source via INTYPE command.
-
         :returns: state of excitation
         :rtype: str
         """
@@ -687,7 +653,6 @@ class Channel:
 
     def disable_excitation(self):
         """Disable excitation by shunting the current source via INTYPE command.
-
         :returns: state of excitation
         :rtype: str
         """
@@ -698,7 +663,6 @@ class Channel:
 
     def get_excitation_power(self):
         """Get the most recent power calculation for the channel via RDGPWR? command.
-
         :returns: power in Watts
         :rtype: float
         """
@@ -708,7 +672,6 @@ class Channel:
 
     def set_units(self, units):
         """Set preferred units using INTYPE command.
-
         :param units: preferred units parameter for sensor readings, 'kelvin'
                       or 'ohms'
         :type units: str
@@ -723,7 +686,6 @@ class Channel:
 
     def get_units(self):
         """Get preferred units from INTYPE? command.
-
         :returns: preferred units
         :rtype: str
         """
@@ -735,7 +697,6 @@ class Channel:
 
     def enable_channel(self):
         """Enable channel using INSET command.
-
         :returns: response from self._set_input_channel_parameter()
         :rtype: str
         """
@@ -746,7 +707,6 @@ class Channel:
 
     def disable_channel(self):
         """Disable channel using INSET command.
-
         :returns: response from self._set_input_channel_parameter()
         :rtype: str
         """
@@ -757,7 +717,6 @@ class Channel:
 
     def set_dwell(self, dwell):
         """Set the autoscanning dwell time.
-
         :param dwell: Dwell time in seconds
         :type dwell: int
         :returns: response from self._set_input_channel_parameter()
@@ -772,7 +731,6 @@ class Channel:
 
     def get_dwell(self):
         """Get the autoscanning dwell time.
-
         :returns: the dwell time in seconds
         :rtype: int
         """
@@ -782,7 +740,6 @@ class Channel:
 
     def set_pause(self, pause):
         """Set pause time.
-
         :param pause: Pause time in seconds
         :type pause: int
         :returns: response from self._set_input_channel_parameter()
@@ -797,7 +754,6 @@ class Channel:
 
     def get_pause(self):
         """Get the pause time from INSET.
-
         :returns: the pause time in seconds
         :rtype: int
         """
@@ -807,9 +763,7 @@ class Channel:
 
     def set_calibration_curve(self, curve_number):
         """Set calibration curve using INSET.
-
         Note: If curve doesn't exist, curve number gets set to 0.
-
         :param curve_number: Curve number for temperature conversion
         :type curve_number: int
         """
@@ -822,7 +776,6 @@ class Channel:
 
     def get_calibration_curve(self):
         """Get calibration curve number using INSET?
-
         :returns: curve number in use for the channel
         :rtype: int
         """
@@ -832,12 +785,10 @@ class Channel:
 
     def set_temperature_coefficient(self, coefficient):
         """Set tempertaure coefficient with INSET.
-
         :param coefficient: set coefficient to be used for temperature control
                             if no curve is selected, either 'negative' or
                             'positive'
         :type coefficient: str
-
         :returns: response from _set_input_channel_parameter()
         :rtype: str
         """
@@ -850,7 +801,6 @@ class Channel:
 
     def get_temperature_coefficient(self):
         """Get temperature coefficient from INSET?
-
         :returns: temperature coefficient
         """
         resp = self.get_input_channel_parameter()
@@ -859,7 +809,6 @@ class Channel:
 
     def get_sensor_input_name(self):
         """Run Sensor Input Name Query
-
         :returns: response from INNAME? command
         :rtype: str
         """
@@ -871,9 +820,7 @@ class Channel:
 
     def set_sensor_input_name(self, name):
         """Set sensor input name using INNAME.
-
         Note: ',' and ';' characters are sanatized from input
-
         :param name: name to give input channel
         :type name: str
         """
@@ -884,7 +831,6 @@ class Channel:
 
     def get_kelvin_reading(self):
         """Get temperature reading from channel.
-
         :returns: temperature from channel in Kelvin
         :rtype: float
         """
@@ -892,7 +838,6 @@ class Channel:
 
     def get_resistance_reading(self):
         """Get resistence reading from channel.
-
         :returns: resistance from channel in Ohms
         :rtype: float
         """
@@ -900,7 +845,6 @@ class Channel:
 
     def get_reading_status(self):
         """Get status of input reading.
-
         :returns: list of errors on reading (or None if no errors)
         :rtype: list of str
         """
@@ -931,7 +875,6 @@ class Channel:
 
     def get_sensor_reading(self):
         """Get sensor reading from channel.
-
         :returns: resistance from channel in Ohms
         :rtype: float
         """
@@ -941,10 +884,8 @@ class Channel:
         """Set temperature limit in kelvin for which to shutdown all control
         outputs when exceeded. A temperature limit of zero turns the
         temperature limit feature off for the given sensor input.
-
         :param limit: temperature limit in kelvin
         :type limit: float
-
         :returns: response from TLIMIT command
         :rtype: str
         """
@@ -954,9 +895,7 @@ class Channel:
 
     def get_temperature_limit(self):
         """Get temperature limit, at which output controls are shutdown.
-
         A temperature limit of 0 disables this feature.
-
         :returns: temperature limit in Kelvin
         :rtype: float
         """
@@ -998,7 +937,6 @@ class Curve:
 
     def get_header(self):
         """Get curve header description.
-
         :returns: response from CRVHDR? in list
         :rtype: list of str
         """
@@ -1022,18 +960,14 @@ class Curve:
 
     def _set_header(self, params):
         """Set the Curve Header with the CRVHDR command.
-
         Parameters should be <name>, <SN>, <format>, <limit value>,
         <coefficient>. We will determine <curve> from attributes. This
         allows us to use output from get_header directly, as it doesn't return
         the curve number.
-
         <name> is limited to 15 characters. Longer names take the fist 15 characters
         <sn> is limited to 10 characters. Longer sn's take the last 10 digits
-
         :param params: CRVHDR parameters
         :type params: list of str
-
         :returns: response from ls.msg
         """
         assert len(params) == 5
@@ -1051,7 +985,6 @@ class Curve:
 
     def get_name(self):
         """Get the curve name with the CRVHDR? command."
-
         :returns: The curve name
         :rtype: str
         """
@@ -1060,10 +993,8 @@ class Curve:
 
     def set_name(self, name):
         """Set the curve name with the CRVHDR command.
-
         :param name: The curve name, limit of 15 characters, longer names get truncated
         :type name: str
-
         :returns: the response from the CRVHDR command
         :rtype: str
         """
@@ -1074,7 +1005,6 @@ class Curve:
 
     def get_serial_number(self):
         """Get the curve serial number with the CRVHDR? command."
-
         :returns: The curve serial number
         :rtype: str
         """
@@ -1083,11 +1013,9 @@ class Curve:
 
     def set_serial_number(self, serial_number):
         """Set the curve serial number with the CRVHDR command.
-
         :param serial_number: The curve serial number, limit of 10 characters,
                               longer serials get truncated
         :type name: str
-
         :returns: the response from the CRVHDR command
         :rtype: str
         """
@@ -1098,7 +1026,6 @@ class Curve:
 
     def get_format(self):
         """Get the curve data format with the CRVHDR? command."
-
         :returns: The curve data format
         :rtype: str
         """
@@ -1107,13 +1034,11 @@ class Curve:
 
     def set_format(self, _format):
         """Set the curve format with the CRVHDR command.
-
         :param _format: The curve format, valid formats are:
                           "Ohm/K (linear)"
                           "log Ohm/K (linear)"
                           "Ohm/K (cubic spline)"
         :type name: str
-
         :returns: the response from the CRVHDR command
         :rtype: str
         """
@@ -1127,7 +1052,6 @@ class Curve:
 
     def get_limit(self):
         """Get the curve temperature limit with the CRVHDR? command."
-
         :returns: The curve temperature limit
         :rtype: str
         """
@@ -1136,10 +1060,8 @@ class Curve:
 
     def set_limit(self, limit):
         """Set the curve temperature limit with the CRVHDR command.
-
         :param limit: The curve temperature limit
         :type limit: float
-
         :returns: the response from the CRVHDR command
         :rtype: str
         """
@@ -1150,7 +1072,6 @@ class Curve:
 
     def get_coefficient(self):
         """Get the curve temperature coefficient with the CRVHDR? command."
-
         :returns: The curve temperature coefficient
         :rtype: str
         """
@@ -1159,10 +1080,8 @@ class Curve:
 
     def set_coefficient(self, coefficient):
         """Set the curve temperature coefficient with the CRVHDR command."
-
         :param coefficient: The curve temperature coefficient, either 'positive' or 'negative'
         :type limit: str
-
         :returns: the response from the CRVHDR command
         :rtype: str
         """
@@ -1176,14 +1095,11 @@ class Curve:
     def get_data_point(self, index):
         """Get a single data point from a curve, given the index, using the
         CRVPT? command.
-
         The format for the return value, a 3-tuple of floats, is chosen to work
         with how the get_curve() method later stores the entire curve in a
         numpy structured array.
-
         :param index: index of breakpoint to query
         :type index: int
-
         :returns: (units, tempertaure, curvature) values for the given breakpoint
         :rtype: 3-tuple of floats
         """
@@ -1195,7 +1111,6 @@ class Curve:
 
     def _set_data_point(self, index, units, kelvin, curvature=None):
         """Set a single data point with the CRVPT command.
-
         :param index: data point index
         :type index: int
         :param units: value of the sensor units to 6 digits
@@ -1204,7 +1119,6 @@ class Curve:
         :type kelvin: float
         :param curavature: used for calculating cublic spline coefficients (optional)
         :type curvature: float
-
         :returns: response from the CRVPT command
         :rtype: str
         """
@@ -1218,7 +1132,6 @@ class Curve:
     # Public API Elements
     def get_curve(self, _file=None):
         """Get a calibration curve from the LS372.
-
         If _file is not None, save to file location.
         """
         breakpoints = []
@@ -1252,10 +1165,8 @@ class Curve:
 
     def set_curve(self, _file):
         """Set a calibration curve, loading it from the file.
-
         :param _file: the file to load the calibration curve from
         :type _file: str
-
         :returns: return the new curve header, refreshing the attributes
         :rtype: list of str
         """
@@ -1287,7 +1198,6 @@ class Curve:
 
     def delete_curve(self):
         """Delete the curve using the CRVDEL command.
-
         :returns: the response from the CRVDEL command
         :rtype: str
         """
@@ -1309,7 +1219,6 @@ class Curve:
 
 class Heater:
     """Heater class for LS372 control
-
     :param ls: the lakeshore object we're controlling
     :type ls: Lakeshore372.LS372
     :param output: the heater output we want to control, 0 = sample,
@@ -1328,11 +1237,16 @@ class Heater:
 
         self.range = None
 
+        self.resistance = None
+        self.max_current = None
+        self.max_user_current = None
+        self.display = None
+
         self.get_output_mode()
+        self.get_heater_setup()
 
     def get_output_mode(self):
         """Query the heater mode using the OUTMODE? command.
-
         :returns: 6-tuple with output mode, input channel, whether powerup is
                   enabled, polarity, unfiltered/filtered, and the autoscanning
                   delay time.
@@ -1354,17 +1268,13 @@ class Heater:
     # OUTMODE
     def _set_output_mode(self, params):
         """Set the output mode of the heater with the OUTMODE command.
-
         Parameters should be <mode>, <input/channel>, <powerup enable>, <polarity>,
         <filter>, <delay>. Will determine <output> from attributes. This allows
         us to use output from get_output_mode directly, as it doesn't return
         <outpu>.
-
         :param params: OUTMODE parameters
         :type params: list of str
-
         :returns: response from ls.msg
-
         """
         assert len(params) == 6
 
@@ -1374,9 +1284,17 @@ class Heater:
         param_str = ','.join(reply)
         return self.ls.msg(f"OUTMODE {param_str}")
 
+    def _set_heater_setup(self, params):
+        assert len(params) == 4
+
+        reply = [str(self.output)]
+        [reply.append(x) for x in params]
+
+        param_str = ','.join(reply)
+        return self.ls.msg("HTRSET {}".format(param_str))
+
     def get_mode(self):
         """Set output mode with OUTMODE? commnd.
-
         :returns: The output mode
         :rtype: str
         """
@@ -1385,11 +1303,9 @@ class Heater:
 
     def set_mode(self, mode):
         """Set output mode with OUTMODE commnd.
-
         :param mode: control mode for heater, see page 171 of LS372 Manual for
                      valid modes, as it changes per output
         :type mode: str
-
         :returns: the response from the OUTMODE command
         """
         # TODO: Make assertions check specific output and it's validity in mode selection
@@ -1400,9 +1316,13 @@ class Heater:
         self.mode = mode
         return self._set_output_mode(resp)
 
+    def get_manual_out(self):
+        resp = ls.msg("MOUT? {}".format(self.output))
+        return float(resp)
+
+
     def get_input_channel(self):
         """Get the control channel with the OUTMODE? command.
-
         :returns: The control channel
         :rtype: str
         """
@@ -1411,7 +1331,6 @@ class Heater:
 
     def set_input_channel(self, _input):
         """Set the control channel with the OUTMODE command.
-
         :param _input: specifies which input or channel to control from
         :type _input: str or int
         """
@@ -1477,17 +1396,59 @@ class Heater:
         #
         pass
 
-    # HTRSET/HTRSET?
-    def get_heater_output(self, heater):
-        pass
+
+    def set_heater_display(self, display):
+        assert display.lower() in heater_display_lock.keys(), f"{display} is not a valid display"
+
+        resp = self.get_heater_setup()
+        resp[3] = heater_display_lock[display.lower()]
+        self.display = display.lower()
+
+        return self._set_heater_setup(resp)
 
     # Presumably we're going to know and have set values for heat resistance,
     # max current, etc, maybe that'll simplify this in the future.
-    def set_heater_output(self, heater, resistance, max_current, max_user_current, current):
-        pass
+    def set_heater_output(self, display_type, output):
+        """Set heater output with MOUT command.
+        :param output: heater output
+        :type output: float
+        :param output: display_type
+        :type output: string
+        :returns: heater output
+        :rtype: float
+        """
+        self.get_heater_range()
+        self.set_heater_display(display_type)
 
-    def get_heater_setup(self, heater):
-        pass
+        if type(self.range) == str:
+            if (self.range.lower() == "Off"):
+                print("Heater range is off... not setting output")
+                return
+        else:
+            max_pow = self.range**2 * self.resistance
+
+        if display_type == 'power':
+            if not (0 <= output <= max_pow):
+                print("Cannot set to {} W, max power is {:2e} W".format(output, max_pow))
+                return False
+        if display_type == 'current' and not (0 <= output <= 100):
+            print("Display is current: output must be between 0 and 100")
+            return False
+
+        self.ls.msg(f"MOUT {self.output} {output}")
+
+        return self.ls.msg("MOUT?")
+
+    def get_heater_setup(self):
+        resp = self.ls.msg("HTRSET? {}".format(self.output)).split(',')
+
+        self.resistance = float(resp[0])
+        self.max_current = int(resp[1])
+        self.max_user_current = float(resp[2])
+        self.display = heater_display_key[resp[3]]
+
+        return resp
+
 
     # RAMP, RAMP? - in heater class
     def set_ramp_rate(self, rate):
@@ -1509,10 +1470,8 @@ class Heater:
     # RANGE
     def set_heater_range(self, _range):
         """Set heater range with RANGE command.
-
         :param _range: heater range
         :type _range: float or str (for "On" "Off")
-
         :returns: heater range in amps
         :rtype: float
         """
@@ -1520,6 +1479,8 @@ class Heater:
 
         if str(_range).lower() == 'off':
             _range = "Off"
+        if str(_range).lower() == 'on':
+            _range = "On"
 
         if self.output == 0:
             resp = self.ls.msg(f"RANGE {self.output} {heater_range_lock[_range]}").strip()
@@ -1533,7 +1494,6 @@ class Heater:
 
     def get_heater_range(self):
         """Get heater range with RANGE? command.
-
         :returns: heater range in amps
         :rtype: float
         """
@@ -1549,7 +1509,7 @@ class Heater:
 
     # SETP - heater class
     def set_setpoint(self, value):
-        self.ls.msg(f"SETP {self.output},{value}") 
+        self.ls.msg(f"SETP {self.output},{value}")
 
     # SETP? - heater class
     def get_setpoint(self):
@@ -1576,14 +1536,12 @@ class Heater:
     # PID
     def set_pid(self, P, I, D):
         """Set PID parameters for closed loop control.
-
         :params P: proportional term in PID loop
         :type P: float
         :params I: integral term in PID loop
         :type I: float
         :params D: derivative term in PID loop
         :type D: float
-
         :returns: response from PID command
         :rtype: str
         """
@@ -1597,10 +1555,8 @@ class Heater:
     # PID?
     def get_pid(self):
         """Get PID parameters with PID? command.
-
         :returns: P, I, D
         :rtype: float, float, float
-
         """
         resp = self.ls.msg("PID?").split(',')
         return float(resp[0]), float(resp[1]), float(resp[2])

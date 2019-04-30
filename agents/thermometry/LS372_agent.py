@@ -10,6 +10,7 @@ from ocs.Lakeshore.Lakeshore372 import LS372
 class LS372_Agent:
     """
         Agent to connect to a single Lakeshore 372 device.
+        
         Params:
             name: Application Session
             ip:  ip address of agent
@@ -135,8 +136,10 @@ class LS372_Agent:
         """
         Adjust the heater range for servoing cryostat. Wait for a specified
         amount of time after the change.
+
         :param params: dict with 'range', 'wait' keys
         :type params: dict
+
         range - the heater range value to change to
         wait - time in seconds after changing the heater value to wait, allows
                the servo to adjust to the new heater range, typical value of
@@ -168,6 +171,7 @@ class LS372_Agent:
     def set_excitation_mode(self, session, params):
         """
         Set the excitation mode of a specified channel.
+
         :param params: dict with "channel" and "mode" keys for Channel.set_excitation_mode()
         :type params: dict
         """
@@ -187,6 +191,7 @@ class LS372_Agent:
     def set_excitation(self, session, params):
         """
         Set the excitation voltage/current value of a specified channel.
+
         :param params: dict with "channel" and "value" keys for Channel.set_excitation()
         :type params: dict
         """
@@ -211,6 +216,7 @@ class LS372_Agent:
     def set_pid(self, session, params):
         """
         Set the PID parameters for servo control of fridge.
+
         :param params: dict with "P", "I", and "D" keys for Heater.set_pid()
         :type params: dict
         """
@@ -230,6 +236,7 @@ class LS372_Agent:
     def set_active_channel(self, session, params):
         """
         Set the active channel on the LS372.
+
         :param params: dict with "channel" number
         :type params: dict
         """
@@ -269,6 +276,7 @@ class LS372_Agent:
 
     def servo_to_temperature(self, session, params):
         """Servo to temperature passed into params.
+
         :param params: dict with "temperature" Heater.set_setpoint() in unites of K
         :type params: dict
         """
@@ -310,8 +318,10 @@ class LS372_Agent:
 
     def check_temperature_stability(self, session, params):
         """Check servo temperature stability is within threshold.
+
         :param params: dict with "measurements" and "threshold" parameters
         :type params: dict
+
         measurements - number of measurements to average for stability check
         threshold - amount within which the average needs to be to the setpoint for stability
         """
@@ -353,8 +363,10 @@ class LS372_Agent:
     def set_output_mode(self, session, params=None):
         """
         Set output mode of the heater.
+
         :param params: dict with "heater" and "mode" parameters
         :type params: dict
+
         heater - Specifies which heater to control. Either 'sample' or 'still'
         mode - Specifies mode of heater. Can be "Off", "Monitor Out", "Open Loop",
                     "Zone", "Still", "Closed Loop", or "Warm up"
@@ -378,8 +390,10 @@ class LS372_Agent:
     def set_heater_output(self, session, params=None):
         """
         Set display type and output of the heater.
+
         :param params: dict with "heater", "display", and "output" parameters
         :type params: dict
+
         heater - Specifies which heater to control. Either 'sample' or 'still'
         display - Specifies heater display type. Can be "Current" or "Power"
         output - Specifies heater output value. If display is set to "Current", can be any number between 0 and 100.
@@ -443,4 +457,4 @@ if __name__ == '__main__':
     agent.register_task('set_heater_output', lake_agent.set_heater_output)
     agent.register_process('acq', lake_agent.start_acq, lake_agent.stop_acq)
 
-runner.run(agent, auto_reconnect=True)
+    runner.run(agent, auto_reconnect=True)

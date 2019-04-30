@@ -69,7 +69,7 @@ information about the feed itself with the published data.
 
 Feed API
 ---------
-.. autoclass:: ocs.ocs_agent.Feed
+.. autoclass:: ocs.ocs_feed.Feed
     :members:
 
 

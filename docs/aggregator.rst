@@ -144,7 +144,7 @@ Timestreams that are not simultaneously sampled will have to be stored in
 separate blocks and published separately.
 
 .. autoclass:: agents.aggregator.aggregator_agent.DataAggregator
-    :members: initialize, start_aggregate, write_blocks_to_file, add_feed
+    :members: initialize, start_aggregate, add_feed
 
 
 

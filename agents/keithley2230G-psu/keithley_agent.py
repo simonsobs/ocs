@@ -9,7 +9,7 @@ from ocs.ocs_twisted import TimeoutLock
 
 from autobahn.wamp.exception import ApplicationError
 
-from keithley2230 import psuInterface
+from keithley_driver import psuInterface
 
 class Keithley2230GAgent:
     def __init__(self, agent, ip_address, gpib_slot):
@@ -41,7 +41,7 @@ class Keithley2230GAgent:
                 return False, "Could not acquire lock"
 
             try:
-                self.psu = psuInterface.psuInterface(self.ip_address, self.gpib_slot)
+                self.psu = psuInterface(self.ip_address, self.gpib_slot)
                 self.idn = self.psu.identify()
             except socket.timeout as e:
                 self.log.error("PSU timed out during connect")

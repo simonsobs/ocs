@@ -1,5 +1,6 @@
 import time, threading
 from datetime import datetime
+import binascii
 import numpy as np
 from ocs import ocs_agent, site_config, client_t, ocs_feed
 import os
@@ -145,7 +146,7 @@ class DataAggregator:
         self.next_prov_id = 0
 
         self.should_write_status =False
-        self.hksess = so3g.hkagg.HKSession(description="HK data")
+        self.hksess = so3g.hk.HKSessionHelper(description="HK data")
 
         self.aggregate = False
         self.writer = None
@@ -382,8 +383,18 @@ class DataAggregator:
         self.log.info("Starting data aggregation in directory {}".format(data_dir))
         session.set_status('running')
 
-        self.hksess.session_id = session.session_id
         self.hksess.start_time = time.time()
+        # Encode a suitable agg_session_id.  if 1:
+        elements = [(int(self.hksess.start_time), 32),
+                    (os.getpid(), 14),
+                    (binascii.crc32(bytes(self.hksess.description, 'utf8')), 14)]
+        agg_session_id = 0
+        for i, b in elements:
+            agg_session_id = (agg_session_id << b) | (i % (1<<b))
+        self.log.info("New aggregator session_id=%i" % agg_session_id)
+        # The cast here to G3Int can be dropped in the future -- spt3g
+        # was updated on May 1 2019 to handle direct puts of int64_t.
+        self.hksess.session_id = core.G3Int(agg_session_id)
 
         new_file_time = True
 

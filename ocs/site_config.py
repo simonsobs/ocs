@@ -452,7 +452,7 @@ def reparse_args(args, agent_class=None):
     if args.site_hub is None:
         args.site_hub = site.hub.data['wamp_server']
     if args.site_http is None:
-        args.site_http = site.hub.data['wamp_http']
+        args.site_http = site.hub.data.get('wamp_http')
     if args.site_realm is None:
         args.site_realm = site.hub.data['wamp_realm']
     if args.address_root is None:

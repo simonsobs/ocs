@@ -294,6 +294,11 @@ class HostMasterManager:
                     'Connection error: %s; probably crossbar is down.' % text)
                 result['crossbar_running'] = False
                 return result
+            elif parsed and err_name == 'client_http.error.request_error':
+                result['message'] = (
+                    'Request error: %s; perhaps crossbar not configured for http.' % text)
+                result['crossbar_running'] = True
+                return result
             else:
                 print(parsed, err_name)
                 print('Unhandled exception when querying status.', file=sys.stderr)

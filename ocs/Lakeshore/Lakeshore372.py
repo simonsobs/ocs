@@ -1562,30 +1562,49 @@ class Heater:
         :rtype: float
         """
 
-        self.get_heater_range()
         if display_type is not None:
             self.set_heater_display(display_type)
 
+        self.get_heater_range()
         self.get_heater_setup()
 
-        if type(self.range) == str:
-            if (self.range.lower() == "Off"):
-                print("Heater range is off... not setting output")
-                return
-        else:
-            max_pow = self.range**2 * self.resistance
-
-        if self.display == 'power':
-            if not (0 <= output <= max_pow):
-                print("Cannot set to {} W, max power is {:2e} W".format(output, max_pow))
-                return False
-        if self.display == 'current' and not (0 <= output <= 100):
-            print("Display is current: output must be between 0 and 100")
+        if self.range in ["off", "Off"]:
+            print("Heater range is off... Not setting output")
             return False
 
-        self.ls.msg(f"MOUT {self.output} {output}")
+        if self.output == 0:
+            # For sample heater
+            max_pow = self.range ** 2 * self.resistance
 
-        return self.ls.msg("MOUT?")
+            if self.display == 'power':
+                if 0 <= output <= max_pow:
+                    self.ls.msg(f"MOUT {self.output} {output}")
+                    return True
+                else:
+                    print("Cannot set to {} W, max power is {:2e} W".format(
+                        output, max_pow))
+                    return False
+
+            if self.display == 'current':
+                if 0 <= output <= 100:
+                    self.ls.msg(f"MOUT {self.output} {output}")
+                    return True
+                else:
+                    print(
+                        "Display is current: output must be between 0 and 100")
+                    return False
+
+        if self.output == 1:
+            # Does anyone actually plan on using the warm-up heater?
+            pass
+
+        if self.output == 2:
+            if 0 <= output <= 100:
+                self.ls.msg(f"MOUT {self.output} {output}")
+                return True
+            else:
+                print("Still heater output must be between 0 and 100%")
+                return False
 
     def get_heater_setup(self):
         """Gets Heater setup params with the HTRSET? command.

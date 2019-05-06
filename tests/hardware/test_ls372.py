@@ -15,6 +15,7 @@ ls = LS372('172.16.127.192')
 ch = Channel(ls, 4)
 cv = Curve(ls, 21)
 ht = Heater(ls, 0)
+still = Heater(ls, 1)
 
 # Heater Tests
 def test_set_get_heater_input():
@@ -278,3 +279,20 @@ def test_set_get_excitation():
         assert True is False, "Unknown excitation mode -- this shouldn't happen"
 
     ch.set_excitation(init_excitation)
+
+def test_set_get_manual_output():
+    """
+        Tests manual output for lakeshore heaters
+    """
+    ht.get_heater_setup()
+    start_mode = ht.get_mode()
+    start_mout = ht.get_manual_out()
+    start_display = ht.display
+
+    ht.set_mode("Open Loop")
+    ht.set_heater_output(100e-6, 'power')  # Sets heater current to 100 muW
+    mout = ht.get_manual_out()
+    assert mout == 100e-6
+
+    ht.set_heater_output(start_mout, display_type=start_display)
+    ht.set_mode(start_mode)

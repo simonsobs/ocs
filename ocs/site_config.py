@@ -3,6 +3,7 @@ import ocs
 import shutil
 import socket
 import os
+import sys
 import yaml
 
     
@@ -483,10 +484,14 @@ def get_control_client(instance_id, site=None, args=None, start=True,
         site (SiteConfig): All configuration will be taken from this
             object, if it is not None.
 
-        args (argparse.Namespace or similar): Arguments from which to
-            derive the site configuration; this will be populated from
-            the command line using the usual site_config calls if args
-            is None.
+        args: Arguments from which to derive the site configuration.
+            If this is None, then the arguments from the command line
+            are parsed through the usual site_config system.  If this
+            is a list of strings, then these arguments will be parsed
+            instead of sys.argv[1:].  Note that to use the default
+            configuration (without looking at sys.argv), pass args=[].
+            It is also permitted to pass a pre-parsed
+            argparse.Namespace object (or similar).
 
         start (bool): Determines whether to call .start() on the client before
             returning it.
@@ -500,8 +505,12 @@ def get_control_client(instance_id, site=None, args=None, start=True,
     """
     if site is None:
         if args is None:
+            args = sys.argv[1:]
+        if not hasattr(args, 'instance_id'):
+            # If it doesn't have .instance_id, it's not a parsed
+            # Namespace so let's assume it's a list of strings.
             parser = ocs.site_config.add_arguments()
-            args = parser.parse_args()
+            args = parser.parse_args(args)
             ocs.site_config.reparse_args(args, '*host*')
         site, _, _ = ocs.site_config.get_config(args, '*host*')
     master_addr = '%s.%s' % (site.hub.data['address_root'], instance_id)

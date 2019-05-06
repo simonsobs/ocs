@@ -498,8 +498,6 @@ def get_control_client(instance_id, site=None, args=None, start=True,
     Returns a ControlClient.
 
     """
-    from ocs import client_wampy
-    from ocs import client_http
     if site is None:
         if args is None:
             parser = ocs.site_config.add_arguments()
@@ -513,6 +511,7 @@ def get_control_client(instance_id, site=None, args=None, start=True,
         else:
             client_type = 'wampy'
     if client_type == 'wampy':
+        from ocs import client_wampy
         client = client_wampy.ControlClient(
             master_addr,
             url=site.hub.data['wamp_server'],
@@ -520,6 +519,7 @@ def get_control_client(instance_id, site=None, args=None, start=True,
         if start:
             client.start()
     elif client_type == 'http':
+        from ocs import client_http
         client = client_http.ControlClient(
             master_addr,
             url=site.hub.data['wamp_http'],

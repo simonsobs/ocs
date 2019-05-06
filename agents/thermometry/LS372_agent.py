@@ -395,31 +395,40 @@ class LS372_Agent:
         :type params: dict
 
         heater - Specifies which heater to control. Either 'sample' or 'still'
-        display - Specifies heater display type. Can be "Current" or "Power"
-        output - Specifies heater output value. If display is set to "Current", can be any number between 0 and 100.
-        If display is set to "Power", can be any number between 0 and the maximum allowed power.
+        output - Specifies heater output value.
+                    If display is set to "Current" or heater is "still", can be any number between 0 and 100.
+                    If display is set to "Power", can be any number between 0 and the maximum allowed power.
+
+        display (opt)- Specifies heater display type. Can be "Current" or "Power".
+                        If None, heater display is set before seting output.
+
         """
 
         ok, msg = self.try_set_job('set_heater_output')
         if not ok:
             return ok, msg
 
+        heater = params['heater'].lower()
+        output = params['output']
+
+        display = params.get('display', None)
+
         session.set_status('running')
         data = {'timestamp': time.time(),
-                'block_name': '{}_heater_out'.format(params['heater'].lower()),
-                'data': {'{}_heater_out'.format(params['heater'].lower()): params['output']}
+                'block_name': '{}_heater_out'.format(heater),
+                'data': {'{}_heater_out'.format(heater): output}
         }
         session.app.publish_to_feed('temperatures', data)
 
-        if params['heater'].lower() == 'still':
-            self.module.still_heater.set_heater_output(params['display'],params['output'])
-        if params['heater'].lower() == 'sample':
-            self.log.info("display: {}\toutput: {}".format(params['display'], params['output']))
-            self.module.sample_heater.set_heater_output(params['display'],params['output'])
-        self.log.info("Set {} heater display to {}, output to {}".format(params['heater'], params['display'], params['output']))
+        if heater == 'still':
+            self.module.still_heater.set_heater_output(output, display=display)
+        if heater.lower() == 'sample':
+            self.log.info("display: {}\toutput: {}".format(display, output))
+            self.module.sample_heater.set_heater_output(output, display=display)
+        self.log.info("Set {} heater display to {}, output to {}".format(heater, display, output))
 
         self.set_job_done()
-        return True, "Set {} display to {}, output to {}".format(params['heater'], params['display'], params['output'])
+        return True, "Set {} display to {}, output to {}".format(heater, display, output)
 
 if __name__ == '__main__':
     # Get the default ocs argument parser.

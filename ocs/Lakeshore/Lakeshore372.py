@@ -1444,7 +1444,7 @@ class Heater:
         return self._set_output_mode(resp)
 
     def get_manual_out(self):
-        resp = ls.msg("MOUT? {}".format(self.output))
+        resp = self.ls.msg("MOUT? {}".format(self.output))
         return float(resp)
 
 
@@ -1540,9 +1540,10 @@ class Heater:
 
         resp = self.get_heater_setup()
         resp[3] = heater_display_lock[display.lower()]
-        self.display = display.lower()
 
-        return self._set_heater_setup(resp)
+        self._set_heater_setup(resp)
+
+        self.get_heater_setup()
 
     # Presumably we're going to know and have set values for heat resistance,
     # max current, etc, maybe that'll simplify this in the future.

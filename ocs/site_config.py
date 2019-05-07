@@ -1,7 +1,9 @@
 import ocs
 
+import shutil
 import socket
 import os
+import sys
 import yaml
 
     
@@ -119,7 +121,7 @@ class CrossbarConfig:
             this gets passed to ``--cbdir``, if specified..
 
         ``bin`` (optional): The path to the crossbar executable.
-            Defaults to /usr/bin/crossbar.
+            This defaults to shutil.which('crossbar').
 
         If data is None, returns None.  Otherwise returns a
         CrossbarConfig object.
@@ -128,7 +130,7 @@ class CrossbarConfig:
             return None
         self = cls()
         self.parent = parent
-        self.binary = data.get('bin', '/usr/bin/crossbar')
+        self.binary = data.get('bin', shutil.which('crossbar'))
         self.cbdir = data.get('config-dir')
         if self.cbdir is None:
             self.cbdir_args = []
@@ -161,6 +163,10 @@ class HubConfig:
             WAMP routers can have multiple access points, with
             different protocols, security layers, and permissions.
             (Command line override: ``--site-hub``.)
+
+        ``wamp_http`` (optional): URL to the WAMP router's http bridge
+            interface.  This is the best interface for simple clients
+            to use.  E.g., ``http://host-2:8001/call``.
 
         ``wamp_realm`` (required): The WAMP realm to use.  WAMP
             clients operating in a particular realm are isolated from
@@ -268,6 +274,9 @@ def add_arguments(parser=None):
     ``--site-hub=...``:
         Override the ocs hub url (wamp_server).
 
+    ``--site-http=...``:
+        Override the ocs hub http url (wamp_http).
+
     ``--site-realm=...``:
         Override the ocs hub realm (wamp_realm).
 
@@ -303,6 +312,8 @@ def add_arguments(parser=None):
        host.""")
     group.add_argument('--site-hub', help=
     """Override the ocs hub url (wamp_server).""")
+    group.add_argument('--site-http', help=
+    """Override the ocs hub http url (wamp_http).""")
     group.add_argument('--site-realm', help=
     """Override the ocs hub realm (wamp_realm).""")
     group.add_argument('--instance-id', help=
@@ -355,6 +366,9 @@ def get_config(args, agent_class=None):
     # Override the WAMP hub?
     if args.site_hub is not None:
         site_config.hub.data['wamp_server'] = args.site_hub
+
+    if args.site_http is not None:
+        site_config.hub.data['wamp_http'] = args.site_http
 
     # Override the realm?
     if args.site_realm is not None:
@@ -438,6 +452,8 @@ def reparse_args(args, agent_class=None):
 
     if args.site_hub is None:
         args.site_hub = site.hub.data['wamp_server']
+    if args.site_http is None:
+        args.site_http = site.hub.data.get('wamp_http')
     if args.site_realm is None:
         args.site_realm = site.hub.data['wamp_realm']
     if args.address_root is None:
@@ -459,38 +475,66 @@ def reparse_args(args, agent_class=None):
     return args
 
 
-def get_control_client(instance_id, site=None, args=None, start=True):
-    """Instantiate and return a wampy_client.ControlClient, targeting the
-    specified instance_id.
+def get_control_client(instance_id, site=None, args=None, start=True,
+                       client_type=None):
+    """Instantiate and return a wampy_http.ControlClient or a
+    wampy_client.ControlClient, targeting the specified instance_id.
 
     Args:
         site (SiteConfig): All configuration will be taken from this
             object, if it is not None.
 
-        args (argparse.Namespace or similar): Arguments from which to
-            derive the site configuration; this will be populated from
-            the command line using the usual site_config calls if args
-            is None.
+        args: Arguments from which to derive the site configuration.
+            If this is None, then the arguments from the command line
+            are parsed through the usual site_config system.  If this
+            is a list of strings, then these arguments will be parsed
+            instead of sys.argv[1:].  Note that to use the default
+            configuration (without looking at sys.argv), pass args=[].
+            It is also permitted to pass a pre-parsed
+            argparse.Namespace object (or similar).
 
         start (bool): Determines whether to call .start() on the client before
             returning it.
 
+        client_type (str): Insist on 'wampy' or 'http' type client.
+            Default is None, which will return an http client if
+            hub_http address is known or a wampy client otherwise.
+
     Returns a ControlClient.
+
     """
-    from ocs import client_wampy
     if site is None:
         if args is None:
+            args = sys.argv[1:]
+        if not hasattr(args, 'instance_id'):
+            # If it doesn't have .instance_id, it's not a parsed
+            # Namespace so let's assume it's a list of strings.
             parser = ocs.site_config.add_arguments()
-            args = parser.parse_args()
+            args = parser.parse_args(args)
             ocs.site_config.reparse_args(args, '*host*')
         site, _, _ = ocs.site_config.get_config(args, '*host*')
     master_addr = '%s.%s' % (site.hub.data['address_root'], instance_id)
-    client = client_wampy.ControlClient(
-        master_addr,
-        url=site.hub.data['wamp_server'],
-        realm=site.hub.data['wamp_realm'])
-    if start:
-        client.start()
+    if client_type is None:
+        if site.hub.data.get('wamp_http'):
+            client_type = 'http'
+        else:
+            client_type = 'wampy'
+    if client_type == 'wampy':
+        from ocs import client_wampy
+        client = client_wampy.ControlClient(
+            master_addr,
+            url=site.hub.data['wamp_server'],
+            realm=site.hub.data['wamp_realm'])
+        if start:
+            client.start()
+    elif client_type == 'http':
+        from ocs import client_http
+        client = client_http.ControlClient(
+            master_addr,
+            url=site.hub.data['wamp_http'],
+            realm=site.hub.data['wamp_realm'])
+    else:
+        raise ValueError('Unknown client_type request: %s' % client_type)
     return client
 
 

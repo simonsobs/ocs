@@ -61,6 +61,7 @@ instances (running two different classes of agent):
   hub:
   
     wamp_server: ws://host-2:8001/ws
+    wamp_http: http://host-2:8001/call
     wamp_realm: detlab_realm
     address_root: detlab.cryo
     registry_agent: observatory.registry

@@ -161,10 +161,15 @@ heater_range_key = {"0": "Off", "1": 31.6e-6, "2": 100e-6, "3": 316e-6,
                     "4": 1e-3, "5": 3.16e-3, "6": 10e-3, "7": 31.6e-3,
                     "8": 100e-3}
 heater_range_lock = {v:k for k, v in heater_range_key.items()}
+heater_range_lock["On"] = "1"
 
 output_modes = {'0': 'Off', '1': 'Monitor Out', '2': 'Open Loop', '3': 'Zone', '4': 'Still',
                 '5': 'Closed Loop', '6': 'Warm up'}
 output_modes_lock = {v.lower():k for k, v in output_modes.items()}
+
+heater_display_key = { '1': 'current',
+                '2': 'power'}
+heater_display_lock = {v: k for k,v in heater_display_key.items()}
 
 
 class LS372:
@@ -198,6 +203,7 @@ class LS372:
             self.channels.append(c)
 
         self.sample_heater = Heater(self, 0)
+        self.still_heater = Heater(self, 2)
 
     def msg(self, message):
         """Send message to the Lakeshore 372 over ethernet.
@@ -393,6 +399,7 @@ class Channel:
                        temperature control if no curve is selected
                   type tempco - str
 
+
         :returns: response from INSET? command
 
         Reference: LakeShore 372 Manual - pg177
@@ -531,7 +538,8 @@ class Channel:
         """Get the excitation mode form INTYPE?
 
         :returns: excitation mode, 'current' or 'voltage'
-        :rtype: str"""
+        :rtype: str
+        """
         resp = self.get_input_setup()
         self.mode = mode_key[resp[0]]
         return self.mode
@@ -545,6 +553,7 @@ class Channel:
 
         :returns: reply from INTYPE call
         :rtype: str
+
         """
         assert excitation_mode in ['voltage', 'current']
 
@@ -712,6 +721,7 @@ class Channel:
         :param units: preferred units parameter for sensor readings, 'kelvin'
                       or 'ohms'
         :type units: str
+
         :returns: response from INTYPE command
         :rtype: str
         """
@@ -760,6 +770,7 @@ class Channel:
 
         :param dwell: Dwell time in seconds
         :type dwell: int
+
         :returns: response from self._set_input_channel_parameter()
         :rtype: str
         """
@@ -785,6 +796,7 @@ class Channel:
 
         :param pause: Pause time in seconds
         :type pause: int
+
         :returns: response from self._set_input_channel_parameter()
         :rtype: str
         """
@@ -1050,7 +1062,7 @@ class Curve:
         return self.ls.msg(f'CRVHDR {_curve_num},"{_name}","{_sn}",{_format},{_limit},{_coeff}')
 
     def get_name(self):
-        """Get the curve name with the CRVHDR? command."
+        """Get the curve name with the CRVHDR? command.
 
         :returns: The curve name
         :rtype: str
@@ -1126,7 +1138,7 @@ class Curve:
         return self._set_header(resp)
 
     def get_limit(self):
-        """Get the curve temperature limit with the CRVHDR? command."
+        """Get the curve temperature limit with the CRVHDR? command.
 
         :returns: The curve temperature limit
         :rtype: str
@@ -1149,7 +1161,7 @@ class Curve:
         return self._set_header(resp)
 
     def get_coefficient(self):
-        """Get the curve temperature coefficient with the CRVHDR? command."
+        """Get the curve temperature coefficient with the CRVHDR? command.
 
         :returns: The curve temperature coefficient
         :rtype: str
@@ -1158,7 +1170,7 @@ class Curve:
         return self.coefficient
 
     def set_coefficient(self, coefficient):
-        """Set the curve temperature coefficient with the CRVHDR command."
+        """Set the curve temperature coefficient with the CRVHDR command.
 
         :param coefficient: The curve temperature coefficient, either 'positive' or 'negative'
         :type limit: str
@@ -1328,7 +1340,13 @@ class Heater:
 
         self.range = None
 
+        self.resistance = None
+        self.max_current = None
+        self.max_user_current = None
+        self.display = None
+
         self.get_output_mode()
+        self.get_heater_setup()
 
     def get_output_mode(self):
         """Query the heater mode using the OUTMODE? command.
@@ -1364,7 +1382,6 @@ class Heater:
         :type params: list of str
 
         :returns: response from ls.msg
-
         """
         assert len(params) == 6
 
@@ -1373,6 +1390,32 @@ class Heater:
 
         param_str = ','.join(reply)
         return self.ls.msg(f"OUTMODE {param_str}")
+
+    def _set_heater_setup(self, params):
+        """
+        Sets the heater setup using the HTRSET command.
+
+        Params must be a list with the parameters:
+            <heater resistance>:    Heater load in Ohms (Sample);
+                                    1=25 Ohms, 2=50 Ohms (warmp-up)
+            <max current>: Specifies max heater output for warm-up heater.
+                           0=User spec, 1=0.45 A, 2=0.63 A.
+            <max user current>: Max heater output if max_current is set to user (warm-up only)
+            <current/power>:    Specifies if heater display is current or power.
+                                1=current, 2=power.
+
+        :param params:
+        :return:
+        """
+        assert self.output in [0,1]
+
+        assert len(params) == 4
+
+        reply = [str(self.output)]
+        [reply.append(x) for x in params]
+
+        param_str = ','.join(reply)
+        return self.ls.msg("HTRSET {}".format(param_str))
 
     def get_mode(self):
         """Set output mode with OUTMODE? commnd.
@@ -1399,6 +1442,11 @@ class Heater:
         resp[0] = output_modes_lock[mode.lower()]
         self.mode = mode
         return self._set_output_mode(resp)
+
+    def get_manual_out(self):
+        resp = self.ls.msg("MOUT? {}".format(self.output))
+        return float(resp)
+
 
     def get_input_channel(self):
         """Get the control channel with the OUTMODE? command.
@@ -1477,17 +1525,102 @@ class Heater:
         #
         pass
 
-    # HTRSET/HTRSET?
-    def get_heater_output(self, heater):
-        pass
+
+    def set_heater_display(self, display):
+        """
+        :param display: Display mode for heater. Can either be 'current' or 'power'.
+        :type display: string
+        """
+
+        if self.output == 2:
+            print("Cannot set still heater dispaly")
+            return False
+
+        assert display.lower() in heater_display_lock.keys(), f"{display} is not a valid display"
+
+        resp = self.get_heater_setup()
+        resp[3] = heater_display_lock[display.lower()]
+
+        self._set_heater_setup(resp)
+
+        self.get_heater_setup()
 
     # Presumably we're going to know and have set values for heat resistance,
     # max current, etc, maybe that'll simplify this in the future.
-    def set_heater_output(self, heater, resistance, max_current, max_user_current, current):
-        pass
+    def set_heater_output(self, output, display_type=None):
+        """Set heater output with MOUT command.
 
-    def get_heater_setup(self, heater):
-        pass
+        :param output: heater output value. If display is 'power', value should
+                        be in Watts. If 'current', value should be in percent.
+                        If this is the still heater, value should be percent of
+                        max voltage (10 V).
+        :type output: float
+        :param display_type: Display type if you want to set this before setting heater.
+                        Can be 'power' or 'current' if output is sample or warm-up heater.
+        :type display_type: string
+
+        :returns: heater output
+        :rtype: float
+        """
+
+        if display_type is not None:
+            self.set_heater_display(display_type)
+
+        self.get_heater_range()
+        self.get_heater_setup()
+
+        if self.range in ["off", "Off"]:
+            print("Heater range is off... Not setting output")
+            return False
+
+        if self.output == 0:
+            # For sample heater
+            max_pow = self.range ** 2 * self.resistance
+
+            if self.display == 'power':
+                if 0 <= output <= max_pow:
+                    self.ls.msg(f"MOUT {self.output} {output}")
+                    return True
+                else:
+                    print("Cannot set to {} W, max power is {:2e} W".format(
+                        output, max_pow))
+                    return False
+
+            if self.display == 'current':
+                if 0 <= output <= 100:
+                    self.ls.msg(f"MOUT {self.output} {output}")
+                    return True
+                else:
+                    print(
+                        "Display is current: output must be between 0 and 100")
+                    return False
+
+        if self.output == 1:
+            # Does anyone actually plan on using the warm-up heater?
+            pass
+
+        if self.output == 2:
+            if 0 <= output <= 100:
+                self.ls.msg(f"MOUT {self.output} {output}")
+                return True
+            else:
+                print("Still heater output must be between 0 and 100%")
+                return False
+
+    def get_heater_setup(self):
+        """Gets Heater setup params with the HTRSET? command.
+
+        :return resp: List of values that have been returned from the Lakeshore.
+        """
+        resp = self.ls.msg("HTRSET? {}".format(self.output)).split(',')
+
+        self.resistance = float(resp[0])
+        self.max_current = int(resp[1])
+        self.max_user_current = float(resp[2])
+        self.display = heater_display_key[resp[3]]
+
+        return resp
+
 
     # RAMP, RAMP? - in heater class
     def set_ramp_rate(self, rate):
@@ -1520,6 +1653,8 @@ class Heater:
 
         if str(_range).lower() == 'off':
             _range = "Off"
+        if str(_range).lower() == 'on':
+            _range = "On"
 
         if self.output == 0:
             resp = self.ls.msg(f"RANGE {self.output} {heater_range_lock[_range]}").strip()
@@ -1549,7 +1684,7 @@ class Heater:
 
     # SETP - heater class
     def set_setpoint(self, value):
-        self.ls.msg(f"SETP {self.output},{value}") 
+        self.ls.msg(f"SETP {self.output},{value}")
 
     # SETP? - heater class
     def get_setpoint(self):
@@ -1600,7 +1735,6 @@ class Heater:
 
         :returns: P, I, D
         :rtype: float, float, float
-
         """
         resp = self.ls.msg("PID?").split(',')
         return float(resp[0]), float(resp[1]), float(resp[2])

@@ -1555,9 +1555,9 @@ class Heater:
                         If this is the still heater, value should be percent of
                         max voltage (10 V).
         :type output: float
-        :param output: Display type if you want to set this before setting heater.
+        :param display_type: Display type if you want to set this before setting heater.
                         Can be 'power' or 'current' if output is sample or warm-up heater.
-        :type output: string
+        :type display_type: string
 
         :returns: heater output
         :rtype: float

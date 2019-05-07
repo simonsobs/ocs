@@ -288,11 +288,14 @@ def test_set_get_manual_output():
     start_mode = ht.get_mode()
     start_mout = ht.get_manual_out()
     start_display = ht.display
+    start_range = ht.get_heater_range()
 
     ht.set_mode("Open Loop")
+    ht.set_heater_range(3.16e-3)
     ht.set_heater_output(100e-6, 'power')  # Sets heater current to 100 muW
     mout = ht.get_manual_out()
     assert mout == 100e-6
 
     ht.set_heater_output(start_mout, display_type=start_display)
     ht.set_mode(start_mode)
+    ht.set_heater_range(start_range)

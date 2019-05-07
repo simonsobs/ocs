@@ -400,7 +400,7 @@ class LS372_Agent:
                     If display is set to "Power", can be any number between 0 and the maximum allowed power.
 
         display (opt)- Specifies heater display type. Can be "Current" or "Power".
-                        If None, heater display is set before seting output.
+                        If None, heater display is not reset before setting output.
 
         """
 

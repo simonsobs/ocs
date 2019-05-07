@@ -230,23 +230,23 @@ class OCSAgent(ApplicationSession):
     def my_management_handler(self, q, **kwargs):
         if q == 'get_tasks':
             result = []
-            for k in sorted(self.tasks.keys()):
+            for k,v in sorted(self.tasks.items()):
                 session = self.sessions.get(k)
                 if session is None:
                     session = {'op_name': k, 'status': 'no_history'}
                 else:
                     session = session.encoded()
-                result.append((k, session))
+                result.append((k, session, v.encoded()))
             return result
         if q == 'get_processes':
             result = []
-            for k in sorted(self.processes.keys()):
+            for k,v in sorted(self.processes.items()):
                 session = self.sessions.get(k)
                 if session is None:
                     session = {'op_name': k, 'status': 'no_history'}
                 else:
                     session = session.encoded()
-                result.append((k, session))
+                result.append((k, session, v.encoded()))
             return result
         if q == 'get_feeds':
             result = []
@@ -632,12 +632,26 @@ class AgentTask:
     def __init__(self, launcher, blocking=None):
         self.launcher = launcher
         self.blocking = blocking
+        self.docstring = launcher.__doc__
+
+    def encoded(self):
+        return {
+            'blocking': self.blocking,
+            'docstring': self.docstring,
+        }
 
 class AgentProcess:
     def __init__(self, launcher, stopper, blocking=None):
         self.launcher = launcher
         self.stopper = stopper
         self.blocking = blocking
+        self.docstring = launcher.__doc__
+
+    def encoded(self):
+        return {
+            'blocking': self.blocking,
+            'docstring': self.docstring,
+        }
 
 
 SESSION_STATUS_CODES = [None, 'starting', 'running', 'stopping', 'done']

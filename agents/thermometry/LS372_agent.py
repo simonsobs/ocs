@@ -413,19 +413,21 @@ class LS372_Agent:
 
         display = params.get('display', None)
 
+        if heater == 'still':
+            self.module.still_heater.set_heater_output(output, display_type=display)
+        if heater.lower() == 'sample':
+            self.log.info("display: {}\toutput: {}".format(display, output))
+            self.module.sample_heater.set_heater_output(output, display_type=display)
+
+        self.log.info("Set {} heater display to {}, output to {}".format(heater, display, output))
+
         session.set_status('running')
+
         data = {'timestamp': time.time(),
                 'block_name': '{}_heater_out'.format(heater),
                 'data': {'{}_heater_out'.format(heater): output}
-        }
+                }
         session.app.publish_to_feed('temperatures', data)
-
-        if heater == 'still':
-            self.module.still_heater.set_heater_output(output, display=display)
-        if heater.lower() == 'sample':
-            self.log.info("display: {}\toutput: {}".format(display, output))
-            self.module.sample_heater.set_heater_output(output, display=display)
-        self.log.info("Set {} heater display to {}, output to {}".format(heater, display, output))
 
         self.set_job_done()
         return True, "Set {} display to {}, output to {}".format(heater, display, output)

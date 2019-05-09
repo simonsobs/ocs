@@ -364,8 +364,14 @@ class OCSAgent(ApplicationSession):
         reg_task = client_t.TaskClient(self, self.site_args.registry_address,
                                          'register_agent')
         try:
-            yield reg_task.start(encoded)
-            self.registered = True
+            status, msg, _  = yield reg_task.start(encoded)
+            if status == ocs.OK:
+                self.registered = True
+            elif msg == 'Operation "register_agent" already in progress.':
+                self.log.info("Could not register because another agent was blocking. "
+                              "Will try again in 1 second.")
+                reactor.callLater(1, self.register_agent, encoded)
+
         except ApplicationError as e:
             if e.error == u'wamp.error.no_such_procedure':
                 self.log.warn("Operation {}.register_agent has not "
@@ -469,7 +475,7 @@ class OCSAgent(ApplicationSession):
 
           ocs.OK: the Operation start routine has been launched.
         """
-        print('start called for %s' % op_name)
+        print('start called for {}'.format(op_name))
         is_task = op_name in self.tasks
         is_proc = op_name in self.processes
         if is_task or is_proc:

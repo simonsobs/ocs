@@ -1616,7 +1616,7 @@ class Heater:
 
         self.resistance = float(resp[0])
         self.max_current = int(resp[1])
-        self.max_user_current = float(resp[2])
+        self.max_user_current = float(resp[2].strip('E+'))
         self.display = heater_display_key[resp[3]]
 
         return resp

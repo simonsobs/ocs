@@ -1,6 +1,8 @@
 from ocs import ocs_agent, site_config
 import time
 from twisted.internet import task
+from threading import Lock
+
 
 class RegisteredAgent:
     def __init__(self, agent_encoded):
@@ -29,6 +31,8 @@ class Registry:
 
         self.agent.register_feed("agent_activity")
 
+        self.lock = Lock()
+
     def _monitor_active_agents(self):
         """
             Deletes agent from active_agents if a heartbeat isn't heard in
@@ -45,11 +49,11 @@ class Registry:
                 continue
             if (current_time - agent.last_heartbeat) > self.agent_timeout:
                 agents_to_remove.append(address)
-
-        for address in agents_to_remove:
-            if self.remove_agent(address):
-                self.log.info("Agent {} has been removed due to inactivity"
-                              .format(address))
+        with self.lock:
+            for address in agents_to_remove:
+                if self.remove_agent(address):
+                    self.log.info("Agent {} has been removed due to inactivity"
+                                  .format(address))
 
     def _register_heartbeat(self, data):
         """Registers the heartbeats of active_agents"""
@@ -76,7 +80,6 @@ class Registry:
         del(self.active_agents[agent_address])
         return True
 
-
     def register_agent(self, session, agent_data):
         """
         TASK: Adds agent to list of active agents and subscribes to heartbeat feed.
@@ -95,13 +98,16 @@ class Registry:
                               "instance and replacing it with new one"
                               .format(address))
 
-                self.remove_agent(address)
+                with self.lock:
+                    self.remove_agent(address)
             else:
                 self.log.info("Agent with session id {} has already been registered."
                               .format(agent_data['agent_session_id']))
                 return False, "Agent already registered with session id {}".format(agent_data['agent_session_id'])
 
-        self.active_agents[address] = RegisteredAgent(agent_data)
+        with self.lock:
+            self.active_agents[address] = RegisteredAgent(agent_data)
+
         self.agent.subscribe_to_feed(address, 'heartbeat', self._register_heartbeat)
 
         self.log.info("Registered agent {}".format(address))
@@ -131,7 +137,7 @@ if __name__ == '__main__':
     registry = Registry(agent)
 
     agent.register_task('dump_agent_info', registry.dump_agent_info)
-    agent.register_task('register_agent', registry.register_agent)
+    agent.register_task('register_agent', registry.register_agent, blocking=False)
 
     # Starts looping call that calls _motitor_active_agent every second
     loop_call = task.LoopingCall(registry._monitor_active_agents)

@@ -123,7 +123,6 @@ class LS240_Agent:
 
                 time.sleep(sleep_time)
 
-            print("Data: {}".format(data))
             session.app.publish_to_feed('temperatures', data)
 
         self.agent.feeds['temperatures'].flush_buffer()

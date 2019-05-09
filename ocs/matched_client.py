@@ -1,27 +1,37 @@
 from ocs import site_config
 
+def get_op(op_type, name, session, encoded, client):
+    """
+    Factory for generating matched operations.
+    This will make sure op.start's docstring is the docstring of the operation.
+    """
 
-class MatchedOp:
-    def __init__(self, name, session, encoded, client):
-        self.name = name
-        self.__doc__ = encoded['docstring']
-        self.client = client
+    class MatchedOp:
+        def start(self, **kwargs):
+            return client.request('start', name, params=kwargs)
 
-    def start(self, **kwargs):
-        return self.client.request('start', self.name, params=kwargs)
+        def wait(self):
+            return client.request('wait', name)
 
+        def status(self):
+            return client.request('status', name)
 
-class MatchedTask(MatchedOp):
-    def wait(self):
-        return self.client.request('wait', self.name)
+    class MatchedTask(MatchedOp):
+        def abort(self):
+            return client.request('abort', name)
 
-    def abort(self):
-        return self.client.request('abort', self.name)
+    class MatchedProcess(MatchedOp):
+        def stop(self):
+            return client.request('stop', name)
 
+    MatchedOp.start.__doc__ = encoded['docstring']
 
-class MatchedProcess(MatchedOp):
-    def stop(self):
-        return self.client.request('stop', self.name)
+    if op_type == 'task':
+        return MatchedTask()
+    elif op_type == 'process':
+        return MatchedProcess()
+    else:
+        raise ValueError("op_type must be either 'task' or 'process'")
 
 
 def opname_to_attr(name):
@@ -53,13 +63,14 @@ class MatchedClient:
                     If list, reads in list elements as arguments.
                     Defaults to None.
         """
-        self.client = site_config.get_control_client(instance_id,
+        self._client = site_config.get_control_client(instance_id,
                                                      client_type=client_type,
                                                      args=args)
-        for name, session, encoded in self.client.get_tasks():
-            setattr(self, opname_to_attr(name),
-                    MatchedTask(name, session, encoded, self.client))
 
-        for name, session, encoded in self.client.get_processes():
+        for name, session, encoded in self._client.get_tasks():
             setattr(self, opname_to_attr(name),
-                    MatchedProcess(name, session, encoded, self.client))
+                    get_op('task', name, session, encoded, self._client))
+
+        for name, session, encoded in self._client.get_processes():
+            setattr(self, opname_to_attr(name),
+                    get_op('process', name, session, encoded, self._client))

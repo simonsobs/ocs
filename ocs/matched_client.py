@@ -1,5 +1,6 @@
 from ocs import site_config
 
+
 def get_op(op_type, name, session, encoded, client):
     """
     Factory for generating matched operations.
@@ -41,7 +42,7 @@ def opname_to_attr(name):
 
 
 class MatchedClient:
-    def __init__(self, instance_id, client_type='http', args=None):
+    def __init__(self, instance_id, **kwargs):
         """
         A general Matched Client that sets an agent's tasks/processes as attributes.
         To run ::
@@ -55,17 +56,17 @@ class MatchedClient:
 
         Args:
 
-             instance_id (string): Instance id for agent to run
-             client_type (string, opt): Either 'http' or 'wampy'. Defaults to 'http'.
-             args (list or args object):
+            instance_id (string): Instance id for agent to run
+            args (list or args object, optional):
                     Takes in the parser arguments for the client.
                     If None, reads from command line.
                     If list, reads in list elements as arguments.
                     Defaults to None.
+                    To run in jupyter, specify args=[].
+
+            For additional kwargs see site_config.get_control_client
         """
-        self._client = site_config.get_control_client(instance_id,
-                                                     client_type=client_type,
-                                                     args=args)
+        self._client = site_config.get_control_client(instance_id, **kwargs)
 
         for name, session, encoded in self._client.get_tasks():
             setattr(self, opname_to_attr(name),

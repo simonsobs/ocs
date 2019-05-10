@@ -49,6 +49,9 @@ class LS240_Agent:
 
     # Task functions.
     def init_lakeshore_task(self, session, params=None):
+        """
+        Task to initialize Lakeshore 240 Module.
+        """
         ok, msg = self.try_set_job('init')
 
         self.log.info('Initialized Lakeshore: {status}', status=ok)

@@ -121,7 +121,10 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     #
-    # 'preamble': '',
+    'preamble': """
+    \\usepackage[utf8]{inputenc}
+    \\DeclareUnicodeCharacter{25CF}{\\textbullet}% Shows up in docker output.
+    """,
 
     # Latex figure (float) alignment
     #
@@ -136,6 +139,7 @@ latex_documents = [
      'Simons Observatory DAQ Group', 'manual'),
 ]
 
+latex_toplevel_sectioning = 'chapter'
 
 # -- Options for manual page output ------------------------------------------
 

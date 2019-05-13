@@ -139,7 +139,7 @@ latex_documents = [
      'Simons Observatory DAQ Group', 'manual'),
 ]
 
-latex_toplevel_sectioning = 'chapter'
+latex_toplevel_sectioning = 'part'
 
 # -- Options for manual page output ------------------------------------------
 

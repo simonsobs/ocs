@@ -1,17 +1,35 @@
 Observatory Control System
 ==========================
 
-This part of the documentation begins with some background information about
-OCS.
+.. Each heading and TOC below will render as a separate section of the
+   output PDF.
+
+User Guide
+----------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
    intro
-   architecture
    installation
    quickstart
    site_config
+
+Internals
+---------
+
+.. toctree::
+   :maxdepth: 3
+
+   architecture
+
+
+Device and Agent Reference
+--------------------------
+
+.. toctree::
+   :maxdepth: 3
+
    lakeshore372
    aggregator
    registry

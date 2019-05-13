@@ -1,15 +1,19 @@
-import ocs
+from ocs.matched_client import MatchedClient
 import time
 
-faker = ocs.site_config.get_control_client('data1')
+faker = MatchedClient('data1')
 
 print('Data Faker -- start 30 second acq.')
-faker.request('start', 'acq')
+print(faker.acq.start())
 
-for i in range(10):
-    time.sleep(3)
-    print(faker.request('status', 'acq'))
+print('\nMonitoring (ctrl-c to stop and exit)...\n')
+try:
+    for i in range(10):
+        time.sleep(3)
+        print(faker.acq.status())
+except KeyboardInterrupt:
+    print('Exiting on ctrl-c...')
+    print()
 
-faker.request('stop', 'acq')
-print(faker.request('wait', 'acq'))
-
+print('Stop request...')
+print(faker.acq.stop())

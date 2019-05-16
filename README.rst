@@ -2,6 +2,9 @@
 OCS - Observatory Control System
 ================================
 
+.. image:: https://travis-ci.com/simonsobs/ocs.svg?branch=master
+    :target: https://travis-ci.com/simonsobs/ocs
+
 .. image:: https://readthedocs.org/projects/ocs/badge/?version=latest
     :target: https://ocs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status

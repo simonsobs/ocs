@@ -11,10 +11,6 @@ root = os.path.abspath(os.path.split(__file__)[0])
 for n,f in [
         ('RegistryAgent', 'registry/registry.py'),
         ('AggregatorAgent', 'aggregator/aggregator_agent.py'),
-        ('Lakeshore372Agent', 'thermometry/LS372_agent.py'),
-        ('Lakeshore240Agent', 'thermometry/LS240_agent.py'),
-        ('Keithley2230G-PSU', 'keithley2230G-psu/keithley_agent.py'),
-        ('SmurfAgent', 'smurf/Smurf_Agent.py'),
         ('HostMaster', 'host_master/host_master.py'),
 ]:
     ocs.site_config.register_agent_class(n, os.path.join(root, f))

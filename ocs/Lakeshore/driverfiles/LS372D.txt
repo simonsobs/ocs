@@ -1,5 +1,0 @@
-contype=ethernet
-port=172.16.127.192
-tcp=7777
-num_channels=16
-timeout=10

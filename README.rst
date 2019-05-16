@@ -7,7 +7,7 @@ OCS - Observatory Control System
     :alt: Documentation Status
 
 Overview
-========
+--------
 
 The OCS makes it easy to coordinate hardware operation and I/O tasks in a
 distributed system such as an astronomical observatory or test laboratory. OCS
@@ -21,11 +21,21 @@ perform cleanup operations on a particular file system. A Control Client could
 be a web page with control buttons and log windows, or a script written by a
 user to perform a series of unattended, interlocking data acquisition tasks.
 
+This repository, `OCS`_, contains library code and core system
+components.  Additional code for operating specific hardware can be
+found in the `Simons Observatory Control System (SOCS)`_ repository.
+The time-domain data query system, with grafana integration, is
+provided through `Sisock`_.
+
 .. _crossbar.io: http://crossbario.com
+.. _`OCS`: https://github.com/simonsobs/ocs/
+.. _`Simons Observatory Control System (SOCS)`: https://github.com/simonsobs/socs/
+.. _`SiSock`: https://github.com/simonsobs/sisock/
 
 Dependencies
 ------------
-* python >= 3.5
+
+This code targets Python 3.5+.
 
 There are also several Python package dependencies, which are listed in the
 `requirements.txt`_ file.

@@ -5,7 +5,7 @@ import versioneer
 setup (name = 'ocs',
        description='Observatory Control System',
        package_dir={'ocs': 'ocs'},
-       packages=['ocs', 'ocs/Lakeshore', 'ocs/util'],
+       packages=['ocs'],
        scripts=['bin/ocsbow'],
        package_data={'': ['support/*json']}, 
        version=versioneer.get_version(),

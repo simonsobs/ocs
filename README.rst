@@ -2,6 +2,10 @@
 OCS - Observatory Control System
 ================================
 
+.. image:: https://readthedocs.org/projects/ocs/badge/?version=latest
+    :target: https://ocs.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
 Overview
 ========
 

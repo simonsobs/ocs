@@ -20,7 +20,7 @@ from ocs import __version__ as ocs_version
 # -- Project information -----------------------------------------------------
 
 project = 'OCS'
-copyright = '2018, Simons Observatory DAQ Group'
+copyright = '2018-2019, Simons Observatory DAQ Group'
 author = 'Simons Observatory DAQ Group'
 
 # The short X.Y version.

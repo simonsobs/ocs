@@ -1,17 +1,21 @@
-"""
-This control client is based on the basic OCS example, but simply
-launches the two example tasks in series.
+"""The demonstration here does not require that the control client be
+written using ocs.client_t (where the control script is a generator
+and runs in the Twisted reactor).  But it's useful to have such
+examples lying around.
+
 """
 
 import ocs
 from ocs import client_t
 
-def my_script(app, agent_addr):
+def my_script(app, parser_args, target=None):
     print('Entered my_script')
 
+    target_addr = '%s.%s' % (parser_args.address_root, target)
+
     # Obtain handles to both tasks.
-    cw1 = client_t.TaskClient(app, agent_addr, 'task1')
-    cw2 = client_t.TaskClient(app, agent_addr, 'task2')
+    cw1 = client_t.TaskClient(app, target_addr, 'task1')
+    cw2 = client_t.TaskClient(app, target_addr, 'task2')
     
     print('Starting first task.')
     d1 = yield cw1.start()
@@ -27,4 +31,7 @@ def my_script(app, agent_addr):
 
 
 if __name__ == '__main__':
-    client_t.run_control_script(my_script, u'observatory.example1')
+    # We don't pass a parser in, so it will be auto-generated and
+    # populated from the command line.  We hard-code our one argument,
+    # the target agent instance_id.
+    client_t.run_control_script2(my_script, target='example1')

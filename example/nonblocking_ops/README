@@ -1,0 +1,18 @@
+The purpose of this example is to define the difference between
+"blocking" and "non-blocking" Operations.  See example_agent.py.
+
+To run this example, you must first have the miniobs example up and
+running (specifically you should run "make prepare" and "make up" in
+../miniobs).
+
+Then you can launch the agent, and send it to backgrouund::
+
+  OCS_CONFIG_DIR=../miniobs python example_agent.py --instance-id example1 &
+
+And you can launch the control client::
+
+  OCS_CONFIG_DIR=../miniobs python example_ctrl.py
+
+Note that in both cases we override the OCS_CONFIG_DIR environment
+variable to be sure the scripts find ../miniobs/default.yaml, where
+the crossbar configuration is.

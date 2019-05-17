@@ -1,4 +1,4 @@
-from ocs import ocs_agent
+from ocs import ocs_agent, site_config
 import time
 
 from twisted.internet.defer import inlineCallbacks
@@ -78,7 +78,11 @@ class MyHardwareDevice:
 
 
 if __name__ == '__main__':
-    agent, runner = ocs_agent.init_ocs_agent('observatory.example1')
+    parser = site_config.add_arguments()
+    args = parser.parse_args()
+    site_config.reparse_args(args, '*host*')
+
+    agent, runner = ocs_agent.init_site_agent(args)
 
     my_hd = MyHardwareDevice()
     agent.register_task('task1', my_hd.task1)

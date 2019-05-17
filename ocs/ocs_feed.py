@@ -4,11 +4,16 @@ from autobahn.wamp.exception import TransportLost
 import time
 import re
 
+
 class Block:
+    """Structure of block for a so3g IrregBlockDouble.
+
+    Args:
+        name (str): Key given to the block in blocking param
+        keys (list): Fields that will be in the data block, i.e. "Channel 01"
+
+    """
     def __init__(self, name, keys):
-        """
-        Structure of block for a so3g IrregBlockDouble.
-        """
         self.name = name
         self.timestamps = []
         self.data = {
@@ -20,16 +25,25 @@ class Block:
         return self.timestamps == []
 
     def clear(self):
-        """
-        Empties block's buffers
-        """
+        """Empty the block's buffer."""
         self.timestamps = []
         for key in self.data:
             self.data[key] = []
 
     def append(self, d):
-        """
-        Adds a single data point to the block
+        """Add a single data point to the block.
+
+        Args:
+            d (dict): Data dictionary with structure::
+
+                 d = {
+                    'timestamp': timestamp of data
+                    'data': {
+                        key1: datapoint1
+                        key2: datapoint2
+                    }
+                 }
+
         """
         if d['data'].keys() != self.data.keys():
             raise Exception("Block structure does not match: {}".format(self.name))
@@ -40,8 +54,12 @@ class Block:
             self.data[k].append(d['data'][k])
 
     def extend(self, block):
-        """
-        Extends the data block by an encoded block
+        """Extend the data block by an encoded block.
+
+        Args:
+            block (dict): Block.encoded() or equivalent message with matching
+                structure
+
         """
         if block['data'].keys() != self.data.keys():
             raise Exception("Block structure does not match: {}".format(self.name))
@@ -51,13 +69,20 @@ class Block:
             self.data[k].extend(block['data'][k])
 
     def encoded(self):
+        """Encode a Block into a message dict.
+
+        Returns:
+            dict in the format that Feed uses to pass messages
+
+        """
         n = len(self.timestamps)
-        assert(all([n==len(v) for v in self.data.values()]))
+        assert(all([n == len(v) for v in self.data.values()]))
         return {
             'block_name': self.name,
             'data': {k: self.data[k] for k in self.data.keys()},
             'timestamps': self.timestamps,
         }
+
 
 class Feed:
     """

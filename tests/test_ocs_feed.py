@@ -252,17 +252,108 @@ def test_block_creation():
     assert test_block.name == 'test_block'
 
 
+def test_block_clear():
+    """Test clearing a Block's buffer."""
+    test_block = ocs_feed.Block('test_block', ['key1'])
+
+    time_sample = 1558044482.2398098
+    data_sample = 1
+
+    data = {'timestamp': time_sample,
+            'data': {'key1': data_sample}}
+    test_block.append(data)
+
+    assert test_block.data['key1'][0] == data_sample
+    test_block.clear()
+    assert test_block.empty()
+
 def test_block_append():
     """Test adding some data to a Block."""
     test_block = ocs_feed.Block('test_block', ['key1'])
 
-    time_samples = [1558044482.2398098, 1558044483.2398098,
-                    1558044484.2398098]
-    data_samples = [1, 2, 3]
+    time_sample = 1558044482.2398098
+    data_sample = 1
 
-    data = {'timestamp': time_samples,
-            'data': {'key1': data_samples}}
+    data = {'timestamp': time_sample,
+            'data': {'key1': data_sample}}
     test_block.append(data)
 
-    assert test_block.data['key1'][0] == data_samples
-    assert test_block.timestamps[0] == time_samples
+    assert test_block.data['key1'][0] == data_sample
+    assert test_block.timestamps[0] == time_sample
+
+
+def test_unmatched_block_append():
+    """Test what happens when the data we try to add doesn't match the block
+    structure.
+    """
+    test_block = ocs_feed.Block('test_block', ['key1'])
+
+    time_sample = 1558044482.2398098
+    data_sample = 1
+
+    # Note the different 'key2'
+    data = {'timestamp': time_sample,
+            'data': {'key2': data_sample}}
+
+    with pytest.raises(Exception):
+        test_block.append(data)
+
+
+def test_block_extend():
+    """Test extending a Block."""
+    test_block1 = ocs_feed.Block('test_block1', ['key1'])
+    test_block2 = ocs_feed.Block('test_block2', ['key1'])
+
+    t1 = 1558044482.2398098
+    t2 = 1558044483.2398098
+
+    # 1st add some data
+    data1 = {'timestamp': t1,
+             'data': {'key1': 1}}
+    test_block1.append(data1)
+
+    data2 = {'timestamp': t2,
+             'data': {'key1': 2}}
+    test_block2.append(data2)
+
+    # Now extend block1 with block2
+    test_block1.extend(test_block2.encoded())
+
+    assert test_block1.data['key1'] == [1, 2]
+    assert test_block1.timestamps == [t1, t2]
+
+
+def test_unmatched_block_extend():
+    """Test extending a Block."""
+    test_block1 = ocs_feed.Block('test_block1', ['key1'])
+    test_block2 = ocs_feed.Block('test_block2', ['key2'])
+
+    t1 = 1558044482.2398098
+    t2 = 1558044483.2398098
+
+    # 1st add some data
+    data1 = {'timestamp': t1,
+             'data': {'key1': 1}}
+    test_block1.append(data1)
+
+    data2 = {'timestamp': t2,
+             'data': {'key2': 2}}
+    test_block2.append(data2)
+
+    # Now extend block1 with block2
+    with pytest.raises(Exception):
+        test_block1.extend(test_block2.encoded())
+
+
+def test_block_encoded():
+    """Test a Block is properly encoded."""
+    test_block = ocs_feed.Block('test_block', ['key1'])
+
+    time_sample = 1558044482.2398098
+    data_sample = 1
+
+    data = {'timestamp': time_sample,
+            'data': {'key1': data_sample}}
+    test_block.append(data)
+
+    assert test_block.encoded() == {'block_name': 'test_block', 'data': {'key1': [1]}, 'timestamps': [1558044482.2398098]}

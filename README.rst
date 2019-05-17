@@ -9,6 +9,9 @@ OCS - Observatory Control System
     :target: https://ocs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
+.. image:: https://coveralls.io/repos/github/simonsobs/ocs/badge.svg
+    :target: https://coveralls.io/github/simonsobs/ocs
+
 Overview
 --------
 

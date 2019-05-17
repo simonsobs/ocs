@@ -11,3 +11,8 @@ pyserial
 # Documentation generation
 sphinx
 sphinx-argparse
+
+# testing
+pytest
+pytest-cov
+coveralls

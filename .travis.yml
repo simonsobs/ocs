@@ -10,4 +10,6 @@ install:
   - pip install -r requirements.txt
   - python3 setup.py install
 
-script: pytest -p no:wampy tests/
+script: pytest -p no:wampy --cov ocs tests/
+
+after_success: coveralls

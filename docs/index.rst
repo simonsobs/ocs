@@ -30,7 +30,6 @@ Device and Agent Reference
 .. toctree::
    :maxdepth: 3
 
-   lakeshore372
    aggregator
    registry
    live_monitoring

@@ -414,8 +414,16 @@ if __name__ == '__main__':
     pgroup = parser.add_argument_group('Agent Options')
     pgroup.add_argument('--initial-state', default='down',
                         choices=['up', 'down'])
+    pgroup.add_argument('--quiet', action='store_true')
     args = parser.parse_args()
     site_config.reparse_args(args, 'HostMaster')
+
+    if args.quiet:
+        # For launch-to-background, disconnect stdio.
+        null = os.open(os.devnull, os.O_RDWR)
+        for stream in [sys.stdin, sys.stdout, sys.stderr]:
+            os.dup2(null, stream.fileno())
+        os.close(null)
 
     # To reduce "try again" noise, don't tell Registry about HostMaster.
     args.registry_address = 'none'

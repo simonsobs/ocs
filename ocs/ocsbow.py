@@ -367,6 +367,7 @@ class HostMasterManager:
         print('Launching HostMaster through %s' % hm_script)
         print('Log dir is: %s' % log_dir)
         cmd = [sys.executable, hm_script,
+               '--quiet',
                '--site-file', site.source_file,
                '--site-host', host.name,
                '--working-dir', self.working_dir]

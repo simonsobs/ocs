@@ -4,7 +4,7 @@ Self-contained Test Mini-Observatory
 This example demonstrates operation of a single-host OCS.  The
 Observatory consists of the 2 core agents (HostMaster and
 RegistryAgent), a data aggregation agent (AggregatorAgent), and a
-custom data producer defined here (FakeDataAgent).
+producer of random data (FakeDataAgent).
 
 The site_config file, ``default.yaml``, demonstrates a few practices
 that are not generally a good idea in any kind of "production" setup.

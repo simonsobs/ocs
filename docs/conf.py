@@ -20,7 +20,7 @@ from ocs import __version__ as ocs_version
 # -- Project information -----------------------------------------------------
 
 project = 'OCS'
-copyright = '2018, Simons Observatory DAQ Group'
+copyright = '2018-2019, Simons Observatory DAQ Group'
 author = 'Simons Observatory DAQ Group'
 
 # The short X.Y version.
@@ -121,7 +121,10 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     #
-    # 'preamble': '',
+    'preamble': """
+    \\usepackage[utf8]{inputenc}
+    \\DeclareUnicodeCharacter{25CF}{\\textbullet}% Shows up in docker output.
+    """,
 
     # Latex figure (float) alignment
     #
@@ -136,6 +139,7 @@ latex_documents = [
      'Simons Observatory DAQ Group', 'manual'),
 ]
 
+latex_toplevel_sectioning = 'part'
 
 # -- Options for manual page output ------------------------------------------
 

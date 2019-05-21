@@ -511,8 +511,8 @@ def get_control_client(instance_id, site=None, args=None, start=True,
             # Namespace so let's assume it's a list of strings.
             parser = ocs.site_config.add_arguments()
             args = parser.parse_args(args)
-            ocs.site_config.reparse_args(args, '*host*')
-        site, _, _ = ocs.site_config.get_config(args, '*host*')
+            ocs.site_config.reparse_args(args, '*control*')
+        site, _, _ = ocs.site_config.get_config(args, '*control*')
     master_addr = '%s.%s' % (site.hub.data['address_root'], instance_id)
     if client_type is None:
         if site.hub.data.get('wamp_http'):

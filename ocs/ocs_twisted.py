@@ -3,16 +3,22 @@ from contextlib import contextmanager
 
 class TimeoutLock:
     def __init__(self):
+        self.job = None
         self._lock = threading.Lock()
 
     def acquire(self, blocking=True, timeout=-1):
         return self._lock.acquire(blocking, timeout)
 
     @contextmanager
-    def acquire_timeout(self, timeout):
+    def acquire_timeout(self, timeout, job='unnamed'):
         result = self._lock.acquire(timeout=timeout)
-        yield result
         if result:
+            self.job = job
+
+        yield result
+
+        if result:
+            self.job = None
             self._lock.release()
 
     def release(self):

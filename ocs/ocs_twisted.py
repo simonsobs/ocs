@@ -9,20 +9,24 @@ class TimeoutLock:
     def acquire(self, blocking=True, timeout=-1):
         return self._lock.acquire(blocking, timeout)
 
+    def release(self):
+        self._lock.release()
+
     @contextmanager
     def acquire_timeout(self, timeout, job='unnamed'):
         result = self._lock.acquire(timeout=timeout)
+
         if result:
             self.job = job
+            try:
+                yield result
+            finally:
+                self.job = None
+                self._lock.release()
 
-        yield result
+        else:
+            yield result
 
-        if result:
-            self.job = None
-            self._lock.release()
-
-    def release(self):
-        self._lock.release()
 
 def in_reactor_context():
     """

@@ -1,14 +1,14 @@
 .. highlight:: rst
 
-===============================
-OCS Live Monitoring Setup Guide
-===============================
+===========================
+Live Monitoring Setup Guide
+===========================
 
-OCS allows one to command and control their equipment, but how do we monitor
-that equipment?
-
-For that we use a combination of sisock_ and a web application called Grafana_.
-This page describes setting up this entire tool chain.
+This guide will walk you through the complete setup and basic operation of the
+Simons Observatory live housekeeping monitor. By the end of this guide you will
+be able to command your hardware systems using OCS, record their data to disk
+in the so3g file format, and monitor their output in real time using a Grafana
+dashboard.
 
 .. toctree::
     :caption: Contents:
@@ -20,9 +20,6 @@ This page describes setting up this entire tool chain.
     ocs_config
     docker_config
     docker
-    grafana
     ocs
+    grafana
     other
-
-.. _sisock: https://github.com/simonsobs/sisock
-.. _Grafana: https://grafana.com/

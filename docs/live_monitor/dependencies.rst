@@ -3,7 +3,19 @@
 Dependencies
 ============
 
-This is everything you will need to run the live monitor.
+The system is designed to be distributed across many computers, however it can
+also all be run on a single computer. This modular architecture allows for a
+flexible set of hardware and software requirements. Below are the hardware and
+software requirements for the live monitor.
+
+Software Requirements
+---------------------
+
+    * Docker_ - Containerization software used for deploying several SO written
+      packages.
+    * `Docker Compose`_ - Docker tool for running multi-container Docker
+      applications.
+    * OCS_ - The observatory control system, for running clients locally.
 
 Hardware Requirements
 ---------------------
@@ -13,24 +25,10 @@ Operating Systems can be used, but will not be supported.
 
 .. note::
 
-    We'll be using Docker for a portion of this. This will pull images that
-    containerize our applications, most of which are based on a base Python image.
-    This will take disk space in your root filesystem. If you partition for a small
-    / you might run into space constraints. In this case you should get in touch
-    with Brian for advice on how best to proceed.
-
-Software Requirements
----------------------
-
-We'll need several pieces of software. To start:
-    * Docker_ - Containerization software used for running sisock.
-    * `Docker Compose`_ - Docker tool for running multi-container applications.
-    * spt3g_ - For writing data to disk in ``.3g`` format.
-
-SO software:
-    * OCS_ - Our Observatory Control System.
-    * sisock_ - For the live monitor. This will run in a Docker container, so
-                we won't actually be installing it on our host system directly.
+    Docker stores its images in the root filesystem by default. If the computer
+    you are using has a small / partition you might run into space constraints.
+    In this case you should get in touch with Brian for advice on how best to
+    proceed.
 
 Networking Requirements
 -----------------------
@@ -45,7 +43,7 @@ have a public IP address.
     all ports, you are strongly recommended to enable a firewall as described in
     :ref:`firewall`. Care should also be taken when exposing ports in Docker to
     expose only to your localhost (i.e. 127.0.0.1), this is the default in all
-    templates provided by the DAQ group.
+    templates provided by the SO DAQ group.
 
 .. note::
     If you do not have a public IP, but do have access to a gateway to
@@ -54,6 +52,4 @@ have a public IP address.
 
 .. _Docker: https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/
 .. _Docker Compose: https://docs.docker.com/compose/install/
-.. _spt3g : https://github.com/CMB-S4/spt3g_software
 .. _OCS: https://github.com/simonsobs/ocs
-.. _sisock: https://github.com/simonsobs/sisock

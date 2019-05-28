@@ -3,41 +3,46 @@
 Software Installation
 =====================
 
+This page provides brief instructions, or links to external resources where
+appropriate, for installation of software related to the live monitor.
+
 Installing Docker
 -----------------
 
-Docker is used to run many of the components related to sisock, including the
-crossbar server, so we'll start by installing it on the computer we're running
-everything on. To install, please follow the `Docker installation`_
-documentation on their website.
+Docker is used to run many of the components in the live monitor. While the
+system can be run without Docker, it is the recommended deployment option. To
+install, please follow the `installation`_ documentation on the Docker website.
 
 .. note::
 
-    The docker daemon requires root privileges. To avoid this you can add your user
-    to the ``docker`` group. This is explained in the `post installation`_ steps,
-    also in the Docker docs. However, we recommend you run as root through a
-    sudo user.
+    The docker daemon requires root privileges. We recommend you run using sudo.
+
+.. warning::
+
+    While it is possible to run docker commands from a user in the ``docker``
+    group, users in this group are considered equiavlent to the ``root`` user.
 
 When complete, the docker daemon should be running, you can check this by
-running ``systemctl status docker`` and looking for output similar to the
+running ``sudo systemctl status docker`` and looking for output similar to the
 following::
 
-    $ systemctl status docker
+    $ sudo systemctl status docker
     ● docker.service - Docker Application Container Engine
        Loaded: loaded (/lib/systemd/system/docker.service; disabled; vendor preset: enabled)
        Active: active (running) since Tue 2018-10-30 10:57:48 EDT; 2 days ago
          Docs: https://docs.docker.com
      Main PID: 1472 (dockerd)
 
-If you see it is not active, run ``systemctl start docker``. To ensure it runs
-after a computer reboot you should also run ``systemctl enable docker``.
+If you see it is not active, run ``sudo systemctl start docker``. To ensure it
+runs after a computer reboot you should also run ``sudo systemctl enable
+docker``.
 
 Installing Docker Compose
 -------------------------
 
-Docker Compose facilitates running multi-container applications, which we have.
-This will allow us to pull and run all the containers we need in a single
-command. To install see the `Docker Compose`_ documentation.
+Docker Compose facilitates running multi-container applications.  This will
+allow us to pull and run all the containers we need in a single command. To
+install see the `Docker Compose`_ documentation.
 
 When complete you should be able to run::
 
@@ -55,14 +60,26 @@ Install OCS with the following::
 
     $ git clone https://github.com/simonsobs/ocs.git
     $ cd ocs/
-    $ pip3 install -r requirements.txt --user .
+    $ pip3 install -r requirements.txt
+    $ python3 setup.py install
+
+.. note::
+
+    If you want to install locally, not globally, throw the `--user` flag
+    on both the pip3 and setup.py commands.
+
+.. warning::
+
+    The master branch is not guaranteed to be stable, you might want
+    to checkout a particular version tag before installation depending on which
+    other software you are working with. See the latest `tags`_.
 
 These directions are presented in the `OCS repo`_, which likely has the most up
 to date version. If you need to update OCS, be sure to stash any changes you've
 made before pulling updates from the repo.
 
-
-.. _Docker installation: https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/
+.. _installation: https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/
 .. _Docker Compose: https://docs.docker.com/compose/install/
 .. _OCS repo: https://github.com/simonsobs/ocs
 .. _post installation: https://docs.docker.com/v17.09/engine/installation/linux/linux-postinstall/
+.. _tags: https://github.com/simonsobs/ocs/tags

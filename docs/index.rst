@@ -33,7 +33,14 @@ Device and Agent Reference
    aggregator
    registry
    fake_data
-   live_monitoring
+
+Live Monitoring Setup Guide
+---------------------------
+
+.. toctree::
+   :maxdepth: 3
+
+   live_monitor/index
 
 Indices and tables
 ==================

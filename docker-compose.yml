@@ -1,0 +1,30 @@
+version: '3.2'
+services:
+  # --------------------------------------------------------------------------
+  # The ocs library.
+  # --------------------------------------------------------------------------
+  ocs:
+    image: "ocs"
+    build: .
+
+  # --------------------------------------------------------------------------
+  # OCS Core Agents
+  # --------------------------------------------------------------------------
+  
+  # --------------------------------------------------------------------------
+  # The OCS Registry keeps track of all other running Agents
+  # --------------------------------------------------------------------------
+  ocs-registry-agent:
+    image: "ocs-registry-agent"
+    build: ./agents/registry/
+    depends_on:
+      - "ocs"
+
+  # --------------------------------------------------------------------------
+  # The OCS Aggregator collects and writes data to disk in the sog3 format.
+  # --------------------------------------------------------------------------
+  ocs-aggregator-agent:
+    image: "ocs-aggregator-agent"
+    build: ./agents/aggregator/
+    depends_on:
+      - "ocs"

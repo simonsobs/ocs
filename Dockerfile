@@ -2,10 +2,13 @@
 # A container setup with an installation of ocs.
 
 # Use ubuntu base image
-FROM ubuntu:18.04
+FROM grumpy.physics.yale.edu/so3g:v0.0.4-24-g5e6931f
 
 # Set the working directory to /app
 WORKDIR /app
+
+# Setup configuration environment
+ENV OCS_CONFIG_DIR=/config
 
 # Install python and pip
 RUN apt-get update && apt-get install -y python3 \

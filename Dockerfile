@@ -4,6 +4,10 @@
 # Use ubuntu base image
 FROM grumpy.physics.yale.edu/so3g:v0.0.4-24-g5e6931f
 
+# Create ocs user and group
+RUN groupadd -g 9000 ocs && \
+    useradd -l -u 9000 -g 9000 ocs
+
 # Set the working directory to /app
 WORKDIR /app
 

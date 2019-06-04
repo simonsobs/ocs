@@ -415,6 +415,7 @@ class DataAggregator:
 
             # If any providers have been removed, write those to disk first
             # And remove provider from hksess
+            prov : Provider
             for prov in to_remove:
                 if prov.frame_start_time is not None:
                     with prov.lock:
@@ -426,6 +427,7 @@ class DataAggregator:
                               .format(prov.address, prov.agent_id))
                 pid = prov.prov_id
                 self.hksess.remove_provider(pid)
+                del self.prov_ids[prov.address]
                 del self.providers[pid]
 
             # Then write status if we need to
@@ -456,7 +458,6 @@ class DataAggregator:
 
 
 if __name__ == '__main__':
-
     parser = site_config.add_arguments()
 
     # Add options specific to this agent.

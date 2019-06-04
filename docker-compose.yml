@@ -28,3 +28,12 @@ services:
     build: ./agents/aggregator/
     depends_on:
       - "ocs"
+
+  # --------------------------------------------------------------------------
+  # The OCS Aggregator collects and writes data to disk in the sog3 format.
+  # --------------------------------------------------------------------------
+  ocs-fake-data-agent:
+    image: "ocs-fake-data-agent"
+    build: ./agents/fake_data/
+    depends_on:
+      - "ocs"

@@ -1,7 +1,7 @@
 .. highlight:: rst
 
-Configuring Grafana
-===================
+Using Grafana
+=============
 
 Now we are ready to configure Grafana_. The configuration is not challenging,
 however dashboard configuration can be time consuming. The ``grafana-storage``
@@ -115,7 +115,7 @@ The thermometry ``DataNodeServers`` by default cache the last 60 minutes of
 data. Loading older data from disk is currently a work in progress.
 
 Viewing the Live Monitor
-========================
+------------------------
 
 Now we should start to see data in our live monitor.
 

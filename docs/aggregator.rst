@@ -143,11 +143,30 @@ The message must contain exactly one data-point for each field of the block.
 Timestreams that are not simultaneously sampled will have to be stored in
 separate blocks and published separately.
 
+docker-compose Configuration
+----------------------------
+
+The docker image for the aggregator agent is
+``grumpy.physics.yale.edu/ocs-aggregator-agent:latest``. Here is an example configuration::
+
+      ocs-aggregator:
+        image: grumpy.physics.yale.edu/ocs-aggregator-agent:latest
+        hostname: grumpy-docker
+        user: "9000"
+        volumes:
+          - /home/so_user/git/ocs-site-configs/yale/prod/default.yaml:/config/default.yaml:ro
+          - "/path/to/host/data:/data"
+        depends_on:
+          - "sisock-crossbar"
+
+The user must be created on the host system as well. For details see the live
+monitor setup guide.  In addition to the ocs-site-configs file being mounted
+into the container the data directory needs to be mounted. This directory
+should exist and belong to the `ocs` user prior to contianer startup.
+
+
+API
+---
+
 .. autoclass:: agents.aggregator.aggregator_agent.DataAggregator
     :members: initialize, start_aggregate, add_feed
-
-
-
-
-
-

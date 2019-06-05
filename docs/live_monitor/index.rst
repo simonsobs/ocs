@@ -16,9 +16,8 @@ dashboard.
 
     dependencies
     installation
+    setup
     configuration
-    ocs_config
-    docker_config
     docker
     ocs
     grafana

@@ -96,7 +96,7 @@ below it.
 We start on the "Metrics" tab. Here is where we add the fields we
 wish to plot. The drop down menu that says "select metric" will contain fields
 populated by the sisock data servers. Select an item in this list, for
-instructional purposes we will select the "apexl_archive::apex_radiometer"
+instructional purposes we will select the "apex_archive::apex_radiometer"
 metric, which is from an example data server which contains a small sample of
 data to verify the live monitor is working properly. Data should appear in
 the plot if you are running the example weather data server container and have

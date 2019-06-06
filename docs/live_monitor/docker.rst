@@ -46,7 +46,7 @@ writing.
 .. note::
 
     Since all the OCS Agents are configured to run in containers (which is our
-    recommendation for running your system), there is no additonal startup of OCS
+    recommendation for running your system), there is no additional startup of OCS
     Agents. Previously these were either started individually by calling the agent
     script in a terminal, or using the `ocsbow` tool.
 

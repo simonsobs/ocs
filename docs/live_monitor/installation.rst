@@ -20,7 +20,7 @@ install, please follow the `installation`_ documentation on the Docker website.
 .. warning::
 
     While it is possible to run docker commands from a user in the ``docker``
-    group, users in this group are considered equiavlent to the ``root`` user.
+    group, users in this group are considered equivalent to the ``root`` user.
 
 When complete, the docker daemon should be running, you can check this by
 running ``sudo systemctl status docker`` and looking for output similar to the

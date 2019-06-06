@@ -4,7 +4,7 @@ Configuration
 =============
 
 Next we need to configure both the `docker-compose` and `ocs` environments,
-each with their own configuraion files. These files will differ for each site
+each with their own configuration files. These files will differ for each site
 depending on your hardware setup. Below we cover a simple configuration for
 each. Later we discuss more advanced configuration.
 
@@ -157,14 +157,14 @@ container. A container can be thought of as a copy of an image. The container
 is what actually runs when you startup your docker service. ``restart`` allows
 you to define when a container can be automatically restarted, in this
 instance, always. ``hostname`` defines the hostname internal to the container.
-This is used in the OCS container configurations in conjuction with the
+This is used in the OCS container configurations in conjunction with the
 ocs-site-configs file. ``user`` defines the user used inside the container.
 This is only used on the aggregator agent configuration.
 
 ``ports`` defines the ports exposed from the container to the host. This is
 used on containers like the crossbar container and the grafana container.
 ``volumes`` defines mounted docker volumes and bind mounts to the host system.
-The syntax here is ``/host/system/path:/container/system/path``. Altneratively
+The syntax here is ``/host/system/path:/container/system/path``. Alternatively
 the host system path can be a named docker container, like the one used for
 grafana. ``environment`` defines environment variables inside the container.
 This is used for configuring behaviors inside the containers. ``depends_on``
@@ -172,9 +172,9 @@ means Docker Compose will wait for the listed containers to start before
 starting this container. This does not mean the services will be ready, but the
 container will be started.
 
-For more details on configurations for indidvidual containers, see the service
+For more details on configurations for individual containers, see the service
 documentation pages, for instance in the `sisock documentation`_ or in the
-respecitve ocs agent pages.
+respective ocs agent pages.
 
 .. _reference: https://docs.docker.com/compose/compose-file/compose-file-v2/
 .. _sisock: https://github.com/simonsobs/sisock
@@ -230,7 +230,7 @@ file see :ref:`site_config`. Here is an example config::
 The `hub` section defines the connection parameters for the crossbar server.
 This entire section will likely remain unchanged, unless you are running a site
 with multiple computers, in which case other computers will need to either run
-their own crossbar server, or point to an alredy configured one.
+their own crossbar server, or point to an already configured one.
 
 Under `hosts` we have defined a single host, `ocs-docker`. This configuration
 example shows an example where every OCS Agent is running within a Docker

@@ -6,6 +6,15 @@ Other Info
 Grafana
 -------
 
+The ``grafana-storage`` volume that we initialized will allow for 
+persistent storage in the event the container is rebuilt. Dashboards can also
+be backed up by exporting them to a ``.json`` file.
+
+.. warning::
+    This should be a one time setup, however, if you destroy the
+    grafana-storage volume you will lose your configuration. We encourage you
+    to export your favorite dashboards for backup.
+
 Backing up Panels
 ``````````````````
 

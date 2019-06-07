@@ -26,3 +26,11 @@ If the machine where you ran the example also has a GUI, you can open a web
 browser and navigate on your local filesystem to the file in the repository
 called www/monitor.html. This exposes control buttons and status windows for
 the Operations of the Agent that you launched with "make run_agent".
+
+Additional Info
+---------------
+If you are looking for information how to setup an entire OCS site, including
+live monitoring of housekeeping data, we recommend you read the documentation
+of a related project, sisock_.
+
+.. _sisock: https://sisock.readthedocs.io/en/latest/

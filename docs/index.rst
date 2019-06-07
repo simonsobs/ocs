@@ -34,14 +34,6 @@ Device and Agent Reference
    registry
    fake_data
 
-Live Monitoring Setup Guide
----------------------------
-
-.. toctree::
-   :maxdepth: 3
-
-   live_monitor/index
-
 Indices and tables
 ==================
 

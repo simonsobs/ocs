@@ -2,7 +2,7 @@
 # A container setup with an installation of ocs.
 
 # Use ubuntu base image
-FROM grumpy.physics.yale.edu/so3g:v0.0.4-30-g6c53c04
+FROM grumpy.physics.yale.edu/so3g:v0.0.4-31-gd38f112
 
 # Create ocs user and group
 RUN groupadd -g 9000 ocs && \

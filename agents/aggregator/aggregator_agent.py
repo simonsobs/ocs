@@ -21,7 +21,7 @@ class Provider:
     Attributes:
         addresss (string):
             Full address of the Provider feed
-        agent_id (string):
+        session_id (string):
             session_id of agent who owns the Feed
         frame_length (float):
             Time before data should be written into a frame
@@ -37,7 +37,7 @@ class Provider:
         self.prov_id = prov_id
 
         self.address = feed['address']
-        self.agent_id = feed['agent_session_id']
+        self.session_id = feed['session_id']
         self.frame_length = feed['agg_params']['frame_length']
 
         self.lock = RLock()
@@ -98,7 +98,7 @@ class Provider:
             frame = core.G3Frame(core.G3FrameType.Housekeeping)
 
         frame['address'] = self.address
-        frame['agent_session_id'] = self.agent_id
+        frame['session_id'] = self.session_id
 
         for block_name, block in self.blocks.items():
             if not block.timestamps:
@@ -142,7 +142,7 @@ class DataAggregator:
         self.data_dir = data_dir
 
         self.providers = {} # by prov_id
-        self.prov_ids = {} # by provider address
+        self.prov_ids = {} # by (address, session_id)
         self.next_prov_id = 0
 
         self.should_write_status =False
@@ -165,7 +165,7 @@ class DataAggregator:
             return
 
         data, feed = _data
-        prov_id = self.prov_ids[feed["address"]]
+        prov_id = self.prov_ids[(feed["address"], feed["session_id"])]
         prov = self.providers[prov_id]
 
         prov.lock.acquire()
@@ -183,65 +183,42 @@ class DataAggregator:
 
         (action, agent_data), feed_data = _data
         agent_address = agent_data['agent_address']
-        agent_id = agent_data['agent_session_id']
+        session_id = agent_data['session_id']
 
-        self.log.debug("Agent activity --- Agent: {}, sess: {}, action: {}"
-                      .format(agent_address, agent_id, action))
+        self.log.debug("Agent activity --- Agent: {}, session_id: {}, action: {}"
+                      .format(agent_address, session_id, action))
 
         for feed in agent_data['feeds']:
             if not feed['record']:
                 continue
 
-            pid = self.prov_ids.get(feed['address'])
+            pid = self.prov_ids.get((feed["address"], session_id))
             if pid is not None:
                 prov = self.providers[pid]
             else:
                 prov = None
 
-            # Assumes agent ids are ordered
-            if prov is not None:
-                if prov.agent_id < agent_id:
-                    # If somehow its an old version of the feed, remove it
-                    self.log.warn("Somehow there is a new instance of {}."
-                                  "Scheduling removal of old instance".format(feed['address']))
-                    prov.remove = True
-
-            if action == 'removed' and prov.agent_id == agent_id:
-                self.log.info("Scheduled remove for provider {}"
-                              .format(feed['address']))
+            if action == 'removed' and prov is not None:
+                self.log.info("Scheduled remove for provider {} ({})"
+                              .format(feed['address'], session_id))
                 prov.remove = True
 
-            if action == 'added':
+            if action in ['added', 'status']:
+                if prov is not None:
+                    self.log.warn("Provider {} ({}) already exists.".format(feed['address'], session_id))
+                    return
+
                 prov_id = self.hksess.add_provider(
                     description="{}".format(feed['address'])
                 )
                 self.providers[prov_id] = Provider(feed, prov_id)
-                self.prov_ids[feed['address']] = prov_id
-                self.log.info("Added provider {} (agent sess: {}) with id {}"
-                              .format(feed['address'], agent_id, prov_id))
+                self.prov_ids[(feed["address"], session_id)] = prov_id
+                self.log.info("Added provider {} (session_id: {}) with id {}"
+                              .format(feed['address'], session_id, prov_id))
                 self.should_write_status = True
                 self.agent.subscribe_to_feed(agent_address,
                                              feed['feed_name'],
                                              self._data_handler)
-
-            if action == 'status':
-                if prov is not None:
-                    if prov.agent_id >= agent_id:
-                        continue
-                else:
-                    # If no prov exists or provider's agent_id is old
-                    prov_id = self.hksess.add_provider(
-                        description="{}".format(feed['address'])
-                    )
-                    self.providers[prov_id] = Provider(feed, prov_id)
-                    self.prov_ids[feed['address']] = prov_id
-                    self.log.info("Added provider {} (agent sess: {}) with id {}"
-                                  .format(feed['address'], agent_id, prov_id))
-                    self.should_write_status = True
-                    self.agent.subscribe_to_feed(agent_address,
-                                                 feed['feed_name'],
-                                                 self._data_handler)
-
 
     def add_feed(self, session, params={}):
         """
@@ -259,7 +236,7 @@ class DataAggregator:
         )
 
         x = {
-            'agent_session_id': -1,
+            'session_id': -1,
             'address': params['address'],
             'frame_length': params['frame_length'],
         }
@@ -409,6 +386,18 @@ class DataAggregator:
                 self.start_file(data_dir)
                 ts = datetime.utcnow().timestamp()
 
+            # Removes old providers if new ones exist
+            keys = sorted(self.prov_ids, key=lambda x: x[1], reverse=True)
+            feeds = []
+            for k in keys:
+                if k[0] in feeds:
+                    prov = self.providers[self.prov_ids[k]]
+                    if not prov.remove:
+                        print("Newer {} feed found".format(k[0]))
+                        prov.remove = True
+                else:
+                    feeds.append(k[0])
+
             to_remove = [p for _, p in self.providers.items() if p.remove]
             if to_remove != []:
                 self.should_write_status = True
@@ -423,12 +412,12 @@ class DataAggregator:
                         prov.clear()
                     self.writer(frame)
 
-                self.log.info("Removing provider {} with agent id {}"
-                              .format(prov.address, prov.agent_id))
+                self.log.info("Removing provider {} with session_id {}"
+                              .format(prov.address, prov.session_id))
                 pid = prov.prov_id
                 self.hksess.remove_provider(pid)
-                del self.prov_ids[prov.address]
                 del self.providers[pid]
+                del self.prov_ids[(prov.address, prov.session_id)]
 
             # Then write status if we need to
             if self.should_write_status:

@@ -211,7 +211,7 @@ class OCSAgent(ApplicationSession):
         """
         return {
             'agent_address': self.agent_address,
-            'agent_session_id': self.agent_session_id,
+            'session_id': self.agent_session_id,
             'feeds': [f[1].encoded() for f in self.feeds.items()],
             'tasks': list(self.tasks.keys()),
             'processes': list(self.processes.keys())

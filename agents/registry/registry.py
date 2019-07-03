@@ -7,8 +7,7 @@ from threading import Lock
 class RegisteredAgent:
     def __init__(self, agent_encoded):
         self.encoded = agent_encoded
-
-        for key in ['agent_session_id']:
+        for key in ['session_id']:
             setattr(self, key, self.encoded[key])
 
         self.time_registered = time.time()
@@ -93,7 +92,7 @@ class Registry:
 
         action = "added"
         if address in self.active_agents.keys():
-            if agent_data['agent_session_id'] != self.active_agents[address].agent_session_id:
+            if agent_data['session_id'] != self.active_agents[address].session_id:
                 self.log.info("Address {} is already registered. Removing old"
                               "instance and replacing it with new one"
                               .format(address))
@@ -102,8 +101,8 @@ class Registry:
                     self.remove_agent(address)
             else:
                 self.log.info("Agent with session id {} has already been registered."
-                              .format(agent_data['agent_session_id']))
-                return False, "Agent already registered with session id {}".format(agent_data['agent_session_id'])
+                              .format(agent_data['session_id']))
+                return False, "Agent already registered with session id {}".format(agent_data['session_id'])
 
         with self.lock:
             self.active_agents[address] = RegisteredAgent(agent_data)

@@ -138,7 +138,8 @@ object.  The structure is described in the ``from_dict`` method of
 the SiteConfig class:
 
 .. autoclass:: ocs.site_config.SiteConfig
-   :members: from_dict
+    :members: from_dict
+    :noindex:
 
 The ``hub`` information is used by all Agent and Control Clients, on
 all hosts, to connect to the OCS WAMP router.  This WAMP router
@@ -147,7 +148,8 @@ settings in SCF ``hub`` block are parsed by the ``from_dict`` method
 of the HubConfig class:
 
 .. autoclass:: ocs.site_config.HubConfig
-   :members: from_dict
+    :members: from_dict
+    :noindex:
 
 HostConfig
 ----------
@@ -156,7 +158,8 @@ The structure of HostConfig encoding is described in the ``from_dict``
 method of the HostConfig class:
 
 .. autoclass:: ocs.site_config.HostConfig
-   :members: from_dict
+    :members: from_dict
+    :noindex:
 
 To allow ocs to manipulate the ``crossbar`` router (e.g. if you want
 to easily start and stop it using ``ocsbow``), then the ``crossbar``
@@ -165,7 +168,8 @@ details of the options are described in the ``from_dict`` method of
 the CrossbarConfig class:
 
 .. autoclass:: ocs.site_config.CrossbarConfig
-   :members: from_dict
+    :members: from_dict
+    :noindex:
 
 The significance of ``agent-paths`` is described more in
 :ref:`agent_plugins`.
@@ -177,7 +181,8 @@ The structure of InstanceConfig encoding is described in the
 ``from_dict`` method of the InstanceConfig class:
 
 .. autoclass:: ocs.site_config.InstanceConfig
-   :members: from_dict
+    :members: from_dict
+    :noindex:
 
 
 Agent Site-related Command Line Parameters
@@ -227,6 +232,7 @@ site configuration file, or to override site configuration entirely.
 The command line options are described in the docstring for ``add_arguments``:
 
 .. autofunction:: ocs.site_config.add_arguments()
+    :noindex:
    
 
 Examples
@@ -286,7 +292,7 @@ function to launch can instead use ``run_control_script2``, which
 behaves as follows:
 
 .. autofunction:: ocs.client_t.run_control_script2
-
+    :noindex:
 
 The control client script might look something like this (see also
 river_ctrl.py in the examples):  

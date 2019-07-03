@@ -71,6 +71,7 @@ Feed API
 ---------
 .. autoclass:: ocs.ocs_feed.Feed
     :members:
+    :noindex:
 
 
 

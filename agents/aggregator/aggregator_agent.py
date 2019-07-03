@@ -427,8 +427,11 @@ class DataAggregator:
                               .format(prov.address, prov.agent_id))
                 pid = prov.prov_id
                 self.hksess.remove_provider(pid)
-                del self.prov_ids[prov.address]
                 del self.providers[pid]
+
+                if self.prov_ids[prov.address] == pid:
+                    del self.prov_ids[prov.address]
+
 
             # Then write status if we need to
             if self.should_write_status:

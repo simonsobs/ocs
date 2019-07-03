@@ -213,7 +213,7 @@ class DataAggregator:
                 )
                 self.providers[prov_id] = Provider(feed, prov_id)
                 self.prov_ids[(feed["address"], session_id)] = prov_id
-                self.log.info("Added provider {} (agent sess: {}) with id {}"
+                self.log.info("Added provider {} (session_id: {}) with id {}"
                               .format(feed['address'], session_id, prov_id))
                 self.should_write_status = True
                 self.agent.subscribe_to_feed(agent_address,

@@ -11,6 +11,9 @@ WORKDIR /app/agents/aggregator/
 RUN mkdir -p /data && \
     chown ocs:ocs /data
 
+# Copy this local copy into place over the OCS base image
+COPY aggregator_agent.py /app/agents/aggregator/
+
 # Run registry on container startup
 ENTRYPOINT ["python3", "-u", "aggregator_agent.py"]
 

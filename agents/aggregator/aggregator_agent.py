@@ -198,15 +198,7 @@ class DataAggregator:
             else:
                 prov = None
 
-            # # Assumes agent ids are ordered
-            # if prov is not None:
-            #     if prov.agent_id < agent_id:
-            #         # If somehow its an old version of the feed, remove it
-            #         self.log.warn("Somehow there is a new instance of {}."
-            #                       "Scheduling removal of old instance".format(feed['address']))
-            #         prov.remove = True
-
-            if action == 'removed':
+            if action == 'removed' and prov is not None:
                 self.log.info("Scheduled remove for provider {} ({})"
                               .format(feed['address'], agent_id))
                 prov.remove = True

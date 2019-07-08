@@ -1,5 +1,5 @@
 import time, threading
-from datetime import datetime
+import datetime
 import binascii
 import numpy as np
 from ocs import ocs_agent, site_config, client_t, ocs_feed
@@ -283,15 +283,17 @@ class DataAggregator:
         Starts new G3File with in directory `data_dir`.
         """
 
-        file_start_time = datetime.utcnow()
-        timestamp = file_start_time.timestamp()
-        sub_dir = os.path.join(data_dir, "{:.5}".format(str(timestamp)))
+        start_time = time.time()
+        start_datetime = datetime.datetime.fromtimestamp(start_time,
+                                                         tz=datetime.timezone.utc)
+
+        sub_dir = os.path.join(data_dir, "{:.5}".format(str(start_time)))
 
         # Create new dir for current day
         if not os.path.exists(sub_dir):
             os.makedirs(sub_dir)
 
-        time_string = file_start_time.strftime("%Y-%m-%d-%H-%M-%S")
+        time_string = start_datetime.strftime("%Y-%m-%d-%H-%M-%S")
         filename = os.path.join(sub_dir, "{}.g3".format(time_string))
 
         self.log.info("Creating file: {}".format(filename))
@@ -384,7 +386,8 @@ class DataAggregator:
                 if self.writer is not None:
                     self.end_file()
                 self.start_file(data_dir)
-                ts = datetime.utcnow().timestamp()
+                file_start_time = time.time()
+
 
             # Removes old providers if new ones exist
             keys = sorted(self.prov_ids, key=lambda x: x[1], reverse=True)
@@ -436,7 +439,7 @@ class DataAggregator:
 
 
             # Check if its time to write new frame/file
-            new_file_time = (datetime.utcnow().timestamp() - ts) > time_per_file
+            new_file_time = (time.time() - file_start_time) > time_per_file
 
         self.end_file()
         return True, 'Acquisition exited cleanly.'

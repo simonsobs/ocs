@@ -1,6 +1,8 @@
-from ocs.ocs_agent import in_reactor_context
+from ocs.ocs_twisted import in_reactor_context
 from twisted.internet import reactor
 import time
+import yaml
+import os
 
 class Block:
     def __init__(self, name, keys, prefix=''):
@@ -55,6 +57,34 @@ class Block:
             'prefix': self.prefix
         }
 
+
+def get_aliases(alias_file, instance_id, feed):
+    """
+    Returns an alias dict for a single feed from the specified alias yaml file.
+    The dict is a map from stream names to a list of aliases.
+    """
+
+    if alias_file is None:
+        return {}
+
+    fname = os.path.normpath(os.path.expandvars(alias_file))
+
+    with open(fname, 'r') as f:
+        data = yaml.safe_load(f)
+
+    agent_aliases = data.get(instance_id)
+
+    if agent_aliases is None:
+        return {}
+
+    feed_aliases = agent_aliases.get(feed, {})
+
+    for k, v in feed_aliases.items():
+        if type(v)==str:
+            feed_aliases[k] = [v]
+
+    return feed_aliases
+
 class Feed:
     """
     Manages publishing to a specific feed and storing of messages.
@@ -86,6 +116,7 @@ class Feed:
                 buffer_time=0, max_messages=0):
 
         self.agent = agent
+
         self.feed_name = feed_name
         self.record = record
         self.agg_params = agg_params
@@ -98,6 +129,10 @@ class Feed:
         self.agent_address = self.agent.agent_address
         self.address = "{}.feeds.{}".format(self.agent_address, self.feed_name)
 
+        self.aliases = get_aliases(self.agent.site_args.alias_file,
+                                   self.agent.instance_id, self.feed_name)
+
+
     def encoded(self):
         return {
             "agent_address": self.agent_address,
@@ -105,7 +140,8 @@ class Feed:
             "feed_name": self.feed_name,
             "address": self.address,
             "record": self.record,
-            "session_id": self.agent.agent_session_id
+            "session_id": self.agent.agent_session_id,
+            "aliases": self.aliases
         }
 
     def flush_buffer(self):
@@ -113,6 +149,7 @@ class Feed:
 
         if not in_reactor_context():
             return reactor.callFromThread(self.flush_buffer)
+
         if self.buffer_start_time is None:
             return
 

@@ -13,6 +13,7 @@ if os.getenv('OCS_DOC_BUILD') != 'True':
     from spt3g import core
     import so3g
 
+from typing import Dict
 
 class Provider:
     """
@@ -32,6 +33,8 @@ class Provider:
             Start time of current frame
         blocks (dict):
             All blocks that are written by provider.
+        aliases (dict):
+            Alias map from stream name to list of aliases
     """
     def __init__(self, feed, prov_id):
         self.prov_id = prov_id
@@ -39,6 +42,7 @@ class Provider:
         self.address = feed['address']
         self.session_id = feed['session_id']
         self.frame_length = feed['agg_params']['frame_length']
+        self.aliases = feed['aliases']
 
         self.lock = RLock()
 
@@ -56,7 +60,7 @@ class Provider:
         if self.frame_start_time is None:
             # Get min frame time out of all blocks
             self.frame_start_time = time.time()
-            for _,b in data.items():
+            for _, b in data.items():
                 if b['timestamps']:
                     self.frame_start_time = min(self.frame_start_time, b['timestamps'][0])
 
@@ -141,7 +145,7 @@ class DataAggregator:
         self.time_per_file = time_per_file
         self.data_dir = data_dir
 
-        self.providers = {} # by prov_id
+        self.providers: Dict[int, Provider] = {} # by prov_id
         self.prov_ids = {} # by (address, session_id)
         self.next_prov_id = 0
 
@@ -312,6 +316,17 @@ class DataAggregator:
             return
 
         status = self.hksess.status_frame()
+
+        # Maybe this should be put directly into the HKSession in so3g, but
+        # I don't think there should be any problem trying to access providers
+        # that have been removed since this is only called from the aggregate
+        # process.
+        for p in status['providers']:
+            pid = p['prov_id'].value
+            prov = self.providers[pid]
+            p['aliases'] = core.G3MapVectorString(prov.aliases)
+
+        self.log.info("Writing status frame.")
         self.writer(status)
         self.should_write_status = False
 

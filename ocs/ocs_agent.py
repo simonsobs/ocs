@@ -98,6 +98,7 @@ class OCSAgent(ApplicationSession):
         self.next_session_id = 0
         self.session_archive = {} # by op_name, lists of OpSession.
         self.agent_address = address
+        self.root_address, self.instance_id = self.agent_address.split('.')
         self.registered = False
         self.log = txaio.make_logger()
         self.heartbeat_call = None
@@ -142,7 +143,7 @@ class OCSAgent(ApplicationSession):
 
     @inlineCallbacks
     def onJoin(self, details):
-        self.log.info('session joined: {}'.format(details))
+        self.log.info('session joined: {details}', details=details)
         # Get an address somehow...
         if self.agent_address is None:
             self.agent_address = 'observatory.random'

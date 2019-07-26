@@ -183,6 +183,9 @@ class HubConfig:
             Agent.  See :ref:`registry`.  (Command line override:
             ``--registry-address``.)
 
+        ``alias_file`` (optional): File containing stream aliases (Command line
+                override: ``--alias-file``.)
+
         """
         self = cls()
         self.parent = parent
@@ -292,6 +295,9 @@ def add_arguments(parser=None):
 
     ``--working-dir=...``:
         Propagate the working directory.
+        
+    ``--alias-file=...``:
+        File containing stream_aliases
 
     """
     if parser is None:
@@ -327,6 +333,9 @@ def add_arguments(parser=None):
     """Set the logging directory.""")
     group.add_argument('--working-dir', help=
     """Propagate the working directory.""")
+    group.add_argument('--alias-file', help=
+                       """Set alias file""")
+
     return parser
     
 def get_config(args, agent_class=None):
@@ -376,6 +385,9 @@ def get_config(args, agent_class=None):
 
     if args.registry_address is not None:
         site_config.hub.data['registry_address'] = args.registry_address
+
+    if args.alias_file is not None:
+        site_config.hub.data['alias_file'] = args.alias_file
 
     # Matching behavior.
     no_host_match = (agent_class == '*control*')
@@ -458,8 +470,18 @@ def reparse_args(args, agent_class=None):
         args.site_realm = site.hub.data['wamp_realm']
     if args.address_root is None:
         args.address_root = site.hub.data['address_root']
+
     if args.registry_address is None:
         args.registry_address = site.hub.data.get('registry_address')
+
+    if args.alias_file is None:
+        args.alias_file = os.path.normpath(os.path.expandvars(
+            site.hub.data.get('alias_file')))
+    elif args.alias_file.lower() == "none":
+        args.alias_file = None
+    else:
+        args.alias_file = os.path.normpath(os.path.expandvars(args.alias_file))
+
     if (args.log_dir is None) and (host is not None):
         args.log_dir = host.log_dir
 

@@ -98,7 +98,7 @@ class Provider:
             frame = core.G3Frame(core.G3FrameType.Housekeeping)
 
         frame['address'] = self.address
-        frame['session_id'] = self.session_id
+        frame['provider_session_id'] = self.session_id
 
         for block_name, block in self.blocks.items():
             if not block.timestamps:

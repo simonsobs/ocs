@@ -59,6 +59,8 @@ class FakeDataAgent:
         reporting_interval = 1.
         next_report = next_timestamp + reporting_interval
 
+        self.log.info("Starting acquisition")
+
         while True:
             with self.lock:
                 if self.job == '!acq':
@@ -106,7 +108,7 @@ class FakeDataAgent:
             # This will keep good fractional time.
             next_timestamp += n_data / self.sample_rate
 
-            self.log.info('Sending %i data on %i channels.' % (len(t), len(T)))
+            # self.log.info('Sending %i data on %i channels.' % (len(t), len(T)))
             session.app.publish_to_feed('false_temperatures', block.encoded())
 
         self.agent.feeds['false_temperatures'].flush_buffer()
@@ -128,6 +130,7 @@ def add_agent_args(parser_in=None):
         from argparse import ArgumentParser as A
         parser_in = A()
     pgroup = parser_in.add_argument_group('Agent Options')
+    pgroup.add_argument("--mode", default="idle", choices=['idle', 'acq'])
     pgroup.add_argument('--num-channels', default=2, type=int,
                         help='Number of fake readout channels to produce. '
                         'Channels are co-sampled.')
@@ -146,6 +149,10 @@ if __name__ == '__main__':
 
     # Interpret options in the context of site_config.
     site_config.reparse_args(args, 'FakeDataAgent')
+
+    startup = False
+    if args.mode == 'acq':
+        startup=True
     
     agent, runner = ocs_agent.init_site_agent(args)
 
@@ -153,6 +160,6 @@ if __name__ == '__main__':
                           num_channels=args.num_channels,
                           sample_rate=args.sample_rate)
     agent.register_process('acq', fdata.start_acq, fdata.stop_acq,
-                           blocking=True)
+                           blocking=True, startup=startup)
 
     runner.run(agent, auto_reconnect=True)

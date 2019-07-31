@@ -5,7 +5,7 @@
 FROM ocs:latest
 
 # Set the working directory to registry directory
-WORKDIR /app/agents/registry/
+WORKDIR /app/ocs/agents/registry/
 
 # Run registry on container startup
 ENTRYPOINT ["python3", "-u", "registry.py"]

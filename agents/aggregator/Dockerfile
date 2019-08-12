@@ -7,9 +7,13 @@ FROM ocs:latest
 # Set the working directory to registry directory
 WORKDIR /app/ocs/agents/aggregator/
 
+COPY aggregator_agent.py .
+
 # Prepare data directory for mount
 RUN mkdir -p /data && \
     chown ocs:ocs /data
+
+
 
 # Run registry on container startup
 ENTRYPOINT ["python3", "-u", "aggregator_agent.py"]

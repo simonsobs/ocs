@@ -570,9 +570,12 @@ def scan_for_agents(do_registration=True):
     import importlib
     items = []
     for modinfo in pkgutil.iter_modules():
-        if modinfo.name.startswith('ocs_plugin_'):
-            items.append(modinfo.name)
+        # In python>=3.6, "modinfo" is a namedtuple and you can use
+        # .name to access the name.  But for 3.5 you access name at index [1].
+        modinfo_name = modinfo[1]
+        if modinfo_name.startswith('ocs_plugin_'):
+            items.append(modinfo_name)
             if do_registration:
-                importlib.import_module(modinfo.name)
+                importlib.import_module(modinfo_name)
     return items
                     

@@ -5,7 +5,9 @@
 FROM ocs:latest
 
 # Set the working directory to registry directory
-WORKDIR /app/agents/fake_data/
+WORKDIR /app/ocs/agents/fake_data/
+
+COPY . .
 
 # Run registry on container startup
 ENTRYPOINT ["python3", "-u", "fake_data_agent.py"]

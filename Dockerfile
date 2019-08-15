@@ -8,9 +8,6 @@ FROM simonsobs/so3g:v0.0.4-32-g7b9a908
 RUN groupadd -g 9000 ocs && \
     useradd -l -u 9000 -g 9000 ocs
 
-# Set the working directory to /app
-WORKDIR /app
-
 # Setup configuration environment
 ENV OCS_CONFIG_DIR=/config
 
@@ -19,7 +16,11 @@ RUN apt-get update && apt-get install -y python3 \
     python3-pip
 
 # Copy the current directory contents into the container at /app
-COPY . /app/
+COPY . /app/ocs/
+
+WORKDIR /app
 
 # Install ocs
-RUN pip3 install -r requirements.txt .
+RUN pip3 install -r ocs/requirements.txt \
+    && pip3 install -e ocs
+

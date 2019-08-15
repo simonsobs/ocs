@@ -89,6 +89,7 @@ class OCSAgent(ApplicationSession):
 
     def __init__(self, config, site_args, address=None):
         ApplicationSession.__init__(self, config)
+        self.log.info("Using OCS version {v}", v=ocs.__version__)
         self.site_args = site_args
         self.tasks = {}       # by op_name
         self.processes = {}   # by op_name

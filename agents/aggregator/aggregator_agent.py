@@ -434,6 +434,7 @@ class DataAggregator:
                         prov.clear()
                     self.writer(frame)
 
+            self.writer.Flush()
 
             # Check if its time to write new frame/file
             new_file_time = (datetime.utcnow().timestamp() - ts) > time_per_file

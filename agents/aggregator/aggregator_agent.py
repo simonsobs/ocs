@@ -192,7 +192,16 @@ class Provider:
             hk.prefix = block.prefix
             hk.t = block.timestamps
             for key, ts in block.data.items():
-                hk.data[key] = ts
+                try:
+                    hk.data[key] = ts
+                except TypeError:
+                    try:
+                        hk.data[key] = [float(x) for x in ts]
+                    except ValueError:
+                        raise TypeError("datapoint passed from address " +
+                                        "{} to the Provider feed is of " +
+                                        "invalid type {}"
+                                        .format(self.address, type(ts)))
 
             frame['blocks'].append(hk)
 

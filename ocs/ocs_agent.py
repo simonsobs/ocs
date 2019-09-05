@@ -143,7 +143,7 @@ class OCSAgent(ApplicationSession):
 
     @inlineCallbacks
     def onJoin(self, details):
-        self.log.info('session joined: {}'.format(details))
+        self.log.info('session joined: {x}', x=details)
         # Get an address somehow...
         if self.agent_address is None:
             self.agent_address = 'observatory.random'

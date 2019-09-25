@@ -6,7 +6,7 @@ FROM simonsobs/so3g:v0.0.4-32-g7b9a908
 
 # Create ocs user and group
 RUN groupadd -g 9000 ocs && \
-    useradd -l -u 9000 -g 9000 ocs
+    useradd -m -l -u 9000 -g 9000 ocs
 
 # Setup configuration environment
 ENV OCS_CONFIG_DIR=/config

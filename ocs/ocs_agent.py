@@ -100,6 +100,7 @@ class OCSAgent(ApplicationSession):
         self.registered = False
         self.log = txaio.make_logger()
         self.heartbeat_call = None
+        self._heartbeat_on = True
         self.agent_session_id = str(time.time())
         self.startup_ops = []  # list of (op_type, op_name)
         self.startup_subs = []  # list of dicts with params for subscribe call
@@ -161,7 +162,10 @@ class OCSAgent(ApplicationSession):
         self.register_feed("heartbeat", max_messages=1)
 
         def heartbeat():
-            self.publish_to_feed("heartbeat", 0, from_reactor=True)
+            if self._heartbeat_on:
+                self.log.debug(' {:.1f} {address} heartbeat '
+                               .format(time.time(), address=self.agent_address))
+                self.publish_to_feed("heartbeat", 0, from_reactor=True)
 
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0) # Calls the hearbeat every second

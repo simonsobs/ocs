@@ -2,7 +2,7 @@
 # A container setup with an installation of ocs.
 
 # Use ubuntu base image
-FROM simonsobs/so3g:v0.0.4-32-g7b9a908
+FROM simonsobs/so3g:v0.0.6-8-g943a068
 
 # Create ocs user and group
 RUN groupadd -g 9000 ocs && \

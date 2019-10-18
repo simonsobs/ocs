@@ -10,11 +10,10 @@ from twisted.internet.error import ReactorNotRunning
 from twisted.python import log
 from twisted.logger import formatEvent, FileLogObserver
 
-from autobahn.wamp.types import ComponentConfig
+from autobahn.wamp.types import ComponentConfig, SubscribeOptions
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from autobahn.wamp.exception import ApplicationError
 from .ocs_twisted import in_reactor_context
-
 
 import time, datetime
 import os
@@ -94,7 +93,6 @@ class OCSAgent(ApplicationSession):
         self.tasks = {}       # by op_name
         self.processes = {}   # by op_name
         self.feeds = {}
-        self.subscribed_feeds = []
         self.sessions = {}    # by op_name, single OpSession.
         self.next_session_id = 0
         self.session_archive = {} # by op_name, lists of OpSession.
@@ -104,6 +102,8 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call = None
         self.agent_session_id = str(time.time())
         self.startup_ops = []  # list of (op_type, op_name)
+        self.startup_subs = []  # list of dicts with params for subscribe call
+        self.subscribed_topics = set()
 
         # Attach the logger.
         log_dir, log_file = site_args.log_dir, None
@@ -167,6 +167,10 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call.start(1.0) # Calls the hearbeat every second
 
         self.register_agent()
+
+        # Subscribe to startup_subs
+        for sub in self.startup_subs:
+            self.subscribe(**sub)
 
         # Now do the startup activities.
         for op_type, op_name, op_params in self.startup_ops:
@@ -423,17 +427,71 @@ class OCSAgent(ApplicationSession):
         else:
             reactor.callFromThread(self.feeds[feed_name].publish_message, message)
 
-    def subscribe_to_feed(self, agent_addr, feed_name, callback, force_subscribe = False):
-        address = "{}.feeds.{}".format(agent_addr, feed_name)
+    def subscribe(self, handler, topic, options=None, force_subscribe=False):
+        """
+        Subscribes to a topic for receiving events.
+        Identical to ApplicationSession subscribe, but by default prevents
+        re-subscription to the same topic multiple times unless
+        force_subscribe=True.
 
-        # Makes sure that feeds are not accidentally subscribed to multiple times if agent is not restarted...
-        if address not in self.subscribed_feeds or force_subscribe:
-            self.subscribe(callback, address)
-            self.subscribed_feeds.append(address)
-            return True
+        For full documentation see:
+        https://autobahn.readthedocs.io/en/latest/reference/autobahn.wamp.html#autobahn.wamp.interfaces.ISession.subscribe
+
+        Args:
+            handler (callable):
+                handler called with message data
+            topic (string):
+                uri of topic to subscribe to
+            options (dict):
+                Dict of subscribe options.
+                To set prefix or wildcard matching, set `match` to `prefix`
+                or `wildcard` respectively.
+                For more info, see https://autobahn.readthedocs.io/en/latest/reference/autobahn.wamp.html#autobahn.wamp.types.SubscribeOptions
+            force_subscribe (bool):
+                If true, force resubscribe to an already susbscribed topic.
+                Defaults to False.
+        """
+        if (topic not in self.subscribed_topics) or force_subscribe:
+            self.subscribed_topics.add(topic)
+            return super().subscribe(handler, topic=topic,
+                                     options=SubscribeOptions(**options))
         else:
-            self.log.error("Feed {} is already subscribed to".format(address))
+            self.log.warn("Topic {} is already subscribed.".format(topic))
             return False
+
+    def subscribe_to_feed(self, agent_addr, feed_name, handler, options=None, force_subscribe=False):
+        """
+        Constructs topic feed from agent address and feedname, and subscribes to it.
+
+        Args:
+            agent_addr (str):
+                Full agent address, e.g. `observatory.LS12345`
+            feed_name (str):
+                Feed name, e.g. `temperatures`
+            handler (callable):
+                handler called with message data
+            topic (string):
+                uri of topic to subscribe to
+            options (dict):
+                Dict or subscribe options. See https://autobahn.readthedocs.io/en/latest/reference/autobahn.wamp.html#autobahn.wamp.types.SubscribeOptions
+            force_subscribe (bool):
+                If true, force resubscribe to an already susbscribed topic.
+                Defaults to False.
+        """
+        topic = "{}.feeds.{}".format(agent_addr, feed_name)
+        return self.subscribe(handler, topic, options=options, force_subscribe=force_subscribe)
+
+    def subscribe_on_start(self, handler, topic, options=None, force_subscribe=None):
+        """
+        Schedules a topic to be subscribed to OnJoin.
+        See OCSAgent.subscribe's docstring.
+        """
+        self.startup_subs.append({
+            'handler': handler,
+            'topic': topic,
+            'options': options,
+            'force_subscribe': force_subscribe
+        })
 
     def _handle_task_return_val(self, *args, **kw):
         try:

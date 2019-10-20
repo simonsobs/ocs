@@ -177,6 +177,10 @@ class G3FileRotator(core.G3Module):
         self.last_session = None
         self.last_status = None
 
+    def close_file(self):
+        self.writer(core.G3Frame(core.G3FrameType.EndProcessing))
+        self.writer = None
+
     def flush(self):
         """Flushes current g3 file to disk"""
         if self.writer is not None:
@@ -210,7 +214,7 @@ class G3FileRotator(core.G3Module):
         self.writer(frame)
 
         if (time.time() - self.file_start_time) > self.time_per_file:
-            self.writer = None
+            self.close_file()
 
 
 class Aggregator:
@@ -429,6 +433,8 @@ class Aggregator:
 
         self.write_providers_to_queue(write_all=True)
         self.write_queue_to_disk()
+
+        self.rotator.close_file()
 
         return True
 

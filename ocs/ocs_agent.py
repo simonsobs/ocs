@@ -470,8 +470,6 @@ class OCSAgent(ApplicationSession):
                 Feed name, e.g. `temperatures`
             handler (callable):
                 handler called with message data
-            topic (string):
-                uri of topic to subscribe to
             options (dict):
                 Dict or subscribe options. See https://autobahn.readthedocs.io/en/latest/reference/autobahn.wamp.html#autobahn.wamp.types.SubscribeOptions
             force_subscribe (bool):

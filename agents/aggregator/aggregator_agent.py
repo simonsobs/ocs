@@ -1,5 +1,4 @@
-import time, datetime, binascii, os, queue, argparse
-from threading import RLock
+import time, datetime, binascii, os, queue, argparse, collections
 from typing import Dict
 
 from ocs import ocs_agent, site_config, ocs_feed
@@ -44,8 +43,6 @@ class Provider:
 
         self.blocks = {}
 
-        self._lock = RLock()
-
         # When set to True, provider will be written and removed next agg cycle
         self.frame_start_time = None
 
@@ -72,10 +69,9 @@ class Provider:
 
     def empty(self):
         """Returns true if all blocks are empty"""
-        with self._lock:
-            for _,b in self.blocks():
-                if not b.empty():
-                    return False
+        for _,b in self.blocks():
+            if not b.empty():
+                return False
 
         return True
 
@@ -85,34 +81,32 @@ class Provider:
         A block will be created for any new block_name.
         """
         self.refresh()
-        with self._lock:
 
-            if self.frame_start_time is None:
-                # Get min frame time out of all blocks
-                self.frame_start_time = time.time()
-                for _,b in data.items():
-                    if b['timestamps']:
-                        self.frame_start_time = min(self.frame_start_time, b['timestamps'][0])
+        if self.frame_start_time is None:
+            # Get min frame time out of all blocks
+            self.frame_start_time = time.time()
+            for _,b in data.items():
+                if b['timestamps']:
+                    self.frame_start_time = min(self.frame_start_time, b['timestamps'][0])
 
-            for key,block in data.items():
-                try:
-                    b = self.blocks[key]
-                except KeyError:
-                    self.blocks[key] = ocs_feed.Block(
-                        key, block['data'].keys(),
-                        prefix=block['prefix']
-                    )
-                    b = self.blocks[key]
+        for key,block in data.items():
+            try:
+                b = self.blocks[key]
+            except KeyError:
+                self.blocks[key] = ocs_feed.Block(
+                    key, block['data'].keys(),
+                    prefix=block['prefix']
+                )
+                b = self.blocks[key]
 
-                b.extend(block)
+            b.extend(block)
 
     def clear(self):
         """Clears all blocks and resets the frame_start_time"""
-        with self._lock:
-            for _,b in self.blocks.items():
-                b.clear()
+        for _,b in self.blocks.items():
+            b.clear()
 
-            self.frame_start_time = None
+        self.frame_start_time = None
 
     def to_frame(self, hksess=None, clear=False):
         """
@@ -126,32 +120,31 @@ class Provider:
                 Clears provider data if True.
 
         """
-        with self._lock:
 
-            if hksess is not None:
-                frame = hksess.data_frame(prov_id=self.prov_id)
-            else:
-                frame = core.G3Frame(core.G3FrameType.Housekeeping)
+        if hksess is not None:
+            frame = hksess.data_frame(prov_id=self.prov_id)
+        else:
+            frame = core.G3Frame(core.G3FrameType.Housekeeping)
 
-            frame['address'] = self.address
-            frame['provider_session_id'] = self.sessid
+        frame['address'] = self.address
+        frame['provider_session_id'] = self.sessid
 
-            for block_name, block in self.blocks.items():
-                if not block.timestamps:
-                    continue
+        for block_name, block in self.blocks.items():
+            if not block.timestamps:
+                continue
 
-                hk = so3g.IrregBlockDouble()
-                hk.prefix = block.prefix
-                hk.t = block.timestamps
-                for key, ts in block.data.items():
-                    hk.data[key] = ts
+            hk = so3g.IrregBlockDouble()
+            hk.prefix = block.prefix
+            hk.t = block.timestamps
+            for key, ts in block.data.items():
+                hk.data[key] = ts
 
-                frame['blocks'].append(hk)
+            frame['blocks'].append(hk)
 
-            if clear:
-                self.clear()
+        if clear:
+            self.clear()
 
-            return frame
+        return frame
 
 
 class G3FileRotator(core.G3Module):
@@ -178,43 +171,48 @@ class G3FileRotator(core.G3Module):
         self.last_status = None
 
     def close_file(self):
-        self.writer(core.G3Frame(core.G3FrameType.EndProcessing))
-        self.writer = None
+        if self.writer is not None:
+            self.writer(core.G3Frame(core.G3FrameType.EndProcessing))
+            self.writer = None
 
     def flush(self):
         """Flushes current g3 file to disk"""
         if self.writer is not None:
             self.writer.Flush()
 
-    def Process(self, frame):
+    def Process(self, frames):
         """
         Writes frame to current file. If file has not been started
         or time_per_file has elapsed, file is closed and a new file is created
         by `filename` function passed to constructor
         """
-        ftype = frame['hkagg_type']
+        for frame in frames:
 
-        if ftype == so3g.HKFrameType.session:
-            self.last_session = frame
-        elif ftype == so3g.HKFrameType.status:
-            self.last_status = frame
+            ftype = frame['hkagg_type']
 
-        if self.writer is None:
-            self.writer = core.G3Writer(self.filename())
-            self.file_start_time = time.time()
+            if ftype == so3g.HKFrameType.session:
+                self.last_session = frame
+            elif ftype == so3g.HKFrameType.status:
+                self.last_status = frame
 
-            if ftype in [so3g.HKFrameType.data, so3g.HKFrameType.status]:
-                if self.last_session is not None:
-                    self.writer(self.last_session)
+            if self.writer is None:
+                self.writer = core.G3Writer(self.filename())
+                self.file_start_time = time.time()
 
-            if ftype == so3g.HKFrameType.data:
-                if self.last_status is not None:
-                    self.writer(self.last_status)
+                if ftype in [so3g.HKFrameType.data, so3g.HKFrameType.status]:
+                    if self.last_session is not None:
+                        self.writer(self.last_session)
 
-        self.writer(frame)
+                if ftype == so3g.HKFrameType.data:
+                    if self.last_status is not None:
+                        self.writer(self.last_status)
+
+            self.writer(frame)
 
         if (time.time() - self.file_start_time) > self.time_per_file:
             self.close_file()
+
+        return frames
 
 
 class Aggregator:
@@ -242,7 +240,7 @@ class Aggregator:
            Specifies if the agent is currently aggregating data.
         rotator (G3FileRotator):
             module for writing G3Files.
-        frame_queue (queue.Queue):
+        frame_deque (queue.Queue):
             queue of frames to be written to disk. Every loop iteration in `run`
             this will be cleared and all frames will be written to disk.
         data_dir (path):
@@ -250,7 +248,11 @@ class Aggregator:
     """
     def __init__(self, args, log):
         self.log = log
-        self.frame_queue = queue.Queue()
+        self.frame_deque = collections.deque()
+
+        # This is the only data-collection that should be accessed outside of
+        # the `run` worker thread.
+        self.incoming_data = queue.Queue()
 
         self.data_dir = args.data_dir
         self._loop_time = 1
@@ -292,9 +294,39 @@ class Aggregator:
         self.log.info("Creating file {} ...".format(filename))
         return filename
 
+    def enqueue_incoming_data(self, data, feed):
+        """
+        Adds message from provider to the incoming_data queue, which will
+        be processed next `run` loop.
+        """
+        if not self.aggregate:
+            return False
+        self.incoming_data.put((data, feed))
+        return True
+
+    def process_incoming_data(self):
+        """
+        Takes all data from the incoming_data queue, and puts them into
+        provider blocks.
+        """
+        while not self.incoming_data.empty():
+
+            data, feed = self.incoming_data.get()
+
+            address = feed['address']
+            sessid = feed['session_id']
+            frame_length = feed['agg_params']['frame_length']
+
+            pid = self.pids.get((address, sessid))
+            if pid is None:
+                pid = self.add_provider(address, sessid, frame_length)
+
+            prov = self.providers[pid]
+            prov.write(data)
+
     def write_status(self):
         """Adds a status frame to the frame_queue"""
-        self.frame_queue.put(self.hksess.status_frame())
+        self.frame_deque.append(self.hksess.status_frame())
 
     def add_provider(self, prov_address, prov_sessid, frame_length):
         """
@@ -332,28 +364,12 @@ class Aggregator:
         addr, sessid = prov.address, prov.sessid
 
         if not prov.empty():
-            self.frame_queue.put(prov.to_frame(self.hksess, clear=False))
+            self.frame_deque.append(prov.to_frame(self.hksess, clear=False))
 
         self.hksess.remove_provider(pid)
         del self.providers[pid]
         del self.pids[(addr, sessid)]
         self.write_status()
-
-    def write_data(self, data, pid):
-        """
-        Writes all blocks in data message to provider
-
-        Args:
-            data (list):
-                list of Blocks' that should be written to the provider.
-            pid (int):
-                prov_id of provider
-        """
-        if not self.aggregate:
-            return False
-
-        prov = self.providers[pid]
-        prov.write(data)
 
     def remove_stale_providers(self):
         """
@@ -371,7 +387,7 @@ class Aggregator:
         for prov in stale_provs:
             self.remove_provider(prov)
 
-    def write_providers_to_queue(self, clear=True, write_all=False):
+    def write_provider_frames(self, clear=True, write_all=False):
         """
         Loop through all providers, and write their data to the frame_queue
         if they have surpassed their frame_time, or if write_all is True.
@@ -385,14 +401,7 @@ class Aggregator:
         """
         for pid, prov in self.providers.items():
             if write_all or prov.new_frame_time():
-                self.frame_queue.put(prov.to_frame(self.hksess, clear=clear))
-
-    def write_queue_to_disk(self):
-        """
-        Loops through frame_queue and writes them to disk.
-        """
-        while not self.frame_queue.empty():
-            self.rotator.Process(self.frame_queue.get())
+                self.frame_deque.append(prov.to_frame(self.hksess, clear=clear))
 
     def generate_id(self):
         """
@@ -419,20 +428,24 @@ class Aggregator:
         self.hksess.start_time = time.time()
         self.hksess.session_id = self.generate_id()
 
-        self.rotator.Process(self.hksess.session_frame())
+        self.rotator.Process([self.hksess.session_frame()])
 
         self.aggregate = True
         while self.aggregate:
             time.sleep(self._loop_time)
 
+            self.process_incoming_data()
             self.remove_stale_providers()
-            self.write_providers_to_queue()
-            self.write_queue_to_disk()
+            self.write_provider_frames()
+
+            # Writes frames to disk
+            self.rotator.Process(self.frame_deque)
+            self.frame_deque.clear()
 
             self.rotator.flush()
 
-        self.write_providers_to_queue(write_all=True)
-        self.write_queue_to_disk()
+        self.write_provider_frames(write_all=True)
+        self.write_frames_to_disk()
 
         self.rotator.close_file()
 
@@ -467,16 +480,7 @@ class AggregatorAgent:
         if not feed['record']:
             return
 
-        address = feed['address']
-        sessid = feed['session_id']
-        frame_length = feed['agg_params']['frame_length']
-
-        pid = self.aggregator.pids.get((address, sessid))
-
-        if pid is None:
-            pid = self.aggregator.add_provider(address, sessid, frame_length)
-
-        self.aggregator.write_data(data, pid)
+        self.aggregator.enqueue_incoming_data(data, feed)
 
     def start_aggregate(self, session, params=None):
         """

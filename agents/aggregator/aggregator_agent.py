@@ -1,4 +1,5 @@
 import time, datetime, binascii, os, queue, argparse, collections
+import txaio
 from typing import Dict
 
 from ocs import ocs_agent, site_config, ocs_feed
@@ -6,6 +7,23 @@ import argparse
 if os.getenv('OCS_DOC_BUILD') != 'True':
     from spt3g import core
     import so3g
+
+
+def generate_id(hksess):
+    """
+    Generates a unique session id based on the start_time, process_id,
+    and hksess description.
+    """
+    # Maybe this should go directly into HKSessionHelper
+    elements = [
+        (int(hksess.start_time), 32),
+        (os.getpid(), 14),
+        (binascii.crc32(bytes(hksess.description, 'utf8')), 14)
+    ]
+    agg_session_id = 0
+    for i, b in elements:
+        agg_session_id = (agg_session_id << b) | (i % (1 << b))
+    return agg_session_id
 
 
 class Provider:
@@ -53,7 +71,7 @@ class Provider:
 
 
     def refresh(self):
-        """ Refresh provider """
+        """Refresh provider"""
         self.last_refresh = time.time()
 
     def stale(self):
@@ -69,7 +87,7 @@ class Provider:
 
     def empty(self):
         """Returns true if all blocks are empty"""
-        for _,b in self.blocks():
+        for _, b in self.blocks.items():
             if not b.empty():
                 return False
 
@@ -217,101 +235,57 @@ class G3FileRotator(core.G3Module):
 
 class Aggregator:
     """
-    The Data Aggregator Agent listens to data provider feeds, and outputs the
-    housekeeping data as G3Frames.
+    Data aggregator. This manages a collection or providers, and contains
+    methods to write to them and write them to disk.
+    This class is not meant to be asynchronous, and should only be accessible
+    by a single thread.
+    New data can be passed to it via a thread-safe queue with the function
+    `process_incoming_data`.
 
     Args:
-        args (namespace):
-            args from the function's argparser.
-        log:
-            logger from the agent
+        hksess (so3g.HKSessionHelper):
+            HKSession helper that assigns provider id's to providers,
+            and constructs so3g frames.
+        writer (G3Module):
+            Module to use to write frames to disk.
 
     Attributes:
-
-        providers (dict):
-            All active providers that the aggregator is subscribed to.
-            Indexed by provider id.
-        pids (dict):
-            Dictionary of provider id's.
-            Indexed by provider's (address, sessid).
-        hksess (so3g HKSession):
-            The so3g HKSession that generates status, session, and data frames.
-        aggregate (bool):
-           Specifies if the agent is currently aggregating data.
-        rotator (G3FileRotator):
-            module for writing G3Files.
-        frame_deque (queue.Queue):
-            queue of frames to be written to disk. Every loop iteration in `run`
-            this will be cleared and all frames will be written to disk.
-        data_dir (path):
-            base directory for hk data.
+        log (txaio.Logger): txaio logger
+        providers (Dict[Provider]):
+            dictionary of active providers, indexed by the hksess's assigned
+            provider id.
+        pids (Dict[Int]):
+            Dictionary of provider id's assigned by the hksession. Indexed
+            by (prov address, session_id).
+        write_status (bool):
+            If true, a status frame will be written next time providers are
+            written to disk. This is set to True whenever a provider is added
+            or removed.
     """
-    def __init__(self, args, log):
-        self.log = log
-        self.frame_deque = collections.deque()
+    def __init__(self, hksess, writer):
+        self.hksess = hksess
+        self.writer = writer
 
-        # This is the only data-collection that should be accessed outside of
-        # the `run` worker thread.
-        self.incoming_data = queue.Queue()
-
-        self.data_dir = args.data_dir
-        self._loop_time = 1
-
-        self.rotator = G3FileRotator(int(args.time_per_file), self._make_filename)
-        self.aggregate = False
+        self.log = txaio.make_logger()
 
         self.providers: Dict[Provider] = {} # by prov_id
         self.pids = {}  # By (address, sessid)
 
-        self.hksess = so3g.hk.HKSessionHelper(description="HK data")
+        self.write_status = False
 
-    def _make_filename(self, make_subdirs=True):
-        """
-        Creates a new filename based on the time and base_dir.
-        If make_subdirs is True, all subdirectories will be automatically created.
-        I don't think there's any reason that this shouldn't be true...
-
-        Args:
-            make_subdirs (bool):
-                True if func should automatically create non-existing subdirs.
-        """
-        start_time = time.time()
-        start_datetime = datetime.datetime.fromtimestamp(
-            start_time, tz=datetime.timezone.utc
-        )
-
-        subdir = os.path.join(self.data_dir, "{:.5}".format(str(start_time)))
-
-        if not os.path.exists(subdir):
-            if make_subdirs:
-                os.makedirs(subdir)
-            else:
-                raise FileNotFoundError("Subdir {} does not exist"
-                                        .format(subdir))
-
-        time_string = start_datetime.strftime("%Y-%m-%d-%H-%M-%S")
-        filename = os.path.join(subdir, "{}.g3".format(time_string))
-        self.log.info("Creating file {} ...".format(filename))
-        return filename
-
-    def enqueue_incoming_data(self, data, feed):
-        """
-        Adds message from provider to the incoming_data queue, which will
-        be processed next `run` loop.
-        """
-        if not self.aggregate:
-            return False
-        self.incoming_data.put((data, feed))
-        return True
-
-    def process_incoming_data(self):
+    def process_incoming_data(self, incoming_data):
         """
         Takes all data from the incoming_data queue, and puts them into
         provider blocks.
-        """
-        while not self.incoming_data.empty():
 
-            data, feed = self.incoming_data.get()
+        Args:
+            incoming_data (queue.Queue):
+                A queue of (data, feed) pairs which should be processed by the
+                aggregator. This method will empty the queue.
+        """
+        while not incoming_data.empty():
+
+            data, feed = incoming_data.get()
 
             address = feed['address']
             sessid = feed['session_id']
@@ -323,10 +297,6 @@ class Aggregator:
 
             prov = self.providers[pid]
             prov.write(data)
-
-    def write_status(self):
-        """Adds a status frame to the frame_queue"""
-        self.frame_deque.append(self.hksess.status_frame())
 
     def add_provider(self, prov_address, prov_sessid, frame_length):
         """
@@ -348,8 +318,7 @@ class Aggregator:
         self.log.info("Adding provider {}".format(prov_address))
 
         self.pids[(prov_address, prov_sessid)] = pid
-        self.write_status()
-
+        self.write_status = True
         return pid
 
     def remove_provider(self, prov):
@@ -364,12 +333,13 @@ class Aggregator:
         addr, sessid = prov.address, prov.sessid
 
         if not prov.empty():
-            self.frame_deque.append(prov.to_frame(self.hksess, clear=False))
+            self.writer.Process([prov.to_frame(self.hksess, clear=False)])
 
+        self.log.info("Removing provider {}".format(prov.address))
         self.hksess.remove_provider(pid)
         del self.providers[pid]
         del self.pids[(addr, sessid)]
-        self.write_status()
+        self.write_status = True
 
     def remove_stale_providers(self):
         """
@@ -387,7 +357,7 @@ class Aggregator:
         for prov in stale_provs:
             self.remove_provider(prov)
 
-    def write_provider_frames(self, clear=True, write_all=False):
+    def write_to_disk(self, clear=True, write_all=False):
         """
         Loop through all providers, and write their data to the frame_queue
         if they have surpassed their frame_time, or if write_all is True.
@@ -399,98 +369,137 @@ class Aggregator:
                 If true all providers are written to disk regardless of whether
                 frame_time has passed.
         """
+
+        frames = []
+
+        if self.write_status:
+            frames.append(self.hksess.status_frame())
+            self.write_status = False
+
         for pid, prov in self.providers.items():
+            if prov.empty():
+                continue
             if write_all or prov.new_frame_time():
-                self.frame_deque.append(prov.to_frame(self.hksess, clear=clear))
+                frames.append(prov.to_frame(self.hksess, clear=clear))
 
-    def generate_id(self):
-        """
-        Generates a unique session id based on the start_time, process_id,
-        and hksess description.
-        """
-        # Maybe this should go directly into HKSessionHelper
-        elements = [
-            (int(self.hksess.start_time), 32),
-            (os.getpid(), 14),
-            (binascii.crc32(bytes(self.hksess.description, 'utf8')), 14)
-        ]
-        agg_session_id = 0
-        for i, b in elements:
-            agg_session_id = (agg_session_id << b) | (i % (1 << b))
-        return agg_session_id
-
-    def run(self):
-        """
-        Runs aggregation until `stop` is called. This should run in a worker
-        thread.
-        """
-        self.log.info("Aggregator running...")
-        self.hksess.start_time = time.time()
-        self.hksess.session_id = self.generate_id()
-
-        self.rotator.Process([self.hksess.session_frame()])
-
-        self.aggregate = True
-        while self.aggregate:
-            time.sleep(self._loop_time)
-
-            self.process_incoming_data()
-            self.remove_stale_providers()
-            self.write_provider_frames()
-
-            # Writes frames to disk
-            self.rotator.Process(self.frame_deque)
-            self.frame_deque.clear()
-
-            self.rotator.flush()
-
-        self.write_provider_frames(write_all=True)
-        self.write_frames_to_disk()
-
-        self.rotator.close_file()
-
-        return True
-
-    def stop(self):
-        """Signals for aggregation to stop."""
-        self.aggregate = False
+        self.writer.Process(frames)
 
 
 class AggregatorAgent:
+    """
+    The Data Aggregator Agent listens to data provider feeds, and outputs the
+    housekeeping data as G3Frames.
+
+    Args:
+        args (namespace):
+            args from the function's argparser.
+        log:
+            logger from the agent
+
+    Attributes:
+        aggregate (bool):
+           Specifies if the agent is currently aggregating data.
+        writer (G3FileRotator):
+            module for writing G3Files.
+        data_dir (path):
+            base directory for hk data.
+    """
+
     def __init__(self, agent, args):
         self.agent: ocs_agent.OCSAgent = agent
         self.log = agent.log
 
-        self.aggregator = Aggregator(args, self.log)
+        self.time_per_file = int(args.time_per_file)
+        self.data_dir = args.data_dir
+
+        self.aggregate = False
+        self.incoming_data = queue.Queue()
+        self._loop_time = 1
 
         # SUBSCRIBES TO ALL FEEDS!!!!
         # If this ends up being too much data, we can add a tag '.record'
         # at the end of the address of recorded feeds, and filter by that.
-        self.agent.subscribe_on_start(self.data_handler,
+        self.agent.subscribe_on_start(self.enqueue_incoming_data,
                                       'observatory..feeds.',
                                       options={'match': 'wildcard'})
 
         record_on_start = (args.initial_state == 'record')
-        self.agent.register_process('record', self.start_aggregate, self.stop_aggregate,
+        self.agent.register_process('record',
+                                    self.start_aggregate, self.stop_aggregate,
                                     startup=record_on_start)
 
-    def data_handler(self, _data):
+    def _make_filename(self, make_subdirs=True):
+        """
+        Creates a new filename based on the time and base_dir.
+        If make_subdirs is True, all subdirectories will be automatically created.
+        I don't think there's any reason that this shouldn't be true...
+
+        Args:
+            make_subdirs (bool):
+                True if func should automatically create non-existing subdirs.
+        """
+        start_time = time.time()
+        start_datetime = datetime.datetime.fromtimestamp(
+            start_time, tz=datetime.timezone.utc
+        )
+
+        subdir = os.path.join(self.data_dir,
+                              "{:.5}".format(str(start_time)))
+
+        if not os.path.exists(subdir):
+            if make_subdirs:
+                os.makedirs(subdir)
+            else:
+                raise FileNotFoundError("Subdir {} does not exist"
+                                        .format(subdir))
+
+        time_string = start_datetime.strftime("%Y-%m-%d-%H-%M-%S")
+        filename = os.path.join(subdir, "{}.g3".format(time_string))
+        self.log.info("Creating file {} ...".format(filename))
+        return filename
+
+    def enqueue_incoming_data(self, _data):
         data, feed = _data
 
-        if not feed['record']:
+        if not feed['record'] or not self.aggregate:
             return
 
-        self.aggregator.enqueue_incoming_data(data, feed)
+        self.incoming_data.put((data, feed))
 
     def start_aggregate(self, session, params=None):
         """
         Process for starting data aggregation
         """
-        self.aggregator.run()
+
+        self.aggregate = True
+        self.log.info("Aggregator running...")
+
+        hksess = so3g.hk.HKSessionHelper(description="HK data")
+
+        hksess.start_time = time.time()
+        hksess.session_id = generate_id(hksess)
+
+        writer = G3FileRotator(self.time_per_file, self._make_filename)
+        writer.Process([hksess.session_frame()])
+
+        aggregator = Aggregator(hksess, writer)
+
+        while self.aggregate:
+            time.sleep(self._loop_time)
+
+            aggregator.process_incoming_data(self.incoming_data)
+            aggregator.remove_stale_providers()
+            aggregator.write_to_disk()
+
+            writer.flush()
+
+        aggregator.write_to_disk(write_all=True)
+        writer.close_file()
+
         return True, "Aggregation has ended"
 
     def stop_aggregate(self, session, params=None):
-        self.aggregator.stop()
+        self.aggregate = False
         return True, "Stopping aggregation"
 
 

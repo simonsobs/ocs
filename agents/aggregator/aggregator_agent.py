@@ -387,22 +387,28 @@ class Aggregator:
 
 class AggregatorAgent:
     """
-    The Data Aggregator Agent listens to data provider feeds, and outputs the
-    housekeeping data as G3Frames.
+    This class provide a WAMP wrapper for the data aggregator. The run function
+    and the data handler **are** thread-safe, as long as multiple run functions
+    are not started at the same time, which should be prevented through OCSAgent.
 
     Args:
+        agent (OCSAgent):
+            OCS Agent object
         args (namespace):
             args from the function's argparser.
-        log:
-            logger from the agent
 
     Attributes:
+        time_per_file (int):
+            Time (sec) before files should be rotated.
+        data_dir (path):
+            Path to the base directory where data should be written.
         aggregate (bool):
            Specifies if the agent is currently aggregating data.
-        writer (G3FileRotator):
-            module for writing G3Files.
-        data_dir (path):
-            base directory for hk data.
+        incoming_data (queue.Queue):
+            Thread-safe queue where incoming (data, feed) pairs are stored before
+            being passed to the Aggregator.
+        loop_time (float):
+            Time between iterations of the run loop.
     """
 
     def __init__(self, agent, args):
@@ -414,7 +420,7 @@ class AggregatorAgent:
 
         self.aggregate = False
         self.incoming_data = queue.Queue()
-        self._loop_time = 1
+        self.loop_time = 1
 
         # SUBSCRIBES TO ALL FEEDS!!!!
         # If this ends up being too much data, we can add a tag '.record'
@@ -496,7 +502,7 @@ class AggregatorAgent:
 
         session.set_status('running')
         while self.aggregate:
-            time.sleep(self._loop_time)
+            time.sleep(self.loop_time)
 
             aggregator.process_incoming_data(self.incoming_data)
             aggregator.remove_stale_providers()

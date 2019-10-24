@@ -459,6 +459,11 @@ class AggregatorAgent:
         return filename
 
     def enqueue_incoming_data(self, _data):
+        """
+        Data handler for all feeds. This checks to see if the feeds should
+        be recorded, and if they are it puts them into the incoming_data queue
+        to be processed by the Aggregator during the next run iteration.
+        """
         data, feed = _data
 
         if not feed['record'] or not self.aggregate:
@@ -466,10 +471,15 @@ class AggregatorAgent:
 
         self.incoming_data.put((data, feed))
 
-    def start_aggregate(self, session, params=None):
+    def start_aggregate(self, session: ocs_agent.OpSession, params=None):
         """
-        Process for starting data aggregation
+        Process for starting data aggregation.
+
+        This process will create a Aggregator class, which will collect and write
+        provider data to disk as long as this process is running.
         """
+
+        session.set_status('starting')
 
         self.aggregate = True
         self.log.info("Aggregator running...")
@@ -484,6 +494,7 @@ class AggregatorAgent:
 
         aggregator = Aggregator(hksess, writer)
 
+        session.set_status('running')
         while self.aggregate:
             time.sleep(self._loop_time)
 
@@ -499,6 +510,7 @@ class AggregatorAgent:
         return True, "Aggregation has ended"
 
     def stop_aggregate(self, session, params=None):
+        session.set_status('stopping')
         self.aggregate = False
         return True, "Stopping aggregation"
 

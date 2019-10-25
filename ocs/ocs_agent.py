@@ -452,9 +452,11 @@ class OCSAgent(ApplicationSession):
                 Defaults to False.
         """
         if (topic not in self.subscribed_topics) or force_subscribe:
+            if options is not None:
+                options = SubscribeOptions(**options)
             self.subscribed_topics.add(topic)
             return super().subscribe(handler, topic=topic,
-                                     options=SubscribeOptions(**options))
+                                     options=options)
         else:
             self.log.warn("Topic {} is already subscribed.".format(topic))
             return False

@@ -200,11 +200,14 @@ MessageBuffer.prototype = {
  * Utilities.
  */
 
-function get_date_time_strings(timestamp) {
+function get_date_time_string(timestamp, joiner) {
     function twodig(x) {
         if (x<10) return '0'+x;
         return x;
     }
+
+    if (!timestamp)
+        timestamp = Date.now() / 1000.;
 
     var d = new Date(parseInt(timestamp)*1000);
     if (isNaN(d.getTime())) {
@@ -214,5 +217,9 @@ function get_date_time_strings(timestamp) {
                 + twodig(d.getUTCDate());
     var timestr = twodig(d.getUTCHours()) + ':' + twodig(d.getUTCMinutes()) + ':' +
                   twodig(d.getUTCSeconds());
-    return [datestr, timestr];
+
+    if (!joiner)
+        return [datestr, timestr];
+
+    return datestr + joiner + timestr;
 }

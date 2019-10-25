@@ -1,44 +1,95 @@
-.op_status_box {
+/* General Branding */
+
+body {
+    font-family: sans-serif;
+}
+
+h1, h2, h3 {
+    font-family: monospace;
+    margin: 0;
+}
+
+/* ... for clickable text elements. */
+span.clickable {
+     cursor:pointer;
+     color:blue;
+}
+
+
+/* Lay-out -- implement the two-column / one-column responsiveness. */
+
+* {
+  box-sizing: border-box;
+}
+
+.block_unit {
+  float: left;
+  width: 50%;
+  padding: 10px;
+}
+
+.block_holder:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+@media screen and (max-width: 800px) {
+  .block_unit {
+      width: 100%;
+  }
+}
+
+/* "Connection" form formatting. */
+
+#connection_form_table {
+    font-size: 10pt;
+    width: 100%;
+}
+
+#connection_form_table input {
+    width: 100%;
+    max-width: 500px;
+    box-sizing: border-box;
+}
+
+/* "autopop" refers to containers displaying data returned from OCS;
+   such rendering is grouped together because the number and size of
+   results can vary. */
+
+.autopop_box {
+    word-break: break-all; word-wrap: break-word;
+    resize: vertical;
+    overflow: auto;
+    font-family: monospace;
+}
+
+.autopop_border {
     border-style: solid;
     border-width: 1px;
     border-color: blue;
     margin: 5px;
     padding: 10px;
 }
-.op_name {
+
+/* Log message list formatting. */
+
+p.hanging_logmsg {
+    margin-left:  10px;
+    text-indent: -10px;
+    margin: 5px;
+}
+
+/* Auto-populated list entries, especially Agents and Interface
+   lists. */
+
+.data_h {
     font-family: monospace;
     font-weight: bold;
 }
 
-.op_status {
-    float: right;
-    font-style: italic;
-}
-
-.op_status_done     {    color: black;     }
-.op_status_starting {    color: orange;    }
-.op_status_running  {    color: green;  font-weight: bold; }
-.op_status_stopping {    color: red;       }
-
-.op_time_box {
-    float: none;
-    display: flex;
-}
-
-.op_start_time {
-    float: left;
+.data_1 {
     font-family: monospace;
-}
-.op_end_time {
-    float: left;
-    font-family: monospace;
-}
-
-.op_log_message {
-    font-family: monospace;
-    white-space: nowrap;
-    overflow: hidden;
-    display: block;
-    text-overflow: ellipsis;
-    margin-left: 10px;
+    font-size: 15pt;
+    padding-left: 20px;
 }

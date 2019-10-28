@@ -1,6 +1,11 @@
 var debugs = {};         // For stashing debug data.
 
+var reconnection_timer = null;
+var reconnection_delay = 5.;
+var reconnection_count = 0;
+
 var query_op_timer = null;
+var successful_connect = null;
 
 /* log(msg)
  *
@@ -91,14 +96,21 @@ function connect() {
     url = $('#wamp_router').val();
     realm = $('#wamp_realm').val();
 
-    log('Connecting to "' + url + '", realm "' + realm + '"...');
-
+    // See connection options at...
+    // https://github.com/crossbario/autobahn-js/blob/master/packages/autobahn/lib/connection.js
+    //
+    // We set max_retries=0 and manage retries ourself, so that
+    // retries always go to address in the input boxes.
     ocs = new autobahn.Connection({
 	url: url,
         realm: realm,
+        max_retries: 0,
     });
+
     ocs.onopen = function(_session, details) {
         ocs_log('connected.');
+        reconnection_count = 0;
+
         $('#connection_checkmark').html(' &#10003;');
         var agent_list = new AgentList();
 
@@ -128,14 +140,30 @@ function connect() {
 
     };
     ocs.onclose = function(reason, details) {
+        // Reasons observed:
+        // - "lost" - crossbar dropped out.
+        // - "closed" - app has called close().
+        // - "unreachable" - failed to connect (onopen never called)
+        ocs_log('closed because: ' + reason);
+
         $('#connection_checkmark').html(' &#10005;');
-        debugs.reason = reason;
-        ocs_log('closed.');
         $('#feed_monitor').html('(Cleared on connection reset.)');
 
-        //... and reconnect.
-        connect();
+        // If this looks like an orderly deliberate shutdown, do a
+        // reconnect.
+        if (reason == 'closed')
+            connect();
+        else if (reconnection_count++ < 1000) {
+            reconnection_timer = setInterval(connect, reconnection_delay*1000.);
+        }
     };
+
+    log('Trying connection to "' + url + '", realm "' + realm + '"...');
+    $('#connection_checkmark').html(' &#10067;');
+
+    if (reconnection_timer)
+        clearInterval(reconnection_timer);
+
     ocs.open();
 }
 

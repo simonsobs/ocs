@@ -1,65 +1,81 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html lang="en">
-    <head>
-	<meta http-equiv="content-type" content="text/html; charset=utf-8">
-	<title>IOCS</title>
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-        <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/jquery-ui.css" />
-        <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
-        <script src="./js/autobahn.min.js"></script>
-        <script src="monitor.js"></script>
-        <script src="./js/ocsbow.js"></script>
-        <link rel="stylesheet" href="monitor.css" />
-    </head>
-    <body onload="init();">
-        <div id="container">
-            <h1>Observatory Control System</h1>
-            <hr />
-            <div id="controls" style="float: left; width: 40%; margin: 3%">
-                <h2>Controls</h2>
-                <hr />
-                <table><tr>
-                    <td>WAMP url:</td><td><input id="wamp_router" type="text"></input></td>
-                  </tr><tr>
-                    <td>WAMP realm:</td><td><input id="wamp_realm" type="text"></input></td>
-                  </tr><tr>
-                    <td>Registry address:</td><td><input id="registry_addr" type="text"></input></td>
-                  </tr><tr>
-                    <td colspan=3>
-                      <button onclick="connect();">Connect</button>
-                      <button onclick="query_registry();">Query registry</button>
-                    </td>
-                  </tr><tr>
-                    <td>Agent address:</td><td><input id="target_agent" type="text"></input></td>
-                  </tr><tr>
-                    <td colspan=3>
-                      <button onclick="query_interface();">Query agent interface</button>
-                    </td>
-                  </tr><tr>
-                    <td>Operation name:</td><td><input id="target_op" type="text"></input></td>
-                  </tr><tr>
-                    <td colspan=3>
-                      <button onclick="query_operation();">Query operation</button>
-                    </td>
-                </tr></table>
-                <h2>Log</h2>
-                <hr />
-                <div id="messages" style="overflow:auto; height:200px"></div>
-            </div>
-            <div id="browser" style="float: left; width: 40%; margin: 3%">
-                <h2>Status</h2>
-                <hr />
-                <div id="op_container">
-                    <div id="registry_dump" class="op_status_box"></div>
-                    <div id="interface_summary" class="op_status_box"></div>
-                    <div id="op_status" class="op_status_box"></div>
-                </div>
-                <div id="inspect"></div>
-            </div>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OCS</title>
+
+    <!-- 3rd party libraries -->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/jquery-ui.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="./js/autobahn.min.js"></script>
+
+    <!-- ocs libraries -->
+    <script src="monitor.js"></script>
+    <script src="./js/ocsbow.js"></script>
+    <link rel="stylesheet" href="monitor.css" />
+
+  </head>
+
+  <body onload="init();">
+    <h1>Observatory Control System</h1>
+    <hr />
+    <!-- This div is used to responsively flow child block_unit objects into 1 or 2 columns. -->
+    <div class="block_holder">
+      <div class="block_unit">
+        <fieldset>
+          <legend>
+            Connection
+            <span id="connection_checkmark"></span>
+            <span id="connection_form_table_toggle"></span>
+          </legend>
+          <table id="connection_form_table"><tr>
+              <td>WAMP url:</td><td><input id="wamp_router" type="text"></input></td>
+              <td><button class="btn" onclick="connect()"><i class="fa fa-arrow-right"></i></button></td>
+            </tr><tr>
+              <td>WAMP realm:</td><td><input id="wamp_realm" type="text"></input></td>
+              <td><button class="btn" onclick="connect()"><i class="fa fa-arrow-right"></i></button></td>
+            </tr><tr>
+              <td>Agent address:</td><td><input id="target_agent" type="text"></input></td>
+              <td><button class="btn" onclick="query_agent()"><i class="fa fa-arrow-right"></i></button></td>
+            </tr><tr>
+              <td>Operation name:</td><td><input id="target_op" type="text"></input></td>
+              <td><button class="btn" onclick="query_op(true)"><i class="fa fa-arrow-right"></i></button></td>
+            </tr><tr>
+              <td>Feed sub:</td><td><input id="target_feed" type="text"></input></td>
+              <td><button class="btn" onclick="subscribe_feed()"><i class="fa fa-arrow-right"></i></button></td>
+            </tr><tr>
+          </tr></table>
+        </fieldset>
+        <div id="selection_container" >
+          <fieldset><legend id="agent_legend">Agents</legend>
+            <div id="agent_list" class="autopop_box" style="height: 200px"></div>
+          </fieldset>
+          <fieldset><legend id="interface_legend">Interface</legend>
+            <div id="interface_summary" class="autopop_box" style="height: 200px"></div>
+          </fieldset>
         </div>
-	<br />
-	
-    </body>
+        <!-- /div -->
+      </div>
+      <div class="block_unit">
+        <div id="monitor_container">
+          <fieldset><legend id="op_status_legend">Op Session Window</legend>
+            <div id="op_status" class="autopop_box" style="height: 200px"></div>
+          </fieldset>
+          <fieldset><legend id="feed_monitor_legend">Feed Window</legend>
+            <div id="feed_monitor" class="autopop_box" style="height: 200px"></div>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+    <hr />
+    <h3>Local Log <span id="messages_hider" /></h3>
+    <div id="messages" class="autopop_box autopop_border" style="height:200px"></div>
+    
+  </body>
 </html>
 
 

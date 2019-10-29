@@ -5,6 +5,8 @@ import socket
 import os
 import sys
 import yaml
+import argparse
+import collections
 
     
 class SiteConfig:
@@ -430,6 +432,32 @@ def get_config(args, agent_class=None):
 
     return (site_config, host_config, instance_config)
 
+
+def add_site_attributes(args, site, host=None):
+    """
+    Adds site and host attributes to namespace if they do not exist.
+
+    Args:
+        args:
+            namespace to add attributes to.
+        site:
+            Site config object.
+        host:
+            Host config object.
+    """
+    if args.site_hub is None:
+        args.site_hub = site.hub.data['wamp_server']
+    if args.site_http is None:
+        args.site_http = site.hub.data.get('wamp_http')
+    if args.site_realm is None:
+        args.site_realm = site.hub.data['wamp_realm']
+    if args.address_root is None:
+        args.address_root = site.hub.data['address_root']
+    if args.registry_address is None:
+        args.registry_address = site.hub.data.get('registry_address')
+    if (args.log_dir is None) and (host is not None):
+        args.log_dir = host.log_dir
+
 def reparse_args(args, agent_class=None):
     """
     Process the site-config arguments, and modify them in place
@@ -450,18 +478,7 @@ def reparse_args(args, agent_class=None):
 
     site, host, instance = get_config(args, agent_class=agent_class)
 
-    if args.site_hub is None:
-        args.site_hub = site.hub.data['wamp_server']
-    if args.site_http is None:
-        args.site_http = site.hub.data.get('wamp_http')
-    if args.site_realm is None:
-        args.site_realm = site.hub.data['wamp_realm']
-    if args.address_root is None:
-        args.address_root = site.hub.data['address_root']
-    if args.registry_address is None:
-        args.registry_address = site.hub.data.get('registry_address')
-    if (args.log_dir is None) and (host is not None):
-        args.log_dir = host.log_dir
+    add_site_attributes(args, site, host=host)
 
     if instance is not None:
         if args.instance_id is None:
@@ -575,4 +592,104 @@ def scan_for_agents(do_registration=True):
             if do_registration:
                 importlib.import_module(modinfo.name)
     return items
-                    
+
+
+class ArgContainer:
+    """
+    A container to store a list of args as a dictionary, with the argument names
+    (beginning with a hyphen) as keys, and list of arguments as values. Any
+    arguments passed before an argument key is put under the '__positional__'
+    key, even though positional arguments aren't really supported by ocs agents
+    or the site-config....
+
+    Args:
+        args (list):
+            Argument list (each item should be a single word)
+
+    Attributes:
+        arg_dict (dict):
+            Dictionary of arguments, indexed by argument keyword.
+    """
+    def __init__(self, args):
+        self.arg_dict = collections.OrderedDict()
+
+        cur_key = '__positional__'
+        self.arg_dict[cur_key] = []
+        for arg in args:
+            if arg[0] == '-':
+                cur_key = arg
+                self.arg_dict[cur_key] = []
+            else:
+                self.arg_dict[cur_key].append(arg)
+
+    def update(self, arg_container2):
+        """
+        Updates the arg_dict with the arg_dict from another ArgContainer
+
+        Args:
+            arg_container2 (ArgContainer):
+                The other ArgContainer with which you want to update the arg_dict.
+        """
+        self.arg_dict.update(arg_container2.arg_dict)
+
+    def to_list(self):
+        """
+        Returns the argument list representation of this container.
+        """
+        arg_list = []
+        for k, v in self.arg_dict.items():
+            if k is not '__positional__':
+                arg_list.append(k)
+            arg_list.extend(v)
+
+        return arg_list
+
+
+def parse_args(agent_class=None, parser=None):
+    """
+    Function to parse site-config and agent arguments. This function takes
+    site, host, and instance arguments into account by making sure the instance
+    arguments get passed through the arg_parse parser. This helps make sure
+    units and options are consistent with those defined by the argparse
+    argument, even when the arguments come from the site-config file and not
+    the command line.
+
+    Args:
+        agent_class (str, optional):
+            Name of the Agent class.  This
+            may be matched against the agent_class name provided by
+            the Agent instance, as a way of finding the right
+            InstanceConfig.
+        parser (argparse.ArgumentParser, optional):
+            Argument parser containing agent-specific arguments.
+            If None, an empty parser will be created.
+    """
+
+    pre_parser = argparse.ArgumentParser()
+    add_arguments(pre_parser)
+    pre_args, _ = pre_parser.parse_known_args(args=sys.argv[1:])
+
+    site, host, instance = get_config(pre_args, agent_class=agent_class)
+
+    # Container from command line args
+    cl_container = ArgContainer(sys.argv[1:])
+
+    arg_list = []
+    for arg in instance.arguments:
+        arg_list.extend(map(str, arg))
+    arg_container = ArgContainer(arg_list)
+
+    # Replace site values with command line values if they exist
+    arg_container.update(cl_container)
+
+    if parser is None:
+        parser = argparse.ArgumentParser()
+    add_arguments(parser)
+
+    # Parse combined CL + site arguments
+    args = parser.parse_args(args=arg_container.to_list())
+
+    # Adds site and host attributes to args namespace
+    add_site_attributes(args, site, host=host)
+
+    return args

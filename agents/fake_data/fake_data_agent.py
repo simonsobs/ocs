@@ -140,15 +140,8 @@ def add_agent_args(parser_in=None):
     return parser_in
 
 if __name__ == '__main__':
-    parser = site_config.add_arguments()
-
-    add_agent_args(parser)
-
-    # Parse comand line.
-    args = parser.parse_args()
-
-    # Interpret options in the context of site_config.
-    site_config.reparse_args(args, 'FakeDataAgent')
+    parser = add_agent_args()
+    args = site_config.parse_args(agent_class='FakeDataAgent', parser=parser)
 
     startup = False
     if args.mode == 'acq':

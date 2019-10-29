@@ -674,8 +674,20 @@ def parse_args(agent_class=None, parser=None):
             If None, an empty parser will be created.
     """
 
+    # Creates pre_parser
     pre_parser = argparse.ArgumentParser()
     add_arguments(pre_parser)
+
+    # Full parser
+    if parser is None:
+        parser = argparse.ArgumentParser()
+    add_arguments(parser)
+
+    # Intercepts help commands to print full usage statement
+    if any(h in sys.argv for h in ['-h', '--help']):
+        parser.print_help()
+        parser.exit()
+
     pre_args, _ = pre_parser.parse_known_args(args=sys.argv[1:])
 
     site, host, instance = get_config(pre_args, agent_class=agent_class)
@@ -699,10 +711,6 @@ def parse_args(agent_class=None, parser=None):
 
     # Replace site values with command line values if they exist
     arg_container.update(cl_container)
-
-    if parser is None:
-        parser = argparse.ArgumentParser()
-    add_arguments(parser)
 
     # Parse combined CL + site arguments
     args = parser.parse_args(args=arg_container.to_list())

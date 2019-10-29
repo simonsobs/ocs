@@ -198,20 +198,24 @@ boilerplate code:
   class MyHardwareDevice:
       # ...
 
+  def make_parser(parser=None):
+      if parser is None:
+          parser = argparse.ArgumentParser()
+
+      pgroup = parser.add_argument_group('Agent Options))
+      pgroup.add_argument("--serial-number", help="Serial number of device")
+      pgroup.add_argument("--mode", default="idle", choices=['idle', 'acq'])
+      pgroup.add_argument('--num-channels', default=2, type=int,
+                          help='Number of fake readout channels to produce. '
+                          'Channels are co-sampled.')
+      pgroup.add_argument('--sample-rate', default=9.5, type=float,
+                          help='Frequency at which to produce data.')
+
   if __name__ == '__main__':
-      # Get an ArgumentParser
-      parser = site_config.add_arguments()
 
-      # Add arguments that are specific to this Agent's function.
-      pgroup = parser.add_argument_group('Agent Options')
-      pgroup.add_argument('--serial-number')
-      pgroup.add_argument('--mode')
+      parser = make_parser()
+      args = site_config.parse_args(agent_class='FakeDataAgent', parser=parser)
 
-      # Get the parser to process the command line.
-      args = parser.parse_args()
-
-      # Interpret options in the context of site_config.
-      site_config.reparse_args(args, 'Riverbank320Agent')
       print('I am in charge of device with serial number: %s' % args.serial_number)
   
       # Call launcher function (initiates connection to appropriate
@@ -225,14 +229,25 @@ boilerplate code:
       runner.run(agent, auto_reconnect=True)
 
 
-The call to ``site_config.reparse_args()`` will add a bunch of
-arguments to the parser.  These can be used to select a particular
-site configuration file, or to override site configuration entirely.
+The call to ``site_config.parse_args()`` will first pre-parse any command line
+arguments to determine the correct site, host, and instance to use for the
+specified agent_class. It will then merge any specified command line arguments
+with the instance arguments specified in the site-config file, and parse them
+with the full agent + site parser, so the returned namespace will contain
+additional site-info settable from the site's parser.
 
-The command line options are described in the docstring for ``add_arguments``:
+.. argparse::
+    :ref: ocs.site_config.add_arguments
+    :prog:
 
-.. autofunction:: ocs.site_config.add_arguments()
-    :noindex:
+.. note::
+    This is slightly different from the older way of parsing arguments with
+    ``reparse_args``, but should return the same namespace. The only difference is that
+    the new version parses all arguments with the argparse parser, so you can be sure
+    that defaults and type specifications will apply.
+
+    To change to the newer version, just make sure you define the agent parser
+    first, and pass it to the parse_args function as shown in the example above.
    
 
 Examples

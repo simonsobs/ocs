@@ -7,6 +7,7 @@ import sys
 import yaml
 import argparse
 import collections
+import deprecation
 
     
 class SiteConfig:
@@ -240,6 +241,58 @@ def summarize_dict(d):
                         for k,v in d.items()])
     return '{\n%s\n}' % output
 
+
+class ArgContainer:
+    """
+    A container to store a list of args as a dictionary, with the argument names
+    (beginning with a hyphen) as keys, and list of arguments as values. Any
+    arguments passed before an argument key is put under the '__positional__'
+    key, even though positional arguments aren't really supported by ocs agents
+    or the site-config....
+
+    Args:
+        args (list):
+            Argument list (each item should be a single word)
+
+    Attributes:
+        arg_dict (dict):
+            Dictionary of arguments, indexed by argument keyword.
+    """
+    def __init__(self, args):
+        self.arg_dict = collections.OrderedDict()
+
+        cur_key = '__positional__'
+        self.arg_dict[cur_key] = []
+        for arg in args:
+            if arg[0] == '-':
+                cur_key = arg
+                self.arg_dict[cur_key] = []
+            else:
+                self.arg_dict[cur_key].append(arg)
+
+    def update(self, arg_container2):
+        """
+        Updates the arg_dict with the arg_dict from another ArgContainer
+
+        Args:
+            arg_container2 (ArgContainer):
+                The other ArgContainer with which you want to update the arg_dict.
+        """
+        self.arg_dict.update(arg_container2.arg_dict)
+
+    def to_list(self):
+        """
+        Returns the argument list representation of this container.
+        """
+        arg_list = []
+        for k, v in self.arg_dict.items():
+            if k is not '__positional__':
+                arg_list.append(k)
+            arg_list.extend(v)
+
+        return arg_list
+
+
 def add_arguments(parser=None):
     """
     Add OCS site_config options to an ArgumentParser.
@@ -458,8 +511,14 @@ def add_site_attributes(args, site, host=None):
     if (args.log_dir is None) and (host is not None):
         args.log_dir = host.log_dir
 
+
+@deprecation.deprecated(deprecated_in='v0.6.0',
+                        details="Use site_config.parse_args instead")
 def reparse_args(args, agent_class=None):
     """
+    THIS FUNCTION IS NOW DEPRECATED... Use the parse_args function instead
+    to parse command line and site-config args simultaneously.
+
     Process the site-config arguments, and modify them in place
     according to the agent-instance's computed instance-id.
 
@@ -569,6 +628,7 @@ def register_agent_class(class_name, filename):
     """
     agent_script_reg[class_name] = filename
 
+
 def scan_for_agents(do_registration=True):
     """Identify and import ocs Agent plugin scripts.  This will find all
     modules in the current module search path (sys.path) that begin
@@ -592,57 +652,6 @@ def scan_for_agents(do_registration=True):
             if do_registration:
                 importlib.import_module(modinfo.name)
     return items
-
-
-class ArgContainer:
-    """
-    A container to store a list of args as a dictionary, with the argument names
-    (beginning with a hyphen) as keys, and list of arguments as values. Any
-    arguments passed before an argument key is put under the '__positional__'
-    key, even though positional arguments aren't really supported by ocs agents
-    or the site-config....
-
-    Args:
-        args (list):
-            Argument list (each item should be a single word)
-
-    Attributes:
-        arg_dict (dict):
-            Dictionary of arguments, indexed by argument keyword.
-    """
-    def __init__(self, args):
-        self.arg_dict = collections.OrderedDict()
-
-        cur_key = '__positional__'
-        self.arg_dict[cur_key] = []
-        for arg in args:
-            if arg[0] == '-':
-                cur_key = arg
-                self.arg_dict[cur_key] = []
-            else:
-                self.arg_dict[cur_key].append(arg)
-
-    def update(self, arg_container2):
-        """
-        Updates the arg_dict with the arg_dict from another ArgContainer
-
-        Args:
-            arg_container2 (ArgContainer):
-                The other ArgContainer with which you want to update the arg_dict.
-        """
-        self.arg_dict.update(arg_container2.arg_dict)
-
-    def to_list(self):
-        """
-        Returns the argument list representation of this container.
-        """
-        arg_list = []
-        for k, v in self.arg_dict.items():
-            if k is not '__positional__':
-                arg_list.append(k)
-            arg_list.extend(v)
-
-        return arg_list
 
 
 def parse_args(agent_class=None, parser=None):
@@ -674,9 +683,18 @@ def parse_args(agent_class=None, parser=None):
     # Container from command line args
     cl_container = ArgContainer(sys.argv[1:])
 
-    arg_list = []
-    for arg in instance.arguments:
-        arg_list.extend(map(str, arg))
+    # Flattens instance arguments to single non-nested list
+    def flatten(container):
+        out = []
+        for i in container:
+            if isinstance(i, (list, tuple)):
+                out.extend(flatten(i))
+            else:
+                out.append(i)
+        return out
+
+    arg_list = map(str, flatten(instance.arguments))
+
     arg_container = ArgContainer(arg_list)
 
     # Replace site values with command line values if they exist

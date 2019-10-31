@@ -14,6 +14,10 @@ class Block:
             k: [] for k in keys
         }
 
+    def empty(self):
+        """ Returns true if block is empty"""
+        return self.timestamps == []
+
     def clear(self):
         """
         Empties block's buffers

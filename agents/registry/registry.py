@@ -128,9 +128,8 @@ class Registry:
 
 
 if __name__ == '__main__':
-    parser = site_config.add_arguments()
-    args = parser.parse_args()
-    site_config.reparse_args(args, 'RegistryAgent')
+    args = site_config.parse_args(agent_class='RegistryAgent',
+                                  parser=None)
 
     agent, runner = ocs_agent.init_site_agent(args)
     registry = Registry(agent)
@@ -138,7 +137,7 @@ if __name__ == '__main__':
     agent.register_task('dump_agent_info', registry.dump_agent_info)
     agent.register_task('register_agent', registry.register_agent, blocking=False)
 
-    # Starts looping call that calls _motitor_active_agent every second
+    # Starts looping call that calls _monitor_active_agents every second
     loop_call = task.LoopingCall(registry._monitor_active_agents)
     loop_call.start(1)
 

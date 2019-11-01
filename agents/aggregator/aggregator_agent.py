@@ -541,7 +541,7 @@ def make_parser(parser=None):
         parser = argparse.ArgumentParser()
 
     pgroup = parser.add_argument_group('Agent Options')
-    pgroup.add_argument('--data-dir',
+    pgroup.add_argument('--data-dir', required=True,
                         help="Base directory to store data. "
                              "Subdirectories will be made here.")
     pgroup.add_argument('--initial-state',
@@ -555,14 +555,9 @@ def make_parser(parser=None):
 
 
 if __name__ == '__main__':
-    parser = site_config.add_arguments()
-
-    parser = make_parser(parser)
-
-    args = parser.parse_args()
-
-    site_config.reparse_args(args, 'AggregatorAgent')
-
+    parser = make_parser()
+    args = site_config.parse_args(agent_class='AggregatorAgent',
+                                  parser=parser)
     agent, runner = ocs_agent.init_site_agent(args)
 
     data_aggregator = AggregatorAgent(agent, args)

@@ -76,7 +76,12 @@ class AggregatorAgent:
         session.set_status('starting')
         self.aggregate = True
 
-        aggregator = Aggregator(self.incoming_data, self.time_per_file, self.data_dir)
+        aggregator = Aggregator(
+            self.incoming_data,
+            self.time_per_file,
+            self.data_dir,
+            session=session
+        )
 
         session.set_status('running')
         while self.aggregate:

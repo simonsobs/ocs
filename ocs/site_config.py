@@ -476,8 +476,9 @@ def get_config(args, agent_class=None):
         for dev in host_config.instances:
             if dev['agent-class'] == agent_class:
                 if instance_config is not None:
-                    raise RuntimeError("Multiple matches found for "
-                                       "agent-class=%s" % agent_class)
+                    raise RuntimeError(
+                        f"Multiple matches found for agent-class={agent_class}"
+                        " ... you probably need to pass --instance-id=")
                 instance_config = InstanceConfig.from_dict(
                     dev, parent=host_config)
     if instance_config is None and not no_dev_match:
@@ -691,6 +692,14 @@ def parse_args(agent_class=None, parser=None):
     pre_args, _ = pre_parser.parse_known_args(args=sys.argv[1:])
 
     site, host, instance = get_config(pre_args, agent_class=agent_class)
+
+    if instance is not None:
+        # When the user omits instance_id, it can still be matched,
+        # through agent_class by the get_config parser.  In that case,
+        # copy its value into args.
+        if pre_args.instance_id is None:
+            instance.arguments.append(['--instance-id',
+                                       instance.data['instance-id']])
 
     # Container from command line args
     cl_container = ArgContainer(sys.argv[1:])

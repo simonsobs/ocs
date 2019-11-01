@@ -1,6 +1,7 @@
 import ocs
 from ocs import ocs_agent, site_config
 import time
+import argparse
 
 from twisted.internet import reactor, task, threads
 from twisted.internet import protocol
@@ -410,13 +411,13 @@ class AgentProcessProtocol(protocol.ProcessProtocol):
 
 
 if __name__ == '__main__':
-    parser = site_config.add_arguments()
+    parser = argparse.ArgumentParser()
     pgroup = parser.add_argument_group('Agent Options')
     pgroup.add_argument('--initial-state', default='down',
                         choices=['up', 'down'])
     pgroup.add_argument('--quiet', action='store_true')
-    args = parser.parse_args()
-    site_config.reparse_args(args, 'HostMaster')
+    args = site_config.parse_args(agent_class='HostMaster',
+                                  parser=parser)
 
     if args.quiet:
         # For launch-to-background, disconnect stdio.

@@ -3,9 +3,17 @@ var debugs = {};         // For stashing debug data.
 var reconnection_timer = null;
 var reconnection_delay = 5.;
 var reconnection_count = 0;
+var reconnect_requested = false;
 
+// Timer for querying Operation status.
 var query_op_timer = null;
-var successful_connect = null;
+
+/* The way forward here is to generalize the notion of a viewport, and
+ * have different data sources get attached to different view ports.
+ * But for now, there is one, and this string says what is allowed to
+ * write into it. */
+var feed_view = null;
+
 
 /* log(msg)
  *
@@ -129,6 +137,7 @@ function connect() {
             ocs.session.subscribe(
                 feed_to_monitor,
                 function (args, kwargs, details) {
+                    if (feed_view != 'feed') return;
                     var timestr = get_date_time_string(null, ' ');
                     var text = '<b>' + feed_to_monitor + ' @ ' + timestr +
                         '</b><br>\n' +
@@ -142,20 +151,22 @@ function connect() {
     ocs.onclose = function(reason, details) {
         // Reasons observed:
         // - "lost" - crossbar dropped out.
-        // - "closed" - app has called close().
+        // - "closed" - app has called close() -- but this also occurs
+        //   if the realm could not be joined.
         // - "unreachable" - failed to connect (onopen never called)
-        ocs_log('closed because: ' + reason);
+        ocs_log('closed because: ' + reason + ' : ' + details.message);
 
         $('#connection_checkmark').html(' &#10005;');
         $('#feed_monitor').html('(Cleared on connection reset.)');
 
-        // If this looks like an orderly deliberate shutdown, do a
-        // reconnect.
-        if (reason == 'closed')
+        // If this looks like an orderly deliberate shutdown, do an
+        // immediate reconnect.  Otherwise, keep the pace low...
+        if (reason == 'closed' && reconnect_requested) {
             connect();
-        else if (reconnection_count++ < 1000) {
+        } else if (reconnection_count++ < 1000) {
             reconnection_timer = setInterval(connect, reconnection_delay*1000.);
         }
+        reconnect_requested = false;
     };
 
     log('Trying connection to "' + url + '", realm "' + realm + '"...');
@@ -222,13 +233,6 @@ function query_agent() {
         $('#status_tasks').html(text);
         log("Now there are " + this.messages.length + " messages.");
     };
-
-    client.onSession = function (result) {
-        session = result[2];
-        if (session.op_name == 'dump_agent_info') {
-            msgh.update(session);
-        }
-    };
 }
 
 function query_op(reset_query) {
@@ -272,11 +276,27 @@ function query_op(reset_query) {
         };
 
         out.append(text);
+
+        if (feed_view == 'data') {
+            data_text = 'displayed';
+        } else {
+            data_text = '<span id="op_data_clicko">click to view</span>';
+        }
         out.append(fmt_pair('Op Name:', data.op_name) +
                    fmt_pair('Status:', data.status) +
                    fmt_pair('Started:', fmt_time(data.start_time)) +
                    fmt_pair('Ended:', fmt_time(data.end_time)) +
-                   fmt_pair('Data:', data.data));
+                   fmt_pair('Data:', data_text));
+
+        if (feed_view == 'data') {
+            $('#feed_monitor_legend').html('Data: ' + data.op_name);
+            var timestr = get_date_time_string(null, ' ');
+            var text = '<b>update at @ ' + timestr +
+                '</b><br>\n' +
+                '<p>' + JSON.stringify(data.data) +'</p>';
+            $('#feed_monitor').html(text);
+        }
+
         out.append('Messages:<br>\n');
         msgs = $('<div class="autopop_border">');
         if (data.messages)
@@ -287,6 +307,7 @@ function query_op(reset_query) {
         out.append(msgs);
 
         $('#op_status').empty().append(out);
+        $('#op_data_clicko').addClass("clickable").on('click', connect_data);
 
         // Poll for updates.
         if (query_op_timer)
@@ -297,8 +318,13 @@ function query_op(reset_query) {
 }
 
 function subscribe_feed() {
-    if (ocs == null) return;
-
+    feed_view = 'feed';
     // Only way to subscribe is to reconnect.
+    if (ocs == null) return;
+    reconnect_requested = true;
     ocs.close();
+}
+
+function connect_data() {
+    feed_view = 'data';
 }

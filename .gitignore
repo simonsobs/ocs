@@ -10,6 +10,7 @@ default.yaml
 
 # tmp files
 *.swp
+*.bak
 
 # documentation
 docs/_build/

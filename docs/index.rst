@@ -14,6 +14,7 @@ User Guide
    installation
    quickstart
    site_config
+   ocs_web
 
 Internals
 ---------

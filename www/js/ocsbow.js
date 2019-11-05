@@ -51,7 +51,7 @@ function AgentClient(_ocs, address) {
     this.feeds = null;
     this.messages = null;
 
-    this.onSession = this._default_session_handler;
+    //this.onSession = this._default_session_handler;
     this.handlers = {};
 
     client = this;
@@ -118,11 +118,6 @@ AgentClient.prototype = {
                 d.resolve(result);
             });
         return d.promise;
-    },
-
-    _default_session_handler : function(result) {
-        session = result[2];
-        ocs_log('all-sess: ' + session['op_name'] + ' status is ' + session['status']);
     },
 
     // task/proc API

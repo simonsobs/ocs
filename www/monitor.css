@@ -58,7 +58,8 @@ span.clickable {
    results can vary. */
 
 .autopop_box {
-    word-break: break-all; word-wrap: break-word;
+    word-break: break-all;
+    word-wrap: break-word;
     resize: vertical;
     overflow: auto;
     font-family: monospace;

@@ -42,7 +42,7 @@ function init() {
 
         // Set up defaults -- these could be fed from elsewhere... ?
         $('#wamp_router').val('ws://localhost:8001/ws');
-        $('#wamp_realm').val('debug_realm');
+        $('#wamp_realm').val('test_realm');
         $('#target_agent').val('');
 
         // Hiders.

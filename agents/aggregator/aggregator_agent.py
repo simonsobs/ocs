@@ -7,7 +7,10 @@ import argparse
 if os.getenv('OCS_DOC_BUILD') != 'True':
     from spt3g import core
     import so3g
-
+    G3Module = core.G3Module
+else:
+    # Alias classes that are needed for clean import in docs build.
+    G3Module = object
 
 def generate_id(hksess):
     """
@@ -199,7 +202,7 @@ class Provider:
         return frame
 
 
-class G3FileRotator(core.G3Module):
+class G3FileRotator(G3Module):
     """
     G3 module which handles file rotation.
     After time_per_file has elapsed, the rotator will end that file and create

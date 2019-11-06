@@ -168,5 +168,5 @@ should exist and belong to the `ocs` user prior to contianer startup.
 API
 ---
 
-.. autoclass:: agents.aggregator.aggregator_agent.DataAggregator
+.. autoclass:: agents.aggregator.aggregator_agent.AggregatorAgent
     :members: initialize, start_aggregate, add_feed

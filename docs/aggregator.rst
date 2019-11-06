@@ -169,4 +169,4 @@ API
 ---
 
 .. autoclass:: agents.aggregator.aggregator_agent.AggregatorAgent
-    :members: initialize, start_aggregate, add_feed
+    :members: start_aggregate

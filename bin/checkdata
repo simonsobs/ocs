@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+# Brian Koopman
+
+# Scan a file or directory and printout the last times and values for each
+# field stored in the file. Optially runs in a docker container.
+
+import pwd
+import grp
+import os
+import subprocess
+import argparse
+
+try:
+    from ocs import checkdata
+    SO3G_AVAILABLE = True
+except ImportError:
+    SO3G_AVAILABLE = False
+
+# print("SO3G_AVAILABLE:", SO3G_AVAILABLE)
+
+class PermissionsError(Exception):
+    """Permission error for running docker."""
+    pass
+
+def check_user_in_docker_group():
+    """Check if the user running this script is in the docker group."""
+    uid = os.geteuid()
+    pw_name = pwd.getpwuid(uid).pw_name
+    members = grp.getgrnam('docker').gr_mem
+
+    return bool(pw_name in members)
+
+def check_if_root():
+    """Check if the user running this script is root."""
+    uid = os.geteuid()
+
+    return bool(uid == 0)
+
+def run_in_docker(target, verbose=0):
+    """Run checkdata script from within a docker container.
+
+    This uses the ocs image to run checkdata, avoiding the so3g dependency on
+    the host system, provided the user has permissions to start containers.
+
+    Parameters
+    ----------
+    target : str
+        Path to run checkdata script on, will be mounted within the container
+    verbose : int
+        Level of verbosity, expecting this to come from argparse
+
+    """
+
+    # Determine permissions
+    root = check_if_root()
+    docker = check_user_in_docker_group()
+
+    if root or docker:
+        pass
+    else:
+        raise PermissionsError("Permission Denied: Insufficient permissions to run docker.")
+
+    dirname = os.path.dirname(target.rstrip('/'))
+    basename = os.path.basename(target.rstrip('/'))
+    # print(dirname)
+    # print(basename)
+
+    string = ["docker", "run", "-t", "--rm"]
+
+    for s in ["-v", f"{dirname}:/data:ro"]:
+        string.append(s)
+
+    for s in ["simonsobs/ocs", "/usr/bin/python3", "/app/ocs/bin/checkdata"]:
+        string.append(s)
+
+    if verbose != 0 and verbose is not None:
+        verbosity = "-"
+        for _ in range(int(verbose)):
+            verbosity += "v"
+        string.append(verbosity)
+    string.append(f"/data/{basename}")
+
+    # print(string)
+    subprocess.run(string)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('target', help='File or directory to scan.')
+    parser.add_argument('--verbose', '-v', action='count')
+    parser.add_argument('--docker', '-d', action='store_true',
+                        help='Force use of docker, even if so3g is installed.')
+    args = parser.parse_args()
+
+    if args.docker or not SO3G_AVAILABLE:
+        # print('Running in container...')
+        run_in_docker(args.target, args.verbose)
+    else:
+        # print('Running on host...')
+        checkdata.main(args.target, args.verbose)
+
+if __name__ == "__main__":
+    main()

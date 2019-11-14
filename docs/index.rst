@@ -15,6 +15,7 @@ User Guide
    quickstart
    site_config
    ocs_web
+   cli_tools
 
 Internals
 ---------

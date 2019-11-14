@@ -12,6 +12,10 @@ pyserial
 sphinx
 sphinx-argparse
 
+# checkdata
+progress
+colorama
+
 # testing
 pytest
 pytest-cov

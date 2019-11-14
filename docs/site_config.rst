@@ -424,15 +424,3 @@ live at ``master-{host}``.
 
 Systemd Integration [empty]
 ---------------------------
-
-
-ocsbow command line tool
-========================
-
-(The output from ``ocsbow --help`` should be rendered here.)
-
-.. argparse::
-   :module: ocs.ocsbow
-   :func: get_parser
-   :prog: ocsbow
-

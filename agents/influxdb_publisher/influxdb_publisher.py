@@ -23,7 +23,7 @@ def timestamp2influxtime(time):
 
     """
     t_dt = datetime.datetime.fromtimestamp(time)
-    return t_dt.strftime("%Y-%m-%dT%H:%M:%S")
+    return t_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
 
 class Publisher:
     """

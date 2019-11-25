@@ -231,7 +231,7 @@ def make_parser(parser=None):
 
     pgroup = parser.add_argument_group('Agent Options')
     pgroup.add_argument('--initial-state',
-                        default='idle', choices=['idle', 'record'],
+                        default='record', choices=['idle', 'record'],
                         help="Initial state of argument parser. Can be either"
                              "idle or record")
 

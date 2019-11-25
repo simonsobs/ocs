@@ -31,6 +31,7 @@ Device and Agent Reference
    :maxdepth: 3
 
    aggregator
+   influxdb_publisher
    registry
    fake_data
 

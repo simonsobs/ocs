@@ -39,6 +39,15 @@ services:
       - "ocs"
 
   # --------------------------------------------------------------------------
+  # The OCS InfluxDB Publisher publishes data feeds to InfluxDB.
+  # --------------------------------------------------------------------------
+  ocs-influxdb-publisher-agent:
+    image: "ocs-influxdb-publisher-agent"
+    build: ./agents/influxdb_publisher/
+    depends_on:
+      - "ocs"
+
+  # --------------------------------------------------------------------------
   # The OCS Aggregator collects and writes data to disk in the sog3 format.
   # --------------------------------------------------------------------------
   ocs-fake-data-agent:

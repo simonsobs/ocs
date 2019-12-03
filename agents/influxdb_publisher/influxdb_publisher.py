@@ -7,6 +7,7 @@ import txaio
 
 from os import environ
 from influxdb import InfluxDBClient
+from influxdb.exceptions import InfluxDBClientError
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from ocs import ocs_agent, site_config
@@ -89,6 +90,8 @@ class Publisher:
                 LOG.error("InfluxDB unavailable, attempting to reconnect.")
                 self.client = InfluxDBClient(host=self.host, port=self.port)
                 self.client.switch_database('ocs_feeds')
+            except InfluxDBClientError as err:
+                LOG.error("InfluxDB Client Error: {e}", e=err)
 
     def format_data(self, data, feed):
         """Format the data from an OCS feed into a dict for pushing to InfluxDB.

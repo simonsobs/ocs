@@ -35,6 +35,10 @@ class Publisher:
     Args:
         incoming_data (queue.Queue):
             A thread-safe queue of (data, feed) pairs.
+        host (str):
+            host for InfluxDB instance.
+        port (int, optional):
+            port for InfluxDB instance, defaults to 8086.
 
     Attributes:
         log (txaio.Logger):
@@ -42,10 +46,10 @@ class Publisher:
         writer (G3Module):
             Module to use to write frames to disk.
     """
-    def __init__(self, incoming_data):
+    def __init__(self, host, incoming_data, port=8086):
         self.incoming_data = incoming_data
 
-        self.client = InfluxDBClient(host='influxdb', port=8086)
+        self.client = InfluxDBClient(host=host, port=port)
 
         db_list = self.client.get_list_database()
         db_names = [x['name'] for x in db_list]
@@ -162,6 +166,7 @@ class InfluxDBAgent:
     def __init__(self, agent, args):
         self.agent: ocs_agent.OCSAgent = agent
         self.log = agent.log
+        self.args = args
 
         self.aggregate = False
         self.incoming_data = queue.Queue()
@@ -202,7 +207,7 @@ class InfluxDBAgent:
         self.aggregate = True
 
         LOG.debug("Instatiating Publisher class")
-        publisher = Publisher(self.incoming_data)
+        publisher = Publisher(self.args.host, self.incoming_data, port=self.args.port)
 
         session.set_status('running')
         while self.aggregate:
@@ -228,6 +233,12 @@ def make_parser(parser=None):
                         default='record', choices=['idle', 'record'],
                         help="Initial state of argument parser. Can be either"
                              "idle or record")
+    pgroup.add_argument('--host',
+                        default='influxdb',
+                        help="InfluxDB host address.")
+    pgroup.add_argument('--port',
+                        default=8086,
+                        help="InfluxDB port.")
 
     return parser
 

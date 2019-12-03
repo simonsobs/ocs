@@ -16,7 +16,9 @@ Add an InfluxDBAgent to your OCS configuration file::
 
       {'agent-class': 'InfluxDBAgent',
        'instance-id': 'influxagent',
-       'arguments': [['--initial-state', 'record']]},
+       'arguments': [['--initial-state', 'record'],
+                     ['--host', 'influxdb'],
+                     ['--port', 8086]]},
 
 docker-compose Configuration
 ----------------------------

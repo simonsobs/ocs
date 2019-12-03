@@ -7,6 +7,8 @@ import txaio
 
 from os import environ
 from influxdb import InfluxDBClient
+from influxdb.exceptions import InfluxDBClientError
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from ocs import ocs_agent, site_config
 
@@ -35,19 +37,28 @@ class Publisher:
     Args:
         incoming_data (queue.Queue):
             A thread-safe queue of (data, feed) pairs.
-        time_per_file (float):
-            Time (sec) before a new file should be written to disk.
+        host (str):
+            host for InfluxDB instance.
+        port (int, optional):
+            port for InfluxDB instance, defaults to 8086.
 
     Attributes:
-        log (txaio.Logger):
-            txaio logger
-        writer (G3Module):
-            Module to use to write frames to disk.
+        host (str):
+            host for InfluxDB instance.
+        port (int, optional):
+            port for InfluxDB instance, defaults to 8086.
+        incoming_data:
+            data to be published
+        client:
+            InfluxDB client connection
+
     """
-    def __init__(self, incoming_data, time_per_file):
+    def __init__(self, host, incoming_data, port=8086):
+        self.host = host
+        self.port = port
         self.incoming_data = incoming_data
 
-        self.client = InfluxDBClient(host='influxdb', port=8086)
+        self.client = InfluxDBClient(host=self.host, port=self.port)
 
         db_list = self.client.get_list_database()
         db_names = [x['name'] for x in db_list]
@@ -72,8 +83,15 @@ class Publisher:
 
             # Formatted for writing to InfluxDB
             payload = self.format_data(data, feed)
-            self.client.write_points(payload)
-            LOG.debug("wrote payload to influx")
+            try:
+                self.client.write_points(payload)
+                LOG.debug("wrote payload to influx")
+            except RequestsConnectionError:
+                LOG.error("InfluxDB unavailable, attempting to reconnect.")
+                self.client = InfluxDBClient(host=self.host, port=self.port)
+                self.client.switch_database('ocs_feeds')
+            except InfluxDBClientError as err:
+                LOG.error("InfluxDB Client Error: {e}", e=err)
 
     def format_data(self, data, feed):
         """Format the data from an OCS feed into a dict for pushing to InfluxDB.
@@ -151,8 +169,6 @@ class InfluxDBAgent:
             args from the function's argparser.
 
     Attributes:
-        time_per_file (int):
-            Time (sec) before files should be rotated.
         data_dir (path):
             Path to the base directory where data should be written.
         aggregate (bool):
@@ -166,12 +182,11 @@ class InfluxDBAgent:
     def __init__(self, agent, args):
         self.agent: ocs_agent.OCSAgent = agent
         self.log = agent.log
+        self.args = args
 
         self.aggregate = False
         self.incoming_data = queue.Queue()
         self.loop_time = 1
-
-        self.time_per_file = int(args.time_per_file)
 
         self.agent.subscribe_on_start(self.enqueue_incoming_data,
                                       'observatory..feeds.',
@@ -208,7 +223,7 @@ class InfluxDBAgent:
         self.aggregate = True
 
         LOG.debug("Instatiating Publisher class")
-        publisher = Publisher(self.incoming_data, self.time_per_file)
+        publisher = Publisher(self.args.host, self.incoming_data, port=self.args.port)
 
         session.set_status('running')
         while self.aggregate:
@@ -234,6 +249,12 @@ def make_parser(parser=None):
                         default='record', choices=['idle', 'record'],
                         help="Initial state of argument parser. Can be either"
                              "idle or record")
+    pgroup.add_argument('--host',
+                        default='influxdb',
+                        help="InfluxDB host address.")
+    pgroup.add_argument('--port',
+                        default=8086,
+                        help="InfluxDB port.")
 
     return parser
 

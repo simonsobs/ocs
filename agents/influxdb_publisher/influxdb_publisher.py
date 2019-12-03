@@ -7,6 +7,7 @@ import txaio
 
 from os import environ
 from influxdb import InfluxDBClient
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from ocs import ocs_agent, site_config
 
@@ -41,15 +42,22 @@ class Publisher:
             port for InfluxDB instance, defaults to 8086.
 
     Attributes:
-        log (txaio.Logger):
-            txaio logger
-        writer (G3Module):
-            Module to use to write frames to disk.
+        host (str):
+            host for InfluxDB instance.
+        port (int, optional):
+            port for InfluxDB instance, defaults to 8086.
+        incoming_data:
+            data to be published
+        client:
+            InfluxDB client connection
+
     """
     def __init__(self, host, incoming_data, port=8086):
+        self.host = host
+        self.port = port
         self.incoming_data = incoming_data
 
-        self.client = InfluxDBClient(host=host, port=port)
+        self.client = InfluxDBClient(host=self.host, port=self.port)
 
         db_list = self.client.get_list_database()
         db_names = [x['name'] for x in db_list]
@@ -74,8 +82,13 @@ class Publisher:
 
             # Formatted for writing to InfluxDB
             payload = self.format_data(data, feed)
-            self.client.write_points(payload)
-            LOG.debug("wrote payload to influx")
+            try:
+                self.client.write_points(payload)
+                LOG.debug("wrote payload to influx")
+            except RequestsConnectionError:
+                LOG.error("InfluxDB unavailable, attempting to reconnect.")
+                self.client = InfluxDBClient(host=self.host, port=self.port)
+                self.client.switch_database('ocs_feeds')
 
     def format_data(self, data, feed):
         """Format the data from an OCS feed into a dict for pushing to InfluxDB.

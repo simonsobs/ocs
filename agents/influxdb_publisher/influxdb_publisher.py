@@ -35,8 +35,6 @@ class Publisher:
     Args:
         incoming_data (queue.Queue):
             A thread-safe queue of (data, feed) pairs.
-        time_per_file (float):
-            Time (sec) before a new file should be written to disk.
 
     Attributes:
         log (txaio.Logger):
@@ -44,7 +42,7 @@ class Publisher:
         writer (G3Module):
             Module to use to write frames to disk.
     """
-    def __init__(self, incoming_data, time_per_file):
+    def __init__(self, incoming_data):
         self.incoming_data = incoming_data
 
         self.client = InfluxDBClient(host='influxdb', port=8086)
@@ -151,8 +149,6 @@ class InfluxDBAgent:
             args from the function's argparser.
 
     Attributes:
-        time_per_file (int):
-            Time (sec) before files should be rotated.
         data_dir (path):
             Path to the base directory where data should be written.
         aggregate (bool):
@@ -170,8 +166,6 @@ class InfluxDBAgent:
         self.aggregate = False
         self.incoming_data = queue.Queue()
         self.loop_time = 1
-
-        self.time_per_file = int(args.time_per_file)
 
         self.agent.subscribe_on_start(self.enqueue_incoming_data,
                                       'observatory..feeds.',
@@ -208,7 +202,7 @@ class InfluxDBAgent:
         self.aggregate = True
 
         LOG.debug("Instatiating Publisher class")
-        publisher = Publisher(self.incoming_data, self.time_per_file)
+        publisher = Publisher(self.incoming_data)
 
         session.set_status('running')
         while self.aggregate:

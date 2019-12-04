@@ -32,18 +32,18 @@ Add the InfluxDB Publisher Agent container to your docker-compose file::
 
 You will also need an instance of InfluxDB running somewhere on your network.
 This likely should go in a separate docker-compose file so that it remains
-online at all times.
+online at all times. An example compose file would look like::
 
-::
-
-  influxdb:
-    image: "influxdb:1.7"
-    container_name: "influxdb"
-    restart: always
-    ports:
-      - "8086:8086"
-    volumes:
-      - /srv/influxdb:/var/lib/influxdb
+  version: '3.7'
+  services:
+    influxdb:
+      image: "influxdb:1.7"
+      container_name: "influxdb"
+      restart: always
+      ports:
+        - "8086:8086"
+      volumes:
+        - /srv/influxdb:/var/lib/influxdb
 
   networks:
     default:
@@ -62,6 +62,11 @@ online at all times.
 
     Containers on the network should then be able to communicate.
 
+For more information about configuring Docker Compose files, see the `Compose
+file reference`_.
+
+.. _`Compose file reference`: https://docs.docker.com/compose/compose-file/
+
 Grafana Configuration
 ---------------------
 Once your InfluxDB container and publisher are configured and running you will
@@ -69,6 +74,10 @@ need to create an InfluxDB data source in Grafana. To do so, we add an InfluxDB
 data source with the URL ``http://influxdb:8086``, and the Database
 "ocs_feeds". The Name of the Data Source is up to you, in this example we set
 it to "OCS Feeds".
+
+.. note::
+    The "ocs_feeds" database will not exist until the first time the InfluxDB
+    Publisher Agent has successfully connected to the InfluxDB.
 
 .. image:: _static/grafana_influxdb_data_source.jpg
 

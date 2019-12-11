@@ -72,6 +72,9 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
+# Have __init__ and class docstrings both show up
+autoclass_content = "both"
+
 
 # -- Options for HTML output -------------------------------------------------
 

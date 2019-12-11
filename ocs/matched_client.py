@@ -73,7 +73,6 @@ class MatchedClient:
                 If None, reads from command line.
                 If list, reads in list elements as arguments.
                 Defaults to None.
-                To run in jupyter, specify args=[].
 
         For additional kwargs see site_config.get_control_client.
 

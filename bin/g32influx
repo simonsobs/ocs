@@ -1,0 +1,275 @@
+#!/usr/bin/python3
+
+# Read from .g3 file and insert into InfluxDB.
+
+import os
+import hashlib
+import datetime
+import sqlite3
+
+from progress.bar import Bar
+
+from influxdb import InfluxDBClient
+
+from ocs.checkdata import _build_file_list
+from so3g import hk
+
+
+def timestamp2influxtime(time):
+    """Convert timestamp for influx.
+
+    Parameters
+    ----------
+    time : float
+        ctime timestamp
+
+    Returns
+    -------
+    str
+        Time formatted for insertion to influxDB
+
+    """
+    t_dt = datetime.datetime.fromtimestamp(time)
+    return t_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+
+
+def connect_to_sqlite(path=None, db_file=".g32influx.db"):
+    """Tries to determine OCS_SITE_CONFIG location from environment variables.
+    Uses current directory to store sqliteDB if unset.
+
+    Parameters
+    ----------
+    path : str
+        Path to store db in. If None, OCS_SITE_CONFIG is used. If
+        OCS_SITE_CONFIG is unset, the current directory is used.
+    db_file : str
+        basename for sqlite file
+
+    Returns
+    -------
+    sqlite3.Connection
+        Connection to sqlite3 database
+
+    """
+    if path is None:
+        path = os.environ.get("OCS_SITE_CONFIG", "./")
+    full_path = os.path.join(path, db_file)
+    conn = sqlite3.connect(full_path)
+
+    return conn
+
+
+def _md5sum(filename, blocksize=65536):
+    """Compute md5sum of a file.
+
+    References
+    ----------
+    - https://stackoverflow.com/questions/3431825/generating-an-md5-checksum-of-a-file
+
+    Parameters
+    ----------
+    filename : str
+        Full path to file for which we want the md5
+    blocksize : int
+        blocksize we want to read the file in chunks of to avoid fitting the
+        whole file into memory. Defaults to 65536
+
+    Returns
+    -------
+    str
+        Hex string representing the md5sum of the file
+
+    """
+    hash_ = hashlib.md5()
+    with open(filename, "rb") as f:
+        for block in iter(lambda: f.read(blocksize), b""):
+            hash_.update(block)
+    return hash_.hexdigest()
+
+
+class DataLoader:
+    """Check data for latest feeds and fields.
+
+    Parameters
+    ----------
+    target : str
+        File or directory to scan.
+    host : str
+        InfluxDB host address
+    port : int
+        InfluxDB port
+
+    Attributes
+    ----------
+    hkas : so3g.hk.HKArchiveScanner
+        HKArchiveScanner for reading in the data
+    cat :
+        Finalized HKArchiveScanner
+    target : str
+        File or directory to scan.
+    verbose : bool
+        Verbose output flag
+
+    """
+    def __init__(self, target, host='localhost', port=8086):
+        self.influxclient = InfluxDBClient(host=host, port=port)
+        self._init_influxdb()
+
+        self.sqliteconn = connect_to_sqlite()
+        self._init_sqlitedb()
+
+        self.target = target
+        self._file_list = _build_file_list(target)
+
+    def _init_influxdb(self, db='ocs_feeds'):
+        """Initializes influxDB after connection.
+
+        Gets a list of existing databases within InfluxDB, creates db if it
+        doesn't exist (defaults to 'ocs_feeds'), and switches the client to
+        that db.
+
+        """
+        db_list = self.influxclient.get_list_database()
+        db_names = [x['name'] for x in db_list]
+        
+        if 'ocs_feeds' not in db_names:
+            print("ocs_feeds DB doesn't exist, creating DB")
+            self.influxclient.create_database('ocs_feeds')
+        
+        self.influxclient.switch_database('ocs_feeds')
+
+    def _init_sqlitedb(self):
+        """Initialize the sqlitedb after connection.
+
+        We call our table 'g3files'.
+
+        """
+        c = self.sqliteconn.cursor()
+        c.execute("CREATE TABLE IF NOT EXISTS g3files (path TEXT UNIQUE, md5sum TEXT, published INTEGER)")
+
+        self.sqliteconn.commit()
+        c.close()
+
+    def check_filelist_against_sqlite(self):
+        """Compares file list to sqlite database. Insert files if they aren't
+        present. Updates paths if files found have moved since last seen.
+
+        """
+        c = self.sqliteconn.cursor()
+
+        for f in self._file_list:
+            md5 = _md5sum(f)
+            c.execute("SELECT * from g3files WHERE md5sum=?", (md5, ))
+            result = c.fetchone()
+            if result is None:
+                print(f"No match for {md5}, inserting into SQLiteDB")
+                c.execute("INSERT INTO g3files VALUES (?, ?, 0)", (f, md5))
+                self.sqliteconn.commit()
+            elif result[0] != f:
+                print(f"Path changed for hash {md5}, updating path to {f}")
+                c.execute("UPDATE g3files SET path=? WHERE md5sum=?", (f, md5))
+                self.sqliteconn.commit()
+
+        c.close()
+
+    def _publish_file(self, filename):
+        """Publish the contents of a .g3 file to InfluxDB."""
+        scanner = SingleFileScanner(filename, self.influxclient)
+        scanner.run()
+
+    def publish_all_files_to_influxdb(self):
+        """Publish all files found in target to InfluxDB.
+
+        Will check if file has been published already, if not, will scan and
+        publish contents, then mark as published in sqliteDB.
+
+        """
+        c = self.sqliteconn.cursor()
+
+        c.execute("SELECT path, md5sum from g3files WHERE published=0")
+        to_publish = c.fetchall()
+
+        _bar = Bar('Publishing', max=len(to_publish))
+        for path, chksum in to_publish:
+            self._publish_file(path)
+            c.execute("UPDATE g3files SET published=1 WHERE md5sum=?", (chksum, ))
+            self.sqliteconn.commit()
+            _bar.next()
+        _bar.finish()
+
+    def run(self):
+        self.check_filelist_against_sqlite()
+        self.publish_all_files_to_influxdb()
+
+
+class SingleFileScanner:
+    def __init__(self, filename, influxdb):
+        self.file = filename
+        self.client = influxdb
+
+        self.hkas = hk.HKArchiveScanner()
+        self.cat = None
+
+        self.fields = None
+        self.timelines = None
+
+    def scan_file(self):
+        """Scan the file with the HKArchiveScanner and get the fields
+        for later processing.
+
+        """
+        self.hkas.process_file(self.file)
+        self.cat = self.hkas.finalize()
+        print("Getting fields")
+        self.fields, self.timelines = self.cat.get_fields()
+        print("fields acquired")
+
+    def format_field(self, field):
+        """Format a given field for publishing to the database.
+
+        Parameters
+        ----------
+        field : str
+            Field to publish data from, will query the finalized HKArchive
+        batch_size : int
+            Number of points to publish per write, passed to influxdb.write_points()
+
+        """
+        t, x = self.cat.simple(field)
+        agent_address, feed_and_field = field.split(".feeds.")
+        feed_tag, field = feed_and_field.split(".")
+
+        json_body = []
+
+        for _x, _t in zip(x, t):
+            fields = {field: _x}
+            json_body.append(
+                {
+                    "measurement": agent_address,
+                    "time": timestamp2influxtime(_t),
+                    "fields": fields,
+                    "tags" : {
+                        "feed": feed_tag
+                    }
+
+                }
+            )
+
+        #print("payload: {}".format(json_body))
+
+        return json_body
+
+    def publish_file(self, batch_size=10000):
+        for field in self.fields:
+            payload = self.format_field(field)
+            print(f"publishing {field}...")
+            self.client.write_points(payload, batch_size=batch_size)
+
+    def run(self):
+        self.scan_file()
+        self.publish_file()
+
+dl = DataLoader('/home/koopman/data/15760/')
+dl.run()
+
+#payload = dl.publish_field(list(dl.fields)[0])

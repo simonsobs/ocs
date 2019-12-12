@@ -57,6 +57,13 @@ class DataChecker:
         File or directory to scan.
     verbose : bool
         Verbose output flag
+    fields : dict
+        fields returned from a cat.get_fields call
+    timelines : dict
+        timelines returned from a cat.get_fields call
+    instances : dict
+        Agent/feed/field information for each instance-id, format described in
+        _populate_instances docstring
 
     """
     def __init__(self, target, verbose=False):

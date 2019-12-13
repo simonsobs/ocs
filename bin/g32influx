@@ -6,8 +6,9 @@ import os
 import hashlib
 import datetime
 import sqlite3
+import argparse
 
-from progress.bar import Bar
+from tqdm import tqdm
 
 from influxdb import InfluxDBClient
 
@@ -88,7 +89,7 @@ def _md5sum(filename, blocksize=65536):
 
 
 class DataLoader:
-    """Check data for latest feeds and fields.
+    """Load data from .g3 file into an InfluxDB instance.
 
     Parameters
     ----------
@@ -101,14 +102,12 @@ class DataLoader:
 
     Attributes
     ----------
-    hkas : so3g.hk.HKArchiveScanner
-        HKArchiveScanner for reading in the data
-    cat :
-        Finalized HKArchiveScanner
     target : str
         File or directory to scan.
-    verbose : bool
-        Verbose output flag
+    influxclient : influxdb.InfluxDBClient
+        Connection to the InfluxDB, used to publish data to the database.
+    sqliteconn : sqlite3.Connection
+        Connection to the sqlite3 database
 
     """
     def __init__(self, target, host='localhost', port=8086):
@@ -122,26 +121,31 @@ class DataLoader:
         self._file_list = _build_file_list(target)
 
     def _init_influxdb(self, db='ocs_feeds'):
-        """Initializes influxDB after connection.
+        """Initializes InfluxDB after connection.
 
         Gets a list of existing databases within InfluxDB, creates db if it
         doesn't exist (defaults to 'ocs_feeds'), and switches the client to
         that db.
 
+        Parameters
+        ----------
+        db : str
+            Name for the database, default to 'ocs_feeds'.
+
         """
         db_list = self.influxclient.get_list_database()
         db_names = [x['name'] for x in db_list]
-        
+
         if 'ocs_feeds' not in db_names:
             print("ocs_feeds DB doesn't exist, creating DB")
-            self.influxclient.create_database('ocs_feeds')
-        
-        self.influxclient.switch_database('ocs_feeds')
+            self.influxclient.create_database(db)
+
+        self.influxclient.switch_database(db)
 
     def _init_sqlitedb(self):
         """Initialize the sqlitedb after connection.
 
-        We call our table 'g3files'.
+        We call our table 'g3files'. You probably don't need to change this.
 
         """
         c = self.sqliteconn.cursor()
@@ -152,7 +156,8 @@ class DataLoader:
 
     def check_filelist_against_sqlite(self):
         """Compares file list to sqlite database. Insert files if they aren't
-        present. Updates paths if files found have moved since last seen.
+        present. Updates paths if files found have moved since they were last
+        seen.
 
         """
         c = self.sqliteconn.cursor()
@@ -173,15 +178,27 @@ class DataLoader:
         c.close()
 
     def _publish_file(self, filename):
-        """Publish the contents of a .g3 file to InfluxDB."""
+        """Publish the contents of a .g3 file to InfluxDB.
+
+        Parameters
+        ----------
+        filename : str
+            Full path to file to publish.
+
+        """
         scanner = SingleFileScanner(filename, self.influxclient)
         scanner.run()
 
     def publish_all_files_to_influxdb(self):
         """Publish all files found in target to InfluxDB.
 
-        Will check if file has been published already, if not, will scan and
-        publish contents, then mark as published in sqliteDB.
+        Will build list of files not already published from sqlite database,
+        scan and publish contents, then mark as published in sqliteDB.
+
+        This has the side-effect that it will publish files previously entered
+        into the database, even if not in the target list for this particular call, say
+        if a previous upload was cancelled. This should probably be addressed in
+        future versions.
 
         """
         c = self.sqliteconn.cursor()
@@ -189,13 +206,10 @@ class DataLoader:
         c.execute("SELECT path, md5sum from g3files WHERE published=0")
         to_publish = c.fetchall()
 
-        _bar = Bar('Publishing', max=len(to_publish))
-        for path, chksum in to_publish:
+        for path, chksum in tqdm(to_publish, desc="All Files"):
             self._publish_file(path)
             c.execute("UPDATE g3files SET published=1 WHERE md5sum=?", (chksum, ))
             self.sqliteconn.commit()
-            _bar.next()
-        _bar.finish()
 
     def run(self):
         self.check_filelist_against_sqlite()
@@ -203,6 +217,37 @@ class DataLoader:
 
 
 class SingleFileScanner:
+    """Object for scanning and publishing a single .g3 file.
+
+    Since we want to track which files are being uploaded so that an upload can
+    be resumed if interrupted it's perhaps the simplest to upload them
+    individually. While this doesn't take advantage of the nice
+    so3g.hk.HKArchiveScanner functionality of reading multiple files, or time
+    limiting step is actually pushing data into the InfluxDB.
+
+    Parameters
+    ----------
+    filename : str
+        Full path to file for scanning
+    influxdb : influxdb.InfluxDBClient
+        Connection to the InfluxDB, used to publish data to the database.
+
+    Attributes
+    ----------
+    file : str
+        Full path to file for scanning
+    client : influxdb.InfluxDBClient
+        Connection to the InfluxDB, used to publish data to the database.
+    hkas : so3g.hk.HKArchiveScanner
+        HKArchiveScanner for reading in the data
+    cat :
+        Finalized HKArchiveScanner
+    fields
+        Fields within the file as returned by cat.get_fields()
+    timelines
+        Timelines within the file as returned by cat.get_fields()
+
+    """
     def __init__(self, filename, influxdb):
         self.file = filename
         self.client = influxdb
@@ -220,9 +265,9 @@ class SingleFileScanner:
         """
         self.hkas.process_file(self.file)
         self.cat = self.hkas.finalize()
-        print("Getting fields")
+        # print("Getting fields")
         self.fields, self.timelines = self.cat.get_fields()
-        print("fields acquired")
+        # print("fields acquired")
 
     def format_field(self, field):
         """Format a given field for publishing to the database.
@@ -231,8 +276,11 @@ class SingleFileScanner:
         ----------
         field : str
             Field to publish data from, will query the finalized HKArchive
-        batch_size : int
-            Number of points to publish per write, passed to influxdb.write_points()
+
+        Returns
+        -------
+        list
+            List of values formatted for writing to InfluxDB
 
         """
         t, x = self.cat.simple(field)
@@ -248,28 +296,49 @@ class SingleFileScanner:
                     "measurement": agent_address,
                     "time": timestamp2influxtime(_t),
                     "fields": fields,
-                    "tags" : {
+                    "tags": {
                         "feed": feed_tag
                     }
 
                 }
             )
 
-        #print("payload: {}".format(json_body))
+        # print("payload: {}".format(json_body))
 
         return json_body
 
     def publish_file(self, batch_size=10000):
-        for field in self.fields:
+        """Publish a files contents to InfluxDB.
+
+        Parameters
+        ----------
+        batch_size : int
+            Number of points to publish per write, passed to
+            influxdb.write_points(). Defaults to 10,000, which seems
+            reasonable.
+
+        """
+        basename = os.path.basename(self.file)
+        for field in tqdm(self.fields, desc=f"{basename} Fields"):
             payload = self.format_field(field)
-            print(f"publishing {field}...")
+            # print(f"publishing {field}...")
             self.client.write_points(payload, batch_size=batch_size)
 
     def run(self):
         self.scan_file()
         self.publish_file()
 
-dl = DataLoader('/home/koopman/data/15760/')
-dl.run()
 
-#payload = dl.publish_field(list(dl.fields)[0])
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('target', help='File or directory to scan.')
+    # parser.add_argument('--docker', '-d', action='store_true',
+    #                     help='Force use of docker, even if so3g is installed.')
+    args = parser.parse_args()
+
+    dl = DataLoader(args.target)
+    dl.run()
+
+
+if __name__ == "__main__":
+    main()

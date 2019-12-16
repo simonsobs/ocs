@@ -344,6 +344,7 @@ class SingleFileScanner:
             try:
                 self.client.write_points(payload, batch_size=batch_size)
             except InfluxDBClientError as e:
+                logging.error(f"ERROR in {self.file}")
                 logging.error(f"client error, likely a type error: {e}")
                 logging.debug(f"payload: {payload}")
                 return_value = 2

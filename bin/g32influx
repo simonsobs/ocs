@@ -125,7 +125,7 @@ class DataLoader:
         self.startdate = datetime.datetime.strptime(startdate, "%Y-%m-%d")
         self.enddate = datetime.datetime.strptime(enddate, "%Y-%m-%d")
 
-        self._file_list = _reduce_filelist_by_date()
+        self._file_list = self._reduce_filelist_by_date()
 
     def _init_influxdb(self, db='ocs_feeds'):
         """Initializes InfluxDB after connection.

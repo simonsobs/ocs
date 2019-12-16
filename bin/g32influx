@@ -7,6 +7,7 @@ import hashlib
 import datetime
 import sqlite3
 import argparse
+import logging
 
 from tqdm import tqdm
 
@@ -343,8 +344,8 @@ class SingleFileScanner:
             try:
                 self.client.write_points(payload, batch_size=batch_size)
             except InfluxDBClientError as e:
-                print(f"client error, likely a type error: {e}")
-                print(f"payload: {payload}")
+                logging.error(f"client error, likely a type error: {e}")
+                logging.debug(f"payload: {payload}")
                 return_value = 2
 
         return return_value
@@ -361,9 +362,17 @@ def main():
     parser.add_argument('target', help='File or directory to scan.')
     parser.add_argument('host', help='InfluxDB host.')
     parser.add_argument('port', help='InfluxDB port.')
+    parser.add_argument('--log', '-l',
+                        help='Set loglevel.')
     # parser.add_argument('--docker', '-d', action='store_true',
     #                     help='Force use of docker, even if so3g is installed.')
     args = parser.parse_args()
+
+    # Logging Configuration
+    numeric_level = getattr(logging, args.log.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % loglevel)
+    logging.basicConfig(level=numeric_level)
 
     dl = DataLoader(args.target, host=args.host, port=args.port)
     dl.run()

@@ -186,9 +186,16 @@ class DataLoader:
         filename : str
             Full path to file to publish.
 
+        Returns
+        -------
+        int
+            Return value from scanner.run()
+
         """
         scanner = SingleFileScanner(filename, self.influxclient)
-        scanner.run()
+        rval = scanner.run()
+
+        return rval
 
     def publish_all_files_to_influxdb(self):
         """Publish all files found in target to InfluxDB.
@@ -208,8 +215,11 @@ class DataLoader:
         to_publish = c.fetchall()
 
         for path, chksum in tqdm(to_publish, desc="All Files"):
-            self._publish_file(path)
-            c.execute("UPDATE g3files SET published=1 WHERE md5sum=?", (chksum, ))
+            rval = self._publish_file(path)
+            if rval == 0:
+                c.execute("UPDATE g3files SET published=1 WHERE md5sum=?", (chksum, ))
+            else:
+                c.execute("UPDATE g3files SET published=? WHERE md5sum=?", (rval, chksum))
             self.sqliteconn.commit()
 
     def run(self):
@@ -318,8 +328,15 @@ class SingleFileScanner:
             influxdb.write_points(). Defaults to 10,000, which seems
             reasonable.
 
+        Returns
+        -------
+        int
+            0 if good, 2 if an excpetion occurred during publishing
+
         """
+        return_value = 0
         basename = os.path.basename(self.file)
+
         for field in tqdm(self.fields, desc=f"{basename} Fields"):
             payload = self.format_field(field)
             # print(f"publishing {field}...")
@@ -328,12 +345,15 @@ class SingleFileScanner:
             except InfluxDBClientError as e:
                 print(f"client error, likely a type error: {e}")
                 print(f"payload: {payload}")
+                return_value = 2
+
+        return return_value
 
     def run(self):
         self.scan_file()
-        self.publish_file()
+        pub_ret = self.publish_file()
 
-        return 0
+        return pub_ret
 
 
 def main():

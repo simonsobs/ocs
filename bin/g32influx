@@ -11,6 +11,7 @@ import argparse
 from tqdm import tqdm
 
 from influxdb import InfluxDBClient
+from influxdb.exceptions import InfluxDBClientError
 
 from ocs.checkdata import _build_file_list
 from so3g import hk

@@ -168,8 +168,8 @@ class DataLoader:
         """
         new_list = []
         for f in self._file_list:
-            date_string = os.path.basename(f).strip(".g3")
-            dt = datetime.datetime.strptime(date_string, "%Y-%m-%d-%H-%M-%S")
+            date_string = os.path.basename(f)
+            dt = datetime.datetime.strptime(date_string, "%Y-%m-%d-%H-%M-%S.g3")
             if dt > self.startdate and dt < self.enddate:
                 new_list.append(f)
             else:

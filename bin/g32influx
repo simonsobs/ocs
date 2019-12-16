@@ -112,7 +112,7 @@ class DataLoader:
         Connection to the sqlite3 database
 
     """
-    def __init__(self, target, host='localhost', port=8086):
+    def __init__(self, target, host='localhost', port=8086, startdate="1970-01-01", enddate="2070-01-01"):
         self.influxclient = InfluxDBClient(host=host, port=port)
         self._init_influxdb()
 
@@ -121,6 +121,11 @@ class DataLoader:
 
         self.target = target
         self._file_list = _build_file_list(target)
+
+        self.startdate = datetime.datetime.strptime(startdate, "%Y-%m-%d")
+        self.enddate = datetime.datetime.strptime(end, "%Y-%m-%d")
+
+        self._file_list = _reduce_filelist_by_date()
 
     def _init_influxdb(self, db='ocs_feeds'):
         """Initializes InfluxDB after connection.
@@ -155,6 +160,22 @@ class DataLoader:
 
         self.sqliteconn.commit()
         c.close()
+
+    def _reduce_filelist_by_date(self):
+        """If the user has passed in optional start and end date parameters,
+        limit the filelist by removing files that fall outside of the given range.
+
+        """
+        new_list = []
+        for f in self._file_list:
+            date_string = os.path.basename(f).strip(".g3")
+            dt = datetime.datetime.strptime(date_string, "%Y-%m-%d-%H-%M-%S")
+            if dt > self.startdate and dt < self.enddate:
+                new_list.append(f)
+            else:
+                logging.debug(f"Removing {f} from filelist, outside of start/end dates.")
+
+        return new_list
 
     def check_filelist_against_sqlite(self):
         """Compares file list to sqlite database. Insert files if they aren't
@@ -343,7 +364,7 @@ class SingleFileScanner:
             try:
                 payload = self.format_field(field)
             except ValueError:
-                logging.error("Unable to format payload properly, possibly" +
+                logging.error("Unable to format payload properly, possibly " +
                               "trying to process old .g3 file format...")
                 return 2
             # print(f"publishing {field}...")
@@ -369,6 +390,10 @@ def main():
     parser.add_argument('target', help='File or directory to scan.')
     parser.add_argument('host', help='InfluxDB host.')
     parser.add_argument('port', help='InfluxDB port.')
+    parser.add_argument('--start', default='1970-01-01',
+                        help='Set startdate, cutting all files that start before this date.')
+    parser.add_argument('--end', default='2070-01-01',
+                        help='Set enddate, cutting all files that start after this date.')
     parser.add_argument('--log', '-l', default='WARNING',
                         help='Set loglevel.')
     parser.add_argument('--logfile', '-f', default='g32influx.log',
@@ -383,7 +408,7 @@ def main():
         raise ValueError('Invalid log level: %s' % loglevel)
     logging.basicConfig(filename=args.logfile, level=numeric_level)
 
-    dl = DataLoader(args.target, host=args.host, port=args.port)
+    dl = DataLoader(args.target, host=args.host, port=args.port, startdate=args.start, enddate=args.end)
     dl.run()
 
 

@@ -362,7 +362,7 @@ def main():
     parser.add_argument('target', help='File or directory to scan.')
     parser.add_argument('host', help='InfluxDB host.')
     parser.add_argument('port', help='InfluxDB port.')
-    parser.add_argument('--log', '-l',
+    parser.add_argument('--log', '-l', default='WARNING',
                         help='Set loglevel.')
     # parser.add_argument('--docker', '-d', action='store_true',
     #                     help='Force use of docker, even if so3g is installed.')

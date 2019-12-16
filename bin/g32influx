@@ -123,7 +123,7 @@ class DataLoader:
         self._file_list = _build_file_list(target)
 
         self.startdate = datetime.datetime.strptime(startdate, "%Y-%m-%d")
-        self.enddate = datetime.datetime.strptime(end, "%Y-%m-%d")
+        self.enddate = datetime.datetime.strptime(enddate, "%Y-%m-%d")
 
         self._file_list = _reduce_filelist_by_date()
 

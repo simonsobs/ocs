@@ -322,11 +322,17 @@ class SingleFileScanner:
         for field in tqdm(self.fields, desc=f"{basename} Fields"):
             payload = self.format_field(field)
             # print(f"publishing {field}...")
-            self.client.write_points(payload, batch_size=batch_size)
+            try:
+                self.client.write_points(payload, batch_size=batch_size)
+            except InfluxDBClientError as e:
+                print(f"client error, likely a type error: {e}")
+                print(f"payload: {payload}")
 
     def run(self):
         self.scan_file()
         self.publish_file()
+
+        return 0
 
 
 def main():

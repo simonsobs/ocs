@@ -340,7 +340,12 @@ class SingleFileScanner:
         basename = os.path.basename(self.file)
 
         for field in tqdm(self.fields, desc=f"{basename} Fields"):
-            payload = self.format_field(field)
+            try:
+                payload = self.format_field(field)
+            except ValueError:
+                logging.error("Unable to format payload properly, possibly" +
+                              "trying to process old .g3 file format...")
+                return 2
             # print(f"publishing {field}...")
             try:
                 self.client.write_points(payload, batch_size=batch_size)

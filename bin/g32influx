@@ -296,6 +296,7 @@ class SingleFileScanner:
 
         """
         t, x = self.cat.simple(field)
+        logging.debug("field:", field)
         agent_address, feed_and_field = field.split(".feeds.")
         feed_tag, field = feed_and_field.split(".")
 

@@ -372,7 +372,7 @@ def main():
     numeric_level = getattr(logging, args.log.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % loglevel)
-    logging.basicConfig(level=numeric_level)
+    logging.basicConfig(filename='g32influx.log', level=numeric_level)
 
     dl = DataLoader(args.target, host=args.host, port=args.port)
     dl.run()

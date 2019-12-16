@@ -144,7 +144,7 @@ class DataLoader:
         db_names = [x['name'] for x in db_list]
 
         if 'ocs_feeds' not in db_names:
-            print("ocs_feeds DB doesn't exist, creating DB")
+            logging.info("ocs_feeds DB doesn't exist, creating DB")
             self.influxclient.create_database(db)
 
         self.influxclient.switch_database(db)
@@ -190,11 +190,11 @@ class DataLoader:
             c.execute("SELECT * from g3files WHERE md5sum=?", (md5, ))
             result = c.fetchone()
             if result is None:
-                print(f"No match for {md5}, inserting into SQLiteDB")
+                logging.info(f"No match for {md5}, inserting into SQLiteDB")
                 c.execute("INSERT INTO g3files VALUES (?, ?, 0)", (f, md5))
                 self.sqliteconn.commit()
             elif result[0] != f:
-                print(f"Path changed for hash {md5}, updating path to {f}")
+                logging.info(f"Path changed for hash {md5}, updating path to {f}")
                 c.execute("UPDATE g3files SET path=? WHERE md5sum=?", (f, md5))
                 self.sqliteconn.commit()
 

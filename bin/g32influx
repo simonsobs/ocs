@@ -364,6 +364,8 @@ def main():
     parser.add_argument('port', help='InfluxDB port.')
     parser.add_argument('--log', '-l', default='WARNING',
                         help='Set loglevel.')
+    parser.add_argument('--logfile', '-f', default='g32influx.log',
+                        help='Set the logfile.')
     # parser.add_argument('--docker', '-d', action='store_true',
     #                     help='Force use of docker, even if so3g is installed.')
     args = parser.parse_args()
@@ -372,7 +374,7 @@ def main():
     numeric_level = getattr(logging, args.log.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % loglevel)
-    logging.basicConfig(filename='g32influx.log', level=numeric_level)
+    logging.basicConfig(filename=args.logfile, level=numeric_level)
 
     dl = DataLoader(args.target, host=args.host, port=args.port)
     dl.run()

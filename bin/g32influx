@@ -296,11 +296,18 @@ class SingleFileScanner:
         for later processing.
 
         """
-        self.hkas.process_file(self.file)
+        try:
+            self.hkas.process_file(self.file)
+        except RuntimeError:
+            logging.error("Unable to process file, skipping.")
+
+            return 2
         self.cat = self.hkas.finalize()
         # print("Getting fields")
         self.fields, self.timelines = self.cat.get_fields()
         # print("fields acquired")
+
+        return 0
 
     def format_field(self, field):
         """Format a given field for publishing to the database.
@@ -379,10 +386,10 @@ class SingleFileScanner:
         return return_value
 
     def run(self):
-        self.scan_file()
+        scan_ret = self.scan_file()
         pub_ret = self.publish_file()
 
-        return pub_ret
+        return pub_ret + scan_ret
 
 
 def main():

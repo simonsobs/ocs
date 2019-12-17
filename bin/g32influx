@@ -214,8 +214,12 @@ class DataLoader:
             Return value from scanner.run()
 
         """
-        scanner = SingleFileScanner(filename, self.influxclient)
-        rval = scanner.run()
+        try:
+            scanner = SingleFileScanner(filename, self.influxclient)
+            rval = scanner.run()
+        except RuntimeError:
+            logging.error("Unable to process file, skipping.")
+            return 2
 
         return rval
 
@@ -296,12 +300,8 @@ class SingleFileScanner:
         for later processing.
 
         """
-        try:
-            self.hkas.process_file(self.file)
-        except RuntimeError:
-            logging.error("Unable to process file, skipping.")
+        self.hkas.process_file(self.file)
 
-            return 2
         self.cat = self.hkas.finalize()
         # print("Getting fields")
         self.fields, self.timelines = self.cat.get_fields()
@@ -386,10 +386,10 @@ class SingleFileScanner:
         return return_value
 
     def run(self):
-        scan_ret = self.scan_file()
+        self.scan_file()
         pub_ret = self.publish_file()
 
-        return pub_ret + scan_ret
+        return pub_ret
 
 
 def main():

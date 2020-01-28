@@ -1,12 +1,9 @@
-import sys
-sys.path.insert(0, "../agents/aggregator")
-
 import time
 import pytest
 
 import so3g
 
-from aggregator_agent import Provider
+from ocs.agent.aggregator import Provider
 
 def test_passing_float_like_str_in_provider_to_frame():
     """If we pass a string that is float like the aggregator should convert it

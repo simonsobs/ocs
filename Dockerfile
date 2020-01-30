@@ -4,6 +4,9 @@
 # Use ubuntu base image
 FROM simonsobs/so3g:v0.0.6-8-g943a068
 
+# Set locale
+ENV LANG C.UTF-8
+
 # Create ocs user and group
 RUN groupadd -g 9000 ocs && \
     useradd -m -l -u 9000 -g 9000 ocs

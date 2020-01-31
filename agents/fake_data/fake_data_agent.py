@@ -124,6 +124,22 @@ class FakeDataAgent:
         return (ok, {True: 'Requested process stop.',
                      False: 'Failed to request process stop.'}[ok])
 
+    def set_heartbeat_state(self, session, params=None):
+        """Task to set the state of the agent heartbeat.
+
+        Args:
+            heartbeat (bool): True for on, False for off
+
+        """
+        # Default to on, which is what we generally want to be true
+        heartbeat_state = params.get('heartbeat', True)
+
+        self.agent._heartbeat_on = heartbeat_state
+        self.log.info("Setting heartbeat_on: {}...".format(heartbeat_state))
+
+        return True, "Set heartbeat_on: {}".format(heartbeat_state)
+
+
 
 def add_agent_args(parser_in=None):
     if parser_in is None:
@@ -154,5 +170,6 @@ if __name__ == '__main__':
                           sample_rate=args.sample_rate)
     agent.register_process('acq', fdata.start_acq, fdata.stop_acq,
                            blocking=True, startup=startup)
+    agent.register_task('set_heartbeat', fdata.set_heartbeat_state)
 
     runner.run(agent, auto_reconnect=True)

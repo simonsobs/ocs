@@ -96,12 +96,16 @@ class Provider:
         last_refresh (time):
             Time when the provider was last refreshed (either through data or
             agent heartbeat).
+        log (txaio.Logger):
+            txaio logger
+
     """
     def __init__(self, address, sessid, frame_length, prov_id):
         self.address = address
         self.sessid = sessid
         self.frame_length = frame_length
         self.prov_id = prov_id
+        self.log = txaio.make_logger()
 
         self.blocks = {}
 
@@ -204,10 +208,10 @@ class Provider:
                     try:
                         hk.data[key] = [float(x) for x in ts]
                     except ValueError:
-                        raise TypeError("datapoint passed from address " +
-                                        "{} to the Provider feed is of " +
-                                        "invalid type {}"
-                                        .format(self.address, type(ts)))
+                        self.log.error("datapoint passed from address " +
+                                       "{a} to the Provider feed is of " +
+                                       "invalid type {t}",
+                                       a=self.address, t=type(ts))
 
             frame['blocks'].append(hk)
 

@@ -55,5 +55,17 @@ def test_passing_non_float_like_str_in_provider_to_frame():
     sess.start_time = time.time()
     sess.session_id = 'test_sessid'
 
-    with pytest.raises(TypeError):
-        provider.to_frame(hksess=sess)
+    provider.to_frame(hksess=sess)
+
+# This is perhaps another problem, I'm passing irregular length data sets and
+# it's not raising any sort of alarm. How does this get handled?
+def test_data_type_in_provider_write():
+    provider = Provider('test_provider', 'test_sessid', 3, 1)
+    provider.frame_start_time = time.time()
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [time.time()],
+                     'data': {'key1': [1],
+                              'key2': ['1', 1]},
+                     'prefix': ''}
+           }
+    provider.write(data)

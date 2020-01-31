@@ -1,0 +1,11 @@
+[run]
+source = ocs
+
+omit =
+  # omit versioneer
+  */_version.py
+
+[paths]
+source =
+  ocs/
+  /app/ocs/ocs/

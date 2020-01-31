@@ -20,4 +20,3 @@ colorama
 # testing
 pytest
 pytest-cov
-coveralls

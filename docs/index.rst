@@ -1,50 +1,46 @@
 Observatory Control System
 ==========================
 
-.. Each heading and TOC below will render as a separate section of the
-   output PDF.
-
-User Guide
-----------
+The Observatory Control System is a distributed control system designed to
+coordinate data acquisition in astronomical observatories.
 
 .. toctree::
-   :maxdepth: 3
+    :caption: User Guide
+    :maxdepth: 3
 
-   intro
-   installation
-   quickstart
-   site_config
-   ocs_web
-   cli_tools
+    user/intro
+    installation
+    quickstart
+    user/site_config
+    ocs_web
+    cli_tools
 
-Internals
----------
 
 .. toctree::
-   :maxdepth: 3
+    :caption: Agent Reference
+    :maxdepth: 3
 
-   architecture
+    agents/aggregator
+    agents/influxdb_publisher
+    agents/registry
+    agents/fake_data
+    agents/host_master
 
-
-Device and Agent Reference
---------------------------
-
-.. toctree::
-   :maxdepth: 3
-
-   aggregator
-   influxdb_publisher
-   registry
-   fake_data
-
-API Reference
--------------
-If you are looking for information on a specific function, class, or method, this part of the documentation is for you.
 
 .. toctree::
+    :caption: Developer Guide
+    :maxdepth: 3
+
+    architecture
+    developer/site_config
+
+
+.. toctree::
+    :caption: API Reference
     :maxdepth: 2
 
     api
+
 
 Indices and tables
 ==================

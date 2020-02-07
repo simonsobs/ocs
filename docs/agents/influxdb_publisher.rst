@@ -79,7 +79,7 @@ it to "OCS Feeds".
     The "ocs_feeds" database will not exist until the first time the InfluxDB
     Publisher Agent has successfully connected to the InfluxDB.
 
-.. image:: _static/grafana_influxdb_data_source.jpg
+.. image:: ../_static/grafana_influxdb_data_source.jpg
 
 In a dashboard, create a new panel. Each panel can have a different Data
 Source, which is selected at the top of the Metrics tab. Select our "OCS Feeds"
@@ -89,7 +89,7 @@ and "observatory.LSSIM2"). Each feed published by an agent is an InfluxDB tag
 (here "temperatures" is our only feed.) Finally, each field is available within
 the SELECT query.
 
-.. image:: _static/grafana_influxdb_panel_example.jpg
+.. image:: ../_static/grafana_influxdb_panel_example.jpg
 
 For more information about using InfluxDB in Grafana, see the `Grafana Documentation`_.
 

@@ -9,9 +9,10 @@ coordinate data acquisition in astronomical observatories.
     :maxdepth: 3
 
     user/intro
-    installation
+    user/installation
     quickstart
     user/site_config
+    user/docker_config
     ocs_web
     cli_tools
 
@@ -31,7 +32,7 @@ coordinate data acquisition in astronomical observatories.
     :caption: Developer Guide
     :maxdepth: 3
 
-    architecture
+    developer/architecture
     developer/site_config
 
 

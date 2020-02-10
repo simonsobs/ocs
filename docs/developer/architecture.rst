@@ -56,8 +56,47 @@ Methods supported only by Operation:
 stop()
   Request that the current Process be stopped.
 
+Python Dependencies
+-------------------
+crossbar.io
+```````````
+crossbar.io is a WAMP router.  The router runs on a single computer,
+and accepts connections on a particular TCP port.  All WAMP clients
+that want to talk to each other connect to that router (using the
+hostname or IP address and the websocket port number).
+
+crossbar does not launch automatically; instead you can launch a
+session by running ``crossbar``.  The configuration file can be
+specified at launch time; note that by default it will try to load
+configuration from ``./.crossbar/config.json``.  In the ``example/``,
+the Makefile command requests that crossbar load the configuration
+from ``./dot_crossbar/``.
+
+When a client connects, it also specifies the "realm" that it wants to
+belong to.  Only clients registering on the same realm will be able to
+"see" and communicate with each other.  This means that a single
+router can be used for multiple, disjoint purposes.
+
+Security (such as TLS on the socket, or password authentication) can
+be added to the crossbar configuration file.  This is not implemented
+in the current example, so it should only be run in trusted
+environments.
+
+twisted and autobahn
+````````````````````
+twisted and autobahn are for asynchronous I/O and WAMP, respectively.
+These are required to run an OCS Agent.  They are also required to run
+asynchronous Control Clients, such as example_ctrl.py.  However, one
+can write Control Clients instead using the simpler, non-asynchronous
+WAMP library called ``wampy``; see below.
+
+wampy
+`````
+A simple, blocking Control Client can be written in python using only
+the ``wampy`` library. Such a client uses the module ocs.client_wampy.
+
 Agent Feeds
-========================================
+===========
 Feeds are a useful way of passing data between agents.
 These use a publish-subscribe pattern, where anytime data is published to a
 feed, all subscribers are notified and a callback function is called with the

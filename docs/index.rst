@@ -11,8 +11,7 @@ coordinate data acquisition in astronomical observatories.
     user/intro
     user/installation
     quickstart
-    user/site_config
-    user/docker_config
+    user/configuration
     ocs_web
     cli_tools
 

@@ -13,7 +13,7 @@ OCS Web is the JavaScript web client front end for OCS. Currently it is capable
 of monitoring the running OCS agents on a system. It can be used to query the
 status of available agent operations and feeds.
 
-.. image:: _static/ocs_web_screenshot.jpg
+.. image:: ../_static/ocs_web_screenshot.jpg
 
 Setup
 =====

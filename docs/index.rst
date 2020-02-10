@@ -10,10 +10,10 @@ coordinate data acquisition in astronomical observatories.
 
     user/intro
     user/installation
-    quickstart
+    user/quickstart
     user/configuration
-    ocs_web
-    cli_tools
+    user/ocs_web
+    user/cli_tools
 
 
 .. toctree::

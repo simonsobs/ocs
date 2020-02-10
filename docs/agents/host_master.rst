@@ -2,11 +2,11 @@
 
 .. _host_master:
 
-================
-HostMaster Agent
-================
+=================
+Host Master Agent
+=================
 
-The HostMaster Agent (HMA) helps to manage the many Agent instances
+The Host Master Agent (HMA) helps to manage the many Agent instances
 that need to run on a single host machine.  The HMA is [will be] able
 to:
 

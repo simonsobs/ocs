@@ -5,10 +5,8 @@ import so3g
 
 from ocs.agent.aggregator import Provider
 
-def test_passing_float_like_str_in_provider_to_frame():
-    """Here we test passing an int and the same int as a string. This shouldn't
-    make it to the aggregator, and instead the Aggregator logs should display
-    an error message with the type passed.
+def test_passing_float_in_provider_to_frame():
+    """Float is the expected type we should be passing.
 
     """
     # Dummy Provider for testing
@@ -17,7 +15,31 @@ def test_passing_float_like_str_in_provider_to_frame():
     data = {'test': {'block_name': 'test',
                      'timestamps': [time.time()],
                      'data': {'key1': [1],
-                              'key2': ['1']},
+                              'key2': [2]},
+                     'prefix': ''}
+           }
+    provider.write(data)
+
+    # Dummy HKSessionHelper
+    sess = so3g.hk.HKSessionHelper(description="testing")
+    sess.start_time = time.time()
+    sess.session_id = 'test_sessid'
+
+    provider.to_frame(hksess=sess)
+
+def test_passing_float_like_str_in_provider_to_frame():
+    """Here we test passing a string amongst ints. This shouldn't make it to
+    the aggregator, and instead the Aggregator logs should display an error
+    message with the type passed.
+
+    """
+    # Dummy Provider for testing
+    provider = Provider('test_provider', 'test_sessid', 3, 1)
+    provider.frame_start_time = time.time()
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [time.time()],
+                     'data': {'key1': [1, 2],
+                              'key2': ['1', 2]},
                      'prefix': ''}
            }
     provider.write(data)

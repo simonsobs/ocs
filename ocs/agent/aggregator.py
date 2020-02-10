@@ -205,10 +205,14 @@ class Provider:
                 try:
                     hk.data[key] = ts
                 except TypeError:
+                    all_types = set([type(x) for x in ts])
                     self.log.error("datapoint passed from address " +
                                    "{a} to the Provider feed is of " +
-                                   "invalid type {t}",
-                                   a=self.address, t=type(ts))
+                                   "invalid type. Types contained " +
+                                   "in the passed list are {t}",
+                                   a=self.address, t=all_types)
+                    self.log.error("full data list for {k}: {d}",
+                                   k=key, d=ts)
 
             frame['blocks'].append(hk)
 

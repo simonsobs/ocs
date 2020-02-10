@@ -205,13 +205,10 @@ class Provider:
                 try:
                     hk.data[key] = ts
                 except TypeError:
-                    try:
-                        hk.data[key] = [float(x) for x in ts]
-                    except ValueError:
-                        self.log.error("datapoint passed from address " +
-                                       "{a} to the Provider feed is of " +
-                                       "invalid type {t}",
-                                       a=self.address, t=type(ts))
+                    self.log.error("datapoint passed from address " +
+                                   "{a} to the Provider feed is of " +
+                                   "invalid type {t}",
+                                   a=self.address, t=type(ts))
 
             frame['blocks'].append(hk)
 

@@ -6,10 +6,9 @@ import so3g
 from ocs.agent.aggregator import Provider
 
 def test_passing_float_like_str_in_provider_to_frame():
-    """If we pass a string that is float like the aggregator should convert it
-    before putting it into the frame. Here we test passing an int and the same int
-    as a string. This should pass without error, as the '1' should get
-    cast to a float.
+    """Here we test passing an int and the same int as a string. This shouldn't
+    make it to the aggregator, and instead the Aggregator logs should display
+    an error message with the type passed.
 
     """
     # Dummy Provider for testing
@@ -35,8 +34,6 @@ def test_passing_non_float_like_str_in_provider_to_frame():
     like str. We can't put this into an so3g.IrregBlockDouble(), so this'll fail.
     We raise a TypeError when this happens and describe the type of the passed in
     data. 
-
-    This test just makes sure that TypeError is raised.
 
     """
     # Dummy Provider for testing

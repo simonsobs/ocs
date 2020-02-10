@@ -32,8 +32,9 @@ coordinate data acquisition in astronomical observatories.
     :maxdepth: 3
 
     developer/architecture
-    developer/clients
     developer/site_config
+    developer/feeds
+    developer/clients
 
 
 .. toctree::

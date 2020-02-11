@@ -34,11 +34,6 @@ of the dependencies are:
 * `wampy`_ - A non-asynchronus WAMP library providing RPC and Pub/Sub for
   Python applications.
 
-.. _crossbar.io: https://crossbar.io/
-.. _Autobahn: https://crossbar.io/autobahn/
-.. _twisted: https://twistedmatrix.com/trac/
-.. _wampy: https://github.com/noisyboiler/wampy
-
 All dependencies are automatically installed via the ``requirements.txt`` file.
 
 Hardware Requirements
@@ -144,4 +139,7 @@ To install, clone the repository and use pip to install::
 .. _Network Configuration: https://socs.readthedocs.io/en/latest/network.html
 .. _Docker: https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/
 .. _Docker Compose: https://docs.docker.com/compose/install/
-
+.. _crossbar.io: https://crossbar.io/
+.. _Autobahn: https://crossbar.io/autobahn/
+.. _twisted: https://twistedmatrix.com/trac/
+.. _wampy: https://github.com/noisyboiler/wampy

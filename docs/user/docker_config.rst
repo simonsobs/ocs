@@ -123,15 +123,27 @@ other container configurations::
 
 The top line, ``example-container-name``, defines the name of the service to
 docker-compose. These must be unique. ``image`` defines the docker image used
-for the container. A container can be thought of as a copy of an image. The
-container is what actually runs when you startup your docker service.
-``restart`` allows you to define when a container can be automatically
-restarted, in this instance, always. ``hostname`` defines the hostname internal
-to the container. This is used in the OCS container configurations in
-conjunction with the ocs-site-configs file. We recommend appending "-docker" to
-the hostname to distinguish Agents running within containers from those running
-directly on the host. ``user`` defines the user used inside the container. This
-is only used on the aggregator agent configuration.
+for the container. Associated with the image is the image tag, in this case
+"latest". This defines the version of the image. A container can be thought of
+as a copy of an image. The container is what actually runs when you startup
+your docker service. ``restart`` allows you to define when a container can be
+automatically restarted, in this instance, always. ``hostname`` defines the
+hostname internal to the container. This is used in the OCS container
+configurations in conjunction with the ocs-site-configs file. We recommend
+appending "-docker" to the hostname to distinguish Agents running within
+containers from those running directly on the host. ``user`` defines the user
+used inside the container. This is only used on the aggregator agent
+configuration.
+
+.. warning::
+    Pay attention to your version tags. "latest" is a convention in Docker to
+    roughly mean the "most up to date" image. It is the default if a tag is
+    left off. However, the "latest" image is subject to change. Pulling a "latest"
+    version today will not be guarenteed to get you the same image at another time.
+
+    What this means is for reproducability of your deployment, and perhaps for
+    your own sanity, we recommend you use explicit version tags. Tags can be
+    identified on an image's Docker Hub page.
 
 ``ports`` defines the ports exposed from the container to the host. This is
 used on containers like the crossbar container and the grafana container.

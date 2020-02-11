@@ -150,6 +150,10 @@ ready, but the container will be started.
     default template.  For more information see the `docker compose
     documentation`_.
 
+    If you use this functionality, be aware that environment variables must be
+    explicitly passed to sudo via the ``-E`` flag, for example: ``$ sudo -E
+    docker-compose up -d``
+
 For more details on configurations for individual containers, see the service
 documentation pages, for instance in the Agent Reference section.
 

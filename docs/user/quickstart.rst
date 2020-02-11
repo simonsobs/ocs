@@ -155,10 +155,6 @@ used to generate the configuration file, first we will set our
 
     $ export OCS_CONFIG_DIR=`pwd`
     $ ocsbow crossbar generate_config
-    There is no crossbar entry in this host config.
-    
-    A crossbar configuration cannot be generated without this info.
-    [koopman@vesper self-contained-quickstart]$ ocsbow crossbar generate_config
     The crossbar config-dir is set to:
       ./dot_crossbar/
     Using

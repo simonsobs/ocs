@@ -1,6 +1,6 @@
 .. highlight:: bash
 
-.. _site_config:
+.. _site_config_dev:
 
 ======================
 OCS Site Configuration
@@ -45,96 +45,15 @@ occurs:
    script, the appropriate WAMP connections, address registrations,
    and hardware associations are made.
 
-
-OCS Site Config File
-====================
-
-The OCS Site Config File (SCF) will be a single YAML file.  The SCF
-may be shared between multiple hosts, providing distinct
-configurations for each one.
-
-Here is an example of an SCF for a site with two hosts, and 4 agent
-instances (running two different classes of agent):
-
-.. code-block:: yaml
-
-  hub:
-  
-    wamp_server: ws://host-2:8001/ws
-    wamp_http: http://host-2:8001/call
-    wamp_realm: detlab_realm
-    address_root: detlab.cryo
-    registry_agent: observatory.registry
-  
-  hosts:
-  
-    host-1: {
-  
-      # Directory for logs.
-      'log-dir': '/simonsobs/log/ocs/',
-
-      # List of additional paths to Agent plugin modules.
-      'agent-paths': [
-        '/simonsobs/ocs/agents/',
-      ],
-
-      # Description of host-1's Agents?  We have two readout devices;
-      # they are both Riverbank 320.  But they can be distinguished, on
-      # startup, by a device serial number.
-  
-      'agent-instances': [
-        {'agent-class': 'Riverbank320Agent',
-         'instance-id': 'thermo1',
-         'arguments': [['--serial-number', 'PX1204312'],
-                       ['--mode', 'idle']]},
-        {'agent-class': 'Riverbank320Agent',
-         'instance-id': 'thermo2',
-         'arguments': [['--serial-number', 'PX1204315'],
-                       ['--mode', 'run']]},
-      ]
-    }
-  
-    host-2: {
-  
-      # Crossbar start-up instructions (optional).
-      'crossbar': {'config-dir': /simonsobs/ocs/dot_crossbar/'},
-
-      # Directory for logs.
-      'log-dir': '/simonsobs/log/ocs/',
-
-      # List of additional paths to Agent plugin modules.
-      'agent-paths': [
-        '/simonsobs/ocs/agents/',
-      ],
-
-      # Description of host-2's Agents?  We have two devices: another
-      # Riverbank 320, and a motor controller of some kind.
-  
-      'agent-instances': [
-        {'agent-class': 'Riverbank320Agent',
-         'instance-id': 'thermo3',
-         'arguments': [['--serial-number', 'JM1212'],
-                       ['--mode', 'run']]},
-        {'agent-class': 'MotorControlAgent',
-         'instance-id': 'motor4',
-         },
-      ]
-    }
-
-By default the system will look for site files in the path pointed to
-by environment variable OCS_CONFIG_DIR.  The default site filename is
-``default.yaml``.  In practice, users will set the environment
-variable and create or symlink ``default.yaml`` with their site's
-configuration.  During development, multiple YAML files may be in
-active use; then users will identify their config file through command
-line arguments when launching Agents and Control Clients (see below).
-
+ocs.site_config
+===============
+This section documents in detail the classes in `ocs.site_config`. For details
+about the site configuration file, please refer to :ref:`ocs_site_config_file`.
 
 SiteConfig
 ----------
-
 At root level, the configuration file should encode a SiteConfig
-object.  The structure is described in the ``from_dict`` method of
+object. The structure is described in the ``from_dict`` method of
 the SiteConfig class:
 
 .. autoclass:: ocs.site_config.SiteConfig
@@ -248,52 +167,10 @@ additional site-info settable from the site's parser.
 
     To change to the newer version, just make sure you define the agent parser
     first, and pass it to the parse_args function as shown in the example above.
-   
 
-Examples
---------
-
-In the following examples, suppose we have "river_agent.py", which
-implements an Agent for talking to Riverbank320 devices.  Suppose
-these are being run on a host called "host-1".  Refer to the example
-site configuration listed above.  *(Note that to run these in the
-example tree you will usually need to add the options that select the
-example SCF and host, namely:* ``--site-file telescope.yaml --site-host
-host-1`` *. One exception to this is when using* ``--site=none``. *)*
-
-
-1. Because there are two instances of "Riverbank320Agent" registered
-   in the SCF, we must somehow pick one when running the agent::
-
-     $ python river_agent.py --instance-id=thermo1
-     I am in charge of device with serial number: PX1204312
-
-
-2. We can ask our agent to connect to a different WAMP realm, for
-   testing purposes (note this realm would need to be enabled in
-   crossbar, probably)::
-
-     $ python river_agent.py --instance-id=thermo1 --site-realm=my_other_realm
-     I am in charge of device with serial number: PX1204312
-   
-3. Run an instance of an Agent, but force all configuration matching
-   to occur as though the Agent were running on a host called
-   "host-2"::
-
-     $ python river_agent.py --site-host=host-2
-     I am in charge of device with serial number: JM1212
-
-   Note that we do not need to specify an ``--instance-id``, because
-   the SCF only lists one Riverbank320Agent instance.
-
-4. To avoid referring to a SCF at all, pass ``--site=none``.  Then
-   specify enough information for the agent to connect and run::
-
-     $ python river_agent.py --site=none \
-     --site-hub ws://localhost:8001/ws --site-realm debug_realm \
-     --address-root=observatory --instance-id=thermo1 \
-     --serial-number=PX1204312 --mode=testing
-     I am in charge of device with serial number: PX1204312
+.. note::
+    For examples calling these commandline arguments see
+    :ref:`ocs_agent_cmdline_examples`.
 
 
 Control Clients and the Site Config
@@ -329,29 +206,10 @@ river_ctrl.py in the examples):
       #...
 
 
-HostMaster Agent
-================
-
-The HostMaster Agent (HMA) helps to manage the many Agent instances
-that need to run on a single host machine.  The HMA is [will be] able
-to:
-
-- Parse the entire site configuration file, and help to start, stop,
-  and monitor each Agent instance running on a certain host.
-- Integrate with systemd as a daemon, to allow the process to be
-  controlled using standard systemctl commands, including how it
-  behaves on system start up.
-- Accept control commands through the usual OCS channels, i.e. from
-  anywhere in the network.
-
-Direct user interaction with an HMA can be achieved through the
-``ocsbow`` command line script.
-
-
 .. _agent_plugins:
 
 Agent Script Discovery
-----------------------
+======================
 
 Agent scripts are currently written as stand-alone python scripts (and
 thus not not importable through the main ``ocs`` python module).  To
@@ -388,39 +246,5 @@ A good example of a plugin script can be found in the OCS agents
 directory, ``ocs_plugins_standard.py``.
 
 
-Agent Configuration
--------------------
-
-The Host Master Agent is an optional component.  In order to function
-properly, it requires that site_config be in use.  It should be listed
-in the SCF like other agents.  There should only be a single HMA per
-host definition block.
-
-Here's an abbreviated SCF showing the correct configuration:
-
-.. code-block:: yaml
-
-  ...
-  hosts:
-    ...
-    host-1: {
-      ...
-      'agent-instances': [
-        ...
-        {'agent-class': 'HostMaster',
-         'instance-id': 'master-host-1',
-         'arguments': []}
-        ...
-      ]
-      ...
-    }
-    ...
-  ...
-
-The ``agent-class`` should be ``HostMaster``.  The ``instance-id`` in
-this example is based on a (recommended) convention that HostMaster
-live at ``master-{host}``.
-
-
 Systemd Integration [empty]
----------------------------
+===========================

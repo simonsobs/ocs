@@ -3,76 +3,6 @@
 Installation
 ============
 
-Dependencies
-------------
-
-The system is designed to be distributed across many computers, however it can
-also all be run on a single computer. This modular architecture means the
-software and hardware requirements are quite flexible. Below are the minimum
-hardware and software requirements for getting the live monitor running on a
-single computer.
-
-Software Requirements
----------------------
-
-Installation will be covered in the next section, but these are the recommended
-software dependencies:
-
-    * Docker_ - Containerization software used for deploying several SO written
-      packages.
-    * `Docker Compose`_ - CLI tool for running multi-container Docker
-      applications.
-
-Python Dependencies
-```````````````````
-All python dependencies for OCS are listed in the ``requirements.txt`` file. Some
-of the dependencies are:
-
-* `crossbar.io`_ - An implementation of a WAMP router.
-* `Autobahn`_ - Provides open-source implementations of WAMP.
-* `twisted`_ - Used with Autobahn for networking.
-* `wampy`_ - A non-asynchronus WAMP library providing RPC and Pub/Sub for
-  Python applications.
-
-All dependencies are automatically installed via the ``requirements.txt`` file.
-
-Hardware Requirements
----------------------
-
-You will need a Linux computer running Ubuntu 18.04. Other
-Operating Systems can be used, but are not officially supported.
-
-.. note::
-
-    Docker stores its images in the root filesystem by default. If the computer
-    you are using has a small ``/`` partition you might run into space
-    constraints.
-
-Networking Requirements
------------------------
-
-This Linux machine will need to go on the same network as whatever hardware
-you are controlling with OCS. Live monitoring remotely (i.e. not sitting
-directly at the computer) is facilitated by having a public IP address, and if
-you are able to setup a secure webserver. Doing so, however, is beyond the
-scope of this guide.
-
-.. warning::
-    You should not run your crossbar server on a public IP without a properly
-    configured firewall. Single-node configurations can just expose ports only to
-    localhost (127.0.0.1), however, beyond that it is recommended a separate
-    firewall is placed between your machine and the Internet. Note Docker
-    manuiplates iptables to open ports and so a software firewall is likely not
-    enough.
-
-.. note::
-    If you do not have a public IP, but do have access to a gateway to
-    your private network, then port forwarding can be used to view the live monitor
-    remotely.
-
-For examples of possible network configurations see the socs documentation -
-`Network Configuration`_.
-
 Installing Docker
 -----------------
 
@@ -136,10 +66,4 @@ To install, clone the repository and use pip to install::
     If you want to install locally, not globally, throw the `--user` flag
     on both the pip3 and setup.py commands.
 
-.. _Network Configuration: https://socs.readthedocs.io/en/latest/user/network.html
-.. _Docker: https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/
 .. _Docker Compose: https://docs.docker.com/compose/install/
-.. _crossbar.io: https://crossbar.io/
-.. _Autobahn: https://crossbar.io/autobahn/
-.. _twisted: https://twistedmatrix.com/trac/
-.. _wampy: https://github.com/noisyboiler/wampy

@@ -9,6 +9,7 @@ coordinate data acquisition in astronomical observatories.
     :maxdepth: 3
 
     user/intro
+    user/dependencies
     user/installation
     user/quickstart
     user/configuration

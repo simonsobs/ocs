@@ -136,7 +136,7 @@ To install, clone the repository and use pip to install::
     If you want to install locally, not globally, throw the `--user` flag
     on both the pip3 and setup.py commands.
 
-.. _Network Configuration: https://socs.readthedocs.io/en/latest/network.html
+.. _Network Configuration: https://socs.readthedocs.io/en/latest/user/network.html
 .. _Docker: https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/
 .. _Docker Compose: https://docs.docker.com/compose/install/
 .. _crossbar.io: https://crossbar.io/

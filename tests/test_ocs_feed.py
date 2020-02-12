@@ -11,7 +11,7 @@ class TestPublishMessage:
 
     """
     def test_valid_single_sample_input(self):
-        """We should be able to pass ints and floats to a feed.
+        """We should be able to pass single ints and floats to a feed.
 
         """
         mock_agent = MagicMock()
@@ -29,7 +29,7 @@ class TestPublishMessage:
         test_feed.publish_message(test_message)
 
     def test_valid_multi_sample_input(self):
-        """We should be able to pass ints and floats to a feed.
+        """We should be able to pass lists of ints and floats to a feed.
 
         """
         mock_agent = MagicMock()
@@ -46,9 +46,29 @@ class TestPublishMessage:
 
         test_feed.publish_message(test_message)
 
-    def test_str_multi_sample_input(self):
+    def test_str_single_sample_input(self):
         """Passing a string, even just one, should cause an error upon
         publishing.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                'key1': 1.,
+                'key2': 'string',
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
+
+    def test_str_multi_sample_input(self):
+        """Passing a string, even just one within a list, should cause an error
+        upon publishing.
 
         """
         mock_agent = MagicMock()

@@ -96,7 +96,8 @@ official documentation.
 
 In the remainder of this section we will go over our example. The first line
 defines the version of the docker-compose file format, which corresponds to the
-Docker Engine version you are running. You likely do not have to change this.
+Docker Engine version you are running. You likely do not have to change this,
+unless you need a new feature available in a more recent version.
 
 Every block below ``services:`` defines a Docker container. Let's look at one
 example container configuration. This example does not represent something we

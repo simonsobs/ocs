@@ -237,5 +237,11 @@ class Feed:
         valid_types = (float, int)
 
         for k, v in message['data'].items():
-            if not all(isinstance(x, valid_types) for x in v):
-                raise ValueError("message 'data' block contains invalid data type")
+            # multi-sample check
+            if isinstance(v, list):
+                if not all(isinstance(x, valid_types) for x in v):
+                    raise ValueError("message 'data' block contains invalid data type")
+            # single sample check
+            else:
+                if not isinstance(v, valid_types):
+                    raise ValueError("message 'data' block contains invalid data type")

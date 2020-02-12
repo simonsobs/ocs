@@ -10,7 +10,25 @@ class TestPublishMessage:
     """Test ocs_feed.Feed.publish_message().
 
     """
-    def test_valid_input(self):
+    def test_valid_single_sample_input(self):
+        """We should be able to pass ints and floats to a feed.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                'key1': 1.,
+                'key2': 10,
+            }
+        }
+
+        test_feed.publish_message(test_message)
+
+    def test_valid_multi_sample_input(self):
         """We should be able to pass ints and floats to a feed.
 
         """
@@ -28,7 +46,7 @@ class TestPublishMessage:
 
         test_feed.publish_message(test_message)
 
-    def test_str_input(self):
+    def test_str_multi_sample_input(self):
         """Passing a string, even just one, should cause an error upon
         publishing.
 

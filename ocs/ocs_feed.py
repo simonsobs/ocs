@@ -193,6 +193,9 @@ class Feed:
                                           timestamp=timestamp)
 
         if self.record:
+            # check message contents
+            Feed.verify_message_data_type(message)
+
             # Data is stored in Block objects
             block_name = message['block_name']
             try:
@@ -219,3 +222,20 @@ class Feed:
         else:
             # Publish message immediately
             self.agent.publish(self.address, (message, self.encoded()))
+
+    @staticmethod
+    def verify_message_data_type(message):
+        """Aggregated Feeds can only store certain types of data. Here we check
+        that the type of all data contained in a message's 'data' dictionary are
+        supported types.
+
+        Args:
+            message (dict):
+                Data to be published (see Feed.publish_message for details).
+
+        """
+        valid_types = (float, int)
+
+        for k, v in message['data'].items():
+            if not all(isinstance(x, valid_types) for x in v):
+                raise ValueError("message 'data' block contains invalid data type")

@@ -25,7 +25,7 @@ section of this documentation. An example `docker-compose.yaml` file looks
 something like this (note this does not contain all possibly configured
 components)::
 
-    version: '3.7'
+    version: '2'
     services:
       # --------------------------------------------------------------------------
       # Grafana for the live monitor.

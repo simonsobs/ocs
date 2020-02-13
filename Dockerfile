@@ -21,9 +21,8 @@ RUN apt-get update && apt-get install -y python3 \
 # Copy the current directory contents into the container at /app
 COPY . /app/ocs/
 
-WORKDIR /app
+WORKDIR /app/ocs/
 
 # Install ocs
-RUN pip3 install -r ocs/requirements.txt \
-    && pip3 install -e ocs
-
+RUN pip3 install -r requirements.txt && \
+    pip3 install -e .

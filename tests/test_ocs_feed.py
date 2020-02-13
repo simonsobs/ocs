@@ -63,12 +63,12 @@ class TestPublishMessage:
             }
         }
 
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             test_feed.publish_message(test_message)
 
     def test_str_multi_sample_input(self):
-        """Passing a string, even just one within a list, should cause an error
-        upon publishing.
+        """Passing multiple points, including multiple invalid datatypes,
+        should cause a TypeError upon publishing.
 
         """
         mock_agent = MagicMock()
@@ -76,14 +76,14 @@ class TestPublishMessage:
 
         test_message = {
             'block_name': 'test',
-            'timestamps': [time.time(), time.time()+1],
+            'timestamps': [time.time(), time.time()+1, time.time()+2],
             'data': {
-                'key1': [1., 3.4],
-                'key2': [10., 'string']
+                'key1': [1., 3.4, 4.3],
+                'key2': [10., 'string', None]
             }
         }
 
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             test_feed.publish_message(test_message)
 
 

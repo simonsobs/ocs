@@ -240,8 +240,14 @@ class Feed:
             # multi-sample check
             if isinstance(v, list):
                 if not all(isinstance(x, valid_types) for x in v):
-                    raise ValueError("message 'data' block contains invalid data type")
+                    type_set = set([type(x) for x in v])
+                    invalid_types = type_set.difference(valid_types)
+                    raise TypeError("message 'data' block contains invalid data" +
+                                    f"types: {invalid_types}")
+
             # single sample check
             else:
                 if not isinstance(v, valid_types):
-                    raise ValueError("message 'data' block contains invalid data type")
+                    invalid_type = type(v)
+                    raise TypeError("message 'data' block contains invalid " +
+                                    f"data type: {invalid_type}")

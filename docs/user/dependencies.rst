@@ -104,9 +104,8 @@ secure webserver. Doing so, however, is beyond the scope of this guide.
     remotely.
 
 For examples of possible network configurations see the socs documentation -
-`Network Configuration`_.
+:ref:`network`.
 
-.. _Network Configuration: https://socs.readthedocs.io/en/latest/user/network.html
 .. _Docker: https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/
 .. _Docker Compose: https://docs.docker.com/compose/install/
 .. _crossbar.io: https://crossbar.io/

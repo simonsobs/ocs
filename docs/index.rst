@@ -13,6 +13,7 @@ coordinate data acquisition in astronomical observatories.
     user/installation
     user/quickstart
     user/configuration
+    user/network
     user/ocs_web
     user/cli_tools
 

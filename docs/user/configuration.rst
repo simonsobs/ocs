@@ -1,7 +1,7 @@
 .. highlight:: rst
 
-Configuration
-=============
+System Configuration
+====================
 There are two primary configuration files to consider when setting up OCS.
 There is the OCS Site Config File (SCF) and the Docker Compose config file.
 These two files define the state of a site's OCS Agents and supporting docker

@@ -4,6 +4,13 @@ Observatory Control System
 The Observatory Control System is a distributed control system designed to
 coordinate data acquisition in astronomical observatories.
 
+This documentation is split into three main sections. First, the User Guide.
+This is for users who want to configure and run a system controlled by OCS.
+Next, the Agent Reference. This section covers each OCS Agent and how to
+configure them. Finally, the Developer Guide. These pages are for those who
+want to understand more of what goes on within OCS, and for those looking to
+write OCS Agents or Clients.
+
 .. toctree::
     :caption: User Guide
     :maxdepth: 3
@@ -36,6 +43,7 @@ coordinate data acquisition in astronomical observatories.
     developer/architecture
     developer/site_config
     developer/feeds
+    developer/agents
     developer/clients
 
 

@@ -280,8 +280,8 @@ class SingleFileScanner:
         msg : str
             Any message (e.g., an error message) to log.
         """
-        l = "%s,dir=%s,file=%s,md5sum=%s status=\"%s\"" %\
-            (_LOG_MEASUREMENT, self.dir, self.basename, self.md5sum, status)
+        l = "%s,status=%s dir=\"%s\",file=\"%s\",md5sum=\"%s\"" %\
+            (_LOG_MEASUREMENT, status, self.dir, self.basename, self.md5sum)
         if msg:
             l += ",msg=\"%s\"" % msg
         try:

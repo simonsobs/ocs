@@ -234,6 +234,7 @@ class SingleFileScanner:
         for later processing.
 
         """
+        logging.debug("Scanning %s." % self.path)
         self.hkas.process_file(self.path)
         self.cat = self.hkas.finalize()
         self.fields, self.timelines = self.cat.get_fields()
@@ -342,7 +343,7 @@ class SingleFileScanner:
         Returns
         -------
         int
-            0 if good, 2 if an excpetion occurred during publishing
+            0 if good, 2 if an exception occurred during publishing
         """
         return_value = 0
         self._influx_log("started")
@@ -373,7 +374,12 @@ class SingleFileScanner:
         return return_value
 
     def run(self):
-        self.scan_file()
+        try:
+            self.scan_file()
+        except:
+            logging.error("Unable to read %s, likely due to old sog3 format."\
+                          % self.basename)
+            return 2
         pub_ret = self.publish_file()
 
         return pub_ret

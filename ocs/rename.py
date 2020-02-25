@@ -55,8 +55,6 @@ def _remove_non_matching_files(filelist, verbose=None):
         except ValueError:
             if verbose is not None:
                 print(f"{f} does not match datestring format, removing from list.")
-            else:
-                pass
 
     return new_list
 

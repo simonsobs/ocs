@@ -170,8 +170,6 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0) # Calls the hearbeat every second
 
-        self.register_agent()
-
         # Subscribe to startup_subs
         for sub in self.startup_subs:
             self.subscribe(**sub)
@@ -351,45 +349,6 @@ class OCSAgent(ApplicationSession):
             else:
                 self.log.warn(e.error)
             return False
-
-    @inlineCallbacks
-    def register_agent(self, encoded=None):
-        """
-        Registers the agent with Registry. Uses Registry address from
-        Site config.
-        """
-        # Makes sure info sent to the registry is the same even if the agent
-        # does not connect immediately
-        if encoded is None:
-            encoded = self.encoded()
-
-        self.log.info('register_agent() @ %s' % self.site_args.registry_address)
-        if self.site_args.registry_address in [None, "none", "None"]:
-            return
-
-        if not in_reactor_context():
-            return reactor.callFromThread(self.register_agent)
-
-        reg_task = client_t.TaskClient(self, self.site_args.registry_address,
-                                         'register_agent')
-        try:
-            status, msg, _  = yield reg_task.start(encoded)
-            if status == ocs.OK:
-                self.registered = True
-            elif msg == 'Operation "register_agent" already in progress.':
-                self.log.info("Could not register because another agent was blocking. "
-                              "Will try again in 1 second.")
-                reactor.callLater(1, self.register_agent, encoded)
-
-        except ApplicationError as e:
-            if e.error == u'wamp.error.no_such_procedure':
-                self.log.warn("Operation {}.register_agent has not "
-                      "been registered".format(self.site_args.registry_address))
-                self.log.warn("Will try to register again in 5 seconds...")
-
-                reactor.callLater(5, self.register_agent, encoded)
-            else:
-                raise e
 
     def register_feed(self, feed_name, **kwargs):
         """

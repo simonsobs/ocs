@@ -10,4 +10,4 @@ ENV JUPYTER_CONFIG_DIR /home/ocs/.jupyter
 COPY jupyter_config.py /home/ocs/.jupyter
 
 ENTRYPOINT ["jupyter", "notebook"]
-CMD ["/home/ocs"]
+CMD ["/data"]

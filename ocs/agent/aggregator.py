@@ -51,9 +51,6 @@ def make_filename(base_dir, make_subdirs=True):
             True if func should automatically create non-existing subdirs.
     """
     start_time = time.time()
-    start_datetime = datetime.datetime.fromtimestamp(
-        start_time, tz=datetime.timezone.utc
-    )
 
     subdir = os.path.join(base_dir, "{:.5}".format(str(start_time)))
 
@@ -64,7 +61,7 @@ def make_filename(base_dir, make_subdirs=True):
             raise FileNotFoundError("Subdir {} does not exist"
                                     .format(subdir))
 
-    time_string = int(start_datetime.timestamp())
+    time_string = int(start_time)
     filename = os.path.join(subdir, "{}.g3".format(time_string))
     return filename
 

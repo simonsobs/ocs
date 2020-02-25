@@ -64,7 +64,7 @@ def make_filename(base_dir, make_subdirs=True):
             raise FileNotFoundError("Subdir {} does not exist"
                                     .format(subdir))
 
-    time_string = start_datetime.strftime("%Y-%m-%d-%H-%M-%S")
+    time_string = int(start_datetime.timestamp())
     filename = os.path.join(subdir, "{}.g3".format(time_string))
     return filename
 

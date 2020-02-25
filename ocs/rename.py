@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# Brian Koopman
-
 import os
 import datetime
 

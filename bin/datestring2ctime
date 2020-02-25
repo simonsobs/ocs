@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+# Brian Koopman
+
+# Scan a directory for all .g3 files matching the old naming convension of
+# "%Y-%m-%d-%H-%M-%S.g3" and convert them to "ctime.g3".
+
+# Usage: ./datestring2ctime /data/ -v
+
+import argparse
+from ocs import rename
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('target', help='File or directory to process.')
+    parser.add_argument('--verbose', '-v', action='count')
+    args = parser.parse_args()
+
+    rename.main(args.target, args.verbose)
+
+if __name__ == "__main__":
+    main()

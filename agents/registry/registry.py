@@ -1,130 +1,115 @@
 from ocs import ocs_agent, site_config
 import time
-from twisted.internet import task
-from threading import Lock
+from twisted.internet.defer import inlineCallbacks
+from autobahn.twisted.util import sleep as dsleep
+from collections import defaultdict
 
 
 class RegisteredAgent:
-    def __init__(self, agent_encoded):
-        self.encoded = agent_encoded
-        for key in ['session_id']:
-            setattr(self, key, self.encoded[key])
+    """
+        Contain data about registered agents.
 
-        self.time_registered = time.time()
-        self.last_heartbeat = time.time()
+        Attributes:
+            exipred (bool):
+                True if agent has not been updated in Registry.agent_timeout seconds.
+            time_expired (float, optioal):
+                ctime at which the agent expired
+            last_updated (float):
+                ctime at which the agent was last updated
+    """
+    def __init__(self):
+        self.expired = False
+        self.time_expired = None
+        self.last_updated = time.time()
+
+    def refresh(self):
+        self.expired = False
+        self.time_expired = None
+        self.last_updated = time.time()
+
+    def expire(self):
+        self.expired = True
+        self.time_expired = time.time()
+
+    def encoded(self):
+        return {
+            'expired': self.expired,
+            'time_expired': self.time_expired,
+            'last_updated': self.last_updated
+        }
 
 
 class Registry:
     """
-    The Registry agent is in charge of keeping track of which agents are
-    currently running, and publishing this data to the *agent_activity*
-    feed.
+        The Registry agent is in charge of keeping track of which agents are
+        currently running. It has a single process "run" that loops and keeps track
+        of when agents expire. This agent subscribes to all heartbeat feeds, 
+        so no additional function calls are required to register an agent.
+
+        A list of agent statuses is maintaned in the "run" process's session.data
+        object.
+
+        Args: 
+            agent (OCSAgent):
+                the ocs agent object
+
+        Attributes:
+            registered_agents (defaultdict):
+                A defaultdict of RegisteredAgent objects, which contain whether 
+                the agent has expired, the time_expired, and the last_updated 
+                time. 
+            agent_timeout (float):
+                The time an agent has between heartbeats before being marked
+                as expired.
     """
     def __init__(self, agent):
         self.log = agent.log
         self.agent = agent
 
         # Dict containing agent_data for each registered agent
-        self.active_agents = {}
+        self.registered_agents = defaultdict(RegisteredAgent)
         self.agent_timeout = 5.0 # Removes agent after 5 seconds of no heartbeat.
 
-        self.agent.register_feed("agent_activity")
+        self.agent.subscribe_on_start(
+            self._register_heartbeat, 'observatory..feeds.heartbeat',
+            options={'match': 'wildcard'}
+        )
 
-        self.lock = Lock()
-
-    def _monitor_active_agents(self):
+    def _register_heartbeat(self, _data):
+        """ 
+            Function that is called whenever a heartbeat is received by an agent.
+            It will update that agent in the Registry's registered_agent dict.
         """
-            Deletes agent from active_agents if a heartbeat isn't heard in
-            *self.agent_timeout* seconds. This is called once a second.
+        data, feed = _data
+        self.registered_agents[feed['agent_address']].refresh()
+
+    @inlineCallbacks
+    def run(self, session: ocs_agent.OpSession, params=None):
         """
-        current_time = time.time()
-        agents_to_remove = []
-        for address, agent in self.active_agents.items():
-
-            # For some reason the registry has been unable to listen to its
-            # own heartbeat... This makes it so that the registry can't
-            # unregister itself.
-            if address == self.agent.agent_address:
-                continue
-            if (current_time - agent.last_heartbeat) > self.agent_timeout:
-                agents_to_remove.append(address)
-        with self.lock:
-            for address in agents_to_remove:
-                if self.remove_agent(address):
-                    self.log.info("Agent {} has been removed due to inactivity"
-                                  .format(address))
-
-    def _register_heartbeat(self, data):
-        """Registers the heartbeats of active_agents"""
-        _, feed_data = data
-        agent_address = feed_data['agent_address']
-        if agent_address in self.active_agents.keys():
-            self.active_agents[agent_address].last_heartbeat = time.time()
-
-    def remove_agent(self, agent_address):
-        """
-        Removes agent from the registry and publishes removal to the status feed.
-
-        Args
-            agent_address (string): address of agent to be removed.
-        """
-        agent = self.active_agents.get(agent_address)
-        if not agent:
-            self.log.warn("Tried to remove {}, but agent was not registered"
-                          .format(agent_address))
-            return False
-
-        self.log.info("Removing agent {}".format(agent_address))
-        self.agent.publish_to_feed("agent_activity", ("removed", agent.encoded))
-        del(self.active_agents[agent_address])
-        return True
-
-    def register_agent(self, session, agent_data):
-        """
-        TASK: Adds agent to list of active agents and subscribes to heartbeat feed.
-
-        Args
-            agent_data (dict):  Encoded agent data.
-                Must contain at least agent address.
+            Main run process for Registry agent. This will loop and keep track of
+            which agents have expired. It will keep track of current active agents
+            in the session.data variable so it can be seen by clients.
         """
 
-        address = agent_data['agent_address']
+        session.set_status('starting')
+        self._run = True
 
-        action = "added"
-        if address in self.active_agents.keys():
-            if agent_data['session_id'] != self.active_agents[address].session_id:
-                self.log.info("Address {} is already registered. Removing old"
-                              "instance and replacing it with new one"
-                              .format(address))
+        session.set_status('running')
+        while self._run:
+            yield dsleep(1)
 
-                with self.lock:
-                    self.remove_agent(address)
-            else:
-                self.log.info("Agent with session id {} has already been registered."
-                              .format(agent_data['session_id']))
-                return False, "Agent already registered with session id {}".format(agent_data['session_id'])
+            for k, agent in self.registered_agents.items():
+                if time.time() - agent.last_updated > self.agent_timeout:
+                    agent.expire() 
 
-        with self.lock:
-            self.active_agents[address] = RegisteredAgent(agent_data)
+            session.data = {
+                k: agent.encoded() for k, agent in self.registered_agents.items()
+            }
 
-        self.agent.subscribe_to_feed(address, 'heartbeat', self._register_heartbeat)
-
-        self.log.info("Registered agent {}".format(address))
-        session.add_message("Registered agent {}".format(address))
-        self.agent.publish_to_feed("agent_activity", (action, agent_data));
-
-        return True, "Registered agent {}".format(address)
-
-    def dump_agent_info(self, session, params = {}):
-        """
-        Tells the registry agent to dump status info for all active agent to
-        *agent_activity* feed.
-        """
-        action = "status"
-        for address, agent in self.active_agents.items():
-            self.agent.publish_to_feed("agent_activity", (action, agent.encoded))
-
-        return True, "Dumped agent info"
+    def stop(self, session, params=None):
+        """Stop function for the 'run' process."""
+        session.set_status('stopping')
+        self._run = False
 
 
 if __name__ == '__main__':
@@ -134,12 +119,7 @@ if __name__ == '__main__':
     agent, runner = ocs_agent.init_site_agent(args)
     registry = Registry(agent)
 
-    agent.register_task('dump_agent_info', registry.dump_agent_info)
-    agent.register_task('register_agent', registry.register_agent, blocking=False)
-
-    # Starts looping call that calls _monitor_active_agents every second
-    loop_call = task.LoopingCall(registry._monitor_active_agents)
-    loop_call.start(1)
-
+    agent.register_process('run', registry.run, registry.stop, blocking=False, startup=True)
+    
     runner.run(agent, auto_reconnect=True)
 

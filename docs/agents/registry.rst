@@ -6,36 +6,45 @@ Registry Agent
 =======================
 
 The registry agent is used to keep track of currently running active agents.
-Agents are automatically registered OnJoin, and the registry monitors
-each agent's heartbeat to remove the agent if it disconnects.
+It listens to the heartbeat feeds of all agents on the crossbar server, 
+and keeps track of the last heartbeat time of each agent and whether 
+or not each agent has agent has "expired" (gone 5 seconds without a heartbeat).
 
-One can keep track of active agents by monitoring the *agent_activity*
-feed, which will publish whenever an agent is registered, unregistered,
-or updated. Calling the *dump_agents* task will print the current status
-of all active agents to the feed.
+This check happens in the registry's single "run" process. The session.data object
+of this process is set to a dict of agents on the system, including their last 
+heartbeat time, whether they have expired, and the time at which they expired.
+This data can the be viewed by checking the session variable of the run process.
 
-Docker Configuration
+For instance, the following code will print agent's that have been on the system
+since the registry started running::
+
+    from ocs.matched_client import MatchedClient
+
+    registry_client = MatchedClient('registry')
+    status, msg, session = registry_client.run.status()
+
+    print(session['data'])
+
+
+Configuration
 --------------------
-The docker image for the registry agent is
-``grumpy.physics.yale.edu/ocs-registry-agent:latest``.  Here is an example
-Docker Compose configuration::
+To add the registry to your ocs setup, you can add this file to your site-config
+yaml file::
 
-      ocs-registry:
-        image: grumpy.physics.yale.edu/ocs-registry-agent:latest
-        hostname: grumpy-docker
-        volumes:
-          - /home/user/ocs-site-configs/yale/prod/default.yaml:/config/default.yaml:ro
-        depends_on:
-          - "sisock-crossbar"
+    { 'agent-class': 'RegistryAgent',
+      'instance-id': 'registry',
+      'arguments': []},
 
-In the configuration a hostname must be defined that matches the hostname
-configuration in your ocs-site-configs file. We suggest appending ``-docker``
-to your current hostname. In our example our hostname is `grumpy`, so our
-container hostname is `grumpy-docker`.
+Here is an example of a docker service that you can put in your docker-compose 
+file to run the registry::
 
-The ocs-site-configs directory needs to be mounted into the container so the
-agent configuration can be read. We do this on the volumes line. The first path
-will need to be modified for your system.
+    ocs-registry:
+        image: simonsobs/ocs-registry-agent:latest
+        container_name: ocs-registry
+        hostname: ocs-docker
+        user: "9000"
+        volumes: 
+            - ${OCS_CONFIG_DIR}:/config
 
 API
 ---

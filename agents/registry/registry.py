@@ -7,7 +7,7 @@ from collections import defaultdict
 
 class RegisteredAgent:
     """
-        Contain data about registered agents.
+        Contains data about registered agents.
 
         Attributes:
             exipred (bool):
@@ -77,7 +77,7 @@ class Registry:
 
     def _register_heartbeat(self, _data):
         """ 
-            Function that is called whenever a heartbeat is received by an agent.
+            Function that is called whenever a heartbeat is received from an agent.
             It will update that agent in the Registry's registered_agent dict.
         """
         data, feed = _data
@@ -86,7 +86,7 @@ class Registry:
     @inlineCallbacks
     def run(self, session: ocs_agent.OpSession, params=None):
         """
-            Main run process for Registry agent. This will loop and keep track of
+            Main run process for the Registry agent. This will loop and keep track of
             which agents have expired. It will keep track of current active agents
             in the session.data variable so it can be seen by clients.
         """

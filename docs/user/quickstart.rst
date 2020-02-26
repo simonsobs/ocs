@@ -166,6 +166,11 @@ used to generate the configuration file, first we will set our
 
 You should now see a crossbar config file in ``./dot_crossbar/``.
 
+.. note::
+    The crossbar 'config-dir' block and the 'agent-instance' block defining the
+    'HostMaster' Agent are both required for the system you are running ocsbow on.
+    Be sure to add these to your SCF if they do not exist.
+
 .. warning::
     This bare configuration does not consider persistent storage. Any
     configuration done within the containers will be lost on shutdown.

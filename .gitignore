@@ -1,3 +1,6 @@
+# iPython Notebooks
+*.ipynb
+
 # Crossbar stuff
 */dot_crossbar/key.priv
 */dot_crossbar/key.pub

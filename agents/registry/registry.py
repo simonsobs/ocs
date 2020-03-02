@@ -10,10 +10,11 @@ class RegisteredAgent:
         Contains data about registered agents.
 
         Attributes:
-            exipred (bool):
+            expired (bool):
                 True if agent has not been updated in Registry.agent_timeout seconds.
-            time_expired (float, optioal):
-                ctime at which the agent expired
+            time_expired (float, optional):
+                ctime at which the agent expired. This will be None if the agent
+                is not expired.
             last_updated (float):
                 ctime at which the agent was last updated
     """
@@ -42,11 +43,11 @@ class RegisteredAgent:
 class Registry:
     """
         The Registry agent is in charge of keeping track of which agents are
-        currently running. It has a single process "run" that loops and keeps track
+        currently running. It has a single process "main" that loops and keeps track
         of when agents expire. This agent subscribes to all heartbeat feeds, 
         so no additional function calls are required to register an agent.
 
-        A list of agent statuses is maintaned in the "run" process's session.data
+        A list of agent statuses is maintained in the "main" process's session.data
         object.
 
         Args: 
@@ -84,11 +85,29 @@ class Registry:
         self.registered_agents[feed['agent_address']].refresh()
 
     @inlineCallbacks
-    def run(self, session: ocs_agent.OpSession, params=None):
+    def main(self, session: ocs_agent.OpSession, params=None):
         """
             Main run process for the Registry agent. This will loop and keep track of
             which agents have expired. It will keep track of current active agents
             in the session.data variable so it can be seen by clients.
+
+            The session.data object for this process will be a dictionary containing
+            the encoded RegisteredAgent object for each agent observed during the
+            lifetime of the registry. For instance, this might look like
+            
+            >>> session.data
+            {'observatory.aggregator': 
+                {'expired': False,
+                 'last_updated': 1583179794.5175,
+                 'time_expired': None},
+             'observatory.faker1': 
+                {'expired': False,
+                 'last_updated': 1583179795.072248,
+                 'time_expired': None},
+             'observatory.faker2': 
+                {'expired': True,
+                 'last_updated': 1583179777.0211036,
+                 'time_expired': 1583179795.3862052}}
         """
 
         session.set_status('starting')
@@ -114,12 +133,12 @@ class Registry:
 
     def _register_agent(self, session, agent_data):
         self.log.warn(
-            "Warning!!! The register_agent task has been depricated. Agent '{}' "
+            "Warning!!! The register_agent task has been deprecated. Agent '{}' "
             "is using an out of date version of ocs or socs!!"
             .format(agent_data['agent_address'])
         )
 
-        return True, "'register_agent' is depricated"
+        return True, "'register_agent' is deprecated"
 
 
 if __name__ == '__main__':
@@ -129,7 +148,7 @@ if __name__ == '__main__':
     agent, runner = ocs_agent.init_site_agent(args)
     registry = Registry(agent)
 
-    agent.register_process('run', registry.run, registry.stop, blocking=False, startup=True)
+    agent.register_process('main', registry.main, registry.stop, blocking=False, startup=True)
     agent.register_task('register_agent', registry._register_agent, blocking=False)
     
     runner.run(agent, auto_reconnect=True)

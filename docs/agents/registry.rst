@@ -10,10 +10,10 @@ It listens to the heartbeat feeds of all agents on the crossbar server,
 and keeps track of the last heartbeat time of each agent and whether 
 or not each agent has agent has "expired" (gone 5 seconds without a heartbeat).
 
-This check happens in the registry's single "run" process. The session.data object
+This check happens in the registry's single "main" process. The session.data object
 of this process is set to a dict of agents on the system, including their last 
 heartbeat time, whether they have expired, and the time at which they expired.
-This data can the be viewed by checking the session variable of the run process.
+This data can the be viewed by checking the session variable of the main process.
 
 For instance, the following code will print agent's that have been on the system
 since the registry started running::
@@ -21,9 +21,25 @@ since the registry started running::
     from ocs.matched_client import MatchedClient
 
     registry_client = MatchedClient('registry')
-    status, msg, session = registry_client.run.status()
+    status, msg, session = registry_client.main.status()
 
     print(session['data'])
+
+which will print a dictionary that might look like::
+
+    {'observatory.aggregator':
+        {'expired': False,
+         'last_updated': 1583179794.5175,
+         'time_expired': None},
+     'observatory.faker1':
+        {'expired': False,
+         'last_updated': 1583179795.072248,
+         'time_expired': None},
+     'observatory.faker2':
+        {'expired': True,
+         'last_updated': 1583179777.0211036,
+         'time_expired': 1583179795.3862052}}
+
 
 
 Configuration

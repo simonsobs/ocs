@@ -3,7 +3,7 @@
 .. _ocs_util:
 
 ==========
-OCS Util
+ocs-util
 ==========
 
 Overview
@@ -57,9 +57,30 @@ local computer, with::
 
 again, replacing ``<port>``, ``<user>``, and ``<host>`` with relevant info.
 
+.. note::
+  
+  You can easily see which port of an existing ocs-util container is open with 
+  the `docker ps` command. When the ocs-util docker is running, the output might 
+  look something like this::
 
-You can execute commands in the ``ocs-util`` docker with the ``docker-exec`` command.
-For instance, once ``so3g-dump`` exists, you can run it on a datafile with::
+    CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                        NAMES
+    c34c91d57f14        ocs-util:latest     "jupyter notebook /d…"   24 minutes ago      Up 24 minutes       0.0.0.0:8880->8880/tcp       ocs-util
 
-    $ docker exec ocs-util so3g-dump /path/to/datafile
+  Under the ``PORTS`` column, the line ``0.0.0.0:8880->8880/tcp`` means that port 
+  8880 has been exposed, and that is how you can reach the jupyter server.
+
+
+One common way of utilizing ``ocs-util`` is by using the ``docker-exec`` command, 
+which will run an executable within the docker-container. For example, to enter
+a bash environment inside ``ocs-util`` you can run::
+
+  $ docker exec -it ocs-util bash
+
+The ``-it`` flag specifies that stdin should remain open, allowing you to interact
+with the bash shell. You can also run other commands, such as ``so3g-dump``
+(as soon as its developed), which will allow you to view so3g files in a human
+readable format::
+
+  $ docker exec ocs-util so3g-dump /data/path/to/file.g3
+
 

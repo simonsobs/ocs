@@ -105,11 +105,21 @@ class Registry:
             session.data = {
                 k: agent.encoded() for k, agent in self.registered_agents.items()
             }
+        return True, "Stopped registry main process"
 
     def stop(self, session, params=None):
         """Stop function for the 'run' process."""
         session.set_status('stopping')
         self._run = False
+
+    def _register_agent(self, session, agent_data):
+        self.log.warn(
+            "Warning!!! The register_agent task has been depricated. Agent '{}' "
+            "is using an out of date version of ocs or socs!!"
+            .format(agent_data['agent_address'])
+        )
+
+        return True, "'register_agent' is depricated"
 
 
 if __name__ == '__main__':
@@ -120,6 +130,7 @@ if __name__ == '__main__':
     registry = Registry(agent)
 
     agent.register_process('run', registry.run, registry.stop, blocking=False, startup=True)
+    agent.register_task('register_agent', registry._register_agent, blocking=False)
     
     runner.run(agent, auto_reconnect=True)
 

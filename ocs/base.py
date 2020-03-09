@@ -9,10 +9,3 @@ RET_VALS = {
 OK = RET_VALS['OK']
 ERROR = RET_VALS['ERROR']
 TIMEOUT = RET_VALS['TIMEOUT']
-
-
-def get_ocs_config():
-    from configparser import ConfigParser
-    config = ConfigParser()
-    config.read('ocs.cfg')
-    return config

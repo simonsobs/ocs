@@ -41,20 +41,12 @@ def init_site_agent(args, address=None):
     return agent, runner
 
 
-def init_ocs_agent(address=None):
-    cfg = ocs.get_ocs_config()
-    server, realm = cfg.get('default', 'wamp_server'), cfg.get('default', 'wamp_realm')
-    #txaio.start_logging(level='debug')
-    agent = OCSAgent(ComponentConfig(realm, {}), address=address)
-    runner = ApplicationRunner(server, realm)
-    return agent, runner
-
-
 def log_formatter(event):
     text = formatEvent(event)
     t = datetime.datetime.utcnow()
     date_str = t.strftime("%Y-%m-%dT%H-%M-%S.%f")
     return '%s %s\n' % (date_str, text)
+
 
 class OCSAgent(ApplicationSession):
     """OCSAgent is used to connect blocking device control code to the

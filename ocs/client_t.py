@@ -10,15 +10,18 @@ from twisted.internet.error import ReactorNotRunning
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from autobahn.twisted.util import sleep as dsleep
+import deprecation
 
-def run_control_script(function, *args, **kwargs):
-    cfg = ocs.get_ocs_config()
-    server, realm = cfg.get('default', 'wamp_server'), cfg.get('default', 'wamp_realm')
-    session = ControlClientSession(ComponentConfig(realm, {}), function, args, kwargs)
-    runner = ApplicationRunner(server, realm)
-    runner.run(session, auto_reconnect=True)
 
-def run_control_script2(function, parser=None, *args, **kwargs):
+@deprecation.deprecated(
+    deprecated_in='v0.6.1',
+    details="Renamed to run_control_script"
+)
+def run_control_script2(*args, **kwargs):
+    run_control_script(*args, **kwargs)
+
+
+def run_control_script(function, parser=None, *args, **kwargs):
     """
     Run a function in a ControlClientSession, within a site_config
     paradigm, assuming that additional configuration will be passed

@@ -1,3 +1,4 @@
+import ocs
 from ocs import site_config
 
 
@@ -20,10 +21,19 @@ def get_op(op_type, name, session, encoded, client):
     class MatchedTask(MatchedOp):
         def abort(self):
             return client.request('abort', name)
+        def __call__(self, **kw):
+            """Runs self.start(**kw) and, if that succeeds, self.wait()."""
+            result = self.start(**kw)
+            if result[0] != ocs.OK:
+                return result
+            return self.wait()
 
     class MatchedProcess(MatchedOp):
         def stop(self):
             return client.request('stop', name)
+        def __call__(self):
+            """Equivalent to self.status()."""
+            return self.status()
 
     MatchedOp.start.__doc__ = encoded['docstring']
 
@@ -87,3 +97,4 @@ class MatchedClient:
         for name, session, encoded in self._client.get_processes():
             setattr(self, opname_to_attr(name),
                     get_op('process', name, session, encoded, self._client))
+

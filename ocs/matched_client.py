@@ -1,5 +1,8 @@
-from ocs import site_config
+import collections
+import time
 
+import ocs
+from ocs import site_config
 
 def get_op(op_type, name, session, encoded, client):
     """
@@ -9,21 +12,21 @@ def get_op(op_type, name, session, encoded, client):
 
     class MatchedOp:
         def start(self, **kwargs):
-            return client.request('start', name, params=kwargs)
+            return OCSReply(*client.request('start', name, params=kwargs))
 
         def wait(self):
-            return client.request('wait', name)
+            return OCSReply(*client.request('wait', name))
 
         def status(self):
-            return client.request('status', name)
+            return OCSReply(*client.request('status', name))
 
     class MatchedTask(MatchedOp):
         def abort(self):
-            return client.request('abort', name)
+            return OCSReply(*client.request('abort', name))
 
     class MatchedProcess(MatchedOp):
         def stop(self):
-            return client.request('stop', name)
+            return OCSReply(*client.request('stop', name))
 
     MatchedOp.start.__doc__ = encoded['docstring']
 
@@ -87,3 +90,63 @@ class MatchedClient:
         for name, session, encoded in self._client.get_processes():
             setattr(self, opname_to_attr(name),
                     get_op('process', name, session, encoded, self._client))
+
+
+def humanized_time(t):
+    if abs(t) < 1.:
+        return '%.6f s' % t
+    if abs(t) < 120:
+        return '%.1f s' % t
+    if abs(t) < 120*60:
+        return '%.1f mins' % (t / 60)
+    if abs(t) < 48*3600:
+        return '%.1f hrs' % (t / 3600)
+    return '%.1f days' % (t / 86400)
+
+
+class OCSReply(collections.namedtuple('_OCSReply',
+                                      ['ok', 'msg', 'status'])):
+    def __repr__(self):
+        ok_str = {ocs.OK: 'OK', ocs.ERROR: 'ERROR',
+                  ocs.TIMEOUT: 'TIMEOUT'}.get(self.ok, '???')
+        text = 'OCSReply: %s : %s\n' % (ok_str, self.msg)
+        if self.status is None or len(self.status.keys()) == 0:
+            return text + '  (no status -- op has never run)'
+
+        # try/fail in here so we can make assumptions about key
+        # presence and bail out to a full dump if anything is weird.
+        try:
+            handled = ['op_name', 'session_id', 'status', 'start_time',
+                       'end_time', 'messages', 'success']
+
+            s = self.status
+            run_str = 'status={status}'.format(**s)
+            if s['status'] in ['starting', 'running']:
+                run_str += ' for %s' % humanized_time(
+                    time.time() - s['start_time'])
+            elif s['status'] == 'done':
+                if s['success']:
+                    run_str += ' without error'
+                else:
+                    run_str += ' with error'
+                run_str += ' %s ago, took %s' % (
+                    humanized_time(time.time() - s['end_time']),
+                    humanized_time(s['end_time'] - s['start_time']))
+            text += ('  {op_name}[session={session_id}]; '
+                     '{run_str}\n'.format(run_str=run_str, **s))
+            messages = s.get('messages', [])
+            if len(messages):
+                to_show = min(5, len(messages))
+                text += ('  messages (%i of %i):\n' % (to_show, len(messages)))
+                for m in messages:
+                    text += '    %.3f %s\n' % (m[0], m[1])
+
+            also = [k for k in s.keys() if k not in handled]
+            if len(also):
+                text += ('  other keys in .status: ' + ', '.join(also))
+
+        except Exception as e:
+            text += ('\n  [status decode failed with exception: %s\n'
+                     '  Here is everything in .status:\n %s\n]') \
+                     % (e.args, self.status)
+        return text

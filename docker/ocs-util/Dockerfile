@@ -5,9 +5,8 @@ RUN pip3 install -r /tmp/requirements.txt
 
 USER ocs:ocs
 
-WORKDIR /home/ocs/.jupyter
 ENV JUPYTER_CONFIG_DIR /home/ocs/.jupyter
-COPY jupyter_config.py /home/ocs/.jupyter
+COPY --chown=ocs:ocs dot_jupyter /home/ocs/.jupyter
 
 ENTRYPOINT ["jupyter", "notebook"]
 CMD ["/data"]

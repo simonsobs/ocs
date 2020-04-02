@@ -105,13 +105,13 @@ def humanized_time(t):
 
 
 class OCSReply(collections.namedtuple('_OCSReply',
-                                      ['ok', 'msg', 'status'])):
+                                      ['status', 'msg', 'session'])):
     def __repr__(self):
         ok_str = {ocs.OK: 'OK', ocs.ERROR: 'ERROR',
                   ocs.TIMEOUT: 'TIMEOUT'}.get(self.ok, '???')
         text = 'OCSReply: %s : %s\n' % (ok_str, self.msg)
-        if self.status is None or len(self.status.keys()) == 0:
-            return text + '  (no status -- op has never run)'
+        if self.session is None or len(self.session.keys()) == 0:
+            return text + '  (no session -- op has never run)'
 
         # try/fail in here so we can make assumptions about key
         # presence and bail out to a full dump if anything is weird.
@@ -119,7 +119,7 @@ class OCSReply(collections.namedtuple('_OCSReply',
             handled = ['op_name', 'session_id', 'status', 'start_time',
                        'end_time', 'messages', 'success']
 
-            s = self.status
+            s = self.session
             run_str = 'status={status}'.format(**s)
             if s['status'] in ['starting', 'running']:
                 run_str += ' for %s' % humanized_time(
@@ -143,10 +143,10 @@ class OCSReply(collections.namedtuple('_OCSReply',
 
             also = [k for k in s.keys() if k not in handled]
             if len(also):
-                text += ('  other keys in .status: ' + ', '.join(also))
+                text += ('  other keys in .session: ' + ', '.join(also))
 
         except Exception as e:
-            text += ('\n  [status decode failed with exception: %s\n'
-                     '  Here is everything in .status:\n %s\n]') \
-                     % (e.args, self.status)
+            text += ('\n  [session decode failed with exception: %s\n'
+                     '  Here is everything in .session:\n %s\n]') \
+                     % (e.args, self.session)
         return text

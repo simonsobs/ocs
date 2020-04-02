@@ -1,4 +1,4 @@
-.. highlight:: rst
+.. highlight:: python
 
 .. _clients:
 
@@ -128,11 +128,14 @@ An example MatchedClient would look like this::
 
     from ocs.matched_client import MatchedClient
     
-    therm_client = MatchedClient('thermo1', args=[])
+    therm_client = MatchedClient('thermo1')
 
-We then have access to any Task and Process defined by the 'thermo1' Agent with
-the syntax "client name"."task/process name"."command". For example, to stop
-data acquisition as started by the above Basic Client::
+The returned object, ``therm_client``, is populated with attributes
+for each Task and Process exposed by the OCS Agent with the specified
+``instance-id`` (in this case ``thermo1``).  We then can call
+different Task and Process methods, using the syntax
+*client-name.op-name.method(kwargs...)*. For example, to stop a data
+acquisition Process called ``acq``::
 
     therm_client.acq.stop()
 
@@ -141,8 +144,34 @@ just three lines::
 
     from ocs.matched_client import MatchedClient
     
-    therm_client = MatchedClient('thermo1', args=[])
+    therm_client = MatchedClient('thermo1')
     therm_client.acq.stop()
+
+Each attribute of therm_client is an instance of either
+``MatchedProcess`` or ``MatchedTask``.  These objects expose the
+methods appropriate for their Operation type; they both support
+``start(**kwargs)`` and ``status()`` but only ``MatchedProcess``
+supports ``stop()`` and only ``MatchedTask`` supports ``abort()``.
+
+The ``MatchedProcess`` and ``MatchedTask`` instances are also,
+themselves, callable.  If a ``MatchedProcess`` is called directly, it
+is equivalent to running the ``.status()`` method::
+
+    # Because ``acq`` is a Process, these two are equivalent:
+    result = therm_client.acq()
+    result = therm_client.acq.status()
+
+If a ``MatchedTask`` is called directly it is equivalent to running
+``.start()`` followed by ``.wait()``::
+
+    # Because ``init`` is a Task, this line:
+    result = therm_client.init(auto_acquire=True)
+
+    # ... is equivalent to these lines:
+    result = therm_client.init.start(auto_acquire=True)
+    if result[0] == ocs.OK:
+        result = therm_client.init.wait()
+
 
 For comparison to the Basic Client, an equivalent Matched Client to the Basic
 Client example would be::
@@ -150,21 +179,10 @@ Client example would be::
     import time
     from ocs.matched_client import MatchedClient
     
-    therm_client = MatchedClient('thermo1', args=[])
-    therm_client.init.start()
-    therm_client.init.wait()
+    therm_client = MatchedClient('thermo1')
+    therm_client.init()
     time.sleep(.05)
 
     therm_client.acq.start()
 
-Parameters can be passed to Task/Process calls using the familiar Python
-parameter expansion syntax::
 
-    import time
-    from ocs.matched_client import MatchedClient
-    
-    therm_client = MatchedClient('thermo1', args=[])
-    params = {'auto_acquire': True}
-    therm_client.init.start(**params)
-    therm_client.init.wait()
-    time.sleep(.05)

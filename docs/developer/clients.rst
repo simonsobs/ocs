@@ -168,3 +168,79 @@ parameter expansion syntax::
     therm_client.init.start(**params)
     therm_client.init.wait()
     time.sleep(.05)
+
+
+
+Replies from Operation methods
+==============================
+
+The responses from Operation methods is a tuple, (success, message,
+session).  The elements of the tuple are:
+
+  ``status``
+    An integer value equal to ocs.OK, ocs.ERROR, or ocs.TIMEOUT.
+    
+  ``message``
+    A string providing a brief description of the result (this is
+    normally pretty boring for successful calls, but might contain a
+    helpful tip in the case of errors).
+
+  ``session``
+    The session information... see below.
+
+Responses obtained from MatchedClient calls are lightly wrapped by
+class ``OCSReply`` so that ``__repr__`` produces a nicely formatted
+description of the result.  For example::
+
+  >>> c.set_autoscan.wait()
+  OCSReply: OK : Operation "set_autoscan" just exited.
+    set_autoscan[session=7]; status=done without error 30.6 s ago, took 0.113400 s
+    messages (4 of 4):
+      1585667844.423 Status is now "starting".
+      1585667844.424 Status is now "running".
+      1585667844.535 Set autoscan to True
+      1585667844.536 Status is now "done".
+    other keys in .status: data
+
+
+The ``session`` portion of the reply is dictionary containing a bunch
+of potentially useful information.  This information corresponds to
+the OpSession maintained by the OCSAgent class for each run of an
+Agent's Operation (see OpSession in ocs/ocs_agent.py):
+
+  ``'session_id'``
+    An integer identifying this run of the Operation.  If an Op ends
+    and is started again, ``session_id`` will be different.
+
+  ``'op_name'``
+    The operation name.  You probably already know this.
+  
+  ``'status'``
+    A string representing the state of the operation.  The possible
+    values are 'starting', 'running', 'done'.
+  
+  ``'start_time'``
+    The timestamp corresponding to when this run was started.
+
+  ``'end_time'``
+    If ``status`` == ``'done'``, then this is the timestamp at which
+    the run completed.  Otherwise it will be None.
+  
+  ``'success'``
+    If ``status`` == ``'done'``, then this is a boolean indicating
+    whether the operation reported that it completed successfully
+    (rather than with an error).
+  
+  ``'data'``
+    Agent-specific data that might of interest to a user.  This may be
+    updated while an Operation is running, but once ``status`` becomes
+    ``'done'`` then ``data`` should not change any more.  A typical
+    use case here would be for a Process that is monitoring some
+    system to report the current values of key parametrs.  This should
+    not be used as an alternative to providing a data feed... rather
+    it should provide current values to answer immediate questions.
+  
+  ``'messages'``
+    A list of Operation log messages.  Each entry in the list is a
+    tuple, (timestamp, text).
+

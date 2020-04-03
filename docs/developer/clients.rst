@@ -174,7 +174,7 @@ parameter expansion syntax::
 Replies from Operation methods
 ==============================
 
-The responses from Operation methods is a tuple, (success, message,
+The responses from Operation methods is a tuple, (status, message,
 session).  The elements of the tuple are:
 
   ``status``

@@ -4,6 +4,7 @@ import time
 import ocs
 from ocs import site_config
 
+
 def get_op(op_type, name, session, encoded, client):
     """
     Factory for generating matched operations.
@@ -24,9 +25,20 @@ def get_op(op_type, name, session, encoded, client):
         def abort(self):
             return OCSReply(*client.request('abort', name))
 
+        def __call__(self, **kw):
+            """Runs self.start(**kw) and, if that succeeds, self.wait()."""
+            result = self.start(**kw)
+            if result[0] != ocs.OK:
+                return result
+            return self.wait()
+
     class MatchedProcess(MatchedOp):
         def stop(self):
             return OCSReply(*client.request('stop', name))
+
+        def __call__(self):
+            """Equivalent to self.status()."""
+            return self.status()
 
     MatchedOp.start.__doc__ = encoded['docstring']
 

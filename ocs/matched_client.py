@@ -120,7 +120,7 @@ class OCSReply(collections.namedtuple('_OCSReply',
                                       ['status', 'msg', 'session'])):
     def __repr__(self):
         ok_str = {ocs.OK: 'OK', ocs.ERROR: 'ERROR',
-                  ocs.TIMEOUT: 'TIMEOUT'}.get(self.ok, '???')
+                  ocs.TIMEOUT: 'TIMEOUT'}.get(self.status, '???')
         text = 'OCSReply: %s : %s\n' % (ok_str, self.msg)
         if self.session is None or len(self.session.keys()) == 0:
             return text + '  (no session -- op has never run)'

@@ -28,8 +28,9 @@ class TimeoutLock:
                 If set to 0 the acquire calls will be non-blocking and will
                 immediately return the result.
 
-                If set to any value greater than 0, this will block for that
-                many seconds before returning the result.
+                If set to any value greater than 0, this will block until
+                the lock is acquired or the timeout (in seconds) has been
+                reached.
 
                 If set to -1 this call will block indefinitely until the lock
                 has been acquired.
@@ -39,6 +40,8 @@ class TimeoutLock:
 
             job (string, optional):
                 Job name to be associated with current lock acquisition.
+                The current job is stored in self.job so that it can be
+                inspected by other threads.
 
         Returns:
             result (bool): Whether or not lock acquisition was successful.
@@ -82,25 +85,26 @@ class TimeoutLock:
 
         Args:
             timeout (float, optional):
-                Sets the timeout for lock acquisition.
-
-                If set to 0 the acquire calls will be non-blocking and will
-                immediately return the result.
-
-                If set to any value greater than 0, this will block for that
-                many seconds before returning the result.
-
-                If set to -1 this call will block indefinitely until the lock
-                has been acquired.
-
-                If not set (default), it will use the TimeoutLock's
-                default_value (which itself defaults to 0).
+                Sets the timeout for lock acquisition. See the ``acquire``
+                method documentation for details.
 
             job (string, optional):
                 Job name to be associated with current lock acquisition.
 
         Returns:
             result (bool): Whether or not lock acquisition was successful.
+
+        The following example will attempt to acquire the lock with a timeout
+        of three seconds::
+
+            lock = TimeoutLock()
+
+            with lock.acquire_timeout(timeout=3.0, job='acq') as acquired:
+                if not acquired:
+                    print(f"Lock could not be acquired because it is held by {lock.job}")
+                    return False
+
+                print("Lock acquired!")
         """
         result = self.acquire(timeout=timeout, job=job)
         if result:

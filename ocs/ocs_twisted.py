@@ -1,29 +1,113 @@
 import threading
 from contextlib import contextmanager
 
-class TimeoutLock:
-    def __init__(self):
-        self.job = None
-        self._lock = threading.Lock()
 
-    def acquire(self, blocking=True, timeout=-1):
-        return self._lock.acquire(blocking, timeout)
+class TimeoutLock:
+    def __init__(self, default_timeout=0):
+        """
+        Locking mechanism to be used by OCS Agents.
+
+        Args:
+            default_timeout (float, optional):
+                Sets the default timeout value for acquire calls.
+                Defaults to 0.
+        """
+        self.job = None
+        self._active = threading.Lock()
+        self._next = threading.Lock()
+        self._default_timeout = default_timeout
+
+    def acquire(self, timeout=None, job=None):
+        """
+        Acquires main lock.
+
+        Args:
+            timeout (float, optional):
+                Sets the timeout for lock acquisition.
+
+                If set to 0 the acquire calls will be non-blocking and will
+                immediately return the result.
+
+                If set to any value greater than 0, this will block for that
+                many seconds before returning the result.
+
+                If set to -1 this call will block indefinitely until the lock
+                has been acquired.
+
+                If not set (default), it will use the TimeoutLock's
+                default_value (which itself defaults to 0).
+
+            job (string, optional):
+                Job name to be associated with current lock acquisition.
+
+        Returns:
+            result (bool): Whether or not lock acquisition was successful.
+        """
+        if timeout is None:
+            timeout = self._default_timeout
+        if timeout is None or timeout == 0.:
+            kw = {'blocking': False}
+        else:
+            kw = {'blocking': True, 'timeout': timeout}
+        result = False
+        if self._next.acquire(**kw):
+            if self._active.acquire(**kw):
+                self.job = job
+                result = True
+            self._next.release()
+        return result
 
     def release(self):
-        self._lock.release()
+        """
+        Releases an acquired lock.
+        """
+        self.job = None
+        self._active.release()
+
+    def release_and_acquire(self, timeout=None):
+        """
+        Releases and immediately reacquires a lock. Because this uses a two-lock
+        system, it is guaranteed that at least one  blocking acquire call will
+        be able to take the active lock before this function is able to
+        re-acquire it. However no other ordering is guaranteed.
+        """
+        job = self.job
+        self.release()
+        return self.acquire(timeout=timeout, job=job)
 
     @contextmanager
-    def acquire_timeout(self, timeout, job='unnamed'):
-        result = self._lock.acquire(timeout=timeout)
+    def acquire_timeout(self, timeout=None, job='unnamed'):
+        """
+        Context manager to acquire and hold a lock.
 
+        Args:
+            timeout (float, optional):
+                Sets the timeout for lock acquisition.
+
+                If set to 0 the acquire calls will be non-blocking and will
+                immediately return the result.
+
+                If set to any value greater than 0, this will block for that
+                many seconds before returning the result.
+
+                If set to -1 this call will block indefinitely until the lock
+                has been acquired.
+
+                If not set (default), it will use the TimeoutLock's
+                default_value (which itself defaults to 0).
+
+            job (string, optional):
+                Job name to be associated with current lock acquisition.
+
+        Returns:
+            result (bool): Whether or not lock acquisition was successful.
+        """
+        result = self.acquire(timeout=timeout, job=job)
         if result:
-            self.job = job
             try:
                 yield result
             finally:
-                self.job = None
-                self._lock.release()
-
+                self.release()
         else:
             yield result
 

@@ -93,6 +93,9 @@ class Provider:
         last_refresh (time):
             Time when the provider was last refreshed (either through data or
             agent heartbeat).
+        last_block_received (str):
+            String of the last block_name received.
+
         log (txaio.Logger):
             txaio logger
 
@@ -109,11 +112,19 @@ class Provider:
         # When set to True, provider will be written and removed next agg cycle
         self.frame_start_time = None
 
-        # 1 min without refresh (data) will mark the provider
+        # 3 min without refresh (data) will mark the provider
         # as stale, and it'll be flushed and removed next cycle.
         self.fresh_time = 3*60
         self.last_refresh = time.time() # Determines if
+        self.last_block_received = None
 
+    def encoded(self):
+        return {
+            'last_refresh': self.last_refresh,
+            'sessid': self.sessid,
+            'stale': self.stale(),
+            'last_block_received': self.last_block_received
+        }
 
     def refresh(self):
         """Refresh provider"""
@@ -163,6 +174,7 @@ class Provider:
                 b = self.blocks[key]
 
             b.extend(block)
+            self.last_block_received = key
 
     def clear(self):
         """Clears all blocks and resets the frame_start_time"""
@@ -244,6 +256,7 @@ class G3FileRotator(G3Module):
         self.writer = None
         self.last_session = None
         self.last_status = None
+        self.current_file = None
 
     def close_file(self):
         if self.writer is not None:
@@ -271,9 +284,9 @@ class G3FileRotator(G3Module):
                 self.last_status = frame
 
             if self.writer is None:
-                filename = self.filename()
-                self.log.info("Creating file: {}".format(filename))
-                self.writer = core.G3Writer(filename)
+                self.current_file = self.filename()
+                self.log.info("Creating file: {}".format(self.current_file))
+                self.writer = core.G3Writer(self.current_file)
                 self.file_start_time = time.time()
 
                 if ftype in [so3g.HKFrameType.data, so3g.HKFrameType.status]:
@@ -327,7 +340,7 @@ class Aggregator:
             written to disk. This is set to True whenever a provider is added
             or removed.
     """
-    def __init__(self, incoming_data, time_per_file, data_dir):
+    def __init__(self, incoming_data, time_per_file, data_dir, session=None):
         self.log = txaio.make_logger()
 
         self.hksess = so3g.hk.HKSessionHelper(description="HK data")
@@ -344,8 +357,10 @@ class Aggregator:
 
         self.providers: Dict[Provider] = {} # by prov_id
         self.pids = {}  # By (address, sessid)
+        self.provider_archive: Dict[Provider] = {}
 
         self.write_status = False
+        self.session = session
 
     def process_incoming_data(self):
         """
@@ -384,6 +399,8 @@ class Aggregator:
         self.providers[pid] = Provider(
             prov_address, prov_sessid, frame_length, pid
         )
+        self.provider_archive[prov_address] = self.providers[pid]
+
         self.log.info("Adding provider {}".format(prov_address))
 
         self.pids[(prov_address, prov_sessid)] = pid
@@ -462,6 +479,14 @@ class Aggregator:
         self.remove_stale_providers()
         self.write_to_disk()
         self.writer.flush()
+
+        self.session.data = {
+            'current_file': self.writer.current_file,
+            'providers': {}
+        }
+        for addr, prov in self.provider_archive.items():
+            self.session.data['providers'][addr] = prov.encoded()
+
 
     def close(self):
         """Flushes all remaining providers and closes file."""

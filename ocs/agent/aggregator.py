@@ -76,10 +76,12 @@ class Provider:
             Full address of the provider
         sessid (string):
             session_id of the provider
-        frame_length (float):
-            Time before data should be written into a frame
         prov_id (bool):
             id assigned to the provider by the HKSessionHelper
+        frame_length (float, optional):
+            Time before data should be written into a frame. Defaults to 5 min.
+        fresh_time (float, optional):
+            Time before provider should be considered stale. Defaults to 3 min.
 
     Attributes:
 
@@ -100,7 +102,7 @@ class Provider:
             txaio logger
 
     """
-    def __init__(self, address, sessid, frame_length, prov_id):
+    def __init__(self, address, sessid, prov_id, frame_length=5*60, fresh_time=3*60):
         self.address = address
         self.sessid = sessid
         self.frame_length = frame_length
@@ -112,9 +114,7 @@ class Provider:
         # When set to True, provider will be written and removed next agg cycle
         self.frame_start_time = None
 
-        # 3 min without refresh (data) will mark the provider
-        # as stale, and it'll be flushed and removed next cycle.
-        self.fresh_time = 3*60
+        self.fresh_time = fresh_time
         self.last_refresh = time.time() # Determines if
         self.last_block_received = None
 
@@ -373,16 +373,15 @@ class Aggregator:
 
             address = feed['address']
             sessid = feed['session_id']
-            frame_length = feed['agg_params']['frame_length']
 
             pid = self.pids.get((address, sessid))
             if pid is None:
-                pid = self.add_provider(address, sessid, frame_length)
+                pid = self.add_provider(address, sessid, **feed['agg_params'])
 
             prov = self.providers[pid]
             prov.write(data)
 
-    def add_provider(self, prov_address, prov_sessid, frame_length):
+    def add_provider(self, prov_address, prov_sessid, **prov_kwargs):
         """
         Registers a new provider and writes a status frame.
 
@@ -391,13 +390,15 @@ class Aggregator:
                 full address of provider
             prov_sessid (str):
                 session id of provider
-            frame_length (float):
-                time (sec) per data frame.
+
+        Optional Arguments:
+            Additional kwargs are passed directly to the Provider constructor,
+            so defaults are set there.
         """
         pid = self.hksess.add_provider(description=prov_address)
 
         self.providers[pid] = Provider(
-            prov_address, prov_sessid, frame_length, pid
+            prov_address, prov_sessid, pid, **prov_kwargs
         )
         self.provider_archive[prov_address] = self.providers[pid]
 

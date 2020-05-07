@@ -79,9 +79,9 @@ class Provider:
         prov_id (bool):
             id assigned to the provider by the HKSessionHelper
         frame_length (float, optional):
-            Time before data should be written into a frame. Defaults to 5 min.
+            Time (in seconds) before data should be written into a frame. Defaults to 5 min.
         fresh_time (float, optional):
-            Time before provider should be considered stale. Defaults to 3 min.
+            Time (in seconds) before provider should be considered stale. Defaults to 3 min.
 
     Attributes:
 
@@ -246,6 +246,22 @@ class G3FileRotator(G3Module):
             time (seconds) before a new file should be written
         filename (callable):
             function that generates new filenames.
+
+    Attributes:
+        filename (function):
+            Function to call to create new filename on rotation
+        file_start_time (int):
+            Start time for current file
+        writer (core.G3Writer):
+            G3Writer object for current file. None if no file is open.
+        last_session (core.G3Frame):
+            Last session frame written to disk. This is stored and written as
+            the first frame on file rotation.
+        last_status (core.G3Frame):
+            Last status frame written to disk. Stored and written as the second
+            frame on file rotation.
+        current_file (str, optional):
+            Path to the current file being written.
     """
     def __init__(self, time_per_file, filename):
         self.time_per_file = time_per_file
@@ -320,6 +336,9 @@ class Aggregator:
             Time (sec) before a new file should be written to disk.
         data_dir (path):
             Base directory for new files to be written.
+        session (OpSession, optional):
+            Session object of current agent process. If not specified, session
+            data will not be written.
 
     Attributes:
         log (txaio.Logger):
@@ -480,13 +499,13 @@ class Aggregator:
         self.remove_stale_providers()
         self.write_to_disk()
         self.writer.flush()
-
-        self.session.data = {
-            'current_file': self.writer.current_file,
-            'providers': {}
-        }
-        for addr, prov in self.provider_archive.items():
-            self.session.data['providers'][addr] = prov.encoded()
+        if self.session is not None:
+            self.session.data = {
+                'current_file': self.writer.current_file,
+                'providers': {}
+            }
+            for addr, prov in self.provider_archive.items():
+                self.session.data['providers'][addr] = prov.encoded()
 
 
     def close(self):

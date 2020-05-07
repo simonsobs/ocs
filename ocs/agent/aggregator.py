@@ -18,6 +18,56 @@ else:
     G3Module = object
 
 
+_g3_casts = {
+    str: core.G3String, int: core.G3Int, float: core.G3Double,
+}
+_g3_list_casts = {
+    str: core.G3VectorString, int: core.G3VectorInt, float: core.G3VectorDouble,
+}
+
+
+def g3_cast(data, time=False):
+    """
+    Casts a generic datatype into a corresponding G3 type. With:
+        int   -> G3Int
+        str   -> G3String
+        float -> G3Double
+    and lists of type X will go to G3VectorX. If ``time`` is set to True, will
+    convert to G3Time or G3VectorTime.
+
+    Args:
+        data (int, str, float, or list):
+            Generic data to be converted to a corresponding G3Type.
+        time (bool, optional):
+            If True, will try to cast to G3Time or G3VectorTime.
+
+    Returns:
+        g3_data:
+            Corresponding G3 datatype.
+    """
+    is_list = isinstance(data, list)
+    if is_list:
+        dtype = type(data[0])
+        if not all(isinstance(d, dtype) for d in data):
+            raise TypeError("Data list contains varying types!")
+    else:
+        dtype = type(data)
+    if dtype not in _g3_casts.keys():
+        raise TypeError("g3_cast does not support type {}. Type must"
+                        "be one of {}".format(dtype, _g3_casts.keys()))
+    if is_list:
+        if time:
+            return core.G3VectorTime(list(map(core.G3Time, data)))
+        else:
+            cast = _g3_list_casts[type(data[0])]
+            return cast(data)
+    else:
+        if time:
+            return core.G3Time(data)
+        else:
+            cast = _g3_casts[type(data)]
+            return cast(data)
+
 def generate_id(hksess):
     """
     Generates a unique session id based on the start_time, process_id,
@@ -194,28 +244,18 @@ class Provider:
         for block_name, block in self.blocks.items():
             if not block.timestamps:
                 continue
-
-            hk = so3g.IrregBlockDouble()
-            hk.prefix = block.prefix
-            hk.t = block.timestamps
-            for key, ts in block.data.items():
-                try:
-                    hk.data[key] = ts
-                except TypeError:
-                    all_types = set([type(x) for x in ts])
-                    self.log.error("datapoint passed from address " +
-                                   "{a} to the Provider feed is of " +
-                                   "invalid type. Types contained " +
-                                   "in the passed list are {t}",
-                                   a=self.address, t=all_types)
-                    self.log.error("full data list for {k}: {d}",
-                                   k=key, d=ts)
-
-            frame['blocks'].append(hk)
-
+            try:
+                m = core.G3TimesampleMap()
+                m.times = g3_cast(block.timestamps, time=True)
+                for key, ts in block.data.items():
+                    m[key] = g3_cast(ts)
+            except Exception as e:
+                self.log.warn("Error received when casting timestream! {e}",
+                              e=e)
+                continue
+            frame['blocks'].append(m)
         if clear:
             self.clear()
-
         return frame
 
 

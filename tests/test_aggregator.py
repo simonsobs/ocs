@@ -2,8 +2,9 @@ import time
 import pytest
 
 import so3g
+from spt3g import core
 
-from ocs.agent.aggregator import Provider
+from ocs.agent.aggregator import Provider, g3_cast
 
 def test_passing_float_in_provider_to_frame():
     """Float is the expected type we should be passing.
@@ -88,3 +89,25 @@ def test_data_type_in_provider_write():
                      'prefix': ''}
            }
     provider.write(data)
+
+
+def test_g3_cast():
+    correct_tests = [
+        ([1, 2, 3, 4], core.G3VectorInt),
+        ([1., 2., 3.], core.G3VectorDouble),
+        (["a", "b", "c"], core.G3VectorString),
+        (3, core.G3Int),
+        ("test", core.G3String)
+    ]
+    for x, t in correct_tests:
+        assert isinstance(g3_cast(x), t)
+
+    assert isinstance(g3_cast(3, time=True), core.G3Time)
+    assert isinstance(g3_cast([1, 2, 3], time=True), core.G3VectorTime)
+
+    incorrect_tests = [
+        ['a', 'b', 1, 2], True, [1, 1.0, 2]
+    ]
+    with pytest.raises(TypeError) as e_info:
+        for x in incorrect_tests:
+            g3_cast(x)

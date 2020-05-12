@@ -1,11 +1,8 @@
 import os
-import datetime
 import binascii
 import time
-
-from typing import Dict
-
 import txaio
+from typing import Dict
 
 from ocs import ocs_feed
 
@@ -18,6 +15,7 @@ else:
     G3Module = object
 
 
+HKAGG_VERSION = 1
 _g3_casts = {
     str: core.G3String, int: core.G3Int, float: core.G3Double,
 }
@@ -305,7 +303,7 @@ class G3FileRotator(G3Module):
         by `filename` function passed to constructor
         """
         for frame in frames:
-
+            frame['hkagg_version'] = HKAGG_VERSION
             ftype = frame['hkagg_type']
 
             if ftype == so3g.HKFrameType.session:

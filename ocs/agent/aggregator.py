@@ -33,13 +33,15 @@ def g3_cast(data, time=False):
         str   -> G3String
         float -> G3Double
     and lists of type X will go to G3VectorX. If ``time`` is set to True, will
-    convert to G3Time or G3VectorTime.
+    convert to G3Time or G3VectorTime with the assumption that ``data`` consists
+    of unix timestamps.
 
     Args:
         data (int, str, float, or list):
             Generic data to be converted to a corresponding G3Type.
         time (bool, optional):
-            If True, will try to cast to G3Time or G3VectorTime.
+            If True, will assume data contains unix timestamps and try to cast
+            to G3Time or G3VectorTime.
 
     Returns:
         g3_data:
@@ -57,13 +59,14 @@ def g3_cast(data, time=False):
                         "be one of {}".format(dtype, _g3_casts.keys()))
     if is_list:
         if time:
-            return core.G3VectorTime(list(map(core.G3Time, data)))
+            return core.G3VectorTime(list(map(
+                lambda t: core.G3Time(t * core.G3Units.s), data)))
         else:
             cast = _g3_list_casts[type(data[0])]
             return cast(data)
     else:
         if time:
-            return core.G3Time(data)
+            return core.G3Time(data * core.G3Units.s)
         else:
             cast = _g3_casts[type(data)]
             return cast(data)

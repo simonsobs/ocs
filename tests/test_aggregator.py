@@ -108,6 +108,6 @@ def test_g3_cast():
     incorrect_tests = [
         ['a', 'b', 1, 2], True, [1, 1.0, 2]
     ]
-    with pytest.raises(TypeError) as e_info:
-        for x in incorrect_tests:
+    for x in incorrect_tests:
+        with pytest.raises(TypeError) as e_info:
             g3_cast(x)

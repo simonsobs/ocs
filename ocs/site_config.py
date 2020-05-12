@@ -437,27 +437,29 @@ def get_config(args, agent_class=None):
     no_dev_match = no_host_match or (agent_class == '*host*')
 
     # Identify our host.
-    host = args.site_host
-    if host is None:
-        host = socket.gethostname()
-
-    if no_host_match:
-        host_config = None
+    if args.site_host is not None:
+        host_attempts = [args.site_host, 'localhost']
     else:
-        for host_try in [host, 'localhost']:
-            try:
-                host_config = site_config.hosts[host_try]
-                break
-            except KeyError:
-                pass
-        else: # No matches.
-            raise KeyError('Site config has no entry in "hosts" for "%s"'
-                           ' (nor for "localhost")' % host)
+        host_attempts = [socket.gethostname(), 'localhost']
+    host_config = None
+    for host_try in host_attempts:
+        if host_try in site_config.hosts:
+            host_config = site_config.hosts[host_try]
+            break
+    if host_config is None and (not no_host_match):
+        raise KeyError('Site config has no entry in "hosts" for {}'
+                       .format(host_attempts))
 
-        if args.working_dir is not None:
-            host_config.working_dir = args.working_dir
-        if args.log_dir is not None:
-            host_config.log_dir = args.log_dir
+    if args.working_dir is not None:
+        host_config.working_dir = args.working_dir
+    if args.log_dir is not None:
+        host_config.log_dir = args.log_dir
+    # Overrides wamp_server and wamp_http if specified in host config,
+    # and if command line args are not set
+    if 'wamp_server' in host_config.data and args.site_hub is None:
+        site_config.hub.data['wamp_server'] = host_config.data['wamp_server']
+    if 'wamp_http' in host_config.data and args.site_http is None:
+        site_config.hub.data['wamp_http'] = host_config.data['wamp_http']
 
     # Identify our agent-instance.
     instance_config = None

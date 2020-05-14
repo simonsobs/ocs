@@ -1,6 +1,7 @@
 from ocs.ocs_agent import in_reactor_context
 from twisted.internet import reactor
 import time
+import re
 
 class Block:
     def __init__(self, name, keys, prefix=''):
@@ -197,6 +198,7 @@ class Feed:
         if self.record:
             # check message contents
             Feed.verify_message_data_type(message)
+            Feed.verify_data_field_names(message)
 
             # Data is stored in Block objects
             block_name = message['block_name']
@@ -253,3 +255,48 @@ class Feed:
                     invalid_type = type(v)
                     raise TypeError("message 'data' block contains invalid " +
                                     f"data type: {invalid_type}")
+
+    @staticmethod
+    def verify_data_field_names(message):
+        """There are strict rules for the characters allowed in field names.
+        This function verifies the names in a message are valid.
+
+        A valid name:
+
+        – contains only letters (a-z, A-Z; case sensitive), decimal digits (0-9), and the
+        underscore (_).
+        – begins with a letter, or with any number of underscores followed by a letter.
+        – is no more than 255 characters long.
+
+        Args:
+            message (dict):
+                Data to be published (see Feed.publish_message for details).
+
+        """
+        # Complement (^) the set, matching any unlisted characters
+        check_invalid = re.compile('[^a-zA-Z0-9_]')
+
+        # Similar to check_invalid, search for non letter characters
+        # Leading ^ matches the start of string, so following numbers are valid
+        check_start = re.compile('^[^a-zA-Z]')
+
+        for k, v in message['data'].items():
+            # check for invalid characters
+            result = check_invalid.search(k)
+            if result:
+                raise ValueError("message 'data' block contains a key with the " +
+                                 f"invalid charcter '{result.group(0)}'. "
+                                 "Valid characters are a-z, A-Z, 0-9, and underscore.")
+
+            # check for non-letter after underscores
+            if k[0] == "_":
+                stripped_key = k.strip("_")
+                if check_start.search(stripped_key):
+                    raise ValueError(f"message 'data' block contains the key {k}, which " +
+                                     "does not start with a letter (after any number of " +
+                                     "leading underscores.)")
+
+            # check key length
+            if len(k) > 255:
+                raise ValueError(f"message 'data' block contains key {k} which " +
+                                 "exceeds the valid length of 255 characters.")

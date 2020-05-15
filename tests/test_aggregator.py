@@ -111,3 +111,26 @@ def test_passing_invalid_data_field_name():
 
     assert 'invalidkey' in provider.blocks['test'].data.keys()
     assert 'invalid.key' not in provider.blocks['test'].data.keys()
+
+def test_passing_too_long_data_field_name():
+    """Invalid data field names should get caught by the Feed, however, we
+    check for them in the Aggregator as well.
+
+    The aggregator will catch the error, but remove invalid characters from the
+    string.
+
+    This tests passing too long of a field name, which should get truncated.
+
+    """
+    # Dummy Provider for testing
+    provider = Provider('test_provider', 'test_sessid', 3, 1)
+    provider.frame_start_time = time.time()
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [time.time()],
+                     'data': {'a'*1000: [1],
+                              'key2': ['a']},
+                     'prefix': ''}
+           }
+    provider.save_to_block(data)
+
+    assert 'a'*255 in provider.blocks['test'].data.keys()

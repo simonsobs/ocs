@@ -109,9 +109,5 @@ def test_passing_invalid_data_field_name():
            }
     provider.save_to_block(data)
 
-    # Dummy HKSessionHelper
-    sess = so3g.hk.HKSessionHelper(description="testing")
-    sess.start_time = time.time()
-    sess.session_id = 'test_sessid'
-
-    provider.to_frame(hksess=sess)
+    assert 'invalidkey' in provider.blocks['test'].data.keys()
+    assert 'invalid.key' not in provider.blocks['test'].data.keys()

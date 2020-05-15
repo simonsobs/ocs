@@ -150,6 +150,57 @@ class Provider:
 
         return True
 
+    def _verify_provider_data(self, data):
+        """Check the provider data for invalid field names. Meant to be used in
+        combination with Provider._rebuild_invalid_data().
+
+        Args:
+            data (dict): data dictionary passed to Provider.save_to_block()
+
+        Returns:
+            bool: True if all field names valid. False if any invalid names found
+
+        """
+        verified = True
+        for block_name, block_dict in data.items():
+            for field_name, field_values in block_dict['data'].items():
+                try:
+                    ocs_feed.Feed.verify_data_field_string(field_name)
+                except ValueError:
+                    self.log.error("data field name {field} is " +
+                                   "invalid, removing invalid characters.",
+                                   field=field_name)
+                    verified = False
+
+        return verified
+
+    def _rebuild_invalid_data(self, data):
+        """Rebuild an invalid data dictionary.
+
+        Args:
+            data (dict): data dictionary passed to Provider.save_to_block().
+
+        Returns:
+            dict: A rebuilt data dictionary with invalid characters stripped
+                  from the field names, limited to 255 characters in length.
+
+        """
+        new_data = {}
+        for block_name, block_dict in data.items():
+            new_data[block_name] = {}
+            # rebuild block_dict
+            for k, v in block_dict.items():
+                if k == 'data':
+                    new_data[block_name]['data'] = {}
+                    for field_name, field_values in block_dict['data'].items():
+                        # replace invalid characters, and limit to 255 characters
+                        new_field_name = re.sub('[^a-zA-Z0-9_]', '', field_name)[:255]
+                        new_data[block_name]['data'][new_field_name] = field_values
+                else:
+                    new_data[block_name][k] = v
+
+        return new_data
+
     def save_to_block(self, data):
         """Saves a list of data points into blocks. A block will be created
         for any new block_name.
@@ -182,40 +233,13 @@ class Provider:
                 if b['timestamps']:
                     self.frame_start_time = min(self.frame_start_time, b['timestamps'][0])
 
+        self.log.debug('data passed to block: {d}', d=data)
+        verified = self._verify_provider_data(data)
 
-        # We don't want to do this in the original data.items() loop below, but
-        # loop through and see if we need to rebuild the dict, and if we
-        # do,then do it
-        print('before:', data)
-        # fix invalid names...
-        rebuild_data = False
-        for block_name, block_dict in data.items():
-            for field_name, field_values in block_dict['data'].items():
-                try:
-                    ocs_feed.Feed.verify_data_field_string(field_name)
-                except ValueError:
-                    self.log.error("data field name {field} is " +
-                                   "invalid, removing invalid characters.",
-                                   field=field_name)
-                    rebuild_data = True
-
-        new_data = {}
-        if rebuild_data:
-            for block_name, block_dict in data.items():
-                new_data[block_name] = {}
-                # rebuild block_dict
-                for k, v in block_dict.items():
-                    if k == 'data':
-                        new_data[block_name]['data'] = {}
-                        for field_name, field_values in block_dict['data'].items():
-                            new_field_name = re.sub('[^a-zA-Z0-9_]', '', field_name)
-                            new_data[block_name]['data'][new_field_name] = field_values
-                    if k != 'data':
-                        new_data[block_name][k] = v
-
-        print('after:', new_data)
-
-        data = new_data
+        if not verified:
+            self.log.info('rebuilding data containing invalid field name')
+            data = self._rebuild_invalid_data(data)
+            self.log.debug('data after rebuild: {d}', d=data)
 
         for key, block in data.items():
             try:

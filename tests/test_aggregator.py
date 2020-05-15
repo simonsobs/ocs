@@ -88,3 +88,30 @@ def test_data_type_in_provider_write():
                      'prefix': ''}
            }
     provider.write(data)
+
+# 'data' field names
+def test_passing_invalid_data_field_name():
+    """Invalid data field names should get caught by the Feed, however, we
+    check for them in the Aggregator as well.
+
+    The aggregator will catch the error, but remove invalid characters from the
+    string.
+
+    """
+    # Dummy Provider for testing
+    provider = Provider('test_provider', 'test_sessid', 3, 1)
+    provider.frame_start_time = time.time()
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [time.time()],
+                     'data': {'invalid.key': [1],
+                              'key2': ['a']},
+                     'prefix': ''}
+           }
+    provider.write(data)
+
+    # Dummy HKSessionHelper
+    sess = so3g.hk.HKSessionHelper(description="testing")
+    sess.start_time = time.time()
+    sess.session_id = 'test_sessid'
+
+    provider.to_frame(hksess=sess)

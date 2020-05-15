@@ -2,6 +2,7 @@ import os
 import datetime
 import binascii
 import time
+import re
 
 from typing import Dict
 
@@ -211,6 +212,14 @@ class Provider:
             hk.prefix = block.prefix
             hk.t = block.timestamps
             for key, ts in block.data.items():
+                try:
+                    ocs_feed.Feed.verify_data_field_string(key)
+                except ValueError:
+                    self.log.error("data field name {field} is " +
+                                   "invalid, removing invalid characters.",
+                                   field=key)
+                    key = re.sub('[^a-zA-Z0-9_]', '', key)
+
                 try:
                     hk.data[key] = ts
                 except TypeError:

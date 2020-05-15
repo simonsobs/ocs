@@ -193,8 +193,25 @@ class Provider:
                 if k == 'data':
                     new_data[block_name]['data'] = {}
                     for field_name, field_values in block_dict['data'].items():
-                        # replace invalid characters, and limit to 255 characters
-                        new_field_name = re.sub('[^a-zA-Z0-9_]', '', field_name)[:255]
+                        # replace invalid characters
+                        new_field_name = re.sub('[^a-zA-Z0-9_]', '', field_name)
+                        
+                        # grab leading underscores
+                        underscore_search = re.compile('^_*')
+                        underscores = underscore_search.search(new_field_name).group()
+
+                        # remove leading underscores
+                        new_field_name = re.sub('^_*', '', new_field_name)
+
+                        # remove leading non-letters
+                        new_field_name = re.sub('^[^a-zA-Z]*', '', new_field_name)
+
+                        # add underscores back 
+                        new_field_name = underscores + new_field_name
+
+                        # limit to 255 characters
+                        new_field_name = new_field_name[:255]
+
                         new_data[block_name]['data'][new_field_name] = field_values
                 else:
                     new_data[block_name][k] = v

@@ -633,7 +633,7 @@ def register_agent_class(class_name, filename):
 def scan_for_agents(do_registration=True):
     """Identify and import ocs Agent plugin scripts.  This will find all
     modules in the current module search path (sys.path) that begin
-    with the name 'ocs_plugin_'.
+    with the name 'ocs_plugin\_'.
 
     Args:
         do_registration (bool): If True, the modules are imported,

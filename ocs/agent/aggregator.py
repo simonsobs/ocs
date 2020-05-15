@@ -458,7 +458,7 @@ class Aggregator:
     def remove_stale_providers(self):
         """
         Loops through all providers and check if they've gone stale. If they
-         have, write their remaining data to disk (they shouldn't have any)
+        have, write their remaining data to disk (they shouldn't have any)
         and delete them.
         """
         stale_provs = []

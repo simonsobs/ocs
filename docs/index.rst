@@ -46,6 +46,7 @@ write OCS Agents or Clients.
     developer/feeds
     developer/agents
     developer/clients
+    developer/timeout_lock
 
 
 .. toctree::

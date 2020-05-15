@@ -261,6 +261,19 @@ class Feed:
         """There are strict rules for the characters allowed in field names.
         This function verifies the names in a message are valid.
 
+        Args:
+            message (dict):
+                Data to be published (see Feed.publish_message for details).
+
+        """
+        for k, v in message['data'].items():
+            Feed.verify_data_field_string(k)
+
+    @staticmethod
+    def verify_data_field_string(field):
+        """There are strict rules for the characters allowed in field names.
+        This function verifies the names in a message are valid.
+
         A valid name:
 
         – contains only letters (a-z, A-Z; case sensitive), decimal digits (0-9), and the
@@ -269,8 +282,14 @@ class Feed:
         – is no more than 255 characters long.
 
         Args:
-            message (dict):
-                Data to be published (see Feed.publish_message for details).
+            field (str):
+                Field name string to verify.
+
+        Returns:
+            bool: True if field name is valid.
+
+        Raises:
+            ValueError: If field name is invalid.
 
         """
         # Complement (^) the set, matching any unlisted characters
@@ -280,23 +299,23 @@ class Feed:
         # Leading ^ matches the start of string, so following numbers are valid
         check_start = re.compile('^[^a-zA-Z]')
 
-        for k, v in message['data'].items():
-            # check for invalid characters
-            result = check_invalid.search(k)
-            if result:
-                raise ValueError("message 'data' block contains a key with the " +
-                                 f"invalid charcter '{result.group(0)}'. "
-                                 "Valid characters are a-z, A-Z, 0-9, and underscore.")
+        # check for invalid characters
+        result = check_invalid.search(field)
+        if result:
+            raise ValueError("message 'data' block contains a key with the " +
+                             f"invalid charcter '{result.group(0)}'. "
+                             "Valid characters are a-z, A-Z, 0-9, and underscore.")
 
-            # check for non-letter after underscores
-            if k[0] == "_":
-                stripped_key = k.strip("_")
-                if check_start.search(stripped_key):
-                    raise ValueError(f"message 'data' block contains the key {k}, which " +
-                                     "does not start with a letter (after any number of " +
-                                     "leading underscores.)")
+        # check for non-letter start, even after underscores
+        stripped_key = field.strip("_")
+        if check_start.search(stripped_key):
+            raise ValueError(f"message 'data' block contains the key {field}, " +
+                             "which does not start with a letter (after any " +
+                             "number of leading underscores.)")
 
-            # check key length
-            if len(k) > 255:
-                raise ValueError(f"message 'data' block contains key {k} which " +
-                                 "exceeds the valid length of 255 characters.")
+        # check key length
+        if len(field) > 255:
+            raise ValueError(f"message 'data' block contains key {field} which " +
+                             "exceeds the valid length of 255 characters.")
+
+        return True

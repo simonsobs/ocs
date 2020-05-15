@@ -106,6 +106,25 @@ class TestPublishMessage:
         with pytest.raises(ValueError):
             test_feed.publish_message(test_message)
 
+    def test_data_key_start_with_number(self):
+        """Field names should start with a letter.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                '1invalidkey': 1.,
+                'valid_key2': 1.,
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
+
     def test_data_key_too_long(self):
         """Passing a data key that exceeds 255 characters should raise a 
         ValueError upon publishing.

@@ -150,7 +150,7 @@ class Provider:
 
         return True
 
-    def write(self, data):
+    def save_to_block(self, data):
         """
         Saves a list of data points into blocks.
         A block will be created for any new block_name.
@@ -331,9 +331,8 @@ class G3FileRotator(G3Module):
 
 
 class Aggregator:
-    """
-    Data aggregator. This manages a collection or providers, and contains
-    methods to write to them and write them to disk.
+    """Data aggregator. This manages a collection of providers, and contains
+    methods to write them to disk.
 
     This class should only be accessed by a single thread. Data can be passed
     to it by appending it to the referenced `incoming_data` queue.
@@ -407,7 +406,7 @@ class Aggregator:
                 pid = self.add_provider(address, sessid, **feed['agg_params'])
 
             prov = self.providers[pid]
-            prov.write(data)
+            prov.save_to_block(data)
 
     def add_provider(self, prov_address, prov_sessid, **prov_kwargs):
         """

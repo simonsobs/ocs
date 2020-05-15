@@ -18,7 +18,7 @@ def test_passing_float_in_provider_to_frame():
                               'key2': [2]},
                      'prefix': ''}
            }
-    provider.write(data)
+    provider.save_to_block(data)
 
     # Dummy HKSessionHelper
     sess = so3g.hk.HKSessionHelper(description="testing")
@@ -42,7 +42,7 @@ def test_passing_float_like_str_in_provider_to_frame():
                               'key2': ['1', 2]},
                      'prefix': ''}
            }
-    provider.write(data)
+    provider.save_to_block(data)
 
     # Dummy HKSessionHelper
     sess = so3g.hk.HKSessionHelper(description="testing")
@@ -67,7 +67,7 @@ def test_passing_non_float_like_str_in_provider_to_frame():
                               'key2': ['a']},
                      'prefix': ''}
            }
-    provider.write(data)
+    provider.save_to_block(data)
 
     # Dummy HKSessionHelper
     sess = so3g.hk.HKSessionHelper(description="testing")
@@ -78,7 +78,7 @@ def test_passing_non_float_like_str_in_provider_to_frame():
 
 # This is perhaps another problem, I'm passing irregular length data sets and
 # it's not raising any sort of alarm. How does this get handled?
-def test_data_type_in_provider_write():
+def test_data_type_in_provider_save_to_block():
     provider = Provider('test_provider', 'test_sessid', 3, 1)
     provider.frame_start_time = time.time()
     data = {'test': {'block_name': 'test',
@@ -87,7 +87,7 @@ def test_data_type_in_provider_write():
                               'key2': ['1', 1]},
                      'prefix': ''}
            }
-    provider.write(data)
+    provider.save_to_block(data)
 
 # 'data' field names
 def test_passing_invalid_data_field_name():
@@ -107,7 +107,7 @@ def test_passing_invalid_data_field_name():
                               'key2': ['a']},
                      'prefix': ''}
            }
-    provider.write(data)
+    provider.save_to_block(data)
 
     # Dummy HKSessionHelper
     sess = so3g.hk.HKSessionHelper(description="testing")

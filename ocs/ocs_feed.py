@@ -197,8 +197,9 @@ class Feed:
 
         if self.record:
             # check message contents
-            Feed.verify_message_data_type(message)
-            Feed.verify_data_field_names(message)
+            for k, v in message['data'].items():
+                Feed.verify_data_field_string(k)
+                Feed.verify_message_data_type(v)
 
             # Data is stored in Block objects
             block_name = message['block_name']
@@ -228,46 +229,32 @@ class Feed:
             self.agent.publish(self.address, (message, self.encoded()))
 
     @staticmethod
-    def verify_message_data_type(message):
+    def verify_message_data_type(value):
         """Aggregated Feeds can only store certain types of data. Here we check
         that the type of all data contained in a message's 'data' dictionary are
         supported types.
 
         Args:
-            message (dict):
-                Data to be published (see Feed.publish_message for details).
+            value (list, float, int):
+                'data' dictionary value published (see Feed.publish_message for details).
 
         """
         valid_types = (float, int)
 
-        for k, v in message['data'].items():
-            # multi-sample check
-            if isinstance(v, list):
-                if not all(isinstance(x, valid_types) for x in v):
-                    type_set = set([type(x) for x in v])
-                    invalid_types = type_set.difference(valid_types)
-                    raise TypeError("message 'data' block contains invalid data" +
-                                    f"types: {invalid_types}")
+        # multi-sample check
+        if isinstance(value, list):
+            if not all(isinstance(x, valid_types) for x in value):
+                type_set = set([type(x) for x in value])
+                invalid_types = type_set.difference(valid_types)
+                raise TypeError("message 'data' block contains invalid data" +
+                                f"types: {invalid_types}")
 
-            # single sample check
-            else:
-                if not isinstance(v, valid_types):
-                    invalid_type = type(v)
-                    raise TypeError("message 'data' block contains invalid " +
-                                    f"data type: {invalid_type}")
-
-    @staticmethod
-    def verify_data_field_names(message):
-        """There are strict rules for the characters allowed in field names.
-        This function verifies the names in a message are valid.
-
-        Args:
-            message (dict):
-                Data to be published (see Feed.publish_message for details).
-
-        """
-        for k, v in message['data'].items():
-            Feed.verify_data_field_string(k)
+        # single sample check
+        else:
+            if not isinstance(value, valid_types):
+                invalid_type = type(value)
+                raise TypeError("message 'data' block contains invalid " +
+                                f"data type: {invalid_type}")
 
     @staticmethod
     def verify_data_field_string(field):

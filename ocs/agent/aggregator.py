@@ -151,9 +151,27 @@ class Provider:
         return True
 
     def save_to_block(self, data):
-        """
-        Saves a list of data points into blocks.
-        A block will be created for any new block_name.
+        """Saves a list of data points into blocks. A block will be created
+        for any new block_name.
+
+        Examples:
+            The format of data is shown in the following example:
+
+            >>> data = {'test': {'block_name': 'test',
+                             'timestamps': [time.time()],
+                             'data': {'key1': [1],
+                                      'key2': [2]},
+                             'prefix': ''}
+                       }
+            >>> prov.save_to_block(data)
+
+            Note the block name shows up twice, once as the dict key in the
+            outer data dictionary, and again under the 'block_name' value -- in
+            this instance both the word 'test'.
+
+        Args:
+            data (dict): data dictionary from incoming data queue
+
         """
         self.refresh()
 
@@ -164,7 +182,42 @@ class Provider:
                 if b['timestamps']:
                     self.frame_start_time = min(self.frame_start_time, b['timestamps'][0])
 
-        for key,block in data.items():
+
+        # We don't want to do this in the original data.items() loop below, but
+        # loop through and see if we need to rebuild the dict, and if we
+        # do,then do it
+        print('before:', data)
+        # fix invalid names...
+        rebuild_data = False
+        for block_name, block_dict in data.items():
+            for field_name, field_values in block_dict['data'].items():
+                try:
+                    ocs_feed.Feed.verify_data_field_string(field_name)
+                except ValueError:
+                    self.log.error("data field name {field} is " +
+                                   "invalid, removing invalid characters.",
+                                   field=field_name)
+                    rebuild_data = True
+
+        new_data = {}
+        if rebuild_data:
+            for block_name, block_dict in data.items():
+                new_data[block_name] = {}
+                # rebuild block_dict
+                for k, v in block_dict.items():
+                    if k == 'data':
+                        new_data[block_name]['data'] = {}
+                        for field_name, field_values in block_dict['data'].items():
+                            new_field_name = re.sub('[^a-zA-Z0-9_]', '', field_name)
+                            new_data[block_name]['data'][new_field_name] = field_values
+                    if k != 'data':
+                        new_data[block_name][k] = v
+
+        print('after:', new_data)
+
+        data = new_data
+
+        for key, block in data.items():
             try:
                 b = self.blocks[key]
             except KeyError:

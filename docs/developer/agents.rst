@@ -430,3 +430,76 @@ containerized Agents together with the command
 
 Depending on your host's permissions, this command may need to be run with 
 ``sudo``.
+
+.. _timeout_lock
+
+TimeoutLock
+------------
+
+Overview
+^^^^^^^^^
+
+In OCS, operations are mainly asynchronous, however most agents have
+restrictions on which operations are allowed to be run simultaneously.
+For instance, when an Agent interfaces with a hardware device over serial
+communication, two commands cannot be issued simultaneously.
+In these cases, it may be required for agents to create a `lock` which restricts
+what operations can run concurrently.
+Requiring this lock to be acquired before any device communication is one
+way to ensure that serial messages are not crossed, or avoid any other
+dangerous asynchronous behavior.
+
+The ocs :ref:`TimeoutLock <ocs_twisted_api>` is a lock that implements a few useful additions to the
+standard ``threading.lock``. Mainly:
+ -  It can be acquired by the ``acquire_timeout`` context
+    manager, which will automatically release even if an exception is raised.
+ -  A ``job`` string can be set on acquisition, describing the job obtaining
+    the lock.
+ -  The ``release_and_acquire`` function can be used to release the lock so that
+    short operations can safely run during long-running processes.
+ -  A ``timeout`` can be set to limit how long an operation will wait for the
+    lock before failing.
+
+Examples
+^^^^^^^^^
+acquire_timeout
+```````````````
+The following example shows how to acquire the TimeoutLock with the
+``acquire_timeout`` context manager::
+
+    lock = TimeoutLock()
+
+    with lock.acquire_timeout(timeout=3.0, job='acq') as acquired:
+        if not acquired:
+            print(f"Lock could not be acquired because it is held by {lock.job}")
+            return False
+        print("Lock acquired!")
+
+
+Release and Reacquire
+``````````````````````
+Here is a slightly more complicated example that shows how an operation might
+use the ``release_and_acquire`` function to allow other operations to interject
+without completely giving up the lock.
+
+This example will acquire a timeout lock before entering an infinite loop of
+"data acquisition". About every second it will release and re-acquire the lock
+so that short tasks can be run without stopping the acquisition. If
+the operation cannot re-acquire the lock, it will print a message and return
+``False``::
+
+    with self.lock.acquire_timeout(timeout=0, job='acq') as acquired:
+        if not acquired:
+            print(f"Lock could not be acquired because it is held by {lock.job}")
+            return False
+
+        last_release = time.time()
+        while True:
+            if time.time() - last_release > 1.:
+                last_release = time.time()
+                if not self.lock.release_and_acquire(timeout=10):
+                    print("Could not re-acquire lock now held by {}.".format(self.lock.job))
+                    return False
+            print("Acquiring Data")
+            time.sleep(0.1)
+

@@ -263,10 +263,10 @@ class Feed:
 
         A valid name:
 
-        – contains only letters (a-z, A-Z; case sensitive), decimal digits (0-9), and the
-        underscore (_).
-        – begins with a letter, or with any number of underscores followed by a letter.
-        – is no more than 255 characters long.
+        * contains only letters (a-z, A-Z; case sensitive), decimal digits (0-9), and the
+          underscore (_).
+        * begins with a letter, or with any number of underscores followed by a letter.
+        * is no more than 255 characters long.
 
         Args:
             field (str):

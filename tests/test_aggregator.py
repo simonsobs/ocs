@@ -156,3 +156,30 @@ def test_passing_too_long_data_field_name():
     provider.save_to_block(data)
 
     assert 'a'*255 in provider.blocks['test'].data.keys()
+
+def test_reducing_to_duplicate_field_names():
+    """Invalid data field names get modified by the Aggregator to comply with
+    the set rules. This can result in duplicate field names under certain
+    conditions.
+
+    This tests passing two invalid field names, which might naively get
+    modified to be identical.
+
+    """
+    # Dummy Provider for testing
+    provider = Provider('test_provider', 'test_sessid', 3, 1)
+    provider.frame_start_time = time.time()
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [time.time()],
+                     'data': {'an.invalid.key#': [1],
+                              'an.invalid.key%': ['a']},
+                     'prefix': ''}
+           }
+    provider.save_to_block(data)
+
+    # Should still be two keys, i.e. one didn't overwrite the other
+    assert len(provider.blocks['test'].data.keys()) == 2
+
+    # More specifically, they should be these keys
+    assert 'aninvalidkey' in provider.blocks['test'].data.keys()
+    assert 'aninvalidkey_01' in provider.blocks['test'].data.keys()

@@ -303,7 +303,6 @@ class G3FileRotator(G3Module):
         by `filename` function passed to constructor
         """
         for frame in frames:
-            frame['hkagg_version'] = HKAGG_VERSION
             ftype = frame['hkagg_type']
 
             if ftype == so3g.HKFrameType.session:
@@ -371,7 +370,8 @@ class Aggregator:
     def __init__(self, incoming_data, time_per_file, data_dir):
         self.log = txaio.make_logger()
 
-        self.hksess = so3g.hk.HKSessionHelper(description="HK data")
+        self.hksess = so3g.hk.HKSessionHelper(description="HK data",
+                                              hkagg_version=HKAGG_VERSION)
         self.hksess.start_time = time.time()
         self.hksess.session_id = generate_id(self.hksess)
 

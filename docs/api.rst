@@ -51,6 +51,8 @@ ocs.ocs_agent
     :undoc-members:
     :show-inheritance:
 
+.. _ocs_feed_api:
+
 ocs.ocs_feed
 ------------
 

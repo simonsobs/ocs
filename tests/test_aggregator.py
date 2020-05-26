@@ -183,3 +183,24 @@ def test_reducing_to_duplicate_field_names():
     # More specifically, they should be these keys
     assert 'aninvalidkey' in provider.blocks['test'].data.keys()
     assert 'aninvalidkey_01' in provider.blocks['test'].data.keys()
+
+def test_space_replacement_in_field_names():
+    """Invalid data field names should get caught by the Feed, however, we
+    check for them in the Aggregator as well.
+
+    Spaces should be replaced by underscores.
+
+    """
+    # Dummy Provider for testing
+    provider = Provider('test_provider', 'test_sessid', 3, 1)
+    provider.frame_start_time = time.time()
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [time.time()],
+                     'data': {'_an invalid key': [1],
+                              'key2': ['a']},
+                     'prefix': ''}
+           }
+    provider.save_to_block(data)
+
+    assert '_an_invalid_key' in provider.blocks['test'].data.keys()
+    assert 'key2' in provider.blocks['test'].data.keys()

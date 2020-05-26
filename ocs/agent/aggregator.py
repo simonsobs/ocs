@@ -167,7 +167,7 @@ class Provider:
                 try:
                     ocs_feed.Feed.verify_data_field_string(field_name)
                 except ValueError:
-                    self.log.error("data field name {field} is " +
+                    self.log.error("data field name '{field}' is " +
                                    "invalid, removing invalid characters.",
                                    field=field_name)
                     verified = False
@@ -195,8 +195,11 @@ class Provider:
                  through this method, and that should be checked.
 
         """
+        # replace spaces with underscores
+        new_field_name = field_name.replace(' ', '_')
+
         # replace invalid characters
-        new_field_name = re.sub('[^a-zA-Z0-9_]', '', field_name)
+        new_field_name = re.sub('[^a-zA-Z0-9_]', '', new_field_name)
 
         # grab leading underscores
         underscore_search = re.compile('^_*')

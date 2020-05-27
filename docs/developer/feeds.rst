@@ -73,8 +73,29 @@ floats, bools, or dicts containing these).
 Callbacks will receive the tuple ``(message, feed_data)`` where ``feed_data``
 is a dict encoding most OCS.Feed attributes.
 
-Recorded Feed Message Format
+
+.. _recorded_feed_registration:
+
+Recorded Feed Registration
 ````````````````````````````
+To make sure that a feed is picked up
+by the aggregator, it must be registered with the option 'record=True'.
+It also must be registered with the frame_length, which tells the aggregator
+how long each frame should be in seconds.
+An example can be seen in LS372_agent.py::
+
+    agg_params = {
+        'frame_length': 10*60 #[sec]
+    }
+    self.agent.register_feed('temperatures',
+                             record=True,
+                             agg_params=agg_params,
+                             buffer_time=1)
+
+.. _feed_message_format:
+
+Recorded Feed Message Format
+`````````````````````````````
 Recorded feeds require data to have a specific structure so that the aggregator
 can encode the data into G3 objects.
 Each message published should contain a ``block`` of data, or a group of data
@@ -130,7 +151,7 @@ The LS372 G3Frames will then contain a G3TimesampleMap for each channel,
 containing the temperature and voltage readings along with their timestamps.
 
 Field Name Requirements
-''''''''''''''''''''''
+''''''''''''''''''''''''
 Field names must:
 
 - Contain only letters, numbers, and underscores.

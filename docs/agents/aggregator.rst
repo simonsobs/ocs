@@ -37,80 +37,105 @@ Like SPT3G, an SO3G consists of a sequence of *Frame* objects each containing
 its own data. Each frame is a free-form mapping from strings to data
 of a type derived from G3FrameObject, which behave similarly to a python
 dictionary. Notably, SPT3G files cannot directly store python lists, tuples, or
-numpy arrays, but must be wrapped in appropriateG3FrameObject container classes.
-Reasons for this are specified in the G3 documentation.
+numpy arrays, but must be wrapped in appropriate G3FrameObject container classes.
 
 Examples of useful G3FrameObjects:
 
-+------------------------+------------------------------------------+
-| G3VectorDouble         | A vector of doubles. It acts like a      |
-|                        | numpy array of doubles.                  |
-+------------------------+------------------------------------------+
-| G3Timestream           |  Acts like a Vector double with attached |
-|                        |  sample rate, start time, stop time and  |
-|                        |  units.                                  |
-+------------------------+------------------------------------------+
-| G3TimestreamMap        | A map of strings to G3Timestreams.       |
-+------------------------+------------------------------------------+
-| IrregBlockDouble (so3g)| A map of multiple named elements along   |
-|                        | with a single vector of timestamps.      |
-+------------------------+------------------------------------------+
+.. list-table:: G3Objects
+    :widths: 20 20
+
+    * - G3VectorDouble
+      - A vector of doubles. It acts like a numpy array of doubles
+    * - G3Timestream
+      - Acts like a Vector double with attached sample rate, start time, stop
+        time, and units
+    * - G3TimestreamMap
+      - A map of strings to G3Timestreams.
+    * - G3TimesampleMap
+      - A map of vectors containing co-sampled data, packaged with a vector
+        of timestamps.
 
 If you have SPT3G and so3g installed, you can view a g3 file by calling
-``spt3g-dump filename so3g`` from the command line, which will display the
-contents of the file as a dict. For instance, calling::
+``spt3g-dump filename`` from the command line, which will display the
+contents of the file as a dict. For instance::
 
-    $ spt3g-dump 2019-02-18_T_23:04:15.g3 so3g
+    $ spt3g-dump 1589310638.g3
     Frame (Housekeeping) [
     "description" (spt3g.core.G3String) => "HK data"
     "hkagg_type" (spt3g.core.G3Int) => 0
-    "session_id" (spt3g.core.G3Int) => 1
-    "start_time" (spt3g.core.G3Double) => 1.55056e+09
+    "hkagg_version" (spt3g.core.G3Int) => 1
+    "session_id" (spt3g.core.G3Int) => 426626618778213812
+    "start_time" (spt3g.core.G3Double) => 1.58931e+09
     ]
     Frame (Housekeeping) [
     "hkagg_type" (spt3g.core.G3Int) => 1
-    "providers" (spt3g.core.G3VectorFrameObject) => [0x7fb6f4480130]
-    "session_id" (spt3g.core.G3Int) => 1
-    "timestamp" (spt3g.core.G3Double) => 1.55056e+09
+    "hkagg_version" (spt3g.core.G3Int) => 1
+    "providers" (spt3g.core.G3VectorFrameObject) => [0x7fdfe6cb4760]
+    "session_id" (spt3g.core.G3Int) => 426626618778213812
+    "timestamp" (spt3g.core.G3Double) => 1.58931e+09
     ]
     Frame (Housekeeping) [
-    "agent_address" (spt3g.core.G3String) => "observatory.thermo1"
-    "blocks" (spt3g.core.G3VectorFrameObject) => [0x7fb6f68840e0]
+    "address" (spt3g.core.G3String) => "observatory.faker.feeds.false_temperatures"
+    "blocks" (spt3g.core.G3VectorFrameObject) => [0x7fdfe6d05760]
     "hkagg_type" (spt3g.core.G3Int) => 2
+    "hkagg_version" (spt3g.core.G3Int) => 1
     "prov_id" (spt3g.core.G3Int) => 0
-    "session_id" (spt3g.core.G3Int) => 1
-    "timestamp" (spt3g.core.G3Double) => 1.55056e+09
-    ]
-    Frame (Housekeeping) [
-    "agent_address" (spt3g.core.G3String) => "observatory.thermo1"
-    "blocks" (spt3g.core.G3VectorFrameObject) => [0x7fb6f683fa20]
-    "hkagg_type" (spt3g.core.G3Int) => 2
-    "prov_id" (spt3g.core.G3Int) => 0
-    "session_id" (spt3g.core.G3Int) => 1
-    "timestamp" (spt3g.core.G3Double) => 1.55056e+09
-    ]
-    Frame (Housekeeping) [
-    "agent_address" (spt3g.core.G3String) => "observatory.thermo1"
-    "blocks" (spt3g.core.G3VectorFrameObject) => [0x7fb6f68635f0]
-    "hkagg_type" (spt3g.core.G3Int) => 2
-    "prov_id" (spt3g.core.G3Int) => 0
-    "session_id" (spt3g.core.G3Int) => 1
-    "timestamp" (spt3g.core.G3Double) => 1.55056e+09
+    "provider_session_id" (spt3g.core.G3String) => "1589308315.450184"
+    "session_id" (spt3g.core.G3Int) => 426626618778213812
+    "timestamp" (spt3g.core.G3Double) => 1.58931e+09
     ]
 
-Each so3g file will start with a Session frame and a Status frame,
-giving information on the current aggregator session and active providers
-respectively. You can see that this aggregator session has a single provider
-writing data, and the agent address is ``aggregator.thermo1``.
+HK File Structure
+-------------------
+The HK file is made up of three frame types: Session, Status, and Data,
+labeled with an ``hkagg_type`` value of 0, 1, and 2 respectively.
+Session frames occur once at the start of every file and contain information
+about the current aggregation session, such as the ``session_id`` and
+``start_time``.
 
-To read from a g3 file, you can call ``file = core.G3File(filename)``.
-``file`` is now an iterator that can loop through the frames in the file.
+Status frames contains a list of all active providers. One will always
+follow the Session frame, and a new one will be written each time a provider
+is added or removed from the list of active providers.
+
+Data frames contain all data published by a single provider.
+These frames help
+The data is stored under the key ``blocks`` as list of G3TimesampleMaps, where
+each timesample map corresponds to a group of co-sampled data, grouped by their
+:ref:`block name <feed_message_format>`.
+Each G3Timesample contains a G3Vector for each ``field_name`` specified in the
+data and a vector of timestamps.
 
 Aggregator Agent
 --------------------------------
-The aggregator agent's purpose is to take data being published by a general
-Agent, and to write it to a so3g file.
+The job of the HK aggregator is to take data published by "Providers" and write
+it to disk.
+The aggregator considers each OCS Feed with ``record=True`` to be a separate
+provider, and so any data written by a single OCS Feed will be grouped together
+into G3Frames.
+See :ref:`the OCS Feed page <recorded_feed_registration>` for info on how
+to register a feed so that it will be recorded by the aggregator.
 
+The aggregator monitors all feeds in the ``observatory`` namespace to find
+feeds that should be recorded.  If the aggregator receives data from a feed
+registered with ``record=True``, it will automatically add that feed as a
+Provider, and will start putting incoming data into frames every ``frame_time``
+seconds, where ``frame_time`` is set by the Feed on registration.
+Providers will be automatically marked as stale and unregistered if it goes
+``fresh_time`` seconds without receiving any data from the feed, where
+``fresh_time`` is again set by the feed on registration.
+
+The Aggregator Agent has a single main process ``record`` in which the
+aggregator will continuously loop and write any queued up data to a G3Frame and
+to disk.
+The ``record`` task's session data object contains information such as the
+path of the current G3 file, and the status of active and stale providers.
+
+Unregistered providers will automatically be added when they send data,
+and stale providers will be removed if no data is received in a specified
+time period.
+
+Site Config
+```````````
 The aggregator agent takes three site-config arguments.
 ``--initial-state`` can be either ``record`` or ``idle``,
 and determines whether or not the aggregator starts recording
@@ -119,8 +144,7 @@ as soon as it is initialized.
 and ``--data-dir`` specifies the default data directory.
 Both of these can also be manually specified in ``params`` when
 the ``record`` process is started.
-An example site-config entry is
-::
+An example site-config entry is::
 
     {'agent-class': 'AggregatorAgent',
        'instance-id': 'aggregator',
@@ -129,63 +153,19 @@ An example site-config entry is
                      ['--data-dir', '/data/hk']
        ]},
 
+Docker
+```````
+The docker image for the aggregator agent is simonsobs/ocs-aggregator-agent
+Here is an example configuration::
 
-To make sure that a feed is picked up
-by the aggregator, it must be registered with the option 'record=True'.
-It also must be registered with the frame_length, which tells the aggregator
-how long each frame should be in seconds.
-An example can be seen in LS240_agent.py::
-
-    agg_params = {
-        'frame_length': 60
-    }
-    self.agent.register_feed('temperatures',
-                             aggregate=True,
-                             agg_params=agg_params,
-                             buffer_time=1)
-
-A block is a set of timestreams that all share timestamps. They are written
-together to an so3g object called an  `IrregBlockDouble`. In the LS240 example,
-the agent says it will only need to write one block, with block_name `temps`
-and the block will have two timestreams called `chan_1` and `chan_2`.
-Here you can also add an optional block prefix that will be written to the so3g
-file.
-
-When publishing data to this feed, the message must be structured as::
-
-    message = {
-        'block_name': 'temps'
-        'timestamp': timestamp of data
-        'data': {
-                'chan_1': datapoint1
-                'chan_2': datapoint2
-            }
-    }
-
-The message must contain exactly one data-point for each field of the block.
-Timestreams that are not simultaneously sampled will have to be stored in
-separate blocks and published separately.
-
-docker-compose Configuration
-----------------------------
-
-The docker image for the aggregator agent is
-``grumpy.physics.yale.edu/ocs-aggregator-agent:latest``. Here is an example configuration::
-
-      ocs-aggregator:
-        image: grumpy.physics.yale.edu/ocs-aggregator-agent:latest
-        hostname: grumpy-docker
+    ocs-aggregator:
+        image: simonsobs/ocs-aggregator-agent:latest
+        container_name: ocs-aggregator
+        hostname: ocs-docker
         user: "9000"
         volumes:
-          - /home/so_user/git/ocs-site-configs/yale/prod/default.yaml:/config/default.yaml:ro
-          - "/path/to/host/data:/data"
-        depends_on:
-          - "sisock-crossbar"
-
-The user must be created on the host system as well. For details see the live
-monitor setup guide.  In addition to the ocs-site-configs file being mounted
-into the container the data directory needs to be mounted. This directory
-should exist and belong to the `ocs` user prior to contianer startup.
+          - ${OCS_CONFIG_DIR}:/config
+          - /path/to/host/data:/data
 
 
 API

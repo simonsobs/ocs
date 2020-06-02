@@ -418,6 +418,36 @@ def get_config(args, agent_class=None):
     # Load the site config file.
     site_config = SiteConfig.from_yaml(site_file)
 
+    # Matching behavior.
+    no_host_match = (agent_class == '*control*')
+    no_dev_match = no_host_match or (agent_class == '*host*')
+
+    # Identify our host and update site.hub.
+    host_config = None
+    if args.site_host is not None:
+        host_attempts = [args.site_host, 'localhost']
+    else:
+        host_attempts = [socket.gethostname(), 'localhost']
+    for host_try in host_attempts:
+        if host_try in site_config.hosts:
+            host_config = site_config.hosts[host_try]
+            host_update_dict = {
+                k: host_config.data[k]
+                for k in ['wamp_server', 'wamp_http', 'wamp_realm']
+                if k in host_config.data.keys()
+            }
+            site_config.hub.data.update(host_update_dict)
+            #Updates host_config with command line args
+            if args.working_dir is not None:
+                host_config.working_dir = args.working_dir
+            if args.log_dir is not None:
+                host_config.log_dir = args.log_dir
+            break
+    else:
+        if not no_host_match:
+            raise KeyError('Site config has no entry in "hosts" for {}'
+                           .format(host_attempts))
+
     # Override the WAMP hub?
     if args.site_hub is not None:
         site_config.hub.data['wamp_server'] = args.site_hub
@@ -431,35 +461,6 @@ def get_config(args, agent_class=None):
 
     if args.registry_address is not None:
         site_config.hub.data['registry_address'] = args.registry_address
-
-    # Matching behavior.
-    no_host_match = (agent_class == '*control*')
-    no_dev_match = no_host_match or (agent_class == '*host*')
-
-    # Identify our host.
-    if args.site_host is not None:
-        host_attempts = [args.site_host, 'localhost']
-    else:
-        host_attempts = [socket.gethostname(), 'localhost']
-    host_config = None
-    for host_try in host_attempts:
-        if host_try in site_config.hosts:
-            host_config = site_config.hosts[host_try]
-            break
-    if host_config is None and (not no_host_match):
-        raise KeyError('Site config has no entry in "hosts" for {}'
-                       .format(host_attempts))
-
-    if args.working_dir is not None:
-        host_config.working_dir = args.working_dir
-    if args.log_dir is not None:
-        host_config.log_dir = args.log_dir
-    # Overrides wamp_server and wamp_http if specified in host config,
-    # and if command line args are not set
-    if 'wamp_server' in host_config.data and args.site_hub is None:
-        site_config.hub.data['wamp_server'] = host_config.data['wamp_server']
-    if 'wamp_http' in host_config.data and args.site_http is None:
-        site_config.hub.data['wamp_http'] = host_config.data['wamp_http']
 
     # Identify our agent-instance.
     instance_config = None
@@ -485,7 +486,6 @@ def get_config(args, agent_class=None):
                     dev, parent=host_config)
     if instance_config is None and not no_dev_match:
         raise RuntimeError("Could not find matching device description.")
-
     return (site_config, host_config, instance_config)
 
 

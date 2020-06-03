@@ -310,8 +310,8 @@ class Provider:
             >>> prov.save_to_block(data)
 
             Note the block name shows up twice, once as the dict key in the
-            outer data dictionary, and again under the 'block_name' value -- in
-            this instance both the word 'test'.
+            outer data dictionary, and again under the 'block_name' value.
+            These must match -- in this instance both the word 'test'.
 
         Args:
             data (dict): data dictionary from incoming data queue

@@ -225,9 +225,10 @@ class Provider:
         matches are found.
 
         The results of Provider._enforce_field_name_rules() are not guarenteed
-        to be unique. This method will check field_name against a list of field names
-        of existing field names and try to append '_N', with N being a zero
-        padded integer up to 99.
+        to be unique. This method will check field_name against a list of
+        existing field names and try to append '_N', with N being a zero padded
+        integer up to 99. Longer integers, though not expected to see use, are
+        also supported, though will not be zero padded.
 
         In the event the field name is at the maximum allowed length, we remove
         some characters before appending the additional underscore and integer.
@@ -247,18 +248,15 @@ class Provider:
             str: A new field name that is not already in name_list
 
         """
-        # Assume duplicate name, until proven otherwise
-        duplicate_name = True
         name_index = 1
 
-        while duplicate_name:
-            if field_name not in name_list:
-                duplicate_name = False
+        while field_name in name_list:
+            if len(field_name) < 252:
+                field_name += f'_{name_index:02}'
             else:
-                if len(field_name) < 252:
-                    field_name += f'_{name_index:02}'
-                else:
-                    field_name[:-3] += f'_{name_index:02}'
+                suffix = f'_{name_index:02}'
+                suf_len = len(suffix)
+                field_name = field_name[:-1*suf_len] + f'_{name_index:02}'
 
             name_index += 1
 

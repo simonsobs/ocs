@@ -266,7 +266,7 @@ class Feed:
         * contains only letters (a-z, A-Z; case sensitive), decimal digits (0-9), and the
           underscore (_).
         * begins with a letter, or with any number of underscores followed by a letter.
-        * is no more than 255 characters long.
+        * is at least one, but no more than 255, character(s) long.
 
         Args:
             field (str):
@@ -279,6 +279,11 @@ class Feed:
             ValueError: If field name is invalid.
 
         """
+        # Check for empty field name
+        if not field:
+            raise ValueError("Empty field name encountered, please enter " +
+                             "a valid field name.")
+
         # Complement (^) the set, matching any unlisted characters
         check_invalid = re.compile('[^a-zA-Z0-9_]')
 

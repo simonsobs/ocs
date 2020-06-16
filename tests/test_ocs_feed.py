@@ -227,6 +227,25 @@ class TestPublishMessage:
         with pytest.raises(ValueError):
             test_feed.publish_message(test_message)
 
+    def test_empty_field_name(self):
+        """Check for empty string as a field name.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        # Invalid multi-underscore + number start
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                '': 1.,
+                'valid_key2': 1.,
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
 
 # ocs_feed.Block
 def test_block_creation():

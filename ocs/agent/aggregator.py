@@ -183,7 +183,7 @@ class Provider:
         * contains only letters (a-z, A-Z; case sensitive), decimal digits (0-9), and the
           underscore (_).
         * begins with a letter, or with any number of underscores followed by a letter.
-        * is no more than 255 characters long.
+        * is at least one, but no more than 255, character(s) long.
 
         Args:
             field_name (str):
@@ -195,8 +195,14 @@ class Provider:
                  through this method, and that should be checked.
 
         """
+        # check for empty string
+        if field_name == "":
+            new_field_name = "invalid_field"
+        else:
+            new_field_name = field_name
+
         # replace spaces with underscores
-        new_field_name = field_name.replace(' ', '_')
+        new_field_name = new_field_name.replace(' ', '_')
 
         # replace invalid characters
         new_field_name = re.sub('[^a-zA-Z0-9_]', '', new_field_name)
@@ -283,6 +289,11 @@ class Provider:
                     new_field_names = []
                     for field_name, field_values in block_dict['data'].items():
                         new_field_name = Provider._enforce_field_name_rules(field_name)
+
+                        # Catch instance where rule enforcement strips all characters
+                        if not new_field_name:
+                            new_field_name = Provider._enforce_field_name_rules("invalid_field_" + field_name)
+
                         new_field_name = Provider._check_for_duplicate_names(new_field_name,
                                                                              new_field_names)
 

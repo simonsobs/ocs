@@ -1,11 +1,8 @@
 import os
-import datetime
 import binascii
 import time
-
-from typing import Dict
-
 import txaio
+from typing import Dict
 
 from ocs import ocs_feed
 
@@ -17,6 +14,60 @@ else:
     # Alias classes that are needed for clean import in docs build.
     G3Module = object
 
+
+HKAGG_VERSION = 1
+_g3_casts = {
+    str: core.G3String, int: core.G3Int, float: core.G3Double,
+}
+_g3_list_casts = {
+    str: core.G3VectorString, int: core.G3VectorInt, float: core.G3VectorDouble,
+}
+
+
+def g3_cast(data, time=False):
+    """
+    Casts a generic datatype into a corresponding G3 type. With:
+        int   -> G3Int
+        str   -> G3String
+        float -> G3Double
+    and lists of type X will go to G3VectorX. If ``time`` is set to True, will
+    convert to G3Time or G3VectorTime with the assumption that ``data`` consists
+    of unix timestamps.
+
+    Args:
+        data (int, str, float, or list):
+            Generic data to be converted to a corresponding G3Type.
+        time (bool, optional):
+            If True, will assume data contains unix timestamps and try to cast
+            to G3Time or G3VectorTime.
+
+    Returns:
+        g3_data:
+            Corresponding G3 datatype.
+    """
+    is_list = isinstance(data, list)
+    if is_list:
+        dtype = type(data[0])
+        if not all(isinstance(d, dtype) for d in data):
+            raise TypeError("Data list contains varying types!")
+    else:
+        dtype = type(data)
+    if dtype not in _g3_casts.keys():
+        raise TypeError("g3_cast does not support type {}. Type must"
+                        "be one of {}".format(dtype, _g3_casts.keys()))
+    if is_list:
+        if time:
+            return core.G3VectorTime(list(map(
+                lambda t: core.G3Time(t * core.G3Units.s), data)))
+        else:
+            cast = _g3_list_casts[type(data[0])]
+            return cast(data)
+    else:
+        if time:
+            return core.G3Time(data * core.G3Units.s)
+        else:
+            cast = _g3_casts[type(data)]
+            return cast(data)
 
 def generate_id(hksess):
     """
@@ -206,28 +257,18 @@ class Provider:
         for block_name, block in self.blocks.items():
             if not block.timestamps:
                 continue
-
-            hk = so3g.IrregBlockDouble()
-            hk.prefix = block.prefix
-            hk.t = block.timestamps
-            for key, ts in block.data.items():
-                try:
-                    hk.data[key] = ts
-                except TypeError:
-                    all_types = set([type(x) for x in ts])
-                    self.log.error("datapoint passed from address " +
-                                   "{a} to the Provider feed is of " +
-                                   "invalid type. Types contained " +
-                                   "in the passed list are {t}",
-                                   a=self.address, t=all_types)
-                    self.log.error("full data list for {k}: {d}",
-                                   k=key, d=ts)
-
-            frame['blocks'].append(hk)
-
+            try:
+                m = core.G3TimesampleMap()
+                m.times = g3_cast(block.timestamps, time=True)
+                for key, ts in block.data.items():
+                    m[key] = g3_cast(ts)
+            except Exception as e:
+                self.log.warn("Error received when casting timestream! {e}",
+                              e=e)
+                continue
+            frame['blocks'].append(m)
         if clear:
             self.clear()
-
         return frame
 
 
@@ -291,7 +332,6 @@ class G3FileRotator(G3Module):
         by `filename` function passed to constructor
         """
         for frame in frames:
-
             ftype = frame['hkagg_type']
 
             if ftype == so3g.HKFrameType.session:
@@ -362,7 +402,8 @@ class Aggregator:
     def __init__(self, incoming_data, time_per_file, data_dir, session=None):
         self.log = txaio.make_logger()
 
-        self.hksess = so3g.hk.HKSessionHelper(description="HK data")
+        self.hksess = so3g.hk.HKSessionHelper(description="HK data",
+                                              hkagg_version=HKAGG_VERSION)
         self.hksess.start_time = time.time()
         self.hksess.session_id = generate_id(self.hksess)
 

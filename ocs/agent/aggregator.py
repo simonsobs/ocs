@@ -257,12 +257,12 @@ class Provider:
         name_index = 1
 
         while field_name in name_list:
-            if len(field_name) < 252:
-                field_name += f'_{name_index:02}'
+            suffix = f'_{name_index:02}'
+            suf_len = len(suffix)
+            if len(field_name) < (255 - suf_len):
+                field_name += suffix
             else:
-                suffix = f'_{name_index:02}'
-                suf_len = len(suffix)
-                field_name = field_name[:-1*suf_len] + f'_{name_index:02}'
+                field_name = field_name[:-1*suf_len] + suffix
 
             name_index += 1
 

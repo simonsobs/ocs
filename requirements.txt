@@ -5,6 +5,7 @@ wampy>=0.9.20
 deprecation
 msgpack
 influxdb
+ipywidgets
 
 # Lakeshore240
 pyserial

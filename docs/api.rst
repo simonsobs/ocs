@@ -73,6 +73,8 @@ ocs.ocs_feed
     :undoc-members:
     :show-inheritance:
 
+.. _ocs_twisted_api:
+
 ocs.ocs_twisted
 ---------------
 

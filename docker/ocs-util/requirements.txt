@@ -1,2 +1,9 @@
-
 jupyter
+scipy
+
+# Requirements for sotodlib
+quaternionarray
+toml
+
+# Requirement for sotoddb
+h5py 

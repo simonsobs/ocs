@@ -1,6 +1,7 @@
 from ocs.ocs_agent import in_reactor_context
 from twisted.internet import reactor
 import time
+import re
 
 class Block:
     def __init__(self, name, keys, prefix=''):
@@ -196,7 +197,9 @@ class Feed:
 
         if self.record:
             # check message contents
-            Feed.verify_message_data_type(message)
+            for k, v in message['data'].items():
+                Feed.verify_data_field_string(k)
+                Feed.verify_message_data_type(v)
 
             # Data is stored in Block objects
             block_name = message['block_name']
@@ -226,30 +229,85 @@ class Feed:
             self.agent.publish(self.address, (message, self.encoded()))
 
     @staticmethod
-    def verify_message_data_type(message):
+    def verify_message_data_type(value):
         """Aggregated Feeds can only store certain types of data. Here we check
         that the type of all data contained in a message's 'data' dictionary are
         supported types.
 
         Args:
-            message (dict):
-                Data to be published (see Feed.publish_message for details).
+            value (list, float, int):
+                'data' dictionary value published (see Feed.publish_message for details).
 
         """
         valid_types = (float, int)
 
-        for k, v in message['data'].items():
-            # multi-sample check
-            if isinstance(v, list):
-                if not all(isinstance(x, valid_types) for x in v):
-                    type_set = set([type(x) for x in v])
-                    invalid_types = type_set.difference(valid_types)
-                    raise TypeError("message 'data' block contains invalid data" +
-                                    f"types: {invalid_types}")
+        # multi-sample check
+        if isinstance(value, list):
+            if not all(isinstance(x, valid_types) for x in value):
+                type_set = set([type(x) for x in value])
+                invalid_types = type_set.difference(valid_types)
+                raise TypeError("message 'data' block contains invalid data" +
+                                f"types: {invalid_types}")
 
-            # single sample check
-            else:
-                if not isinstance(v, valid_types):
-                    invalid_type = type(v)
-                    raise TypeError("message 'data' block contains invalid " +
-                                    f"data type: {invalid_type}")
+        # single sample check
+        else:
+            if not isinstance(value, valid_types):
+                invalid_type = type(value)
+                raise TypeError("message 'data' block contains invalid " +
+                                f"data type: {invalid_type}")
+
+    @staticmethod
+    def verify_data_field_string(field):
+        """There are strict rules for the characters allowed in field names.
+        This function verifies the names in a message are valid.
+
+        A valid name:
+
+        * contains only letters (a-z, A-Z; case sensitive), decimal digits (0-9), and the
+          underscore (_).
+        * begins with a letter, or with any number of underscores followed by a letter.
+        * is at least one, but no more than 255, character(s) long.
+
+        Args:
+            field (str):
+                Field name string to verify.
+
+        Returns:
+            bool: True if field name is valid.
+
+        Raises:
+            ValueError: If field name is invalid.
+
+        """
+        # Check for empty field name
+        if not field:
+            raise ValueError("Empty field name encountered, please enter " +
+                             "a valid field name.")
+
+        # Complement (^) the set, matching any unlisted characters
+        check_invalid = re.compile('[^a-zA-Z0-9_]')
+
+        # Similar to check_invalid, search for non letter characters
+        # Leading ^ matches the start of string, so following numbers are valid
+        check_start = re.compile('^[^a-zA-Z]')
+
+        # check for invalid characters
+        result = check_invalid.search(field)
+        if result:
+            raise ValueError("message 'data' block contains a key with the " +
+                             f"invalid character '{result.group(0)}'. "
+                             "Valid characters are a-z, A-Z, 0-9, and underscore.")
+
+        # check for non-letter start, even after underscores
+        stripped_key = field.strip("_")
+        if check_start.search(stripped_key):
+            raise ValueError(f"message 'data' block contains the key {field}, " +
+                             "which does not start with a letter (after any " +
+                             "number of leading underscores.)")
+
+        # check key length
+        if len(field) > 255:
+            raise ValueError(f"message 'data' block contains key {field} which " +
+                             "exceeds the valid length of 255 characters.")
+
+        return True

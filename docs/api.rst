@@ -3,6 +3,20 @@ API
 
 This page contains the auto-generated documentation for the ocs package.
 
+agent
+-----
+
+The ``agent/`` directory contains code that supports particular OCS Agents.
+Having this code in the ocs library facilitates testing.
+
+agent.aggregator
+````````````````
+
+.. automodule:: ocs.agent.aggregator
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 ocs.base
 --------
 

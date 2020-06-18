@@ -1,8 +1,11 @@
 import os
 import binascii
 import time
-import txaio
+import re
+
 from typing import Dict
+
+import txaio
 
 from ocs import ocs_feed
 
@@ -200,10 +203,179 @@ class Provider:
 
         return True
 
-    def write(self, data):
+    def _verify_provider_data(self, data):
+        """Check the provider data for invalid field names. Meant to be used in
+        combination with Provider._rebuild_invalid_data().
+
+        Args:
+            data (dict): data dictionary passed to Provider.save_to_block()
+
+        Returns:
+            bool: True if all field names valid. False if any invalid names found
+
         """
-        Saves a list of data points into blocks.
-        A block will be created for any new block_name.
+        verified = True
+        for block_name, block_dict in data.items():
+            for field_name, field_values in block_dict['data'].items():
+                try:
+                    ocs_feed.Feed.verify_data_field_string(field_name)
+                except ValueError:
+                    self.log.error("data field name '{field}' is " +
+                                   "invalid, removing invalid characters.",
+                                   field=field_name)
+                    verified = False
+
+        return verified
+
+    @staticmethod
+    def _enforce_field_name_rules(field_name):
+        """Enforce naming rules for field names.
+
+        A valid name:
+
+        * contains only letters (a-z, A-Z; case sensitive), decimal digits (0-9), and the
+          underscore (_).
+        * begins with a letter, or with any number of underscores followed by a letter.
+        * is at least one, but no more than 255, character(s) long.
+
+        Args:
+            field_name (str):
+                Field name string to check and modify if needed.
+
+        Returns:
+            str: New field name, meeting all above rules. Note this isn't
+                 guarenteed to not collide with other field names passed
+                 through this method, and that should be checked.
+
+        """
+        # check for empty string
+        if field_name == "":
+            new_field_name = "invalid_field"
+        else:
+            new_field_name = field_name
+
+        # replace spaces with underscores
+        new_field_name = new_field_name.replace(' ', '_')
+
+        # replace invalid characters
+        new_field_name = re.sub('[^a-zA-Z0-9_]', '', new_field_name)
+
+        # grab leading underscores
+        underscore_search = re.compile('^_*')
+        underscores = underscore_search.search(new_field_name).group()
+
+        # remove leading underscores
+        new_field_name = re.sub('^_*', '', new_field_name)
+
+        # remove leading non-letters
+        new_field_name = re.sub('^[^a-zA-Z]*', '', new_field_name)
+
+        # add underscores back
+        new_field_name = underscores + new_field_name
+
+        # limit to 255 characters
+        new_field_name = new_field_name[:255]
+
+        return new_field_name
+
+    @staticmethod
+    def _check_for_duplicate_names(field_name, name_list):
+        """Check name_list for matching field names and modify field_name if
+        matches are found.
+
+        The results of Provider._enforce_field_name_rules() are not guarenteed
+        to be unique. This method will check field_name against a list of
+        existing field names and try to append '_N', with N being a zero padded
+        integer up to 99. Longer integers, though not expected to see use, are
+        also supported, though will not be zero padded.
+
+        In the event the field name is at the maximum allowed length, we remove
+        some characters before appending the additional underscore and integer.
+
+        Examples:
+            >>> current_field_names = ['test', 'test_01']
+            >>> name = 'test'
+            >>> new_name = Provider._check_for_duplicate_names(name, current_field_names)
+            >>> print(new_name)
+            test_02
+
+        Args:
+            field_name (str): field name to check against name_lsit
+            name_list (list): list of field names already in a Block
+
+        Returns:
+            str: A new field name that is not already in name_list
+
+        """
+        name_index = 1
+
+        while field_name in name_list:
+            suffix = f'_{name_index:02}'
+            suf_len = len(suffix)
+            field_name = field_name[:255 - suf_len] + suffix
+            name_index += 1
+
+        return field_name
+
+    def _rebuild_invalid_data(self, data):
+        """Rebuild an invalid data dictionary.
+
+        Args:
+            data (dict): data dictionary passed to Provider.save_to_block().
+
+        Returns:
+            dict: A rebuilt data dictionary with invalid characters stripped
+                  from the field names, limited to 255 characters in length.
+
+        """
+        new_data = {}
+        for block_name, block_dict in data.items():
+            new_data[block_name] = {}
+            # rebuild block_dict
+            for k, v in block_dict.items():
+                if k == 'data':
+                    new_data[block_name]['data'] = {}
+                    new_field_names = []
+                    for field_name, field_values in block_dict['data'].items():
+                        new_field_name = Provider._enforce_field_name_rules(field_name)
+
+                        # Catch instance where rule enforcement strips all characters
+                        if not new_field_name:
+                            new_field_name = Provider._enforce_field_name_rules("invalid_field_" + field_name)
+
+                        new_field_name = Provider._check_for_duplicate_names(new_field_name,
+                                                                             new_field_names)
+
+                        new_data[block_name]['data'][new_field_name] = field_values
+
+                        new_field_names.append(new_field_name)
+                else:
+                    new_data[block_name][k] = v
+
+        return new_data
+
+    def save_to_block(self, data):
+        """Saves a list of data points into blocks. A block will be created
+        for any new block_name.
+
+        Examples:
+            The format of data is shown in the following example:
+
+            >>> data = {'test': {'block_name': 'test',
+                             'timestamps': [time.time()],
+                             'data': {'key1': [1],
+                                      'key2': [2]},
+                             'prefix': ''}
+                       }
+            >>> prov.save_to_block(data)
+
+            Note the block name shows up twice, once as the dict key in the
+            outer data dictionary, and again under the 'block_name' value.
+            These must match -- in this instance both the word 'test'.
+
+        Args:
+            data (dict): data dictionary from incoming data queue
+
         """
         self.refresh()
 
@@ -214,7 +386,15 @@ class Provider:
                 if b['timestamps']:
                     self.frame_start_time = min(self.frame_start_time, b['timestamps'][0])
 
-        for key,block in data.items():
+        self.log.debug('data passed to block: {d}', d=data)
+        verified = self._verify_provider_data(data)
+
+        if not verified:
+            self.log.info('rebuilding data containing invalid field name')
+            data = self._rebuild_invalid_data(data)
+            self.log.debug('data after rebuild: {d}', d=data)
+
+        for key, block in data.items():
             try:
                 b = self.blocks[key]
             except KeyError:
@@ -362,9 +542,8 @@ class G3FileRotator(G3Module):
 
 
 class Aggregator:
-    """
-    Data aggregator. This manages a collection or providers, and contains
-    methods to write to them and write them to disk.
+    """Data aggregator. This manages a collection of providers, and contains
+    methods to write them to disk.
 
     This class should only be accessed by a single thread. Data can be passed
     to it by appending it to the referenced `incoming_data` queue.
@@ -439,7 +618,7 @@ class Aggregator:
                 pid = self.add_provider(address, sessid, **feed['agg_params'])
 
             prov = self.providers[pid]
-            prov.write(data)
+            prov.save_to_block(data)
 
     def add_provider(self, prov_address, prov_sessid, **prov_kwargs):
         """
@@ -491,7 +670,7 @@ class Aggregator:
     def remove_stale_providers(self):
         """
         Loops through all providers and check if they've gone stale. If they
-         have, write their remaining data to disk (they shouldn't have any)
+        have, write their remaining data to disk (they shouldn't have any)
         and delete them.
         """
         stale_provs = []

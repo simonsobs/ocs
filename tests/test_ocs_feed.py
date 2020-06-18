@@ -86,6 +86,166 @@ class TestPublishMessage:
         with pytest.raises(TypeError):
             test_feed.publish_message(test_message)
 
+    def test_invalid_data_key_character(self):
+        """Passing disallowed characters in a field key should result in a
+        ValueError upon publishing.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                'invalid.key1': 1.,
+                'valid_key2': 1.,
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
+
+    def test_data_key_start_with_number(self):
+        """Field names should start with a letter.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                '1invalidkey': 1.,
+                'valid_key2': 1.,
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
+
+    def test_data_key_too_long(self):
+        """Passing a data key that exceeds 255 characters should raise a 
+        ValueError upon publishing.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                'a'*256: 1.,
+                'valid_key2': 1.,
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
+
+    def test_data_key_start_underscore1(self):
+        """Data keys can start with any number of _'s followed by a letter.
+        Test several cases where we start with underscores.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        # Valid underscore + letter start
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                '_valid': 1.,
+                'valid_key2': 1.,
+            }
+        }
+
+        test_feed.publish_message(test_message)
+
+    def test_data_key_start_underscore2(self):
+        """Data keys can start with any number of _'s followed by a letter.
+        Test several cases where we start with underscores.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        # Valid multi-underscore + letter start
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                '____valid1': 1.,
+                'valid_key2': 1.,
+            }
+        }
+
+        test_feed.publish_message(test_message)
+
+    def test_data_key_start_underscore3(self):
+        """Data keys can start with any number of _'s followed by a letter.
+        Test several cases where we start with underscores.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        # Invalid underscore + number start
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                '_1valid': 1.,
+                'valid_key2': 1.,
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
+
+    def test_data_key_start_underscore4(self):
+        """Data keys can start with any number of _'s followed by a letter.
+        Test several cases where we start with underscores.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        # Invalid multi-underscore + number start
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                '____1valid': 1.,
+                'valid_key2': 1.,
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
+
+    def test_empty_field_name(self):
+        """Check for empty string as a field name.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        # Invalid multi-underscore + number start
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                '': 1.,
+                'valid_key2': 1.,
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
 
 # ocs_feed.Block
 def test_block_creation():

@@ -43,6 +43,8 @@ ocs.matched_client
     :undoc-members:
     :show-inheritance:
 
+.. _ocs_agent_api:
+
 ocs.ocs_agent
 -------------
 

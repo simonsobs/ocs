@@ -98,7 +98,6 @@ follow the Session frame, and a new one will be written each time a provider
 is added or removed from the list of active providers.
 
 Data frames contain all data published by a single provider.
-These frames help
 The data is stored under the key ``blocks`` as list of G3TimesampleMaps, where
 each timesample map corresponds to a group of co-sampled data, grouped by their
 :ref:`block name <feed_message_format>`.
@@ -115,11 +114,14 @@ into G3Frames.
 See :ref:`the OCS Feed page <recorded_feed_registration>` for info on how
 to register a feed so that it will be recorded by the aggregator.
 
-The aggregator monitors all feeds in the ``observatory`` namespace to find
+Unregistered providers will automatically be added when they send data,
+and stale providers will be removed if no data is received in a specified
+time period.
+To do this, the aggregator monitors all feeds in the ``observatory`` namespace to find
 feeds that should be recorded.  If the aggregator receives data from a feed
 registered with ``record=True``, it will automatically add that feed as a
-Provider, and will start putting incoming data into frames every ``frame_time``
-seconds, where ``frame_time`` is set by the Feed on registration.
+Provider, and will start putting incoming data into frames every ``frame_length``
+seconds, where ``frame_length`` is set by the Feed on registration.
 Providers will be automatically marked as stale and unregistered if it goes
 ``fresh_time`` seconds without receiving any data from the feed, where
 ``fresh_time`` is again set by the feed on registration.
@@ -130,9 +132,6 @@ to disk.
 The ``record`` task's session data object contains information such as the
 path of the current G3 file, and the status of active and stale providers.
 
-Unregistered providers will automatically be added when they send data,
-and stale providers will be removed if no data is received in a specified
-time period.
 
 Site Config
 ```````````
@@ -153,6 +152,12 @@ An example site-config entry is::
                      ['--data-dir', '/data/hk']
        ]},
 
+.. note::
+    ``/data/hk`` is used to avoid conflict with other collections of data. In
+    general, it is recommended to use ``/data/timestreams`` to store detector
+    timestreams, and ``/data/pysmurf`` to store archived pysmurf files.
+
+
 Docker
 ```````
 The docker image for the aggregator agent is simonsobs/ocs-aggregator-agent
@@ -170,6 +175,14 @@ Here is an example configuration::
 
 API
 ---
+.. _agg_provider_api:
 
+Provider
+``````````
+.. autoclass:: ocs.agent.aggregator.Provider
+    :members:
+
+Aggregator
+```````````
 .. autoclass:: agents.aggregator.aggregator_agent.AggregatorAgent
     :members: start_aggregate

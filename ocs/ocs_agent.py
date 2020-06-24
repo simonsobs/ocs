@@ -358,6 +358,9 @@ class OCSAgent(ApplicationSession):
                 Params:
                     **frame_length** (float):
                         Deterimes the amount of time each G3Frame should be (in seconds).
+                    **fresh_time** (float):
+                        Time (seconds) before feed is considered "stale" and
+                        removed from the HK status frame
 
             buffer_time (int, optional):
                 Specifies time that messages should be buffered in seconds.

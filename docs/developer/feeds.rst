@@ -4,30 +4,33 @@
 
 Data Feeds
 ==========
-WAMP applications pass data between components via a publish/subscribe interface.
-A component can publish data to a unique address, and then any other component
-can register a callback to said address.
-Any time data is published, the all subscribed components will receive that
-data with the registered callback function.
+
+WAMP applications pass data between components via a publish/subscribe
+interface.  A component can publish data to a unique address, and then any
+other component can register a callback to monitor said address. Any time data
+is published, all subscribed components will receive that data with the
+registered callback function.
 
 The OCS Feed is a layer on top of this basic pub/sub functionality that agents
-can use to pass data to other OCS agents or clients.
-The OCS agent contains several methods which make it easy to register new feeds,
-publish data to registered feeds, and subscribing to other agent's feeds.
-The feed system adds some structure to the base pub/sub layer by adding
-features such as data-caching, data and feed-name verification, and
-aggregation behavior customization.
+can use to pass data to other OCS agents or clients.  The OCS agent contains
+several methods which make it easy to register new feeds, publish data to
+registered feeds, and subscribing to other agent's feeds.  The feed system adds
+some structure to the base pub/sub layer by adding features such as
+data-caching, data and feed-name verification, and aggregation behavior
+customization.
 
 
 Registering Feeds
 ------------------------
 
-An ``OCSAgent`` can register a basic feed by calling::
+A custom Agent class can register a feed using its ``OCSAgent`` instance. For
+example, if the OCSAgent instance is stored in the ``self.agent`` variable, a
+basic feed can be registered by calling::
 
-    agent.register_feed(feed_name)
+    self.agent.register_feed(feed_name)
 
 The ``register_feed`` function takes a few other key word arguments to customize
-its behavior (See :ref:`Feed Api <ocs_feed_api>` for more details).
+its behavior (See :ref:`OCSAgent Api <ocs_agent_api>` for more details).
 ``buffer_time`` will set how long the feed should buffer messages before sending
 over crossbar, and ``max_messages`` will set how many messages are cached.
 
@@ -50,6 +53,8 @@ Agg Params
 If you'd like your feed to be recorded by the hk aggregator, you must register
 with the keyword ``record=True``, and you can customize the hk aggregator
 behavior with the ``agg_params`` option.
+These parameters will be passed to the :ref:`Provider <_agg_provider_api>`
+constructor, which will unpack them and set defaults.
 The following options can be specified here:
 
 .. list-table:: Aggregator params
@@ -61,6 +66,7 @@ The following options can be specified here:
     * - fresh_time
       - Time (seconds) before feed is considered "stale", and is removed from
         the HK status frame
+
 
 Publishing to a Feed
 ----------------------
@@ -127,10 +133,14 @@ Note the pluralized ``timestamps`` key.
 Data with consistent ``block_names`` will be written to disk as a single
 ``G3TimesampleMap`` object, which stores co-sampled data as a map containing
 multiple G3Vector objects along with a vector of timestamps.
+The field-names in the ``data`` block will be the keys in the G3TimesampleMap
+and will be the names that show up in Grafana, so it is important that these are
+descriptive and unique within each Feed.
 In the example above, the keys of the ``G3TimesampleMap`` will be
 ``field_name_1`` and ``field_name_2``.
 The ``block_name`` is only used internally and will not be written
-to disk.
+to disk, so it is only important that that the ``block_name`` is unique to this
+cosampled block.
 
 Each set of data that a feed publishes that is non-cosampled should be
 published to a different ``block_name``.
@@ -143,7 +153,7 @@ The LS372 temperatures should then look like::
         'timestamp': <ctime>,
         'data': {
             'channel_01_T': <channel 1 temperature reading>,
-            'channel_01_V': <channel 1 voltage reading>
+            'channel_01_R': <channel 1 resistance reading>
          }
     }
 
@@ -165,6 +175,10 @@ aggregator will attempt to correct them before writing to disk.
 Subscribing to a Feed
 ---------------------
 
+Occasionally you might want your agent or client to receive data directly from
+another agent. For instance, the aggregator agent subscribes to all agent feeds to write
+their data to hk files, and the pysmurf-controller subscribes to the pysmurf-monitor
+feed so that it can put pysmurf data directly into the session-data object.
 There are a few different ways for your agent to subscribe to an OCS Feed.
 Once the twisted reactor has started, both the ``subscribe_to_feed`` and
 ``subscribe`` functions can be used.
@@ -183,8 +197,12 @@ For instance, the following line will subscribe to all OCS feeds in the
 Before the reactor has started, the ``subscribe_on_start`` function can be used
 to queue up a subscribe call to run as soon as the reactor starts.
 
+Subscribing with a Client
+``````````````````````````
+It is also possible for client objects to subscribe to feeds...
+
 Examples
---------
+`````````
 Here is an example showing how the ``registry`` agent subscribes its
 heartbeat registration callback::
 

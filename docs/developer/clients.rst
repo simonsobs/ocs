@@ -187,7 +187,7 @@ Client example would be::
 
 
 Replies from Operation methods
-==============================
+------------------------------
 
 The responses from Operation methods is a tuple, (status, message,
 session).  The elements of the tuple are:

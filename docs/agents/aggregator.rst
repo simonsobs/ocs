@@ -86,7 +86,7 @@ contents of the file as a dict. For instance::
     ]
 
 HK File Structure
--------------------
+-----------------
 The HK file is made up of three frame types: Session, Status, and Data,
 labeled with an ``hkagg_type`` value of 0, 1, and 2 respectively.
 Session frames occur once at the start of every file and contain information
@@ -98,14 +98,14 @@ follow the Session frame, and a new one will be written each time a provider
 is added or removed from the list of active providers.
 
 Data frames contain all data published by a single provider.
-The data is stored under the key ``blocks`` as list of G3TimesampleMaps, where
+The data is stored under the key ``blocks`` as a list of G3TimesampleMaps, where
 each timesample map corresponds to a group of co-sampled data, grouped by their
 :ref:`block name <feed_message_format>`.
-Each G3Timesample contains a G3Vector for each ``field_name`` specified in the
+Each G3TimesampleMap contains a G3Vector for each ``field_name`` specified in the
 data and a vector of timestamps.
 
 Aggregator Agent
---------------------------------
+----------------
 The job of the HK aggregator is to take data published by "Providers" and write
 it to disk.
 The aggregator considers each OCS Feed with ``record=True`` to be a separate

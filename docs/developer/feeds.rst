@@ -21,7 +21,7 @@ customization.
 
 
 Registering Feeds
-------------------------
+-----------------
 
 A custom Agent class can register a feed using its ``OCSAgent`` instance. For
 example, if the OCSAgent instance is stored in the ``self.agent`` variable, a
@@ -30,12 +30,12 @@ basic feed can be registered by calling::
     self.agent.register_feed(feed_name)
 
 The ``register_feed`` function takes a few other key word arguments to customize
-its behavior (See :ref:`OCSAgent Api <ocs_agent_api>` for more details).
+its behavior (See :ref:`OCSAgent API <ocs_agent_api>` for more details).
 ``buffer_time`` will set how long the feed should buffer messages before sending
 over crossbar, and ``max_messages`` will set how many messages are cached.
 
-Feed_name Rules
-````````````````
+Feed Name Rules
+```````````````
 
 Data on this feed will be published to the URI ``<agent_uri>.feeds.<feed_name>``
 so feed names must follow standard
@@ -48,12 +48,12 @@ For instance, the Lakeshore372 agent may register a feed called ``temperatures``
 A Lakeshore372 instance with instance-id ``LSASIM`` would then publish data to
 the URI ``observatory.LSASIM.feeds.temperatures``.
 
-Agg Params
-```````````
+Aggregator Parameters
+`````````````````````
 If you'd like your feed to be recorded by the hk aggregator, you must register
 with the keyword ``record=True``, and you can customize the hk aggregator
 behavior with the ``agg_params`` option.
-These parameters will be passed to the :ref:`Provider <_agg_provider_api>`
+These parameters will be passed to the :ref:`Provider <agg_provider_api>`
 constructor, which will unpack them and set defaults.
 The following options can be specified here:
 
@@ -69,7 +69,7 @@ The following options can be specified here:
 
 
 Publishing to a Feed
-----------------------
+--------------------
 You can publish data to a feed by calling::
 
     agent.publish_to_feed(feed_name, message)
@@ -161,7 +161,7 @@ The LS372 G3Frames will then contain a G3TimesampleMap for each channel,
 containing the temperature and voltage readings along with their timestamps.
 
 Field Name Requirements
-''''''''''''''''''''''''
+'''''''''''''''''''''''
 Field names must:
 
 - Contain only letters, numbers, and underscores.
@@ -198,11 +198,11 @@ Before the reactor has started, the ``subscribe_on_start`` function can be used
 to queue up a subscribe call to run as soon as the reactor starts.
 
 Subscribing with a Client
-``````````````````````````
+`````````````````````````
 It is also possible for client objects to subscribe to feeds...
 
 Examples
-`````````
+````````
 Here is an example showing how the ``registry`` agent subscribes its
 heartbeat registration callback::
 

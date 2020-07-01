@@ -2,8 +2,7 @@ name: Build Develop Images
 
 on:
   push:
-    # TODO: remove github-actions-docker branch after testing
-    branches: [ develop, github-actions-docker ]
+    branches: [ develop ]
 
 jobs:
   build:

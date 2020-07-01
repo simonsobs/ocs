@@ -31,7 +31,7 @@ jobs:
         REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
         DOCKERHUB_ORG: "simonsobs"
       run: |
-        export DOCKER_TAG=dev-`git describe --tags --always`
+        export DOCKER_TAG=`git describe --tags --always`-dev
         echo "${DOCKER_TAG}"
         echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USER}" --password-stdin;
 

@@ -88,6 +88,12 @@ in that directory for details.
 .. _example/miniobs/: example/miniobs/
 .. _readme: example/miniobs/README.rst
 
+Contributing
+------------
+For guidelines on how to contribute to OCS see `CONTRIBUTING.rst`_.
+
+.. _CONTRIBUTING.rst: CONTRIBUTING.rst
+
 License
 --------
 This project is licensed under the BSD 2-Clause License - see the

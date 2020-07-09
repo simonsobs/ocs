@@ -171,26 +171,41 @@ class DataChecker:
         for instance_id, feeds in self.instances.items():
             description_string += f"{instance_id}\n"
             for feed, fields in feeds.items():
-                if self.verbose:
-                    description_string += f"  {feed}\n"
-                    description_string += "  -----------------------------------------------------------------------------------------\n"
-                    description_string += "  {:>20} | {:>20} | {:>20} | {:>20}\n".format("Field", "Last Seen [s ago]", "Seen At [ctime]", "Value")
-                    description_string += "  -----------------------------------------------------------------------------------------\n"
-
-                else:
+                if not self.verbose:
                     field_t_diff = time.time() - fields['t_last']
                     if field_t_diff > 600:
                         description_string += f"  {feed}: " + Fore.RED + f"{field_t_diff:.1f} s old\n" + Style.RESET_ALL
                     else:
                         description_string += f"  {feed}: {field_t_diff:.1f} s old\n"
+                else:
+                    description_string += f"  {feed}\n"
+                    description_string += "  -----------------------------------------------------------------------------------------\n"
+                    description_string += "  {:>20} | {:>20} | {:>20} | {:>20}\n".format("Field", "Last Seen [s ago]", "Seen At [ctime]", "Value")
+                    description_string += "  -----------------------------------------------------------------------------------------\n"
 
-                for field, d_info in fields['fields'].items():
-                    if self.verbose:
+                    for field, d_info in fields['fields'].items():
                         t_diff = time.time() - d_info['t_last']
+                        desc_substring = "  "
+
+                        # Field
+                        _field_string = "{:>20}".format(field)
+                        desc_substring += _field_string + " | "
+
+                        # Last Seen [s ago]
+                        _t_diff_string = "{:>20.1f}".format(t_diff)
                         if t_diff > 600:
-                            description_string += Fore.RED + "  {:>20} | {:>20.1f} | {:>20} | {:>20}\n".format(field, t_diff, d_info['t_last'], d_info['v_last']) + Style.RESET_ALL
-                        else:
-                            description_string += "  {:>20} | {:>20.1f} | {:>20} | {:>20}\n".format(field, t_diff, d_info['t_last'], d_info['v_last'])
+                            _t_diff_string = Fore.RED + _t_diff_string + Style.RESET_ALL
+                        desc_substring += _t_diff_string + " | "
+
+                        # Seen At [ctime]
+                        _t_last_string = "{:>20}".format(d_info['t_last'])
+                        desc_substring += _t_last_string + " | "
+
+                        # Value
+                        _v_last_string = "{:>20}".format(d_info['v_last'])
+                        desc_substring += _v_last_string
+
+                        description_string += desc_substring + "\n"
 
             description_string += "\n"
 

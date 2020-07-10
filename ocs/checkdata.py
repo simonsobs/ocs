@@ -7,6 +7,7 @@ import time
 from progress.bar import Bar
 
 from so3g import hk
+from ocs.ocs_feed import Feed
 
 from colorama import init, Fore, Style
 init()
@@ -216,7 +217,13 @@ class DataChecker:
                         desc_substring = "  "
 
                         # Field
+                        try:
+                            valid_field = Feed.verify_data_field_string(field)
+                        except ValueError:
+                            valid_field = False
                         _field_string = field.rjust(field_str_len)
+                        if not valid_field:
+                            _field_string = Fore.YELLOW + _field_string + Style.RESET_ALL
                         desc_substring += _field_string + " | "
 
                         # Last Seen [s ago]

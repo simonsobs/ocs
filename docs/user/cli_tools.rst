@@ -97,6 +97,11 @@ field within that feed. For more verbose output, throw the ``-v`` flag::
               Channel 01 R |                320.4 |   1573212564.6585813 |              29255.1
               Channel 01 T |                320.4 |   1573212564.6585813 |            0.0656435
 
+Normal output from ``checkdata`` will show in your default terminal color
+scheme. When fields were last seen more than 10 minutes ago their age will show
+up in red. If a field name is invalid, it will show up in yellow in the verbose
+output.
+
 datestring2ctime
 ================
 The HK Aggregator originally output .g3 files with the naming convention

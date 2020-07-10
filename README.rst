@@ -12,6 +12,9 @@ OCS - Observatory Control System
 .. image:: https://coveralls.io/repos/github/simonsobs/ocs/badge.svg
     :target: https://coveralls.io/github/simonsobs/ocs
 
+.. image:: https://img.shields.io/badge/dockerhub-latest-blue
+    :target: https://hub.docker.com/r/simonsobs/ocs/tags
+
 Overview
 --------
 
@@ -30,13 +33,12 @@ user to perform a series of unattended, interlocking data acquisition tasks.
 This repository, `OCS`_, contains library code and core system
 components.  Additional code for operating specific hardware can be
 found in the `Simons Observatory Control System (SOCS)`_ repository.
-The time-domain data query system, with grafana integration, is
-provided through `Sisock`_.
+Grafana and InfluxDB are supported to provide a near real-time monitoring and
+historical look back of the housekeeping data.
 
 .. _crossbar.io: http://crossbario.com
 .. _`OCS`: https://github.com/simonsobs/ocs/
 .. _`Simons Observatory Control System (SOCS)`: https://github.com/simonsobs/socs/
-.. _`SiSock`: https://github.com/simonsobs/sisock/
 
 Dependencies
 ------------
@@ -66,6 +68,21 @@ other software you are working with. See the latest `tags`_.
 
 .. _tags: https://github.com/simonsobs/ocs/tags
 
+Docker Images
+-------------
+Docker images for OCS and each Agent are available on `Docker Hub`_. Official
+releases will be tagged with their release version, i.e. ``v0.1.0``. These are
+only built on release, and the ``latest`` tag will point to the latest of these
+released tags. These should be considered stable.
+
+Development images will be tagged with the latest released version tag, the
+number of commits ahead of that release, the latest commit hash, and the tag
+``-dev``, i.e.  ``v0.6.0-53-g0e390f6-dev``. These get built on each commit to
+the ``develop`` branch, and are useful for testing and development, but should
+be considered unstable.
+
+.. _Docker Hub: https://hub.docker.com/u/simonsobs
+
 Documentation
 -------------
 The OCS documentation can be built using sphinx once you have performed the
@@ -75,8 +92,9 @@ installation::
   make html
 
 You can then open ``docs/_build/html/index.html`` in your preferred web
-browser.
+browser. You can also find a copy hosted on `Read the Docs`_.
 
+.. _Read the Docs: https://ocs.readthedocs.io/en/latest/
 
 Example
 -------

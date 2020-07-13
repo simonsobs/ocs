@@ -7,6 +7,7 @@ import time
 from progress.bar import Bar
 
 from so3g import hk
+from ocs.ocs_feed import Feed
 
 from colorama import init, Fore, Style
 init()
@@ -171,26 +172,75 @@ class DataChecker:
         for instance_id, feeds in self.instances.items():
             description_string += f"{instance_id}\n"
             for feed, fields in feeds.items():
-                if self.verbose:
-                    description_string += f"  {feed}\n"
-                    description_string += "  -----------------------------------------------------------------------------------------\n"
-                    description_string += "  {:>20} | {:>20} | {:>20} | {:>20}\n".format("Field", "Last Seen [s ago]", "Seen At [ctime]", "Value")
-                    description_string += "  -----------------------------------------------------------------------------------------\n"
-
-                else:
+                if not self.verbose:
                     field_t_diff = time.time() - fields['t_last']
                     if field_t_diff > 600:
                         description_string += f"  {feed}: " + Fore.RED + f"{field_t_diff:.1f} s old\n" + Style.RESET_ALL
                     else:
                         description_string += f"  {feed}: {field_t_diff:.1f} s old\n"
+                else:
+                    # Determine width of "Field" column
+                    field_str_len = 20
+                    for _f in fields['fields']:
+                        if len(_f) > field_str_len:
+                            field_str_len = len(_f)
 
-                for field, d_info in fields['fields'].items():
-                    if self.verbose:
+                    description_string += f"  {feed}\n"
+                    # 20 per fixed field, 9 for dividers, and field_str_len
+                    description_string += "  " + "-"*(69+field_str_len) + "\n"
+
+                    # Header string
+                    desc_substring = "  "
+
+                    # Field
+                    _field_string = "Field".rjust(field_str_len)
+                    desc_substring += _field_string + " | "
+
+                    # Last Seen [s ago]
+                    _t_diff_string = "{:>20}".format("Last Seen [s ago]")
+                    desc_substring += _t_diff_string + " | "
+
+                    # Seen At [ctime]
+                    _t_last_string = "{:>20}".format("Seen At [ctime]")
+                    desc_substring += _t_last_string + " | "
+
+                    # Value
+                    _v_last_string = "{:>20}".format("Value")
+                    desc_substring += _v_last_string
+
+                    description_string += desc_substring + "\n"
+
+                    description_string += "  " + "-"*(69+field_str_len) + "\n"
+
+                    for field, d_info in fields['fields'].items():
                         t_diff = time.time() - d_info['t_last']
+                        desc_substring = "  "
+
+                        # Field
+                        try:
+                            valid_field = Feed.verify_data_field_string(field)
+                        except ValueError:
+                            valid_field = False
+                        _field_string = field.rjust(field_str_len)
+                        if not valid_field:
+                            _field_string = Fore.YELLOW + _field_string + Style.RESET_ALL
+                        desc_substring += _field_string + " | "
+
+                        # Last Seen [s ago]
+                        _t_diff_string = "{:>20.1f}".format(t_diff)
                         if t_diff > 600:
-                            description_string += Fore.RED + "  {:>20} | {:>20.1f} | {:>20} | {:>20}\n".format(field, t_diff, d_info['t_last'], d_info['v_last']) + Style.RESET_ALL
-                        else:
-                            description_string += "  {:>20} | {:>20.1f} | {:>20} | {:>20}\n".format(field, t_diff, d_info['t_last'], d_info['v_last'])
+                            _t_diff_string = Fore.RED + _t_diff_string + Style.RESET_ALL
+                        desc_substring += _t_diff_string + " | "
+
+                        # Seen At [ctime]
+                        _t_last_string = "{:>20}".format(d_info['t_last'])
+                        desc_substring += _t_last_string + " | "
+
+                        # Value
+                        _v_last_string = "{:>20}".format(d_info['v_last'])
+                        desc_substring += _v_last_string
+
+                        description_string += desc_substring + "\n"
 
             description_string += "\n"
 

@@ -1,0 +1,42 @@
+name: Build Develop Images
+
+on:
+  push:
+    branches: [ develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v2
+      # Fetch all history for all tags and branches
+      with:
+        fetch-depth: 0
+
+    # Test
+    - name: Build docker images
+      run: |
+        docker-compose build
+
+    - name: Test with pytest within a docker container
+      run: |
+        docker run -v $PWD:/coverage --rm ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest -p no:wampy --cov /app/ocs/ocs/ ./tests/"
+
+    # Dockerize
+    - name: Build and push development docker image
+      env:
+        REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+        DOCKERHUB_ORG: "simonsobs"
+      run: |
+        export DOCKER_TAG=`git describe --tags --always`-dev
+        echo "${DOCKER_TAG}"
+        echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USER}" --password-stdin;
+
+        # Tag all images for upload to the registry
+        docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}
+
+        # Upload to docker registry
+        docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}
+        docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo ${DOCKERHUB_ORG}/{}:${DOCKER_TAG} pushed

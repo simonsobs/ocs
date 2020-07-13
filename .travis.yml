@@ -9,10 +9,6 @@ python:
 
 stages:
   - test
-  - name: dockerize
-    if: |
-      branch = master AND \
-      type = push
 
 jobs:
   include:
@@ -37,26 +33,3 @@ jobs:
 
         # Publish results to coveralls
         - coveralls
-
-    - stage: dockerize
-      install: true
-
-      before_script:
-        # Use the git tag to tag docker image
-        - export DOCKER_TAG=`git describe --tags --always`
-        # Login to docker
-        - echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USER}" --password-stdin;
-
-      script:
-        # Build the docker images with docker-compose
-        - docker-compose build
-
-      after_success:
-        # Tag all images for upload to the registry
-        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${DOCKERHUB_ORG}/{}:latest"
-        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}"
-
-        # Upload to docker registry
-        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}"
-        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:latest"
-        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo ${DOCKERHUB_ORG}/{}:${DOCKER_TAG} pushed"

@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # Read from .g3 file and insert into InfluxDB.
 
@@ -169,8 +169,24 @@ class DataLoader:
         new_list = []
         for f in self._file_list:
             date_string = os.path.basename(f)
-            dt = datetime.datetime.strptime(date_string, "%Y-%m-%d-%H-%M-%S.g3")
-            if dt > self.startdate and dt < self.enddate:
+            dt = None
+            try:
+                dt = datetime.datetime.strptime(date_string, "%Y-%m-%d-%H-%M-%S.g3")
+            except:
+                pass
+
+            # Handle new format
+            if '-' not in date_string and dt is None:
+                try:
+                    ctime = int(date_string.replace('.g3', ''))
+                    dt = datetime.datetime.fromtimestamp(ctime)
+                except:
+                    pass
+
+            if dt is None:
+                logging.error(f"Removing {f} from file list: bad filename "
+                              "format.")
+            elif dt > self.startdate and dt < self.enddate:
                 new_list.append(f)
             else:
                 logging.debug(f"Removing {f} from filelist, outside of start/end dates.")

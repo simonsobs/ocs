@@ -8,6 +8,8 @@ import datetime
 import sqlite3
 import argparse
 import logging
+import warnings
+import numpy as np
 
 from tqdm import tqdm
 
@@ -62,7 +64,7 @@ def connect_to_sqlite(path=None, db_file=".g32influx.db"):
     return conn
 
 
-def _md5sum(filename, blocksize=65536):
+def _md5sum(path, blocksize=65536):
     """Compute md5sum of a file.
 
     References
@@ -71,7 +73,7 @@ def _md5sum(filename, blocksize=65536):
 
     Parameters
     ----------
-    filename : str
+    path : str
         Full path to file for which we want the md5
     blocksize : int
         blocksize we want to read the file in chunks of to avoid fitting the
@@ -84,7 +86,7 @@ def _md5sum(filename, blocksize=65536):
 
     """
     hash_ = hashlib.md5()
-    with open(filename, "rb") as f:
+    with open(path, "rb") as f:
         for block in iter(lambda: f.read(blocksize), b""):
             hash_.update(block)
     return hash_.hexdigest()
@@ -97,6 +99,8 @@ class DataLoader:
     ----------
     target : str
         File or directory to scan.
+    database : str
+        Database name within InfluxDB to publish the loaded data into.
     host : str
         InfluxDB host address
     port : int
@@ -112,32 +116,32 @@ class DataLoader:
         Connection to the sqlite3 database
 
     """
-    def __init__(self, target, host='localhost', port=8086, startdate="1970-01-01", enddate="2070-01-01"):
+    def __init__(self, target, database, host='localhost', port=8086,
+                 startdate="1970-01-01", enddate="2070-01-01"):
         self.influxclient = InfluxDBClient(host=host, port=port)
-        self._init_influxdb()
+        self._init_influxdb(database)
 
         self.sqliteconn = connect_to_sqlite()
         self._init_sqlitedb()
 
-        self.target = target
-        self._file_list = _build_file_list(target)
+        self.target = os.path.abspath(target)
+        self._file_list = _build_file_list(self.target)
 
         self.startdate = datetime.datetime.strptime(startdate, "%Y-%m-%d")
         self.enddate = datetime.datetime.strptime(enddate, "%Y-%m-%d")
 
         self._file_list = self._reduce_filelist_by_date()
 
-    def _init_influxdb(self, db='ocs_feeds'):
+    def _init_influxdb(self, db):
         """Initializes InfluxDB after connection.
 
         Gets a list of existing databases within InfluxDB, creates db if it
-        doesn't exist (defaults to 'ocs_feeds'), and switches the client to
-        that db.
+        doesn't exist, and switches the client to that db.
 
         Parameters
         ----------
         db : str
-            Name for the database, default to 'ocs_feeds'.
+            Name for the database.
 
         """
         db_list = self.influxclient.get_list_database()
@@ -163,7 +167,8 @@ class DataLoader:
 
     def _reduce_filelist_by_date(self):
         """If the user has passed in optional start and end date parameters,
-        limit the filelist by removing files that fall outside of the given range.
+        limit the filelist by removing files that fall outside of the given
+        range.
 
         """
         new_list = []
@@ -171,17 +176,19 @@ class DataLoader:
             date_string = os.path.basename(f)
             dt = None
             try:
-                dt = datetime.datetime.strptime(date_string, "%Y-%m-%d-%H-%M-%S.g3")
-            except:
-                pass
+                dt = datetime.datetime.strptime(date_string,
+                                                "%Y-%m-%d-%H-%M-%S.g3")
+            except ValueError:
+                logging.debug("%Y-%m-%d-%H-%M-%S.g3 was not the " +
+                              "file datestring format")
 
             # Handle new format
             if '-' not in date_string and dt is None:
                 try:
                     ctime = int(date_string.replace('.g3', ''))
                     dt = datetime.datetime.fromtimestamp(ctime)
-                except:
-                    pass
+                except ValueError:
+                    logging.error(f"Timestamp in {f} could not be extracted.")
 
             if dt is None:
                 logging.error(f"Removing {f} from file list: bad filename "
@@ -189,7 +196,8 @@ class DataLoader:
             elif dt > self.startdate and dt < self.enddate:
                 new_list.append(f)
             else:
-                logging.debug(f"Removing {f} from filelist, outside of start/end dates.")
+                logging.debug(f"Removing {f} from filelist, " +
+                              "outside of start/end dates.")
 
         return new_list
 
@@ -259,9 +267,11 @@ class DataLoader:
         for path, chksum in tqdm(to_publish, desc="All Files"):
             rval = self._publish_file(path)
             if rval == 0:
-                c.execute("UPDATE g3files SET published=1 WHERE md5sum=?", (chksum, ))
+                c.execute("UPDATE g3files SET published=1 WHERE md5sum=?",
+                          (chksum, ))
             else:
-                c.execute("UPDATE g3files SET published=? WHERE md5sum=?", (rval, chksum))
+                c.execute("UPDATE g3files SET published=? WHERE md5sum=?",
+                          (rval, chksum))
             self.sqliteconn.commit()
 
     def run(self):
@@ -275,14 +285,14 @@ class SingleFileScanner:
     Since we want to track which files are being uploaded so that an upload can
     be resumed if interrupted it's perhaps the simplest to upload them
     individually. While this doesn't take advantage of the nice
-    so3g.hk.HKArchiveScanner functionality of reading multiple files, or time
+    so3g.hk.HKArchiveScanner functionality of reading multiple files, our time
     limiting step is actually pushing data into the InfluxDB.
 
     Parameters
     ----------
-    filename : str
+    path : str
         Full path to file for scanning
-    influxdb : influxdb.InfluxDBClient
+    db : influxdb.InfluxDBClient
         Connection to the InfluxDB, used to publish data to the database.
 
     Attributes
@@ -301,9 +311,9 @@ class SingleFileScanner:
         Timelines within the file as returned by cat.get_fields()
 
     """
-    def __init__(self, filename, influxdb):
-        self.file = filename
-        self.client = influxdb
+    def __init__(self, path, db):
+        self.path = path
+        self.db = db
 
         self.hkas = hk.HKArchiveScanner()
         self.cat = None
@@ -316,17 +326,18 @@ class SingleFileScanner:
         for later processing.
 
         """
-        self.hkas.process_file(self.file)
-
+        logging.debug("Scanning %s." % self.path)
+        self.hkas.process_file(self.path)
         self.cat = self.hkas.finalize()
-        # print("Getting fields")
         self.fields, self.timelines = self.cat.get_fields()
-        # print("fields acquired")
 
         return 0
 
     def format_field(self, field):
         """Format a given field for publishing to the database.
+
+        Deprecated: formating field by field is significantly slower than doing
+        it by timeline: see `format_timeline()`.
 
         Parameters
         ----------
@@ -339,6 +350,8 @@ class SingleFileScanner:
             List of values formatted for writing to InfluxDB
 
         """
+        warnings.warn("Formatting by field is deprecated.", DeprecationWarning)
+
         t, x = self.cat.simple(field)
         logging.debug("field:", field)
         agent_address, feed_and_field = field.split(".feeds.")
@@ -364,14 +377,56 @@ class SingleFileScanner:
 
         return json_body
 
-    def publish_file(self, batch_size=10000):
+    def format_timeline(self, timeline):
+        """Format a given timeline for publishing to the database.
+
+        Parameters
+        ----------
+        field : str
+            Timeline to publish data from, will query the finalized HKArchive.
+
+        Returns
+        -------
+        list
+            List of points, in line protocol, for writing to InfluxDB.
+        """
+        field = timeline["field"]
+
+        # Do some good, ol' fashioned parsing.
+        s = field[0].split(".feeds.")
+        agent_address = s[0]
+        if " " in agent_address:
+            raise ValueError(f"Space contained in OCS address {s[0]}.")
+        # ff = field[0].split(".feeds.")[1]
+        feed_val = s[1].split(".")[0].replace(" ", "\ ")
+        field_tag = [f.split(".feeds.")[1].split(".")[1].replace(" ", "\ ")
+                     for f in field]
+
+        # Get the data. Since all the fields belong to the same timeline, their
+        # timestamps are all the same object, which we can just grab from the
+        # first element of returned array. Then we need to transpose the data
+        # so that we can read it timestamp by timestamp.
+        raw_data = self.cat.simple(field)
+        t = raw_data[0][0]
+        data = np.transpose(np.stack([d[1] for d in raw_data]))
+
+        # Create the line output.
+        line = []
+        for _t, _data in zip(t, data):
+            flist = ",".join(["%s=%s" % (_f, _d)
+                              for _f, _d in zip(field_tag, _data)])
+            line.append("%s,feed=%s %s %d\n" %
+                        (agent_address, feed_val, flist, _t * 1e9))
+        return line
+
+    def publish_file(self, batch_size=100000):
         """Publish a files contents to InfluxDB.
 
         Parameters
         ----------
         batch_size : int
             Number of points to publish per write, passed to
-            influxdb.write_points(). Defaults to 10,000, which seems
+            influxdb.write_points(). Defaults to 100,000, which seems
             reasonable.
 
         Returns
@@ -381,18 +436,21 @@ class SingleFileScanner:
 
         """
         return_value = 0
-        basename = os.path.basename(self.file)
+        basename = os.path.basename(self.path)
 
-        for field in tqdm(self.fields, desc=f"{basename} Fields"):
+        for name, timeline in tqdm(self.timelines.items(), desc=f"{basename}"):
             try:
-                payload = self.format_field(field)
+                payload = self.format_timeline(timeline)
+                # payload = self.format_field(field)
             except ValueError:
                 logging.error("Unable to format payload properly, possibly " +
                               "trying to process old .g3 file format...")
                 return 2
             # print(f"publishing {field}...")
             try:
-                self.client.write_points(payload, batch_size=batch_size)
+                self.db.write_points(payload,
+                                     batch_size=batch_size,
+                                     protocol="line")
             except InfluxDBClientError as e:
                 logging.error(f"ERROR in {self.file}")
                 logging.error(f"client error, likely a type error: {e}")
@@ -402,7 +460,12 @@ class SingleFileScanner:
         return return_value
 
     def run(self):
-        self.scan_file()
+        try:
+            self.scan_file()
+        except Exception:
+            logging.error("Unable to read %s, likely due to old sog3 format."
+                          % self.basename)
+            return 2
         pub_ret = self.publish_file()
 
         return pub_ret
@@ -411,6 +474,7 @@ class SingleFileScanner:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('target', help='File or directory to scan.')
+    parser.add_argument('database', help='InfluxDB database to publish data to.')
     parser.add_argument('host', help='InfluxDB host.')
     parser.add_argument('port', help='InfluxDB port.')
     parser.add_argument('--start', default='1970-01-01',
@@ -428,10 +492,11 @@ def main():
     # Logging Configuration
     numeric_level = getattr(logging, args.log.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % loglevel)
+        raise ValueError('Invalid log level: %s' % args.log)
     logging.basicConfig(filename=args.logfile, level=numeric_level)
 
-    dl = DataLoader(args.target, host=args.host, port=args.port, startdate=args.start, enddate=args.end)
+    dl = DataLoader(args.target, args.database, host=args.host, port=args.port,
+                    startdate=args.start, enddate=args.end)
     dl.run()
 
 

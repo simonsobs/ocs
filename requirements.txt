@@ -18,6 +18,9 @@ sphinx-argparse
 progress
 colorama
 
+# g32influx
+tqdm
+
 # testing
 pytest
 pytest-cov

@@ -1,0 +1,504 @@
+#!/usr/bin/env python3
+
+# Read from .g3 file and insert into InfluxDB.
+
+import os
+import hashlib
+import datetime
+import sqlite3
+import argparse
+import logging
+import warnings
+import numpy as np
+
+from tqdm import tqdm
+
+from influxdb import InfluxDBClient
+from influxdb.exceptions import InfluxDBClientError
+
+from ocs.checkdata import _build_file_list
+from so3g import hk
+
+
+def timestamp2influxtime(time):
+    """Convert timestamp for influx.
+
+    Parameters
+    ----------
+    time : float
+        ctime timestamp
+
+    Returns
+    -------
+    str
+        Time formatted for insertion to influxDB
+
+    """
+    t_dt = datetime.datetime.fromtimestamp(time)
+    return t_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+
+
+def connect_to_sqlite(path=None, db_file=".g32influx.db"):
+    """Tries to determine OCS_SITE_CONFIG location from environment variables.
+    Uses current directory to store sqliteDB if unset.
+
+    Parameters
+    ----------
+    path : str
+        Path to store db in. If None, OCS_SITE_CONFIG is used. If
+        OCS_SITE_CONFIG is unset, the current directory is used.
+    db_file : str
+        basename for sqlite file
+
+    Returns
+    -------
+    sqlite3.Connection
+        Connection to sqlite3 database
+
+    """
+    if path is None:
+        path = os.environ.get("OCS_SITE_CONFIG", "./")
+    full_path = os.path.join(path, db_file)
+    conn = sqlite3.connect(full_path)
+
+    return conn
+
+
+def _md5sum(path, blocksize=65536):
+    """Compute md5sum of a file.
+
+    References
+    ----------
+    - https://stackoverflow.com/questions/3431825/generating-an-md5-checksum-of-a-file
+
+    Parameters
+    ----------
+    path : str
+        Full path to file for which we want the md5
+    blocksize : int
+        blocksize we want to read the file in chunks of to avoid fitting the
+        whole file into memory. Defaults to 65536
+
+    Returns
+    -------
+    str
+        Hex string representing the md5sum of the file
+
+    """
+    hash_ = hashlib.md5()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(blocksize), b""):
+            hash_.update(block)
+    return hash_.hexdigest()
+
+
+class DataLoader:
+    """Load data from .g3 file into an InfluxDB instance.
+
+    Parameters
+    ----------
+    target : str
+        File or directory to scan.
+    database : str
+        Database name within InfluxDB to publish the loaded data into.
+    host : str
+        InfluxDB host address
+    port : int
+        InfluxDB port
+
+    Attributes
+    ----------
+    target : str
+        File or directory to scan.
+    influxclient : influxdb.InfluxDBClient
+        Connection to the InfluxDB, used to publish data to the database.
+    sqliteconn : sqlite3.Connection
+        Connection to the sqlite3 database
+
+    """
+    def __init__(self, target, database, host='localhost', port=8086,
+                 startdate="1970-01-01", enddate="2070-01-01"):
+        self.influxclient = InfluxDBClient(host=host, port=port)
+        self._init_influxdb(database)
+
+        self.sqliteconn = connect_to_sqlite()
+        self._init_sqlitedb()
+
+        self.target = os.path.abspath(target)
+        self._file_list = _build_file_list(self.target)
+
+        self.startdate = datetime.datetime.strptime(startdate, "%Y-%m-%d")
+        self.enddate = datetime.datetime.strptime(enddate, "%Y-%m-%d")
+
+        self._file_list = self._reduce_filelist_by_date()
+
+    def _init_influxdb(self, db):
+        """Initializes InfluxDB after connection.
+
+        Gets a list of existing databases within InfluxDB, creates db if it
+        doesn't exist, and switches the client to that db.
+
+        Parameters
+        ----------
+        db : str
+            Name for the database.
+
+        """
+        db_list = self.influxclient.get_list_database()
+        db_names = [x['name'] for x in db_list]
+
+        if 'ocs_feeds' not in db_names:
+            logging.info("ocs_feeds DB doesn't exist, creating DB")
+            self.influxclient.create_database(db)
+
+        self.influxclient.switch_database(db)
+
+    def _init_sqlitedb(self):
+        """Initialize the sqlitedb after connection.
+
+        We call our table 'g3files'. You probably don't need to change this.
+
+        """
+        c = self.sqliteconn.cursor()
+        c.execute("CREATE TABLE IF NOT EXISTS g3files (path TEXT UNIQUE, md5sum TEXT, published INTEGER)")
+
+        self.sqliteconn.commit()
+        c.close()
+
+    def _reduce_filelist_by_date(self):
+        """If the user has passed in optional start and end date parameters,
+        limit the filelist by removing files that fall outside of the given
+        range.
+
+        """
+        new_list = []
+        for f in self._file_list:
+            date_string = os.path.basename(f)
+            dt = None
+            try:
+                dt = datetime.datetime.strptime(date_string,
+                                                "%Y-%m-%d-%H-%M-%S.g3")
+            except ValueError:
+                logging.debug("%Y-%m-%d-%H-%M-%S.g3 was not the " +
+                              "file datestring format")
+
+            # Handle new format
+            if '-' not in date_string and dt is None:
+                try:
+                    ctime = int(date_string.replace('.g3', ''))
+                    dt = datetime.datetime.fromtimestamp(ctime)
+                except ValueError:
+                    logging.error(f"Timestamp in {f} could not be extracted.")
+
+            if dt is None:
+                logging.error(f"Removing {f} from file list: bad filename "
+                              "format.")
+            elif dt > self.startdate and dt < self.enddate:
+                new_list.append(f)
+            else:
+                logging.debug(f"Removing {f} from filelist, " +
+                              "outside of start/end dates.")
+
+        return new_list
+
+    def check_filelist_against_sqlite(self):
+        """Compares file list to sqlite database. Insert files if they aren't
+        present. Updates paths if files found have moved since they were last
+        seen.
+
+        """
+        c = self.sqliteconn.cursor()
+
+        for f in self._file_list:
+            md5 = _md5sum(f)
+            c.execute("SELECT * from g3files WHERE md5sum=?", (md5, ))
+            result = c.fetchone()
+            if result is None:
+                logging.info(f"No match for {md5}, inserting into SQLiteDB")
+                c.execute("INSERT INTO g3files VALUES (?, ?, 0)", (f, md5))
+                self.sqliteconn.commit()
+            elif result[0] != f:
+                logging.info(f"Path changed for hash {md5}, updating path to {f}")
+                c.execute("UPDATE g3files SET path=? WHERE md5sum=?", (f, md5))
+                self.sqliteconn.commit()
+
+        c.close()
+
+    def _publish_file(self, filename):
+        """Publish the contents of a .g3 file to InfluxDB.
+
+        Parameters
+        ----------
+        filename : str
+            Full path to file to publish.
+
+        Returns
+        -------
+        int
+            Return value from scanner.run()
+
+        """
+        try:
+            scanner = SingleFileScanner(filename, self.influxclient)
+            rval = scanner.run()
+        except RuntimeError:
+            logging.error("Unable to process file, skipping.")
+            return 2
+
+        return rval
+
+    def publish_all_files_to_influxdb(self):
+        """Publish all files found in target to InfluxDB.
+
+        Will build list of files not already published from sqlite database,
+        scan and publish contents, then mark as published in sqliteDB.
+
+        This has the side-effect that it will publish files previously entered
+        into the database, even if not in the target list for this particular call, say
+        if a previous upload was cancelled. This should probably be addressed in
+        future versions.
+
+        """
+        c = self.sqliteconn.cursor()
+
+        c.execute("SELECT path, md5sum from g3files WHERE published=0")
+        to_publish = c.fetchall()
+
+        for path, chksum in tqdm(to_publish, desc="All Files"):
+            rval = self._publish_file(path)
+            if rval == 0:
+                c.execute("UPDATE g3files SET published=1 WHERE md5sum=?",
+                          (chksum, ))
+            else:
+                c.execute("UPDATE g3files SET published=? WHERE md5sum=?",
+                          (rval, chksum))
+            self.sqliteconn.commit()
+
+    def run(self):
+        self.check_filelist_against_sqlite()
+        self.publish_all_files_to_influxdb()
+
+
+class SingleFileScanner:
+    """Object for scanning and publishing a single .g3 file.
+
+    Since we want to track which files are being uploaded so that an upload can
+    be resumed if interrupted it's perhaps the simplest to upload them
+    individually. While this doesn't take advantage of the nice
+    so3g.hk.HKArchiveScanner functionality of reading multiple files, our time
+    limiting step is actually pushing data into the InfluxDB.
+
+    Parameters
+    ----------
+    path : str
+        Full path to file for scanning
+    db : influxdb.InfluxDBClient
+        Connection to the InfluxDB, used to publish data to the database.
+
+    Attributes
+    ----------
+    file : str
+        Full path to file for scanning
+    client : influxdb.InfluxDBClient
+        Connection to the InfluxDB, used to publish data to the database.
+    hkas : so3g.hk.HKArchiveScanner
+        HKArchiveScanner for reading in the data
+    cat :
+        Finalized HKArchiveScanner
+    fields
+        Fields within the file as returned by cat.get_fields()
+    timelines
+        Timelines within the file as returned by cat.get_fields()
+
+    """
+    def __init__(self, path, db):
+        self.path = path
+        self.db = db
+
+        self.hkas = hk.HKArchiveScanner()
+        self.cat = None
+
+        self.fields = None
+        self.timelines = None
+
+    def scan_file(self):
+        """Scan the file with the HKArchiveScanner and get the fields
+        for later processing.
+
+        """
+        logging.debug("Scanning %s." % self.path)
+        self.hkas.process_file(self.path)
+        self.cat = self.hkas.finalize()
+        self.fields, self.timelines = self.cat.get_fields()
+
+        return 0
+
+    def format_field(self, field):
+        """Format a given field for publishing to the database.
+
+        Deprecated: formating field by field is significantly slower than doing
+        it by timeline: see `format_timeline()`.
+
+        Parameters
+        ----------
+        field : str
+            Field to publish data from, will query the finalized HKArchive
+
+        Returns
+        -------
+        list
+            List of values formatted for writing to InfluxDB
+
+        """
+        warnings.warn("Formatting by field is deprecated.", DeprecationWarning)
+
+        t, x = self.cat.simple(field)
+        logging.debug("field:", field)
+        agent_address, feed_and_field = field.split(".feeds.")
+        feed_tag, field = feed_and_field.split(".")
+
+        json_body = []
+
+        for _x, _t in zip(x, t):
+            fields = {field: _x}
+            json_body.append(
+                {
+                    "measurement": agent_address,
+                    "time": timestamp2influxtime(_t),
+                    "fields": fields,
+                    "tags": {
+                        "feed": feed_tag
+                    }
+
+                }
+            )
+
+        # print("payload: {}".format(json_body))
+
+        return json_body
+
+    def format_timeline(self, timeline):
+        """Format a given timeline for publishing to the database.
+
+        Parameters
+        ----------
+        field : str
+            Timeline to publish data from, will query the finalized HKArchive.
+
+        Returns
+        -------
+        list
+            List of points, in line protocol, for writing to InfluxDB.
+        """
+        field = timeline["field"]
+
+        # Do some good, ol' fashioned parsing.
+        s = field[0].split(".feeds.")
+        agent_address = s[0]
+        if " " in agent_address:
+            raise ValueError(f"Space contained in OCS address {s[0]}.")
+        # ff = field[0].split(".feeds.")[1]
+        feed_val = s[1].split(".")[0].replace(" ", "\ ")
+        field_tag = [f.split(".feeds.")[1].split(".")[1].replace(" ", "\ ")
+                     for f in field]
+
+        # Get the data. Since all the fields belong to the same timeline, their
+        # timestamps are all the same object, which we can just grab from the
+        # first element of returned array. Then we need to transpose the data
+        # so that we can read it timestamp by timestamp.
+        raw_data = self.cat.simple(field)
+        t = raw_data[0][0]
+        data = np.transpose(np.stack([d[1] for d in raw_data]))
+
+        # Create the line output.
+        line = []
+        for _t, _data in zip(t, data):
+            flist = ",".join(["%s=%s" % (_f, _d)
+                              for _f, _d in zip(field_tag, _data)])
+            line.append("%s,feed=%s %s %d\n" %
+                        (agent_address, feed_val, flist, _t * 1e9))
+        return line
+
+    def publish_file(self, batch_size=100000):
+        """Publish a files contents to InfluxDB.
+
+        Parameters
+        ----------
+        batch_size : int
+            Number of points to publish per write, passed to
+            influxdb.write_points(). Defaults to 100,000, which seems
+            reasonable.
+
+        Returns
+        -------
+        int
+            0 if good, 2 if an excpetion occurred during publishing
+
+        """
+        return_value = 0
+        basename = os.path.basename(self.path)
+
+        for name, timeline in tqdm(self.timelines.items(), desc=f"{basename}"):
+            try:
+                payload = self.format_timeline(timeline)
+                # payload = self.format_field(field)
+            except ValueError:
+                logging.error("Unable to format payload properly, possibly " +
+                              "trying to process old .g3 file format...")
+                return 2
+            # print(f"publishing {field}...")
+            try:
+                self.db.write_points(payload,
+                                     batch_size=batch_size,
+                                     protocol="line")
+            except InfluxDBClientError as e:
+                logging.error(f"ERROR in {self.file}")
+                logging.error(f"client error, likely a type error: {e}")
+                logging.debug(f"payload: {payload}")
+                return_value = 2
+
+        return return_value
+
+    def run(self):
+        try:
+            self.scan_file()
+        except Exception:
+            logging.error("Unable to read %s, likely due to old sog3 format."
+                          % self.basename)
+            return 2
+        pub_ret = self.publish_file()
+
+        return pub_ret
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('target', help='File or directory to scan.')
+    parser.add_argument('database', help='InfluxDB database to publish data to.')
+    parser.add_argument('host', help='InfluxDB host.')
+    parser.add_argument('port', help='InfluxDB port.')
+    parser.add_argument('--start', default='1970-01-01',
+                        help='Set startdate, cutting all files that start before this date.')
+    parser.add_argument('--end', default='2070-01-01',
+                        help='Set enddate, cutting all files that start after this date.')
+    parser.add_argument('--log', '-l', default='WARNING',
+                        help='Set loglevel.')
+    parser.add_argument('--logfile', '-f', default='g32influx.log',
+                        help='Set the logfile.')
+    # parser.add_argument('--docker', '-d', action='store_true',
+    #                     help='Force use of docker, even if so3g is installed.')
+    args = parser.parse_args()
+
+    # Logging Configuration
+    numeric_level = getattr(logging, args.log.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % args.log)
+    logging.basicConfig(filename=args.logfile, level=numeric_level)
+
+    dl = DataLoader(args.target, args.database, host=args.host, port=args.port,
+                    startdate=args.start, enddate=args.end)
+    dl.run()
+
+
+if __name__ == "__main__":
+    main()

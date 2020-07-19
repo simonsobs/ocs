@@ -60,7 +60,15 @@ class Publisher:
 
         self.client = InfluxDBClient(host=self.host, port=self.port)
 
-        db_list = self.client.get_list_database()
+        db_list = None
+        # ConnectionError here is indicative of InfluxDB being down
+        while db_list is None:
+            try:
+                db_list = self.client.get_list_database()
+            except RequestsConnectionError:
+                LOG.error("InfluxDB connection error, attempting to reconnect.")
+                self.client = InfluxDBClient(host=self.host, port=self.port)
+                time.sleep(1)
         db_names = [x['name'] for x in db_list]
         
         if 'ocs_feeds' not in db_names:

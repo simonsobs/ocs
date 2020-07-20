@@ -18,7 +18,8 @@ Add an InfluxDBAgent to your OCS configuration file::
        'instance-id': 'influxagent',
        'arguments': [['--initial-state', 'record'],
                      ['--host', 'influxdb'],
-                     ['--port', 8086]]},
+                     ['--port', 8086],
+                     ['--database', 'ocs_feeds']]},
 
 docker-compose Configuration
 ----------------------------
@@ -72,12 +73,13 @@ Grafana Configuration
 Once your InfluxDB container and publisher are configured and running you will
 need to create an InfluxDB data source in Grafana. To do so, we add an InfluxDB
 data source with the URL ``http://influxdb:8086``, and the Database
-"ocs_feeds". The Name of the Data Source is up to you, in this example we set
-it to "OCS Feeds".
+(default "ocs_feeds", but this can be customized in your OCS config file.) The
+Name of the Data Source is up to you, in this example we set it to "OCS Feeds".
 
 .. note::
-    The "ocs_feeds" database will not exist until the first time the InfluxDB
-    Publisher Agent has successfully connected to the InfluxDB.
+    The "ocs_feeds" database (or whatever you choose to name the database) will
+    not exist until the first time the InfluxDB Publisher Agent has successfully
+    connected to the InfluxDB.
 
 .. image:: ../_static/grafana_influxdb_data_source.jpg
 

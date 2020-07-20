@@ -39,6 +39,8 @@ class Publisher:
             A thread-safe queue of (data, feed) pairs.
         host (str):
             host for InfluxDB instance.
+        database (str):
+            database name within InfluxDB to publish to
         port (int, optional):
             port for InfluxDB instance, defaults to 8086.
 
@@ -47,15 +49,18 @@ class Publisher:
             host for InfluxDB instance.
         port (int, optional):
             port for InfluxDB instance, defaults to 8086.
+        db (str):
+            database name within InfluxDB to publish to (from database arg)
         incoming_data:
             data to be published
         client:
             InfluxDB client connection
 
     """
-    def __init__(self, host, incoming_data, port=8086):
+    def __init__(self, host, database, incoming_data, port=8086):
         self.host = host
         self.port = port
+        self.db = database
         self.incoming_data = incoming_data
 
         self.client = InfluxDBClient(host=self.host, port=self.port)
@@ -70,12 +75,12 @@ class Publisher:
                 self.client = InfluxDBClient(host=self.host, port=self.port)
                 time.sleep(1)
         db_names = [x['name'] for x in db_list]
-        
-        if 'ocs_feeds' not in db_names:
-            print("ocs_feeds DB doesn't exist, creating DB")
-            self.client.create_database('ocs_feeds')
-        
-        self.client.switch_database('ocs_feeds')
+
+        if self.db not in db_names:
+            print(f"{self.db} DB doesn't exist, creating DB")
+            self.client.create_database(self.db)
+
+        self.client.switch_database(self.db)
 
     def process_incoming_data(self):
         """
@@ -97,7 +102,7 @@ class Publisher:
             except RequestsConnectionError:
                 LOG.error("InfluxDB unavailable, attempting to reconnect.")
                 self.client = InfluxDBClient(host=self.host, port=self.port)
-                self.client.switch_database('ocs_feeds')
+                self.client.switch_database(self.db)
             except InfluxDBClientError as err:
                 LOG.error("InfluxDB Client Error: {e}", e=err)
 
@@ -231,7 +236,8 @@ class InfluxDBAgent:
         self.aggregate = True
 
         LOG.debug("Instatiating Publisher class")
-        publisher = Publisher(self.args.host, self.incoming_data, port=self.args.port)
+        publisher = Publisher(self.args.host, self.args.database,
+                              self.incoming_data, port=self.args.port)
 
         session.set_status('running')
         while self.aggregate:
@@ -263,6 +269,9 @@ def make_parser(parser=None):
     pgroup.add_argument('--port',
                         default=8086,
                         help="InfluxDB port.")
+    pgroup.add_argument('--database',
+                        default='ocs_feeds',
+                        help="Database within InfluxDB to publish data to.")
 
     return parser
 

@@ -1,6 +1,5 @@
 import time
 import datetime
-import os
 import queue
 import argparse
 import txaio
@@ -16,6 +15,7 @@ from ocs import ocs_agent, site_config
 txaio.use_twisted()
 LOG = txaio.make_logger()
 
+
 def timestamp2influxtime(time):
     """Convert timestamp for influx
 
@@ -26,6 +26,7 @@ def timestamp2influxtime(time):
     """
     t_dt = datetime.datetime.fromtimestamp(time)
     return t_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+
 
 class Publisher:
     """
@@ -71,7 +72,7 @@ class Publisher:
             try:
                 db_list = self.client.get_list_database()
             except RequestsConnectionError:
-                LOG.error("InfluxDB connection error, attempting to reconnect.")
+                LOG.error("Connection error, attempting to reconnect to DB.")
                 self.client = InfluxDBClient(host=self.host, port=self.port)
                 time.sleep(1)
         db_names = [x['name'] for x in db_list]
@@ -91,8 +92,6 @@ class Publisher:
             data, feed = self.incoming_data.get()
 
             LOG.debug("Pulling data from queue.")
-            #LOG.debug("data: {d}", d=data)
-            #LOG.debug("feed: {f}", f=feed)
 
             # Formatted for writing to InfluxDB
             payload = self.format_data(data, feed)
@@ -141,13 +140,13 @@ class Publisher:
                     grouped_dict[data_key] = data_value[i]
                 grouped_data_points.append(grouped_dict)
 
-            for fields, time in zip(grouped_data_points, times):
+            for fields, time_ in zip(grouped_data_points, times):
                 json_body.append(
                     {
                         "measurement": measurement,
-                        "time": timestamp2influxtime(time),
+                        "time": timestamp2influxtime(time_),
                         "fields": fields,
-                        "tags" : {
+                        "tags": {
                             "feed": feed_tag
                         }
                     }
@@ -173,7 +172,8 @@ class InfluxDBAgent:
     """
     This class provide a WAMP wrapper for the data publisher. The run function
     and the data handler **are** thread-safe, as long as multiple run functions
-    are not started at the same time, which should be prevented through OCSAgent.
+    are not started at the same time, which should be prevented through
+    OCSAgent.
 
     Args:
         agent (OCSAgent):
@@ -187,8 +187,8 @@ class InfluxDBAgent:
         aggregate (bool):
            Specifies if the agent is currently aggregating data.
         incoming_data (queue.Queue):
-            Thread-safe queue where incoming (data, feed) pairs are stored before
-            being passed to the Publisher.
+            Thread-safe queue where incoming (data, feed) pairs are stored
+            before being passed to the Publisher.
         loop_time (float):
             Time between iterations of the run loop.
     """

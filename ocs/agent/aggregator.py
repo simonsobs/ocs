@@ -18,7 +18,7 @@ else:
     G3Module = object
 
 
-HKAGG_VERSION = 1
+HKAGG_VERSION = 2
 _g3_casts = {
     str: core.G3String, int: core.G3Int, float: core.G3Double,
 }
@@ -433,6 +433,9 @@ class Provider:
 
         frame['address'] = self.address
         frame['provider_session_id'] = self.sessid
+        frame['block_names'] = core.G3VectorString([
+            k for k in self.blocks.keys()
+        ])
 
         for block_name, block in self.blocks.items():
             if not block.timestamps:

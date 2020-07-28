@@ -433,9 +433,10 @@ class Provider:
 
         frame['address'] = self.address
         frame['provider_session_id'] = self.sessid
-        frame['block_names'] = core.G3VectorString([
-            k for k in self.blocks.keys()
-        ])
+        if 'block_names' in frame:
+            frame['block_names'].extend(list(self.blocks.keys()))
+        else:
+            frame['block_names'] = core.G3VectorString(list(self.block.keys()))
 
         for block_name, block in self.blocks.items():
             if not block.timestamps:

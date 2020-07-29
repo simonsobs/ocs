@@ -436,7 +436,7 @@ class Provider:
         if 'block_names' in frame:
             frame['block_names'].extend(list(self.blocks.keys()))
         else:
-            frame['block_names'] = core.G3VectorString(list(self.block.keys()))
+            frame['block_names'] = core.G3VectorString(list(self.blocks.keys()))
 
         for block_name, block in self.blocks.items():
             if not block.timestamps:

@@ -209,7 +209,7 @@ class DataLoader:
         """
         c = self.sqliteconn.cursor()
 
-        for f in self._file_list:
+        for f in tqdm(self._file_list, desc="Updating Database"):
             md5 = _md5sum(f)
             c.execute("SELECT * from g3files WHERE md5sum=?", (md5, ))
             result = c.fetchone()
@@ -265,14 +265,17 @@ class DataLoader:
         to_publish = c.fetchall()
 
         for path, chksum in tqdm(to_publish, desc="All Files"):
-            rval = self._publish_file(path)
-            if rval == 0:
-                c.execute("UPDATE g3files SET published=1 WHERE md5sum=?",
-                          (chksum, ))
+            if path in self._file_list:
+                rval = self._publish_file(path)
+                if rval == 0:
+                    c.execute("UPDATE g3files SET published=1 WHERE md5sum=?",
+                              (chksum, ))
+                else:
+                    c.execute("UPDATE g3files SET published=? WHERE md5sum=?",
+                              (rval, chksum))
+                self.sqliteconn.commit()
             else:
-                c.execute("UPDATE g3files SET published=? WHERE md5sum=?",
-                          (rval, chksum))
-            self.sqliteconn.commit()
+                logging.debug(f"Unpublished file {path} not in file_list, skipping.")
 
     def run(self):
         self.check_filelist_against_sqlite()
@@ -393,14 +396,22 @@ class SingleFileScanner:
         field = timeline["field"]
 
         # Do some good, ol' fashioned parsing.
-        s = field[0].split(".feeds.")
-        agent_address = s[0]
-        if " " in agent_address:
-            raise ValueError(f"Space contained in OCS address {s[0]}.")
-        # ff = field[0].split(".feeds.")[1]
-        feed_val = s[1].split(".")[0].replace(" ", "\ ")
-        field_tag = [f.split(".feeds.")[1].split(".")[1].replace(" ", "\ ")
-                     for f in field]
+        if ".feeds." not in field[0]:
+            split = field[0].split('.')
+            address = split[:-1]  # drop the channel name
+            agent_address = '.'.join(address)
+            feed_val = None  # feeds not included
+            field_tag = [f.split('.')[-1] for f in field]
+
+        else:
+            s = field[0].split(".feeds.")
+            agent_address = s[0]
+            if " " in agent_address:
+                raise ValueError(f"Space contained in OCS address {s[0]}.")
+            # ff = field[0].split(".feeds.")[1]
+            feed_val = s[1].split(".")[0].replace(" ", "\ ")
+            field_tag = [f.split(".feeds.")[1].split(".")[1].replace(" ", "\ ")
+                         for f in field]
 
         # Get the data. Since all the fields belong to the same timeline, their
         # timestamps are all the same object, which we can just grab from the
@@ -415,8 +426,13 @@ class SingleFileScanner:
         for _t, _data in zip(t, data):
             flist = ",".join(["%s=%s" % (_f, _d)
                               for _f, _d in zip(field_tag, _data)])
-            line.append("%s,feed=%s %s %d\n" %
-                        (agent_address, feed_val, flist, _t * 1e9))
+            if feed_val is not None:
+                line.append("%s,feed=%s %s %d\n" %
+                            (agent_address, feed_val, flist, _t * 1e9))
+            else:
+                line.append("%s %s %d\n" %
+                            (agent_address, flist, _t * 1e9))
+
         return line
 
     def publish_file(self, batch_size=100000):
@@ -452,7 +468,7 @@ class SingleFileScanner:
                                      batch_size=batch_size,
                                      protocol="line")
             except InfluxDBClientError as e:
-                logging.error(f"ERROR in {self.file}")
+                logging.error(f"ERROR in {self.path}")
                 logging.error(f"client error, likely a type error: {e}")
                 logging.debug(f"payload: {payload}")
                 return_value = 2

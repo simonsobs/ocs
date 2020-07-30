@@ -33,6 +33,8 @@ jobs:
       run: |
         docker run -v $PWD:/coverage --rm ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest -p no:wampy --cov /app/ocs/ocs/ ./tests/"
     - name: Combine coverage reports
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         pip install coveralls
         coverage combine

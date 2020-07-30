@@ -14,11 +14,12 @@ jobs:
       with:
         fetch-depth: 0
 
-    # Test
+    # Build
     - name: Build docker images
       run: |
         docker-compose build
 
+    # Test (already been run by pytest workflow, but they don't take long...)
     - name: Test with pytest wtihin a docker container
       run: |
         docker run -v $PWD:/coverage --rm ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest -p no:wampy --cov /app/ocs/ocs/ ./tests/"

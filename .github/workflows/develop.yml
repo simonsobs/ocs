@@ -14,7 +14,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    # Test
+    # Test (steps from pytest workflow)
     - name: Build docker images
       run: |
         docker-compose build
@@ -22,6 +22,15 @@ jobs:
     - name: Test with pytest within a docker container
       run: |
         docker run -v $PWD:/coverage --rm ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest -p no:wampy --cov /app/ocs/ocs/ ./tests/"
+
+    - name: Report test coverage
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        pip install coveralls
+        coverage combine
+        coverage report
+        coveralls
 
     - name: Test documentation build
       run: |

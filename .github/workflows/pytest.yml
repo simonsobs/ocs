@@ -5,7 +5,6 @@ name: Run Tests
 
 on:
   push:
-    branches-ignore: [ develop ]
   pull_request:
 
 jobs:

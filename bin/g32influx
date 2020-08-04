@@ -480,7 +480,7 @@ class SingleFileScanner:
             self.scan_file()
         except Exception:
             logging.error("Unable to read %s, likely due to old sog3 format."
-                          % self.basename)
+                          % self.path)
             return 2
         pub_ret = self.publish_file()
 

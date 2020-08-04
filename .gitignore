@@ -1,3 +1,6 @@
+# local sqlite db's
+*.db
+
 # iPython Notebooks
 *.ipynb
 

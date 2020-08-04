@@ -122,3 +122,34 @@ To use the script run::
 The passed target can be a single file or directory. The ``-v`` flag indicates
 you'd like verbose output, however this is not required. Without it there will
 be no output.
+
+g32influx
+=========
+``g32influx`` is a script which uploads data from .g3 files on disk to
+InfluxDB. This may be used to restore a database from .g3 file, or upload
+individual files for browsing.
+
+For information on how to run::
+
+    $ ./g32influx -h
+    usage: g32influx [-h] [--start START] [--end END] [--log LOG] [--logfile LOGFILE] target database host port
+    
+    positional arguments:
+      target                File or directory to scan.
+      database              InfluxDB database to publish data to.
+      host                  InfluxDB host.
+      port                  InfluxDB port.
+    
+    optional arguments:
+      -h, --help            show this help message and exit
+      --start START         Set startdate, cutting all files that start before this date.
+      --end END             Set enddate, cutting all files that start after this date.
+      --log LOG, -l LOG     Set loglevel.
+      --logfile LOGFILE, -f LOGFILE
+                            Set the logfile.
+
+.. note::
+    An SQLiteDB file is used to track which files were uploaded to InfluxDB. This
+    is meant to only avoid reuploading already pushed data, particularly valuable
+    if you need to restart a large upload job. This will be ``.g32influx.db`` in
+    the directory you run the script from.

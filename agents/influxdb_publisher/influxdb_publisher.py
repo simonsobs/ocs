@@ -1,6 +1,5 @@
 import time
 import datetime
-import os
 import queue
 import argparse
 import txaio
@@ -16,6 +15,7 @@ from ocs import ocs_agent, site_config
 txaio.use_twisted()
 LOG = txaio.make_logger()
 
+
 def timestamp2influxtime(time):
     """Convert timestamp for influx
 
@@ -26,6 +26,7 @@ def timestamp2influxtime(time):
     """
     t_dt = datetime.datetime.fromtimestamp(time)
     return t_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+
 
 class Publisher:
     """
@@ -39,6 +40,8 @@ class Publisher:
             A thread-safe queue of (data, feed) pairs.
         host (str):
             host for InfluxDB instance.
+        database (str):
+            database name within InfluxDB to publish to
         port (int, optional):
             port for InfluxDB instance, defaults to 8086.
 
@@ -47,27 +50,38 @@ class Publisher:
             host for InfluxDB instance.
         port (int, optional):
             port for InfluxDB instance, defaults to 8086.
+        db (str):
+            database name within InfluxDB to publish to (from database arg)
         incoming_data:
             data to be published
         client:
             InfluxDB client connection
 
     """
-    def __init__(self, host, incoming_data, port=8086):
+    def __init__(self, host, database, incoming_data, port=8086):
         self.host = host
         self.port = port
+        self.db = database
         self.incoming_data = incoming_data
 
         self.client = InfluxDBClient(host=self.host, port=self.port)
 
-        db_list = self.client.get_list_database()
+        db_list = None
+        # ConnectionError here is indicative of InfluxDB being down
+        while db_list is None:
+            try:
+                db_list = self.client.get_list_database()
+            except RequestsConnectionError:
+                LOG.error("Connection error, attempting to reconnect to DB.")
+                self.client = InfluxDBClient(host=self.host, port=self.port)
+                time.sleep(1)
         db_names = [x['name'] for x in db_list]
-        
-        if 'ocs_feeds' not in db_names:
-            print("ocs_feeds DB doesn't exist, creating DB")
-            self.client.create_database('ocs_feeds')
-        
-        self.client.switch_database('ocs_feeds')
+
+        if self.db not in db_names:
+            print(f"{self.db} DB doesn't exist, creating DB")
+            self.client.create_database(self.db)
+
+        self.client.switch_database(self.db)
 
     def process_incoming_data(self):
         """
@@ -78,8 +92,6 @@ class Publisher:
             data, feed = self.incoming_data.get()
 
             LOG.debug("Pulling data from queue.")
-            #LOG.debug("data: {d}", d=data)
-            #LOG.debug("feed: {f}", f=feed)
 
             # Formatted for writing to InfluxDB
             payload = self.format_data(data, feed)
@@ -89,7 +101,7 @@ class Publisher:
             except RequestsConnectionError:
                 LOG.error("InfluxDB unavailable, attempting to reconnect.")
                 self.client = InfluxDBClient(host=self.host, port=self.port)
-                self.client.switch_database('ocs_feeds')
+                self.client.switch_database(self.db)
             except InfluxDBClientError as err:
                 LOG.error("InfluxDB Client Error: {e}", e=err)
 
@@ -128,13 +140,13 @@ class Publisher:
                     grouped_dict[data_key] = data_value[i]
                 grouped_data_points.append(grouped_dict)
 
-            for fields, time in zip(grouped_data_points, times):
+            for fields, time_ in zip(grouped_data_points, times):
                 json_body.append(
                     {
                         "measurement": measurement,
-                        "time": timestamp2influxtime(time),
+                        "time": timestamp2influxtime(time_),
                         "fields": fields,
-                        "tags" : {
+                        "tags": {
                             "feed": feed_tag
                         }
                     }
@@ -160,7 +172,8 @@ class InfluxDBAgent:
     """
     This class provide a WAMP wrapper for the data publisher. The run function
     and the data handler **are** thread-safe, as long as multiple run functions
-    are not started at the same time, which should be prevented through OCSAgent.
+    are not started at the same time, which should be prevented through
+    OCSAgent.
 
     Args:
         agent (OCSAgent):
@@ -174,8 +187,8 @@ class InfluxDBAgent:
         aggregate (bool):
            Specifies if the agent is currently aggregating data.
         incoming_data (queue.Queue):
-            Thread-safe queue where incoming (data, feed) pairs are stored before
-            being passed to the Publisher.
+            Thread-safe queue where incoming (data, feed) pairs are stored
+            before being passed to the Publisher.
         loop_time (float):
             Time between iterations of the run loop.
     """
@@ -223,7 +236,8 @@ class InfluxDBAgent:
         self.aggregate = True
 
         LOG.debug("Instatiating Publisher class")
-        publisher = Publisher(self.args.host, self.incoming_data, port=self.args.port)
+        publisher = Publisher(self.args.host, self.args.database,
+                              self.incoming_data, port=self.args.port)
 
         session.set_status('running')
         while self.aggregate:
@@ -255,6 +269,9 @@ def make_parser(parser=None):
     pgroup.add_argument('--port',
                         default=8086,
                         help="InfluxDB port.")
+    pgroup.add_argument('--database',
+                        default='ocs_feeds',
+                        help="Database within InfluxDB to publish data to.")
 
     return parser
 

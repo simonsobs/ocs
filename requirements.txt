@@ -13,10 +13,14 @@ pyserial
 # Documentation generation
 sphinx
 sphinx-argparse
+sphinx_rtd_theme
 
 # checkdata
 progress
 colorama
+
+# g32influx
+tqdm
 
 # testing
 pytest

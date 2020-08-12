@@ -57,6 +57,11 @@ log-options anchor, which you should also add to you Compose file::
         options:
           loki-url: "http://localhost:3100/loki/api/v1/push"
 
+.. note::
+    The ``loki-url`` here must match the address of the node you are running
+    the grafana/loki container on. In this case that is ``localhost``, but if you
+    have a multi-node configuration this could be a different IP address.
+
 You should then add the ``log-options`` alias to any service which you would
 like to forward their logs to Loki.
 

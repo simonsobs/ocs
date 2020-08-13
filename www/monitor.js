@@ -48,6 +48,9 @@ function init() {
         log('Page init function is running...');
         log('Autobahn version:', autobahn.version);
 
+        // Tab setup.
+        tabs = $('#tabs').tabs();
+
         // Set up defaults -- these could be fed from elsewhere... ?
         $('#wamp_router').val('ws://localhost:8001/ws');
         $('#wamp_realm').val('test_realm');
@@ -62,6 +65,7 @@ function init() {
                      ' [show]', ' [hide]', true).addClass('clickable');
 
         connect();
+
     });
 }
 

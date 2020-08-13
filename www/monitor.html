@@ -23,6 +23,14 @@
   <body onload="init();">
     <h1>Observatory Control System</h1>
     <hr />
+
+    <!-- For jquery tabs. -->
+    <div id="tabs">
+      <ul>
+        <li><a href="#tab-browser">Browser</a></li>
+      </ul>
+      <div id="tab-browser" class="tabcontent">
+
     <!-- This div is used to responsively flow child block_unit objects into 1 or 2 columns. -->
     <div class="block_holder">
       <div class="block_unit">
@@ -71,6 +79,10 @@
         </div>
       </div>
     </div>
+
+      </div> <!-- #tab-browser -->
+    </div> <!-- #tabs -->
+
     <hr />
     <h3>Local Log <span id="messages_hider" /></h3>
     <div id="messages" class="autopop_box autopop_border" style="height:200px"></div>

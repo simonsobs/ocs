@@ -101,11 +101,13 @@ AgentClient.prototype = {
     // Issue a request on the Agent's task/proc API.  This API always
     // returns a response of the form (code, message, session).
     //
+    // @param method      API request: start, wait, stop, abort, status.
+    // @param op_name     Name of the Task or Process.
+    // @param params      Object with key-value parameters for the method.
 
-    dispatch : function(op, task_name, params) {
+    dispatch : function(method, op_name, params) {
         client = this;
-        _p = [op, task_name];
-        _p.push.apply(_p, params);  // _p.extend(params);
+        _p = [method, op_name, params];
 
         // Wrap all API calls to call our onSession handler before
         // returning to the invoking agent.

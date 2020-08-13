@@ -33,37 +33,51 @@ You should then see the plugin installed::
 Now that we have the plugin installed we need to start the Loki service. This
 can be done several ways, however we recommend using Docker or Docker Compose.
 For more installation methods, see the `Loki installation documentation`_. To
-use Docker Compose, add a Loki service to your Docker Compose file::
+use Docker Compose a separate docker-compose.yml file allows you to keep the
+service running all the time even if you bring down your OCS containers. An
+example Compose file looks like::
 
-  loki:
-    image: grafana/loki:1.5.0
-    <<: *log-options
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-
-.. note::
-    Version 1.5.0 was the latest at the time of this writing, but there may be
-    more recent versions available. You can check on the grafana/loki Docker
-    Hub page.
-
-You will notice the ``log-options`` YAML alias. This refers back to a
-log-options anchor, which you should also add to you Compose file::
-
+    version: '3.7'
+    volumes:
+      loki-storage:
+    
     x-log-options:
       &log-options
       logging:
         driver: loki
         options:
           loki-url: "http://localhost:3100/loki/api/v1/push"
+    
+    services:
+      loki:
+        image: grafana/loki:1.5.0
+        <<: *log-options
+        container_name: "loki"
+        restart: always
+        ports:
+          - "3100:3100"
+        volumes:
+          - loki-storage:/loki
+        command: -config.file=/etc/loki/local-config.yaml
+    
+    networks:
+      default:
+        external:
+          name: ocs-net
+
+.. note::
+    Version 1.5.0 was the latest at the time of this writing, but there may be
+    more recent versions available. You can check on the grafana/loki Docker
+    Hub page.
+
+You will notice the ``log-options`` YAML alias. This refers back to the
+log-options anchor. You will need to add the ``log-options`` alias to any
+service which you would like to forward their logs to Loki.
 
 .. note::
     The ``loki-url`` here must match the address of the node you are running
     the grafana/loki container on. In this case that is ``localhost``, but if you
     have a multi-node configuration this could be a different IP address.
-
-You should then add the ``log-options`` alias to any service which you would
-like to forward their logs to Loki.
 
 The plugin can also be enabled for all containers on the system by configuring
 the logging driver in the Docker daemon configuration. For more details see the

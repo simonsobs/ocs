@@ -3,6 +3,8 @@ import time
 import threading
 import os
 from autobahn.wamp.exception import ApplicationError
+from twisted.internet.defer import inlineCallbacks
+from autobahn.twisted.util import sleep as dsleep
 import numpy as np
 
 class FakeDataAgent:
@@ -124,6 +126,8 @@ class FakeDataAgent:
         return (ok, {True: 'Requested process stop.',
                      False: 'Failed to request process stop.'}[ok])
 
+    # Tasks
+    
     def set_heartbeat_state(self, session, params=None):
         """Task to set the state of the agent heartbeat.
 
@@ -139,6 +143,30 @@ class FakeDataAgent:
 
         return True, "Set heartbeat_on: {}".format(heartbeat_state)
 
+    @inlineCallbacks
+    def delay_task(self, session, params={}):
+        """Task that will take the requested number of seconds to complete.
+        This can run simultaneously with the acq Process.  The Task
+        populates session.data with the requested_delay and
+        measured_delay.
+
+        This Task should run in the reactor thread.
+
+        Args:
+            delay (float): Time to wait before returning, in seconds.
+                Defaults to 5.
+            succeed (bool): Whether to return success or not.
+                Defaults to True.
+
+        """
+        t0 = time.time()
+        delay = params.get('delay', 5)
+        session.data = {'requested_delay': time.time() - t0,
+                        'measured_delay': None}
+        succeed = params.get('succeed', True) is True
+        yield dsleep(max(0, delay))
+        session.data['measured_delay'] = time.time() - t0
+        return succeed, 'Exited after %.1f seconds' % session.data['measured_delay']
 
 
 def add_agent_args(parser_in=None):
@@ -171,5 +199,6 @@ if __name__ == '__main__':
     agent.register_process('acq', fdata.start_acq, fdata.stop_acq,
                            blocking=True, startup=startup)
     agent.register_task('set_heartbeat', fdata.set_heartbeat_state)
+    agent.register_task('delay_task', fdata.delay_task, blocking=False)
 
     runner.run(agent, auto_reconnect=True)

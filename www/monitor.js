@@ -1,9 +1,5 @@
+var ocs_connection;
 var debugs = {};         // For stashing debug data.
-
-var reconnection_timer = null;
-var reconnection_delay = 5.;
-var reconnection_count = 0;
-var reconnect_requested = false;
 
 // Timer for querying Operation status.
 var query_op_timer = null;
@@ -64,8 +60,17 @@ function init() {
                      '#messages',
                      ' [show]', ' [hide]', true).addClass('clickable');
 
-        connect();
+        // Set up OCS connector and assign handlers.
+        ocs_connection = new OCSConnection(
+            function () { return $('#wamp_router').val(); },
+            function () { return $('#wamp_realm').val(); });
+        //ocs_connection.on('connected', function () { $('#connection_checkmark').html(' &#10003;'); });
+        ocs_connection.on('connected', () => $('#connection_checkmark').html(' &#10003;'));
+        ocs_connection.on('disconnected', () => $('#connection_checkmark').html(' &#10005;'));
+        ocs_connection.on('try_connect', () => $('#connection_checkmark').html(' &#10067;'));
 
+        // Begin connection attempts.
+        ocs_connection.start();
     });
 }
 
@@ -104,82 +109,8 @@ AgentList.prototype = {
 
 /* Interface attachments. */
 
-function connect() {
-    url = $('#wamp_router').val();
-    realm = $('#wamp_realm').val();
-
-    // See connection options at...
-    // https://github.com/crossbario/autobahn-js/blob/master/packages/autobahn/lib/connection.js
-    //
-    // We set max_retries=0 and manage retries ourself, so that
-    // retries always go to address in the input boxes.
-    ocs = new autobahn.Connection({
-	url: url,
-        realm: realm,
-        max_retries: 0,
-    });
-
-    ocs.onopen = function(_session, details) {
-        ocs_log('connected.');
-        reconnection_count = 0;
-
-        $('#connection_checkmark').html(' &#10003;');
-        var agent_list = new AgentList();
-
-        // Monitor heartbeat feeds to see what Agents are online.
-        ocs.session.subscribe('observatory..feeds.heartbeat', function (args, kwargs, details) {
-            var info = args[0][1];
-            agent_list.update_agent_info(info);
-        }, {'match': 'wildcard'});
-
-        // Try subscribe?
-        var agent_addr = $('#target_agent').val();
-        var feed_id = $('#target_feed').val();
-        if (agent_addr && feed_id) {
-            var feed_to_monitor = agent_addr + '.feeds.' + feed_id;
-            $('#feed_monitor_legend').html('Feed: ' + feed_to_monitor);
-            ocs.session.subscribe(
-                feed_to_monitor,
-                function (args, kwargs, details) {
-                    if (feed_view != 'feed') return;
-                    var timestr = get_date_time_string(null, ' ');
-                    var text = '<b>' + feed_to_monitor + ' @ ' + timestr +
-                        '</b><br>\n' +
-                        '<p>' + JSON.stringify(args[0]) +'</p>';
-                    $('#feed_monitor').html(text);
-                });
-        }
-    
-
-    };
-    ocs.onclose = function(reason, details) {
-        // Reasons observed:
-        // - "lost" - crossbar dropped out.
-        // - "closed" - app has called close() -- but this also occurs
-        //   if the realm could not be joined.
-        // - "unreachable" - failed to connect (onopen never called)
-        ocs_log('closed because: ' + reason + ' : ' + details.message);
-
-        $('#connection_checkmark').html(' &#10005;');
-        $('#feed_monitor').html('(Cleared on connection reset.)');
-
-        // If this looks like an orderly deliberate shutdown, do an
-        // immediate reconnect.  Otherwise, keep the pace low...
-        if (reason == 'closed' && reconnect_requested) {
-            connect();
-        } else if (reconnection_count++ < 1000) {
-            reconnection_timer = setInterval(connect, reconnection_delay*1000.);
-        }
-        reconnect_requested = false;
-    };
-
-    log('Trying connection to "' + url + '", realm "' + realm + '"...');
-    $('#connection_checkmark').html(' &#10067;');
-
-    if (reconnection_timer)
-        clearInterval(reconnection_timer);
-
-    ocs.open();
+function reconnect() {
+    ocs_connection.connect();
 }
 
 function query_agent() {
@@ -187,9 +118,9 @@ function query_agent() {
     // AgentClient.scan.  The results are loaded into the "Interface"
     // window.
 
-    if (ocs == null) return;
+    if (ocs_connection == null) return;
     agent_addr = $('#target_agent').val();
-    client = new AgentClient(ocs, agent_addr);
+    client = new AgentClient(ocs_connection.connection, agent_addr);
 
     client.scan(function () {
         log('Client scan completed.');
@@ -245,7 +176,7 @@ function query_op(reset_query) {
     // the request goes out... otherwise, it is left as-is so it won't
     // flicker if the data have not changed.
 
-    if (ocs == null) return;
+    if (ocs_connection == null) return;
     agent_addr = $('#target_agent').val();
     agent_op = $('#target_op').val();
 
@@ -256,7 +187,7 @@ function query_op(reset_query) {
     if (!query_op_valid)
         return;
         
-    client = new AgentClient(ocs, agent_addr);
+    client = new AgentClient(ocs_connection.connection, agent_addr);
     //$('#op_status_legend').html('Op Session Info');
 
     client.status(agent_op).then(function (args, kwargs) {
@@ -323,10 +254,28 @@ function query_op(reset_query) {
 
 function subscribe_feed() {
     feed_view = 'feed';
-    // Only way to subscribe is to reconnect.
-    if (ocs == null) return;
-    reconnect_requested = true;
-    ocs.close();
+    if (ocs_connection == null) return;
+
+    var agent_addr = $('#target_agent').val();
+    var feed_id = $('#target_feed').val();
+    if (!(agent_addr && feed_id))
+        return;
+
+    var feed_to_monitor = agent_addr + '.feeds.' + feed_id;
+    $('#feed_monitor_legend').html('Feed: ' + feed_to_monitor);
+    ocs_connection.set_feed(feed_to_monitor,
+                            function (args, kwargs, details) {
+                                if (feed_view != 'feed') return;
+                                if (args == null) {
+                                    $('#feed_monitor').html('(Cleared on connection reset.)');
+                                    return;
+                                }
+                                var timestr = get_date_time_string(null, ' ');
+                                var text = '<b>' + feed_to_monitor + ' @ ' + timestr +
+                                    '</b><br>\n' +
+                                    '<p>' + JSON.stringify(args[0]) +'</p>';
+                                $('#feed_monitor').html(text);
+                            });
 }
 
 function connect_data() {

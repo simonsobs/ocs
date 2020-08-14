@@ -1,4 +1,3 @@
-var ocs = null;          // The autobahn.Connection.
 var ocs_debugs = {};     // For stashing debug data.
 
 /* ocs_log(msg)
@@ -20,21 +19,126 @@ if (typeof ocs_log == 'undefined') {
  * .open() has been called.
  */
 
-function get_ocs(url, realm) {
-    var ocs = new autobahn.Connection({
-        url: url,
-        realm: realm,
-    });
-    ocs.onopen = function(_session, details) {
-        //session = _session;
-        ocs_log('connected.');
+function OCSConnection(url_func, realm_func)
+{
+    this.url_func = url_func;
+    this.realm_func = realm_func;
+
+    // Hooks; assign handlers with .on(trigger, func).
+    this.handlers = {
+        'connected': null,
+        'try_connect': null,
+        'disconnected': null,
     };
-    ocs.onclose = function(reason, details) {
-        ocs_debugs.reason = reason;
-        ocs_log('closed.');
-    };
-    ocs.open();
-    return ocs;
+
+    this.feeds = {};
+
+    this.connection = null;
+
+    this._reconnection = {
+        timer: null,
+        delay: 5.0,
+        count: 0,
+        requested: false };
+}
+
+OCSConnection.prototype = {
+    connect : function()
+    {
+        if (this.connection)
+            this.connection.close();
+
+        this_ocs = this;
+
+        url = this.url_func();
+        realm = this.realm_func();
+
+        // See connection options at...
+        // https://github.com/crossbario/autobahn-js/blob/master/packages/autobahn/lib/connection.js
+        //
+        // We set max_retries=0 and manage retries ourself, so that
+        // retries always go to address in the input boxes.
+        c = new autobahn.Connection({
+	    url: url,
+            realm: realm,
+            max_retries: 0,
+        });
+
+        c.onopen = function(_session, details) {
+            ocs_log('connected.');
+            this_ocs._reconnection.count = 0;
+
+            if (this_ocs.handlers.connected)
+                this_ocs.handlers.connected();
+
+            var agent_list = new AgentList();
+            this_ocs.agent_list = agent_list;
+
+            // Monitor heartbeat feeds to see what Agents are online.
+            c.session.subscribe('observatory..feeds.heartbeat', function (args, kwargs, details) {
+                var info = args[0][1];
+                agent_list.update_agent_info(info);
+            }, {'match': 'wildcard'});
+
+            // Subscribe for all registered feed handlers.
+            for (const [feed_name, handler] of Object.entries(this_ocs.feeds))
+                c.session.subscribe(feed_name, handler);
+        };
+
+        c.onclose = function(reason, details) {
+            // Reasons observed:
+            // - "lost" - crossbar dropped out.
+            // - "closed" - app has called close() -- but this also occurs
+            //   if the realm could not be joined.
+            // - "unreachable" - failed to connect (onopen never called)
+            ocs_log('closed because: ' + reason + ' : ' + details.message);
+
+            if (this_ocs.handlers.disconnected)
+                this_ocs.handlers.disconnected();
+
+            // Flush each feed handler.
+            for (const [feed_name, handler] of Object.entries(this_ocs.feeds))
+                handler(null, null, null);
+
+            this_ocs.connection = null;
+
+            // If this looks like an orderly deliberate shutdown, do an
+            // immediate reconnect.  Otherwise, keep the pace low...
+            if (reason == 'closed' && this_ocs._reconnection.requested) {
+                this_ocs.connect();
+            } else if (this_ocs._reconnection.count++ < 1000) {
+                this_ocs._reconnection.timer = setInterval(this_ocs.connect, this_ocs._reconnection.delay*1000.);
+            }
+            this_ocs._reconnection.requested = false;
+        };
+
+        log('Trying connection to "' + url + '", realm "' + realm + '"...');
+        if (this_ocs.handlers.try_connect)
+            this_ocs.handlers.try_connect();
+
+        if (this_ocs._reconnection.timer)
+            clearInterval(this_ocs._reconnection.timer);
+
+        this.connection = c;
+        c.open();
+    },
+
+    start: function() {
+        this.connect();
+    },
+
+    on: function(action, handler) {
+        this.handlers[action] = handler;
+    },
+
+    // Temporary single feed registration system.
+    set_feed: function(feed_name, handler) {
+        this.feeds = {};
+        this.feeds[feed_name] = handler;
+        this._reconnection.requested = true;
+        this.connection.close();
+    }
+
 }
 
 /* AgentClient
@@ -51,7 +155,6 @@ function AgentClient(_ocs, address) {
     this.feeds = null;
     this.messages = null;
 
-    //this.onSession = this._default_session_handler;
     this.handlers = {};
 
     client = this;

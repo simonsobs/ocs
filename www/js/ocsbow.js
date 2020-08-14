@@ -153,15 +153,6 @@ function AgentClient(_ocs, address) {
     this.tasks = null;
     this.procs = null;
     this.feeds = null;
-    this.messages = null;
-
-    this.handlers = {};
-
-    client = this;
-    this.ocs.session.subscribe(address + '.feed', function (args, kwargs, details) {
-        ocs_debugs.feed = args;
-        client.messages = args[0];
-    });
 }
 
 AgentClient.prototype = {

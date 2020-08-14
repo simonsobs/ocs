@@ -91,7 +91,7 @@ AgentList.prototype = {
         if (!this.agent_list.includes(addr)) {
             this.agent_list.push(addr);
             this.agent_list.sort();
-            var table = $('<table>');
+            var table = $('<table width="100%">');
             //table.append($('<tr><td class="data_h">Agents</td></tr>'));
             this.agent_list.forEach(function (x) {
                 link = $('<span class="clickable">' + x + '</span>').on(
@@ -124,30 +124,36 @@ function query_agent() {
 
     client.scan(function () {
         log('Client scan completed.');
-        var summary = $('<table>');
+        var summary = $('<table width=100%>');
         $('#target_op').val('');
         
-        summary.append($('<tr><td class="data_h">Processes</td></tr>'));
+        summary.append($('<tr><td class="data_h" colspan=2>Processes</td></tr>'));
         client.procs.forEach(function (x) {
-            var link = $('<span class="clickable">' + x[0] + '</span><br />');
+            var link = $('<span class="clickable">' + x[0] + '</span>');
             link.on('click', function () {
                 $('#target_op').val(x[0]);
                 query_op(true);
             });
-            summary.append($('<tr>').append(($('<td class="data_1">').append(link))));
+            var indicator = $('<span class="op_status">' + x[1].status + '</span>');
+            summary.append($('<tr>')
+                           .append(($('<td class="data_1a">').append(link)))
+                           .append($('<td class="data_1b">').append(indicator)));
         });
-        summary.append($('<tr><td class="data_h">Tasks</td></tr>'));
+        summary.append($('<tr><td class="data_h" colspan=2>Tasks</td></tr>'));
         client.tasks.forEach(function (x) {
-            var link = $('<span class="clickable">' + x[0] + '</span><br />');
+            var link = $('<span class="clickable">' + x[0] + '</span>');
             link.on('click', function () {
                 $('#target_op').val(x[0]);
                 query_op(true);
             });
-            summary.append($('<tr>').append(($('<td class="data_1">').append(link))));
+            var indicator = $('<span class="op_status">' + x[1].status + '</span>');
+            summary.append($('<tr>')
+                           .append(($('<td class="data_1a">').append(link)))
+                           .append($('<td class="data_1b">').append(indicator)));
         });
-        summary.append($('<tr>').append($('<td class="data_h">').append('Feeds')));//</td></tr>'));
+        summary.append($('<tr>').append($('<td class="data_h" colspan=2>').append('Feeds')));//</td></tr>'));
         client.feeds.forEach(function (x) {
-            var link = $('<span class="clickable">' + x[0] + '</span><br />');
+            var link = $('<span class="clickable">' + x[0] + '</span>');
             link.on('click', function () {
                 $('#target_feed').val(x[0]);
                 subscribe_feed();

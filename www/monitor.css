@@ -94,3 +94,18 @@ p.hanging_logmsg {
     font-size: 15pt;
     padding-left: 20px;
 }
+
+.data_1a {
+    font-family: monospace;
+    font-size: 15pt;
+    padding-left: 20px;
+    width: 80%;
+}
+
+.data_1b {
+    font-family: monospace;
+    font-size: 10pt;
+    padding-left: 0px;
+    text-align: center;
+    
+}

@@ -83,6 +83,12 @@ The plugin can also be enabled for all containers on the system by configuring
 the logging driver in the Docker daemon configuration. For more details see the
 `Loki Docker driver documentation`_.
 
+.. note::
+    Once the loki logging driver is installed and configured access to logs
+    should still be accessible via ``docker logs``, however it is no longer
+    available via ``docker-compose logs``. You will instead see a warning::
+        WARNING: no logs are available with the 'loki' log driver
+
 .. _Loki installation documentation: https://grafana.com/docs/loki/latest/installation/
 .. _Loki Docker driver documentation: https://grafana.com/docs/loki/latest/clients/docker-driver/configuration/
 

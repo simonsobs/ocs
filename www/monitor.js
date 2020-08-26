@@ -149,7 +149,7 @@ function query_agent() {
 
     if (ocs_connection == null) return;
     agent_addr = $('#target_agent').val();
-    client = new AgentClient(ocs_connection.connection, agent_addr);
+    client = new AgentClient(ocs_connection, agent_addr);
 
     client.scan(function () {
         log('Client scan completed.');
@@ -222,7 +222,7 @@ function query_op(reset_query) {
     if (!query_op_valid)
         return;
         
-    client = new AgentClient(ocs_connection.connection, agent_addr);
+    client = new AgentClient(ocs_connection, agent_addr);
     //$('#op_status_legend').html('Op Session Info');
 
     client.status(agent_op).then(function (args, kwargs) {

@@ -20,7 +20,7 @@ function generic_populate(p, base_id, args) {
              .append($(`<div class="block_unit" id=${base_id}-controls2>`)));
 
 
-    var client = new AgentClient(ocs_connection.connection, args.address);
+    var client = new AgentClient(ocs_connection, args.address);
 
     var ui1 = new OcsUiHelper(base_id);
     ui1.dest($('#' + base_id + '-controls1'));

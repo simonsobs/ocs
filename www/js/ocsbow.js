@@ -134,14 +134,15 @@ OCSConnection.prototype = {
     },
 
     get_client: function(agent_address) {
-        return new AgentClient(this.connection, agent_address);
+        return new AgentClient(this, agent_address);
     },
 }
 
 /* AgentClient
  *
- * Tracks the status of a client.  Instantiate with an Ocs handle
- * (autobahn.Connection) and the agent address.
+ * Tracks the status of a client.  Instantiate with an OCSConnection
+ * (will will maintain an autobahn.Connection internally), and the
+ * agent address.
  */
 
 function AgentClient(_ocs, address) {
@@ -162,7 +163,7 @@ AgentClient.prototype = {
             if (callback != null)
                 callback();
         });
-        this.ocs.session.call(this.address, ['get_tasks']).then(
+        this.ocs.connection.session.call(this.address, ['get_tasks']).then(
             function(result) {
                 client.tasks = [];
                 if (result != null)
@@ -170,7 +171,7 @@ AgentClient.prototype = {
                 if (--counter == 0)
                     d.resolve();
             });
-        this.ocs.session.call(this.address, ['get_processes']).then(
+        this.ocs.connection.session.call(this.address, ['get_processes']).then(
             function(result) {
                 client.procs = [];
                 if (result != null)
@@ -178,7 +179,7 @@ AgentClient.prototype = {
                 if (--counter == 0)
                     d.resolve();
             });
-        this.ocs.session.call(this.address, ['get_feeds']).then(
+        this.ocs.connection.session.call(this.address, ['get_feeds']).then(
             function(result) {
                 client.feeds = [];
                 if (result != null)
@@ -204,7 +205,7 @@ AgentClient.prototype = {
         // Wrap all API calls to call our onSession handler before
         // returning to the invoking agent.
         var d = new autobahn.when.defer();
-        client.ocs.session.call(client.address + '.ops', _p).then(
+        client.ocs.connection.session.call(client.address + '.ops', _p).then(
             function (args) {
                 // OCS responds with a simple list, args = [exit_code,
                 // message, session].

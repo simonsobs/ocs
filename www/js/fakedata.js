@@ -16,7 +16,7 @@ function fakedata_populate(p, base_id, args) {
              .append($(`<div class="block_unit" id=${base_id}-controls>`)));
 
 
-    var client = new AgentClient(ocs_connection.connection, args.address);
+    var client = new AgentClient(ocs_connection, args.address);
     ocs_debugs['client'] = client;
 
     //

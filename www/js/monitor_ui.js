@@ -95,6 +95,7 @@ function TabManager() {
             });
             ap.html(`<p>Select the agent class appropriate for use with <tt>${name}</tt>:</p>`);
             ap.append(list);
+            ap.append(`<p>If there is no class-specific handler, you might try GenericAgent.`);
             ap.modal();
             return;
         }
@@ -210,34 +211,26 @@ OcsUiHelper.prototype = {
      * and process()) or unassociated (panel()).
      */
 
+    panel: function(op_name, op_type) {
+        // Start a new mini-panel with the specified op_name, and of
+        // the specified op_type ('task', 'process', or null).
+        this._next_e();
+        if (!op_name)
+            op_name = '';
+        this.op_name = op_name;
+        this.op_type = op_type;
+        this.input_registry[this.op_name] = {};
+        return this;
+    },
+
     task: function(op_name) {
         // Start a new mini-panel, in this case for a Task.
-        this._next_e();
-        this.op_name = op_name;
-        this.op_type = 'task';
-        this.input_registry[op_name] = {};
-        return this;
+        return this.panel(op_name, 'task');
     },
 
     process: function(op_name) {
         // Start a new mini-panel, in this case for a Process.
-        this._next_e();
-        this.op_name = op_name;
-        this.op_type = 'process';
-        this.input_registry[op_name] = {};
-        return this;
-    },
-
-    panel: function(name) {
-        // Start a new mini-panel, in this case not associated with a
-        // particular Task or Process.
-        this._next_e();
-        if (!name)
-            name = '';
-        this.op_name = name;
-        this.op_type = 'free';
-        this.input_registry[this.op_name] = {};
-        return this;
+        return this.panel(op_name, 'process');
     },
 
     /* Generic */
@@ -296,6 +289,13 @@ OcsUiHelper.prototype = {
 
     /* Indicators */
 
+    indicator: function(_id) {
+        /* A full width div, for whatever. */
+        var ind_id = this.base_id + '-' + this.op_name + '-' + _id;
+        this.e.append($(`<div class="ocs_triple" id="${ind_id}"/>`));
+        return this;
+    },
+
     text_indicator: function(_id, label_text) {
         /* A wide indicator text box, with label_text. */
         var ind_id = this.base_id + '-' + this.op_name + '-' + _id;
@@ -308,15 +308,17 @@ OcsUiHelper.prototype = {
         /* A special text_indicator for operation status.  Likely
          * enrichened with some sort of bell or whistle. */
         var ind_id = this.base_id + '-' + this.op_name + '-status';
-        this.e.append($(`<label>Status:</label>` +
-                        `<input type="text" id="${ind_id}" readonly />` +
-                        `<div text-align="center"><i class="fa fa-spinner operation_icon" id="${ind_id}-spinner">`));
+        this.e.append($(`<label>Status:` +
+                        `<i class="fa fa-spinner operation_icon" id="${ind_id}-spinner"></i>` +
+                        `</label>` +
+                        `<input class="ocs_double" type="text" id="${ind_id}" readonly />`
+                        ));
         return this;
     },
 
     progress_bar: function(_id, label_text) {
         /* A progress_bar indicator, with label_text. */
-        var ind_id = this.base_id + '-' + _id;
+        var ind_id = this.base_id + '-' + this.op_name + '-' + _id;
         var span_class = 'ocs_triple';
         if (label_text) {
             span_class = 'ocs_double';
@@ -367,7 +369,20 @@ OcsUiHelper.prototype = {
          * status passed in should be a session object returned from
          * AgentClient.  */
         var input_id = this.base_id + '-' + op_name + '-status';
-        $('#' + input_id).val(session.status);
+        var ago = timestamp_now() - session.start_time;
+        var t = '(unknown)';
+        switch(session.status) {
+        case 'idle':
+        case 'starting':
+        case 'running':
+            t = session.status + ' (' + human_timespan(ago, 1) + ')';
+            break;
+        case 'done':
+            var success = {true: 'OK', false: 'ERROR'}[session.success];
+            t = `${session.status} - ${success} - ` + human_timespan(ago, 1) + ' ago';
+            break;
+        }
+        $('#' + input_id).val(t);
         var spnr = $('#' + input_id + '-spinner');
         if (session.status == 'running')
             spnr.addClass('spinning');

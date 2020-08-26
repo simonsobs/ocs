@@ -282,6 +282,9 @@ AgentClient.prototype = {
             this.watchers[op_name].timer = setInterval(function () {
                 client.status(op_name);
             }, span * 1000.);
+            // If ~slow update, trigger one immediately too.
+            if (span >= 1.)
+                client.status(op_name);
         }
         this.watchers[op_name].handlers.push({f: handler, span: span});
     },
@@ -350,4 +353,32 @@ function get_date_time_string(timestamp, joiner) {
         return [datestr, timestr];
 
     return datestr + joiner + timestr;
+}
+
+var HUMANITIES = [
+    {max:    60*2, unit:     1, label: 'secs'},
+    {max:  3600*2, unit:    60, label: 'mins'},
+    {max: 86400*2, unit:  3600, label: 'hours'},
+    {max:    null, unit: 86400, label: 'days'},
+];
+
+function human_timespan(delta, precision) {
+    /* Convert delta, a time in seconds, to a textual representation
+     * in comprehensible units with ~2+precision sigfigs.  E.g. 86401
+     * becomes '1.00 days'. */
+    var spec;
+    var i;
+    if (!precision)
+        precision = 1;
+    for (i=0; i<HUMANITIES.length; i++) {
+        spec = HUMANITIES[i];
+        if (!spec.max || Math.abs(delta) < spec.max)
+            break;
+    }
+    return (delta / spec.unit).toFixed(precision) + ' ' + spec.label;
+}
+
+function timestamp_now() {
+    var now = new Date();
+    return now.getTime() / 1000.;
 }

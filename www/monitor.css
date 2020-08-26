@@ -183,11 +183,11 @@ p.hanging_logmsg {
     to {transform: rotate(360deg); }
 }
 .operation_icon {
+    float: right;
     font-size: 20px;
     color: gray;
 }
 .spinning {
-    font-size: 40px;
     color: black;
     animation: spinner 10s linear infinite;
 }

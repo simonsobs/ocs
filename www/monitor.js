@@ -1,13 +1,26 @@
+/* monitor.js
+ *
+ * This is the main source file for the OCS monitoring and control web
+ * interface.  The interface is presented as a series of tabs,
+ * including a main "Browser" tab that can be used to browse through
+ * all Agents and to launch specialized Agent control tabs.
+ *
+ * The coding style in monitor_ui.js and the Agent UI scripts is to be
+ * preferred to the style you'll find here.
+ */
+
+
+/* Shared globals needed for all plugins */
 var ocs_connection;
-var debugs = {};         // For stashing debug data.
+var debugs = {};
+var tabman = new TabManager();
 
 // Timer for querying Operation status.
 var query_op_timer = null;
 
-/* The way forward here is to generalize the notion of a viewport, and
- * have different data sources get attached to different view ports.
- * But for now, there is one, and this string says what is allowed to
- * write into it. */
+/* feed_view is a string: 'data', or 'feed'.  It determines whether
+ * the feed window should be used to display session.data info or a
+ * subscribed feed. */
 var feed_view = null;
 
 
@@ -60,7 +73,7 @@ function init() {
                      '#messages',
                      ' [show]', ' [hide]', true).addClass('clickable');
 
-        // Set up OCS connector and assign handlers.
+        // Set up the global OCS connector and assign handlers.
         ocs_connection = new OCSConnection(
             function () { return $('#wamp_router').val(); },
             function () { return $('#wamp_realm').val(); });
@@ -71,6 +84,11 @@ function init() {
 
         // Begin connection attempts.
         ocs_connection.start();
+
+        // For debugging you can create and activate a tab like this.
+        //tab_info = tabman.add('faker-1', 'FakeDataAgent',
+        //                      {address: 'observatory.faker-1'});
+        //tabman.activate(tab_info.base_id);
     });
 }
 
@@ -85,7 +103,6 @@ function AgentList () {
 }
 
 AgentList.prototype = {
-
     update_agent_info: function(info) {
         var addr = info.agent_address;
         if (!this.agent_list.includes(addr)) {
@@ -99,7 +116,19 @@ AgentList.prototype = {
                         $('#target_agent').val(x);
                         query_agent();
                     });
-                table.append($('<tr>').append($('<td class="data_1">').append(link)));
+                but1 = $('<span>').append('<i class="fa fa-plus">').on(
+                    'click', function () {
+                        tabman.add(x, null, {address: x});
+                    }).addClass('obviously_clickable');
+                but2 = $('<span>').append('<i class="fa fa-arrow-up">').on(
+                    'click', function () {
+                        var tab_info = tabman.add(x, null, {address: x});
+                        tabman.activate(tab_info.base_id);
+                    }).addClass('obviously_clickable');
+                table.append($('<tr>')
+                             .append($('<td class="data_1">').append(link))
+                             .append($('<td class="data_1">').append(but1).append(but2))
+                            );
                 debugs['x'] = link;
             });
             var dump = $('#agent_list').html('').append(table).append('<br>');

@@ -13,12 +13,6 @@ if (typeof ocs_log == 'undefined') {
     }
 }
 
-/* get_ocs(url, realm)
- *
- * For now this just returns the autobahn.Connection object, after
- * .open() has been called.
- */
-
 function OCSConnection(url_func, realm_func)
 {
     this.url_func = url_func;
@@ -137,8 +131,11 @@ OCSConnection.prototype = {
         this.feeds[feed_name] = handler;
         this._reconnection.requested = true;
         this.connection.close();
-    }
+    },
 
+    get_client: function(agent_address) {
+        return new AgentClient(this.connection, agent_address);
+    },
 }
 
 /* AgentClient
@@ -153,6 +150,7 @@ function AgentClient(_ocs, address) {
     this.tasks = null;
     this.procs = null;
     this.feeds = null;
+    this.watchers = {};
 }
 
 AgentClient.prototype = {
@@ -207,11 +205,13 @@ AgentClient.prototype = {
         // returning to the invoking agent.
         var d = new autobahn.when.defer();
         client.ocs.session.call(client.address + '.ops', _p).then(
-            function (result) {
-                if (client.onSession != null) {
-                    client.onSession(result);
-                }
-                d.resolve(result);
+            function (args) {
+                // OCS responds with a simple list, args = [exit_code,
+                // message, session].
+                if (client.watchers[op_name])
+                    $.each(client.watchers[op_name].handlers, (i, h) =>
+                           h.f(op_name, method, args[0], args[1], args[2]));
+                d.resolve(args);
             });
         return d.promise;
     },
@@ -242,6 +242,10 @@ AgentClient.prototype = {
         return d.promise;
     },
 
+    abort_task : function(task_name) {
+        return this.dispatch('abort', task_name, []);
+    },
+
     start_proc : function(proc_name, params) {
         return this.dispatch('start', proc_name, params);
     },
@@ -252,8 +256,41 @@ AgentClient.prototype = {
 
     status : function(op_name) {
         return this.dispatch('status', op_name, []);
-    }
+    },
 
+    // API for attaching session information handlers.
+    add_watcher: function(op_name, span, handler) {
+        // op_name: Name of operation to handle.
+        // span: Interval at which to poll the operation (if 0, do not poll).
+        // handler: function to call on each status reply.
+        //
+        // The signature of handler should be (op_name, exit_code,
+        // message, session).
+        if (!this.watchers[op_name]) {
+            this.watchers[op_name] = {
+                last_update: 0.,
+                timer: null,
+                span: 0,
+                handlers: [],
+            };
+        }
+        var current_span = this.watchers[op_name].span;
+        if (span > 0 && (current_span == 0 || current_span > span)) {
+            this.watchers[op_name].span = span;
+            clearInterval(this.watchers[op_name].timer);
+            client = this;
+            this.watchers[op_name].timer = setInterval(function () {
+                client.status(op_name);
+            }, span * 1000.);
+        }
+        this.watchers[op_name].handlers.push({f: handler, span: span});
+    },
+
+    destroy: function() {
+        // Stop all timers.
+        client = this;
+        $.each(this.watchers, (op_name, data) => clearInterval(data.timer))
+    },
 }
 
 function MessageBuffer() {

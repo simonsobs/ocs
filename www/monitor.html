@@ -11,12 +11,15 @@
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/jquery-ui.css" />
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.css" />
     <script src="./js/autobahn.min.js"></script>
 
     <!-- ocs libraries -->
+    <script src="js/ocsbow.js"></script>
+    <script src="js/monitor_ui.js"></script>
     <script src="monitor.js"></script>
-    <script src="./js/ocsbow.js"></script>
-    <link rel="stylesheet" href="monitor.css" />
+    <link rel="stylesheet" href="monitor.css#no-cache-ahem-chrome" />
 
   </head>
 
@@ -29,7 +32,7 @@
       <ul>
         <li><a href="#tab-browser">Browser</a></li>
       </ul>
-      <div id="tab-browser" class="tabcontent">
+      <div id="tab-browser" class="ocs_tab">
 
     <!-- This div is used to responsively flow child block_unit objects into 1 or 2 columns. -->
     <div class="block_holder">
@@ -66,7 +69,6 @@
             <div id="interface_summary" class="autopop_box" style="height: 200px"></div>
           </fieldset>
         </div>
-        <!-- /div -->
       </div>
       <div class="block_unit">
         <div id="monitor_container">
@@ -86,6 +88,8 @@
     <hr />
     <h3>Local Log <span id="messages_hider" /></h3>
     <div id="messages" class="autopop_box autopop_border" style="height:200px"></div>
+
+    <div id="agent_class_picker" class="modal" />
 
   </body>
 </html>

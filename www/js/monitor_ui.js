@@ -113,10 +113,19 @@ function TabManager() {
         dest_div_id = `${uid}-tab`;
         var div = $('#tabs').append(`<div id="${dest_div_id}" class="ocs_tab">`);
         var destructor = pop_func($('#'+dest_div_id), uid, args);
-        $(`<li><a href='#${dest_div_id}'>${name}</a><span id="${uid}-closer">` +
+        $(`<li><a id="${uid}-tab-link" href='#${dest_div_id}'>${name}</a><span id="${uid}-closer">` +
           `<i class="fa fa-window-close"></i></span></li>`)
             .appendTo("#tabs .ui-tabs-nav");
         $('#tabs').tabs( "refresh" );
+
+        // Mark the tab clearly if agent connection drops.
+        ocs_connection.agent_list.subscribe(uid + '-tab', args.address, function (addr, ok) {
+            var el = $('#' + uid + '-tab-link');
+            if (ok)
+                el.removeClass('ocs_missing_agent');
+            else
+                el.addClass('ocs_missing_agent');
+        });
 
         var tabman = this;
         $('#' + uid + '-closer')
@@ -137,6 +146,8 @@ function TabManager() {
         /* Tear down the tab specified by base_id.  This will remove
          * the tab from the document tree and also call the destructor
          * function for that UI. */
+        ocs_connection.agent_list.unsubscribe(base_id + '-tab');
+
         // Un-tab...
         var tabIdStr = '#'+base_id+'-tab';
         $(tabIdStr).remove();
@@ -296,11 +307,15 @@ OcsUiHelper.prototype = {
         return this;
     },
 
-    text_indicator: function(_id, label_text) {
+    text_indicator: function(_id, label_text, opts) {
         /* A wide indicator text box, with label_text. */
         var ind_id = this.base_id + '-' + this.op_name + '-' + _id;
         this.e.append($(`<label>${label_text}</label>` +
                         `<input class="ocs_double" type="text" id="${ind_id}" readonly />`));
+        if (!opts)
+            opts = {};
+        if (opts.center)
+            $('#' + ind_id).css('text-align', 'center');
         return this;
     },
 
@@ -388,6 +403,22 @@ OcsUiHelper.prototype = {
             spnr.addClass('spinning');
         else
             spnr.removeClass('spinning');
+    },
+
+    set_connection_status(panel_name, ind_id, ok, opts) {
+        var el = this.ind(panel_name, ind_id);
+        if (ok) {
+            el.val('connection ok').removeClass('ocs_missing_agent')
+        } else {
+            el.val('CONNECTION LOST').addClass('ocs_missing_agent');
+        }
+        if (opts.input_containers) {
+            $.each(opts.input_containers, function (i, _id) {
+                $('#' + _id + ' input').prop('disabled', !ok);
+                if (!ok)
+                    $('#' + _id + ' i').removeClass('spinning');
+            });
+        }
     },
 
     ind: function(panel_name, ind_id) {

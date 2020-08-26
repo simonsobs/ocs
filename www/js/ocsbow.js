@@ -71,7 +71,7 @@ OCSConnection.prototype = {
             // Monitor heartbeat feeds to see what Agents are online.
             c.session.subscribe('observatory..feeds.heartbeat', function (args, kwargs, details) {
                 var info = args[0][1];
-                agent_list.update_agent_info(info);
+                agent_list.handle_heartbeat_info(info);
             }, {'match': 'wildcard'});
 
             // Subscribe for all registered feed handlers.

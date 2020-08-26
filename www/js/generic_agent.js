@@ -29,8 +29,14 @@ function generic_populate(p, base_id, args) {
     ui2.dest($('#' + base_id + '-controls2'));
 
     client.scan(function () {
-        var n_items = client.tasks.length + client.procs.length;
-        var i = 0;
+        var n_items = client.tasks.length + client.procs.length + 1;
+        var i = 1;
+        ui1
+            .panel()
+            .banner('Monitor for ' + args.address)
+            .text_indicator('heartbeat', 'Connection', {center: true})
+        ;
+
         $.each({task: client.tasks, process: client.procs},
                function(op_type, op_list) {
                    $.each(op_list, function(key, val) {
@@ -49,7 +55,15 @@ function generic_populate(p, base_id, args) {
                });
     });
 
+    // Keep an eye on agent presence.
+    ocs_connection.agent_list.subscribe(base_id, args.address, function (addr, conn_ok) {
+        ui1.set_connection_status('', 'heartbeat', conn_ok,
+                                  {input_containers: [base_id + '-controls']});
+    });
+
+    // Return a destructor function -- stop all timers!
     return (function() {
+        ocs_connection.agent_list.unsubscribe(base_id);
         client.destroy();
     });
 }

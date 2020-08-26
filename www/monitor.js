@@ -85,10 +85,14 @@ function init() {
         // Begin connection attempts.
         ocs_connection.start();
 
+        // Maintenance on the agent list.
+        var al_timer = setInterval(function () {
+            ocs_connection.agent_list.update_agent_info();
+        }, 1000);
+
         // For debugging you can create and activate a tab like this.
         //tab_info = tabman.add('faker-1', 'FakeDataAgent',
         //                      {address: 'observatory.faker-1'});
-        //tabman.activate(tab_info.base_id);
     });
 }
 
@@ -99,19 +103,72 @@ function init() {
  */
 
 function AgentList () {
-    this.agent_list = [];
+    // This is a map from agent_address to info block.
+    this.agent_list = {};
+
+    // Map from agent_address to map from subscriber to callback.
+    // Callback is invoked with (agent_addr, heartbeat_ok).
+    this.callbacks = {};
 }
 
 AgentList.prototype = {
-    update_agent_info: function(info) {
+    subscribe: function(subscriber, agent_addr, callback) {
+        if (!this.callbacks[agent_addr])
+            this.callbacks[agent_addr] = {};
+        this.callbacks[agent_addr][subscriber] = callback;
+        if (this.agent_list[agent_addr])
+            callback(agent_addr, this.agent_list[agent_addr].ok);
+    },
+
+    unsubscribe: function (subscriber) {
+        $.each(this.callbacks, function(agent_addr, cbs) {
+            delete cbs[subscriber];
+        });
+    },
+
+    handle_heartbeat_info: function(info) {
         var addr = info.agent_address;
-        if (!this.agent_list.includes(addr)) {
-            this.agent_list.push(addr);
-            this.agent_list.sort();
-            var table = $('<table width="100%">');
-            //table.append($('<tr><td class="data_h">Agents</td></tr>'));
-            this.agent_list.forEach(function (x) {
-                link = $('<span class="clickable">' + x + '</span>').on(
+        var now = timestamp_now();
+        if (!this.agent_list[addr]) {
+            this.agent_list[addr] = {
+                'last_update': now,
+            }
+            this.update_agent_info();
+        } else
+            this.agent_list[addr]['last_update'] = now;
+    },
+
+    update_agent_info: function() {
+        var table = $('<table width="100%">');
+        var key_order = [];
+        var AL = this;
+        $.each(AL.agent_list, (k, v) => key_order.push(k));
+        key_order.sort();
+        $.each(key_order, function(i, x) {
+            var info = AL.agent_list[x];
+            link = $('<span>').html(x);
+            var is_now_ok = (timestamp_now() - info['last_update'] <= 5);
+
+            // Callbacks on change.
+            if ((is_now_ok != info.ok) && AL.callbacks[x]) {
+                $.each(AL.callbacks[x], function (sub, func) {
+                    func(x, is_now_ok);
+                });
+                info.ok = is_now_ok;
+            }
+
+            if (!is_now_ok) {
+                // Mark as missing and make a button to remove the
+                // entry from this list.
+                link.addClass('ocs_missing_agent');
+                but1 = $('');
+                but2 = $('<span>').append('<i class="fa fa-times">').on(
+                    'click', function () {
+                        delete AL.agent_list[x];
+                        AL.update_agent_info();
+                    }).addClass('obviously_clickable');
+            } else {
+                link.addClass('clickable').on(
                     'click', function () {
                         $('#target_agent').val(x);
                         query_agent();
@@ -125,15 +182,15 @@ AgentList.prototype = {
                         var tab_info = tabman.add(x, null, {address: x});
                         tabman.activate(tab_info.base_id);
                     }).addClass('obviously_clickable');
-                table.append($('<tr>')
-                             .append($('<td class="data_1">').append(link))
-                             .append($('<td class="data_1">').append(but1).append(but2))
-                            );
-                debugs['x'] = link;
-            });
-            var dump = $('#agent_list').html('').append(table).append('<br>');
-        }
-    }
+            }
+            table.append($('<tr>')
+                         .append($('<td class="data_1">').append(link))
+                         .append($('<td class="data_1">').append(but1).append(but2))
+                        );
+            debugs['x'] = link;
+        });
+        var dump = $('#agent_list').html('').append(table).append('<br>');
+    },
 }
 
 /* Interface attachments. */

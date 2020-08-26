@@ -38,6 +38,7 @@ function aggregator_populate(p, base_id, args) {
         .set_boxes(false)
         .panel()
         .banner('Aggregator Monitor')
+        .text_indicator('heartbeat', 'Connection', {center: true})
         .text_indicator('current_file', 'current_file')
         .indicator('providers')
     ;
@@ -63,10 +64,15 @@ function aggregator_populate(p, base_id, args) {
         ui2.ind('', 'providers').html('Providers:<br />').append(list);
     });
 
-    // Return a destructor function -- it is important that it calls
-    // client.destroy so that polling timers get stopped.
+    // Keep an eye on agent presence.
+    ocs_connection.agent_list.subscribe(base_id, args.address, function (addr, conn_ok) {
+        ui2.set_connection_status('', 'heartbeat', conn_ok,
+                                  {input_containers: [base_id + '-controls']});
+    });
 
+    // Return a destructor function -- stop all timers!
     return (function() {
+        ocs_connection.agent_list.unsubscribe(base_id);
         client.destroy();
     });
 }

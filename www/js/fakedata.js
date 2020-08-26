@@ -57,6 +57,7 @@ function fakedata_populate(p, base_id, args) {
         .set_boxes(false)
         .panel()
         .banner('FakeData Monitor')
+        .text_indicator('heartbeat', 'Connection', {center: true})
         .text_indicator('delay_reqd', 'Delay Requested')
         .text_indicator('delay_so_far', 'Delay So Far')
         .progress_bar('delay_progress', 'Progress')
@@ -85,10 +86,15 @@ function fakedata_populate(p, base_id, args) {
         ui2.ind('', 'acq_process_state').val(session.status);
     });
 
-    // Return a destructor function -- it is important that it calls
-    // client.destroy so that polling timers get stopped.
+    // Keep an eye on agent presence.
+    ocs_connection.agent_list.subscribe(base_id, args.address, function (addr, conn_ok) {
+        ui2.set_connection_status('', 'heartbeat', conn_ok,
+                                  {input_containers: [base_id + '-controls']});
+    });
 
+    // Return a destructor function -- stop all timers!
     return (function() {
+        ocs_connection.agent_list.unsubscribe(base_id);
         client.destroy();
     });
 }

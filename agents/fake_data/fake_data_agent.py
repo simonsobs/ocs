@@ -159,14 +159,19 @@ class FakeDataAgent:
                 Defaults to True.
 
         """
-        t0 = time.time()
+        session.set_status('running')
         delay = params.get('delay', 5)
-        session.data = {'requested_delay': time.time() - t0,
-                        'measured_delay': None}
+        session.data = {'requested_delay': delay,
+                        'delay_so_far': 0}
         succeed = params.get('succeed', True) is True
-        yield dsleep(max(0, delay))
-        session.data['measured_delay'] = time.time() - t0
-        return succeed, 'Exited after %.1f seconds' % session.data['measured_delay']
+        t0 = time.time()
+        while True:
+            session.data['delay_so_far'] = time.time() - t0
+            sleep_time = min(0.5, delay  - session.data['delay_so_far'])
+            if sleep_time < 0:
+                break
+            yield dsleep(sleep_time)
+        return succeed, 'Exited after %.1f seconds' % session.data['delay_so_far']
 
 
 def add_agent_args(parser_in=None):

@@ -47,8 +47,7 @@ class TestPublishMessage:
         test_feed.publish_message(test_message)
 
     def test_str_single_sample_input(self):
-        """Passing a string, even just one, should cause an error upon
-        publishing.
+        """We should also now be able to pass strings.
 
         """
         mock_agent = MagicMock()
@@ -63,11 +62,10 @@ class TestPublishMessage:
             }
         }
 
-        with pytest.raises(TypeError):
-            test_feed.publish_message(test_message)
+        test_feed.publish_message(test_message)
 
     def test_str_multi_sample_input(self):
-        """Passing multiple points, including multiple invalid datatypes,
+        """Passing multiple points, including invalid datatypes,
         should cause a TypeError upon publishing.
 
         """

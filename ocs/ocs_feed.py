@@ -239,7 +239,7 @@ class Feed:
                 'data' dictionary value published (see Feed.publish_message for details).
 
         """
-        valid_types = (float, int)
+        valid_types = (float, int, str)
 
         # multi-sample check
         if isinstance(value, list):

@@ -1,0 +1,13 @@
+autobahn
+twisted
+wampy>=0.9.20
+deprecation
+
+ipywidgets
+
+# checkdata
+progress
+colorama
+
+# g32influx
+tqdm

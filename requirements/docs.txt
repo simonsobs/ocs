@@ -1,0 +1,4 @@
+# Documentation generation
+sphinx
+sphinx-argparse
+sphinx_rtd_theme

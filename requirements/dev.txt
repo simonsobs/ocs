@@ -1,0 +1,7 @@
+-r agents.txt
+-r clients.txt
+-r docs.txt
+
+# Testing
+pytest
+pytest-cov

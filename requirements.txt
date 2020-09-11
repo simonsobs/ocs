@@ -1,27 +1,2 @@
-crossbar
-autobahn
-twisted
-wampy>=0.9.20
-deprecation
-msgpack
-influxdb
-ipywidgets
-
-# Lakeshore240
-pyserial
-
-# Documentation generation
-sphinx
-sphinx-argparse
-sphinx_rtd_theme
-
-# checkdata
-progress
-colorama
-
-# g32influx
-tqdm
-
-# testing
-pytest
-pytest-cov
+-r requirements/clients.txt
+-r requirements/docs.txt

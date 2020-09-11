@@ -1,0 +1,4 @@
+-r clients.txt
+
+# InfluxDB Publisher
+influxdb

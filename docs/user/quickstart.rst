@@ -28,8 +28,8 @@ file, use this file, unchanged.
     # Site configuration for a fake observatory.
     hub:
     
-      wamp_server: ws://sisock-crossbar:8001/ws
-      wamp_http: http://sisock-crossbar:8001/call
+      wamp_server: ws://crossbar:8001/ws
+      wamp_http: http://crossbar:8001/call
       wamp_realm: test_realm
       address_root: observatory
       registry_address: observatory.registry
@@ -86,12 +86,12 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
       # --------------------------------------------------------------------------
       # Crossbar Server
       # --------------------------------------------------------------------------
-      sisock-crossbar:
-        image: simonsobs/sisock-crossbar:latest
+      crossbar:
+        image: simonsobs/ocs-crossbar:latest
         ports:
           - "127.0.0.1:8001:8001" # expose for OCS
         volumes:
-          - ./dot_crossbar:/app/.crossbar
+          - ./config.json:/app/crossbar/config.json
         environment:
              - PYTHONUNBUFFERED=1
     
@@ -117,15 +117,15 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
         image: simonsobs/ocs-lakeshore240-agent:latest
         hostname: ocs-docker
         depends_on:
-          - "sisock-crossbar"
+          - "crossbar"
         environment:
           - LOGLEVEL=debug
         volumes:
           - ./:/config:ro
         command:
           - "--instance-id=LSSIM"
-          - "--site-hub=ws://sisock-crossbar:8001/ws"
-          - "--site-http=http://sisock-crossbar:8001/call"
+          - "--site-hub=ws://crossbar:8001/ws"
+          - "--site-http=http://crossbar:8001/call"
 
       # InfluxDB Publisher 
       ocs-influx-publisher:
@@ -138,7 +138,7 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
       ocs-client:
         image: simonsobs/socs:latest
         depends_on:
-          - "sisock-crossbar"
+          - "crossbar"
         stdin_open: true
         tty: true
         hostname: ocs-docker
@@ -187,7 +187,7 @@ Now that the system is configured, we can start it with a single
     Creating self-contained-quickstart_grafana_1              ... done
     Creating self-contained-quickstart_ls240-sim_1            ... done
     Creating influxdb                                         ... done
-    Creating self-contained-quickstart_sisock-crossbar_1      ... done
+    Creating self-contained-quickstart_crossbar_1             ... done
     Creating self-contained-quickstart_ocs-LSSIM_1            ... done
     Creating self-contained-quickstart_ocs-client_1           ... done
 
@@ -203,7 +203,7 @@ You can view the running containers with::
     41e4eb3529f5        simonsobs/socs:latest                           "/bin/bash"              11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ocs-client_1
     15d785830335        simonsobs/ocs-lakeshore240-agent:latest         "python3 -u LS240_ag…"   11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ocs-LSSIM_1
     48ea293ab900        influxdb:1.7                                    "/entrypoint.sh infl…"   11 minutes ago      Up 11 minutes       0.0.0.0:8086->8086/tcp     influxdb
-    cff53a069dd5        simonsobs/sisock-crossbar:latest                "crossbar start"         11 minutes ago      Up 11 minutes       127.0.0.1:8001->8001/tcp   self-contained-quickstart_sisock-crossbar_1
+    cff53a069dd5        simonsobs/crossbar:latest                       "crossbar start"         11 minutes ago      Up 11 minutes       127.0.0.1:8001->8001/tcp   self-contained-quickstart_crossbar_1
     807d27607f40        simonsobs/ocs-lakeshore240-simulator:latest     "python3 -u ls240_si…"   11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ls240-sim_1
     e1574571de93        simonsobs/ocs-influxdb-publisher-agent:latest   "python3 -u influxdb…"   11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ocs-influx-publisher_1
     f92628c36f58        grafana/grafana:6.5.0                           "/run.sh"                11 minutes ago      Up 11 minutes       127.0.0.1:3000->3000/tcp   self-contained-quickstart_grafana_1

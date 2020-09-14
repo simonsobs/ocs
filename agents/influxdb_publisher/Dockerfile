@@ -8,6 +8,9 @@ FROM ocs:latest
 WORKDIR /app/ocs/agents/influxdb_publisher/
 
 COPY influxdb_publisher.py .
+COPY requirements.txt .
+
+RUN pip3 install -r requirements.txt
 
 # Run publisher on container startup
 ENTRYPOINT ["python3", "-u", "influxdb_publisher.py"]

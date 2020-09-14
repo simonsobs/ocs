@@ -73,6 +73,6 @@ To install, clone the repository and use pip to install::
     additional dependnecies listed in the files within ``requirements/``. You can
     do so using pip. For example::
 
-        pip3 install -r requirements/agents.txt
+        pip3 install -r requirements/dev.txt
 
 .. _Docker Compose: https://docs.docker.com/compose/install/

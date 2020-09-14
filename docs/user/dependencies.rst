@@ -29,9 +29,6 @@ which refers to ``requirements.txt``, and is covered in the next page. Other
 dependencies must be explitly installed. For convenience these are split into
 groups based on various tasks OCS users might want to accomplish.
 
-* ``agents.txt`` - Dependencies for running OCS Agents on a host system. Most
-  commonly Agents will be run in Docker containers, which come with the
-  required dependencies already installed.
 * ``crossbar.txt`` - The crossbar server and any dependencies it might have.
   This pulls in a lot of other python packages, some of which conflict with
   other dependencies in OCS. We strongly encourage using the crossbar Docker

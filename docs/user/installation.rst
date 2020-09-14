@@ -64,6 +64,15 @@ To install, clone the repository and use pip to install::
 .. note::
 
     If you want to install locally, not globally, throw the `--user` flag
-    on both the pip3 and setup.py commands.
+    on the pip3 command.
+
+.. note::
+
+    If you need addiontional dependencies, such as if you are locally
+    developing an Agent, or want to run the test suite, you will need to install
+    additional dependnecies listed in the files within ``requirements/``. You can
+    do so using pip. For example::
+
+        pip3 install -r requirements/agents.txt
 
 .. _Docker Compose: https://docs.docker.com/compose/install/

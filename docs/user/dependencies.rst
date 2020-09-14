@@ -17,10 +17,31 @@ software dependencies on host systems running OCS:
 
 Python Dependencies
 ```````````````````
-All python dependencies for OCS are listed in (and automatically installed via)
-the ``requirements.txt`` file. Some of the dependencies are:
+All python dependencies for OCS are listed in requirements files within
+``requirements/``. These are split up into multiple files and should be
+installed depending on the use of your OCS installation. The most common use
+case will be to just run OCS clients on a local machine, for this, the default
+``requirements.txt`` file includes the client and documentation requirements so
+users can run OCS clients and build the OCS documentation locally.
 
-* `crossbar.io`_ - An implementation of a WAMP router.
+These dependencies will be installed during the normal installation process,
+which refers to ``requirements.txt``, and is covered in the next page. Other
+dependencies must be explitly installed. For convenience these are split into
+groups based on various tasks OCS users might want to accomplish.
+
+* ``agents.txt`` - Dependencies for running OCS Agents on a host system. Most
+  commonly Agents will be run in Docker containers, which come with the
+  required dependencies already installed.
+* ``crossbar.txt`` - The crossbar server and any dependencies it might have.
+  This pulls in a lot of other python packages, some of which conflict with
+  other dependencies in OCS. We strongly encourage using the crossbar Docker
+  container described later, but if you want to run the crossbar server on the
+  host system, you will need these dependencies.
+* ``dev.txt`` - Everything you need for locally developing an OCS Agent,
+  including pytest for running the test suite.
+
+The major dependencies for running clients include:
+
 * `Autobahn`_ - Provides open-source implementations of WAMP.
 * `twisted`_ - Used with Autobahn for networking.
 * `wampy`_ - A non-asynchronus WAMP library providing RPC and Pub/Sub for

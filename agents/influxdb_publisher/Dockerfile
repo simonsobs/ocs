@@ -13,5 +13,5 @@ COPY influxdb_publisher.py .
 ENTRYPOINT ["python3", "-u", "influxdb_publisher.py"]
 
 # Sensible defaults for setup with sisock
-CMD ["--site-hub=ws://sisock-crossbar:8001/ws", \
-     "--site-http=http://sisock-crossbar:8001/call"]
+CMD ["--site-hub=ws://crossbar:8001/ws", \
+     "--site-http=http://crossbar:8001/call"]

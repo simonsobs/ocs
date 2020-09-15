@@ -76,11 +76,12 @@ function TabManager() {
         if (this.ui_reg[name])
             return this.ui_reg[name];
         
-        if (!agent_class) {
-            /* If the agent_class is null, allow the user to select
-             * the right constructor from a modal dialog.  This should
-             * be a short-term work-around until Agents are able to
-             * state their class through the API. */
+        if (agent_class instanceof Function) {
+            pop_func = agent_class;
+        } else if (!agent_class || !this.constructors[agent_class]) {
+            /* If the agent_class is null or does not match any
+             * registered constructor, allow the user to select a
+             * constructor from a modal dialog. */
             var ap = $('#agent_class_picker');
             var list = $('<ul>');
             var tabman = this;
@@ -93,17 +94,15 @@ function TabManager() {
                 });
                 list.append($(`<li>`).append(item));
             });
-            ap.html(`<p>Select the agent class appropriate for use with <tt>${name}</tt>:</p>`);
+            ap.html(`<p>Select the agent class appropriate for use with ` +
+                    `<tt>${name}</tt> which is of class <tt>${agent_class}</tt>:</p>`);
             ap.append(list);
             ap.append(`<p>If there is no class-specific handler, you might try GenericAgent.`);
             ap.modal();
             return;
-        }
-
-        if (agent_class instanceof Function)
-            pop_func = agent_class;
-        else
+        } else {
             pop_func = this.constructors[agent_class];
+        }
 
         // Get a unique id - this will be the base ID for all the
         // controls in the tab.
@@ -137,9 +136,8 @@ function TabManager() {
     }
 
     this.activate = function(base_id) {
-        /* Activate the tab specified by base_id. */
-        var index = $('#tabs ul').index($('#'+base_id+'-div'));
-        $('#tabs').tabs('option', 'active', index);
+        // This seems to be the most reliable.
+        $('#' + base_id + '-tab-link').trigger('click');
     }
 
     this.del = function(base_id) {

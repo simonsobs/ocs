@@ -90,9 +90,16 @@ function init() {
             ocs_connection.agent_list.update_agent_info();
         }, 1000);
 
-        // For debugging you can create and activate a tab like this.
-        //tab_info = tabman.add('faker-1', 'FakeDataAgent',
-        //                      {address: 'observatory.faker-1'});
+        // For debugging you can create and activate a tab, on load.
+        // The timeout is set to 1000 ms to allow the OCS connection
+        // to come up.
+        //
+        //setTimeout(function () {
+        //    console.log('Launch!')
+        //    tab_info = tabman.add('faker-1', 'FakeDataAgent',
+        //                          {address: 'observatory.faker-1'});
+        //    tabman.activate(tab_info.base_id);
+        //}, 1000);
     });
 }
 
@@ -132,8 +139,13 @@ AgentList.prototype = {
         if (!this.agent_list[addr]) {
             this.agent_list[addr] = {
                 'last_update': now,
-            }
+            };
             this.update_agent_info();
+            var client = new AgentClient(ocs_connection, addr);
+            var dest = this.agent_list[addr];
+            client.scan(function () {
+                dest.agent_class = client.agent_class;
+            });
         } else
             this.agent_list[addr]['last_update'] = now;
     },
@@ -175,11 +187,11 @@ AgentList.prototype = {
                     });
                 but1 = $('<span>').append('<i class="fa fa-plus">').on(
                     'click', function () {
-                        tabman.add(x, null, {address: x});
+                        tabman.add(x, info['agent_class'], {address: x});
                     }).addClass('obviously_clickable');
                 but2 = $('<span>').append('<i class="fa fa-arrow-up">').on(
                     'click', function () {
-                        var tab_info = tabman.add(x, null, {address: x});
+                        var tab_info = tabman.add(x, info['agent_class'], {address: x});
                         tabman.activate(tab_info.base_id);
                     }).addClass('obviously_clickable');
             }
@@ -209,7 +221,6 @@ function query_agent() {
     client = new AgentClient(ocs_connection, agent_addr);
 
     client.scan(function () {
-        log('Client scan completed.');
         var summary = $('<table width=100%>');
         $('#target_op').val('');
         
@@ -237,7 +248,7 @@ function query_agent() {
                            .append(($('<td class="data_1a">').append(link)))
                            .append($('<td class="data_1b">').append(indicator)));
         });
-        summary.append($('<tr>').append($('<td class="data_h" colspan=2>').append('Feeds')));//</td></tr>'));
+        summary.append($('<tr>').append($('<td class="data_h" colspan=2>').append('Feeds')));
         client.feeds.forEach(function (x) {
             var link = $('<span class="clickable">' + x[0] + '</span>');
             link.on('click', function () {

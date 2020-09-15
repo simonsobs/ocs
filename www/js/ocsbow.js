@@ -151,11 +151,42 @@ function AgentClient(_ocs, address) {
     this.tasks = null;
     this.procs = null;
     this.feeds = null;
+    this.agent_class = null;
     this.watchers = {};
 }
 
 AgentClient.prototype = {
+
+    // scan
+    //
+    // Uses the "get_api" method to get the lists of all tasks,
+    // processes, and feeds of the Agent.  The task and process items
+    // include session status information, as well.
+
     scan : function(callback) {
+        // Try first on the "new" API; fall back to the old one (now
+        // deprecated).
+        client = this;
+        this.ocs.connection.session.call(this.address, ['get_api'])
+            .then( function(result) {
+                // Calling an invalid method address seems to return
+                // null result, rather than raise a catchable.
+                if (!result) {
+                    client.scan_old_api(callback);
+                    return;
+                }
+                // New API.
+                client.tasks = result.tasks;
+                client.procs = result.processes;
+                client.feeds = result.feeds;
+                client.agent_class = result.agent_class;
+                if (callback != null)
+                    callback();
+            });
+    },
+
+    scan_old_api : function(callback) {
+        console.log('Warning, ' + this.address + ' does not support "get_api" call.');
         client = this;
         var d = new autobahn.when.defer();
         var counter = 3;

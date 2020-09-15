@@ -286,7 +286,7 @@ class ArgContainer:
         """
         arg_list = []
         for k, v in self.arg_dict.items():
-            if k is not '__positional__':
+            if k != '__positional__':
                 arg_list.append(k)
             arg_list.extend(v)
 

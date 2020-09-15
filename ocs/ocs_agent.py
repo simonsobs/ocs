@@ -36,7 +36,8 @@ def init_site_agent(args, address=None):
         address = '%s.%s' % (args.address_root, args.instance_id)
     server, realm = args.site_hub, args.site_realm
     #txaio.start_logging(level='debug')
-    agent = OCSAgent(ComponentConfig(realm, {}), args, address=address)
+    agent = OCSAgent(ComponentConfig(realm, {}), args, address=address,
+                     class_name=getattr(args, 'agent_class'))
     runner = ApplicationRunner(server, realm)
     return agent, runner
 
@@ -78,7 +79,7 @@ class OCSAgent(ApplicationSession):
 
     """
 
-    def __init__(self, config, site_args, address=None):
+    def __init__(self, config, site_args, address=None, class_name=None):
         ApplicationSession.__init__(self, config)
         self.log.info("Using OCS version {v}", v=ocs.__version__)
         self.site_args = site_args
@@ -89,6 +90,7 @@ class OCSAgent(ApplicationSession):
         self.next_session_id = 0
         self.session_archive = {} # by op_name, lists of OpSession.
         self.agent_address = address
+        self.class_name = class_name
         self.registered = False
         self.log = txaio.make_logger()
         self.heartbeat_call = None
@@ -226,32 +228,47 @@ class OCSAgent(ApplicationSession):
         if action == 'status':
             return self.status(op_name)
 
+    def _gather_sessions(self, parent):
+        """Gather the session data for self.tasks or self.sessions, for return
+        through the management_handler.
+
+        Args:
+          parent: either self.tasks or self.processes.
+
+        Returns:
+          A list of session data blocks.  Each session block contains
+          at least entries for 'op_name' and 'status'.  In the case
+          that the operation has ever run, it will contain all the
+          stuff from OpSession.encode; otherwise 'no_history' is
+          returned for the status.
+
+        """
+        result = []
+        for k, v in sorted(parent.items()):
+            session = self.sessions.get(k)
+            if session is None:
+                session = {'op_name': k, 'status': 'no_history'}
+            else:
+                session = session.encoded()
+            result.append((k, session, v.encoded()))
+        return result
+
     def my_management_handler(self, q, **kwargs):
+        if q == 'get_api':
+            return {
+                'tasks': self._gather_sessions(self.tasks),
+                'processes': self._gather_sessions(self.processes),
+                'feeds': [(k, v.encoded()) for k, v in self.feeds.items()],
+                'agent_class': self.class_name
+            }
         if q == 'get_tasks':
-            result = []
-            for k,v in sorted(self.tasks.items()):
-                session = self.sessions.get(k)
-                if session is None:
-                    session = {'op_name': k, 'status': 'no_history'}
-                else:
-                    session = session.encoded()
-                result.append((k, session, v.encoded()))
-            return result
+            return self._gather_sessions(self.tasks)
         if q == 'get_processes':
-            result = []
-            for k,v in sorted(self.processes.items()):
-                session = self.sessions.get(k)
-                if session is None:
-                    session = {'op_name': k, 'status': 'no_history'}
-                else:
-                    session = session.encoded()
-                result.append((k, session, v.encoded()))
-            return result
+            return self._gather_sessions(self.processes)
         if q == 'get_feeds':
-            result = []
-            for k, v in self.feeds.items():
-                result.append((k, v.encoded()))
-            return result
+            return [(k, v.encoded()) for k, v in self.feeds.items()]
+        if q == 'get_agent_class':
+            return self.class_name
 
     def publish_status(self, message, session):
         self.publish(self.agent_address + '.feed', session.encoded())

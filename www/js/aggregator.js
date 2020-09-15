@@ -36,7 +36,7 @@ function aggregator_populate(p, base_id, args) {
     var ui2 = new OcsUiHelper(base_id);
     ui2.dest($('#' + base_id + '-viewport'))
         .set_boxes(false)
-        .panel()
+        .set_context('v')
         .banner('Aggregator Monitor')
         .text_indicator('heartbeat', 'Connection', {center: true})
         .text_indicator('current_file', 'current_file')
@@ -50,23 +50,23 @@ function aggregator_populate(p, base_id, args) {
 
         ui1.set_status('record', session);
         if (!session.data || session.status != 'running') {
-            ui2.ind('', 'current_file').val('');
-            ui2.ind('', 'providers').html('');
+            ui2.get('v', 'current_file').val('');
+            ui2.get('v', 'providers').html('');
             return;
         }
         var d = session.data;
-        ui2.ind('', 'current_file').val(d.current_file);
+        ui2.get('v', 'current_file').val(d.current_file);
         var list = $('<ul>');
         $.each(d.providers, function(feed_name, info) {
             var ago = human_timespan(timestamp_now() - info.last_refresh);
             list.append($('<li>').append(`${feed_name} - ${ago} ago`));
         });
-        ui2.ind('', 'providers').html('Providers:<br />').append(list);
+        ui2.get('v', 'providers').html('Providers:<br />').append(list);
     });
 
     // Keep an eye on agent presence.
     ocs_connection.agent_list.subscribe(base_id, args.address, function (addr, conn_ok) {
-        ui2.set_connection_status('', 'heartbeat', conn_ok,
+        ui2.set_connection_status('v', 'heartbeat', conn_ok,
                                   {input_containers: [base_id + '-controls']});
     });
 

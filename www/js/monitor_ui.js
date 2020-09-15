@@ -165,12 +165,14 @@ function TabManager() {
 }
 
 
-function OcsUiHelper(base_id) {
+function OcsUiHelper(base_id, client) {
     /* OcsUiHelper: help construct UI elements for Agent control and
      * monitoring.  Instantiate with the base_id that should be used
-     * to prefix all element ids. */
+     * to prefix all element ids, and with an AgentClient that should
+     * be used for method calls. */
 
     this.base_id = base_id;
+    this.client = client;
 
     /* input_registry is a map from op_name to input list
      * objects. Each input list object maps simple input name
@@ -220,7 +222,7 @@ OcsUiHelper.prototype = {
      * and process()) or unassociated (panel()).
      */
 
-    panel: function(op_name, op_type) {
+    set_context: function(op_name, op_type) {
         // Start a new mini-panel with the specified op_name, and of
         // the specified op_type ('task', 'process', or null).
         this._next_e();
@@ -234,15 +236,15 @@ OcsUiHelper.prototype = {
 
     task: function(op_name) {
         // Start a new mini-panel, in this case for a Task.
-        return this.panel(op_name, 'task');
+        return this.set_context(op_name, 'task');
     },
 
     process: function(op_name) {
         // Start a new mini-panel, in this case for a Process.
-        return this.panel(op_name, 'process');
+        return this.set_context(op_name, 'process');
     },
 
-    /* Generic */
+    /* Passive */
 
     banner: function(label_text) {
         /* bold label_text as an h2, spanning (up to) the full width. */
@@ -253,32 +255,32 @@ OcsUiHelper.prototype = {
     /* Inputs */
 
     op_header: function(opts) {
-        /* bold op_name followed by start / stop buttons.  If opts is passed in, it may contain:
+        /* bold op_name followed by start / stop buttons.  If opts is
+         * passed in, it may contain:
          * 
-         * - client: An AgentClient.  The start and stop/abort buttons
-         *     will be mapped to initiate the corresponding OCS
-         *     actions, using parameters assembled using
-         *     ._get_inputs().  Note this is only good enough for
-         *     cases where no checking or type conversion of the input
-         *     data needs to be performed.
+         * - client: An AgentClient to use for start/stop methods.
+             Overrides this.client.
          */
         var id_base = this.base_id + '-' + this.op_name;
         var op_name = this.op_name;
+        var client = this.client;
+        if (opts && opts.client)
+            client = opts.client;
         if (this.op_type == 'task') {
             this.e.append($(`<label class="important">${this.op_name}</label>`
                             +`<input id="${id_base}-start" type="button" value="Start" />`
                             +`<input id="${id_base}-abort" type="button" value="Abort" />`));
-            if (opts && opts.client) {
-                this.on(op_name, 'start', (params) => opts.client.start_task(op_name, params));
-                this.on(op_name, 'abort', () => opts.client.abort_task(op_name));
+            if (client) {
+                this.on(op_name, 'start', (params) => client.start_task(op_name, params));
+                this.on(op_name, 'abort', () => client.abort_task(op_name));
             }
         } else if (this.op_type == 'process') {
             this.e.append($(`<label class="important">${this.op_name}</label>`
                             +`<input id="${id_base}-start" type="button" value="Start" />`
                             +`<input id="${id_base}-stop" type="button" value="Stop" />`));
-            if (opts && opts.client) {
-                this.on(op_name, 'start', (params) => opts.client.start_proc(op_name, params));
-                this.on(op_name, 'stop', () => opts.client.stop_proc(op_name));
+            if (client) {
+                this.on(op_name, 'start', (params) => client.start_proc(op_name, params));
+                this.on(op_name, 'stop', () => client.stop_proc(op_name));
             }
         } else {
             this.e.append($(`<div>`)).append($(`<div>`));
@@ -295,6 +297,19 @@ OcsUiHelper.prototype = {
         return this;
     },
 
+    dropdown: function(_id, label_text, options) {
+        var input_id = this.base_id + '-' + this.op_name + '-' + _id;
+        var use_val_as_key = Array.isArray(options);
+        this.e.append($(`<label>${label_text}</label>` +
+                        `<select class="ocs_double ocs_ui" id="${input_id}">`));
+        $.each(options, function (key, val) {
+            if (use_val_as_key)
+                key = val;
+            $('#' + input_id).append(`<option value="${key}">${val}</option>`);
+        });
+        this.input_registry[this.op_name][_id] = input_id;
+        return this;
+    },
 
     /* Indicators */
 
@@ -329,8 +344,8 @@ OcsUiHelper.prototype = {
         return this;
     },
 
-    progress_bar: function(_id, label_text) {
-        /* A progress_bar indicator, with label_text. */
+    progressbar: function(_id, label_text) {
+        /* A progressbar indicator, with label_text. */
         var ind_id = this.base_id + '-' + this.op_name + '-' + _id;
         var span_class = 'ocs_triple';
         if (label_text) {
@@ -391,6 +406,7 @@ OcsUiHelper.prototype = {
             t = session.status + ' (' + human_timespan(ago, 1) + ')';
             break;
         case 'done':
+            var ago = timestamp_now() - session.end_time;
             var success = {true: 'OK', false: 'ERROR'}[session.success];
             t = `${session.status} - ${success} - ` + human_timespan(ago, 1) + ' ago';
             break;
@@ -403,8 +419,8 @@ OcsUiHelper.prototype = {
             spnr.removeClass('spinning');
     },
 
-    set_connection_status(panel_name, ind_id, ok, opts) {
-        var el = this.ind(panel_name, ind_id);
+    set_connection_status(op_name, ind_id, ok, opts) {
+        var el = this.get(op_name, ind_id);
         if (ok) {
             el.val('connection ok').removeClass('ocs_missing_agent')
         } else {
@@ -419,8 +435,8 @@ OcsUiHelper.prototype = {
         }
     },
 
-    ind: function(panel_name, ind_id) {
+    get: function(op_name, ind_id) {
         /* Get the element id of the named indicator. */
-        return $('#' + this.base_id + '-' + panel_name + '-' + ind_id);
+        return $('#' + this.base_id + '-' + op_name + '-' + ind_id);
     },
 }

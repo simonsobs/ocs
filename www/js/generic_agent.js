@@ -32,7 +32,7 @@ function generic_populate(p, base_id, args) {
         var n_items = client.tasks.length + client.procs.length + 1;
         var i = 1;
         ui1
-            .panel()
+            .set_context('v')
             .banner('Monitor for ' + args.address)
             .text_indicator('heartbeat', 'Connection', {center: true})
         ;
@@ -44,7 +44,7 @@ function generic_populate(p, base_id, args) {
                        if (i++ >= n_items / 2)
                            dest = ui2;
                        var op_name = val[0];
-                       dest.panel(op_name, op_type)
+                       dest.set_context(op_name, op_type)
                            .op_header({client: client})
                            .status_indicator()
                        ;
@@ -57,7 +57,7 @@ function generic_populate(p, base_id, args) {
 
     // Keep an eye on agent presence.
     ocs_connection.agent_list.subscribe(base_id, args.address, function (addr, conn_ok) {
-        ui1.set_connection_status('', 'heartbeat', conn_ok,
+        ui1.set_connection_status('v', 'heartbeat', conn_ok,
                                   {input_containers: [base_id + '-controls']});
     });
 

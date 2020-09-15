@@ -164,6 +164,10 @@ p.hanging_logmsg {
     border-radius: 4px;
 }
 
+.ocs_ui > select {
+    font-family: monospace;
+}
+
 /* Apply to :-moz-read-only (Firefox) and :read-only (other). */
 .ocs_ui > input:read-only {
     border: 1px solid gray;

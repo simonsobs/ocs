@@ -296,8 +296,8 @@ AgentClient.prototype = {
         // span: Interval at which to poll the operation (if 0, do not poll).
         // handler: function to call on each status reply.
         //
-        // The signature of handler should be (op_name, exit_code,
-        // message, session).
+        // The signature of handler should be (op_name, method_name,
+        // exit_code, message, session).
         if (!this.watchers[op_name]) {
             this.watchers[op_name] = {
                 last_update: 0.,

@@ -47,6 +47,7 @@ write OCS Agents or Clients.
     developer/feeds
     developer/agents
     developer/clients
+    developer/web
 
 
 .. toctree::

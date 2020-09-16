@@ -1,4 +1,8 @@
-/* Generic Agent UI */
+/* Generic UI
+
+   For Agents without a custom panel, this UI provides limited control
+   and monitoring of operations.
+ */
 
 function generic_populate(p, base_id, args) {
     /* See interface definition in monitor_ui.js preamble.

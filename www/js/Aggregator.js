@@ -1,6 +1,6 @@
 /* AggregatorAgent UI */
 
-function aggregator_populate(p, base_id, args) {
+function Aggregator_populate(p, base_id, args) {
     /* See interface definition in monitor_ui.js preamble.
      *
      * The following fields in args are required:
@@ -78,4 +78,4 @@ function aggregator_populate(p, base_id, args) {
 }
 
 // Register the constructor in the main tab manager.
-tabman.constructors['AggregatorAgent'] = aggregator_populate;
+tabman.constructors['AggregatorAgent'] = Aggregator_populate;

@@ -1,6 +1,6 @@
 /* FakeDataAgent UI */
 
-function fakedata_populate(p, base_id, args) {
+function FakeData_populate(p, base_id, args) {
     /* See interface definition in monitor_ui.js preamble.
      *
      * The following fields in args are required:
@@ -107,4 +107,4 @@ function fakedata_populate(p, base_id, args) {
 }
 
 // Register the constructor in the main tab manager.
-tabman.constructors['FakeDataAgent'] = fakedata_populate;
+tabman.constructors['FakeDataAgent'] = FakeData_populate;

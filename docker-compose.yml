@@ -10,7 +10,7 @@ services:
   # --------------------------------------------------------------------------
   # The crossbar server
   # --------------------------------------------------------------------------
-  ocs-util:
+  ocs-crossbar:
     image: "ocs-crossbar"
     build: ./docker/crossbar/
     depends_on:

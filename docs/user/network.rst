@@ -92,8 +92,8 @@ Once you have created the bridge network, in each of your
 After restarting your various docker-compose services containers that are split
 among multiple compose files should now be able to communicate using the names
 given to each service within each compose file, i.e. all services should be
-able to resolve "sisock-crossbar" instead of requiring an explicit IP address
-for the crossbar server.
+able to resolve "crossbar" instead of requiring an explicit IP address for the
+crossbar server.
 
 The Docker documentation contains more information about `Networking in Compose
 <https://docs.docker.com/compose/networking/>`_.

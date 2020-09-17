@@ -43,12 +43,12 @@ components)::
       # --------------------------------------------------------------------------
       # sisock Components
       # --------------------------------------------------------------------------
-      sisock-crossbar:
-        image: simonsobs/sisock-crossbar:latest
+      crossbar:
+        image: simonsobs/ocs-crossbar:latest
         ports:
           - "127.0.0.1:8001:8001" # expose for OCS
         volumes:
-          - ./.crossbar:/app/.crossbar
+          - ./config.json:/app/crossbar/config.json
         environment:
              - PYTHONUNBUFFERED=1
 
@@ -63,7 +63,7 @@ components)::
           - ${OCS_CONFIG_DIR}:/config:ro
           - "/data:/data"
         depends_on:
-          - "sisock-crossbar"
+          - "crossbar"
 
       ocs-influx-publisher:
         image: simonsobs/ocs-influxdb-publisher-agent:latest
@@ -119,7 +119,7 @@ other container configurations::
         SQL_HOST: "database"
         SQL_DB: "files"
     depends_on:
-      - "sisock-crossbar"
+      - "crossbar"
       - "database"
 
 The top line, ``example-container-name``, defines the name of the service to

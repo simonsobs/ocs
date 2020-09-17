@@ -361,8 +361,8 @@ of this file is as follows (using the HWP Simulator as an example):
         # Run registry on container startup
         ENTRYPOINT ["python3", "-u", "hwp_simulator_agent.py"]
 
-        CMD ["--site-hub=ws://sisock-crossbar:8001/ws", \
-             "--site-http=http://sisock-crossbar:8001/call"]
+        CMD ["--site-hub=ws://crossbar:8001/ws", \
+             "--site-http=http://crossbar:8001/call"]
 
 
 In this case, the ``WORKDIR``, ``COPY``, and ``ENTRYPOINT`` arguments are all set 

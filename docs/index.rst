@@ -44,9 +44,9 @@ write OCS Agents or Clients.
 
     developer/architecture
     developer/site_config
-    developer/feeds
     developer/agents
     developer/clients
+    developer/data
     developer/web
 
 

@@ -94,12 +94,12 @@ function init() {
         // The timeout is set to 1000 ms to allow the OCS connection
         // to come up.
         //
-        //setTimeout(function () {
-        //    console.log('Launch!')
-        //    tab_info = tabman.add('faker-1', 'FakeDataAgent',
-        //                          {address: 'observatory.faker-1'});
-        //    tabman.activate(tab_info.base_id);
-        //}, 1000);
+//        setTimeout(function () {
+//            console.log('Launch!');
+//            tab_info = tabman.add('observatory.acu1', 'AcuAgent',
+//                                  {address: 'observatory.acu1'});
+//            tabman.activate(tab_info.base_id);
+//        }, 1000);
     });
 }
 

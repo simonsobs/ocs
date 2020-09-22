@@ -13,10 +13,8 @@ COPY aggregator_agent.py .
 RUN mkdir -p /data && \
     chown ocs:ocs /data
 
-
-
 # Run registry on container startup
-ENTRYPOINT ["python3", "-u", "aggregator_agent.py"]
+ENTRYPOINT ["dumb-init", "python3", "-u", "aggregator_agent.py"]
 
 # Sensible defaults for setup with sisock
 CMD ["--site-hub=ws://crossbar:8001/ws", \

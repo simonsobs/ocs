@@ -10,7 +10,7 @@ WORKDIR /app/ocs/agents/fake_data/
 COPY . .
 
 # Run registry on container startup
-ENTRYPOINT ["python3", "-u", "fake_data_agent.py"]
+ENTRYPOINT ["dumb-init", "python3", "-u", "fake_data_agent.py"]
 
 # Sensible defaults for setup with sisock
 CMD ["--site-hub=ws://crossbar:8001/ws", \

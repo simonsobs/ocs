@@ -56,19 +56,11 @@ function Acu_populate(p, base_id, args) {
     // client: option will have default handlers set up.  But anything
     // that needs validation or type conversion of input data must be
     // explicitly assigned liked this.
-    ui1.on('delay_task', 'start', function(data) {
+    ui1.on('point', 'start', function(data) {
         var params = {};
-        data.delay = parseFloat(data.delay);
-        data.delay_box = parseFloat(data.delay_box);
-        if (!isNaN(data.delay))
-            params.delay = data.delay;
-        else if (!isNaN(data.delay_box))
-            params.delay = data.delay_box;
-
-        if (params.delay && params.delay < 0)
-            alert("Can't send negative delay value!");
-        else
-            client.start_task('delay_task', params);
+        params.az = parseFloat(data.az);
+        params.el = parseFloat(data.el);
+        client.start_task('point', params);
     });
 
     //

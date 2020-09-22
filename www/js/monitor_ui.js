@@ -388,7 +388,7 @@ OcsUiHelper.prototype = {
          * op_header). */
         var ui = this;
         var input_id = this.base_id + '-' + op_name + '-' + action;
-        $('#' + input_id).on('click', function() {
+        $('#' + input_id).off('click').on('click', function() {
             data = ui._get_inputs(op_name);
             callback(data);
         });

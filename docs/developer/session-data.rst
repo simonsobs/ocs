@@ -137,12 +137,14 @@ is lines 95-100::
     for channel, samples in block.data.items():
         data_cache['fields'][channel] = samples[-1]
     data_cache['last_updated'] = block.timestamps[-1]
-    session.data = data_cache
+    session.data.update(data_cache)
+
 
 This block formats the latest values for each "channel" into a dictionary and
 stores it in ``session.data``. The format of the data stored in
 ``session.data`` is left to the Agent developer, and should be documented in
-the docstring for the Process.
+the docstring for the Process. This documentation should include a description
+of what you are including and what that information means.
 
 .. note::
     You should consider the desired structure carefully, as future changes the

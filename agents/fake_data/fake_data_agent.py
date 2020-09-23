@@ -132,7 +132,7 @@ class FakeDataAgent:
             for channel, samples in block.data.items():
                 data_cache['fields'][channel] = samples[-1]
             data_cache['timestamp'] = block.timestamps[-1]
-            session.data = data_cache
+            session.data.update(data_cache)
 
         self.agent.feeds['false_temperatures'].flush_buffer()
         self.set_job_done()

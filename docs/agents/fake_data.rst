@@ -20,7 +20,7 @@ Below are configuration examples for the ocs config file and for running the Age
 
 ocs-config
 ``````````
-To configure the Fake Data Agent we need to add a FakeDAtaAgent block to our
+To configure the Fake Data Agent we need to add a FakeDataAgent block to our
 ocs configuration file. Here is an example configuration block using all of the
 available arguments::
 

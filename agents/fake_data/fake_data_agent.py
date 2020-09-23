@@ -53,20 +53,8 @@ class FakeDataAgent:
                 {"channel_00": 0.10250430068515494,
                  "channel_01": 0.08550903376216404,
                  "channel_02": 0.10481891991693446,
-                 "channel_03": 0.1060597011760155,
-                 "channel_04": 0.1019265554541543,
-                 "channel_05": 0.09389479275963578,
-                 "channel_06": 0.10071855402986646,
-                 "channel_07": 0.09601271802732826,
-                 "channel_08": 0.09760831143883832,
-                 "channel_09": 0.11345360178932645,
-                 "channel_10": 0.10047676575328081,
-                 "channel_11": 0.09534462609141414,
-                 "channel_12": 0.09654199950059912,
-                 "channel_13": 0.11051763608358373,
-                 "channel_14": 0.1062686192067794,
-                 "channel_15": 0.10793263271024509},
-             "last_updated":1600448753.9288929}
+                 "channel_03": 0.10793263271024509},
+             "timestamp":1600448753.9288929}
 
         """
         ok, msg = self.try_set_job('acq')
@@ -136,10 +124,10 @@ class FakeDataAgent:
             session.app.publish_to_feed('false_temperatures', block.encoded())
 
             # Update session.data
-            data_cache = {"fields": {}, "last_updated": None}
+            data_cache = {"fields": {}, "timestamp": None}
             for channel, samples in block.data.items():
                 data_cache['fields'][channel] = samples[-1]
-            data_cache['last_updated'] = block.timestamps[-1]
+            data_cache['timestamp'] = block.timestamps[-1]
             session.data = data_cache
 
         self.agent.feeds['false_temperatures'].flush_buffer()

@@ -12,7 +12,8 @@ from twisted.logger import formatEvent, FileLogObserver
 
 from autobahn.wamp.types import ComponentConfig, SubscribeOptions
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
-from autobahn.wamp.exception import ApplicationError
+from autobahn.wamp.exception import ApplicationError, TransportLost
+from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
 
 import time, datetime
@@ -180,10 +181,12 @@ class OCSAgent(ApplicationSession):
         if self.heartbeat_call is not None:
             self.heartbeat_call.stop()
 
-        # Stops all currently running sessions
-        for session in self.sessions:
-            if self.sessions[session] is not None:
-                self.stop(session)
+        # Normal shutdown
+        if details.reason == "wamp.close.normal":
+            # Stops all currently running sessions
+            for session in self.sessions:
+                if self.sessions[session] is not None:
+                    self.stop(session)
 
         self.disconnect()
 
@@ -809,7 +812,11 @@ class OpSession:
         if status == 'done':
             self.end_time = timestamp
         if log_status:
-            self.add_message('Status is now "%s".' % status, timestamp=timestamp)
+            try:
+                self.add_message('Status is now "%s".' % status, timestamp=timestamp)
+            except (TransportLost, Disconnected):
+                self.app.log.error('setting session status to "{s}" failed. ' +
+                                   'transport lost or disconnected', s=status)
 
     def add_message(self, message, timestamp=None):
         """Add a log message to the OpSession messages buffer.

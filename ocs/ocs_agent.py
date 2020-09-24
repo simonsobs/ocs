@@ -12,6 +12,7 @@ from twisted.logger import formatEvent, FileLogObserver
 
 from autobahn.wamp.types import ComponentConfig, SubscribeOptions
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
+from autobahn.twisted.util import sleep as dsleep
 from autobahn.wamp.exception import ApplicationError, TransportLost
 from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
@@ -100,6 +101,7 @@ class OCSAgent(ApplicationSession):
         self.startup_ops = []  # list of (op_type, op_name)
         self.startup_subs = []  # list of dicts with params for subscribe call
         self.subscribed_topics = set()
+        self.realm_joined = False
 
         # Attach the logger.
         log_dir, log_file = site_args.log_dir, None
@@ -176,6 +178,8 @@ class OCSAgent(ApplicationSession):
                 op_params = {}
             self.start(op_name, op_params)
 
+        self.realm_joined = True
+
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
         if self.heartbeat_call is not None:
@@ -190,14 +194,27 @@ class OCSAgent(ApplicationSession):
 
         self.disconnect()
 
+        self.realm_joined = False
+
+    @inlineCallbacks
     def onDisconnect(self):
         self.log.info('transport disconnected')
-        # this is to clean up stuff. it is not our business to
-        # possibly reconnect the underlying connection
-        self._countdown = 1
-        self._countdown -= 1
+
+        # Wait to see if we reconnect before stopping the reactor
+        self._countdown = 10
+        while self._countdown > 0:
+            # successful reconnection
+            if self.realm_joined:
+                self.log.info('realm rejoined')
+                return
+
+            self.log.info('waiting for reconnect for {} more seconds'.format(self._countdown))
+            yield dsleep(1)
+            self._countdown -= 1
+
         if self._countdown <= 0:
             try:
+                self.log.info('stopping reactor')
                 reactor.stop()
             except ReactorNotRunning:
                 pass

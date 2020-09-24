@@ -675,6 +675,11 @@ def parse_args(agent_class=None, parser=None):
         parser (argparse.ArgumentParser, optional):
             Argument parser containing agent-specific arguments.
             If None, an empty parser will be created.
+
+    Returns:
+        An argparse.Namespace, as you would get from
+        parser.parse_args().
+
     """
 
     # Creates pre_parser
@@ -726,7 +731,11 @@ def parse_args(agent_class=None, parser=None):
     # Parse combined CL + site arguments
     args = parser.parse_args(args=arg_container.to_list())
 
-    # Adds site and host attributes to args namespace
+    # Add site and host attributes to args namespace
     add_site_attributes(args, site, host=host)
+
+    # Add agent_class attribute.
+    if not hasattr(args, 'agent_class'):
+        setattr(args, 'agent_class', agent_class)
 
     return args

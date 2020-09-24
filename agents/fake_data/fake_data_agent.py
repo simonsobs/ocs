@@ -3,6 +3,8 @@ import time
 import threading
 import os
 from autobahn.wamp.exception import ApplicationError
+from twisted.internet.defer import inlineCallbacks
+from autobahn.twisted.util import sleep as dsleep
 import numpy as np
 
 class FakeDataAgent:
@@ -124,6 +126,8 @@ class FakeDataAgent:
         return (ok, {True: 'Requested process stop.',
                      False: 'Failed to request process stop.'}[ok])
 
+    # Tasks
+    
     def set_heartbeat_state(self, session, params=None):
         """Task to set the state of the agent heartbeat.
 
@@ -139,6 +143,39 @@ class FakeDataAgent:
 
         return True, "Set heartbeat_on: {}".format(heartbeat_state)
 
+    @inlineCallbacks
+    def delay_task(self, session, params={}):
+        """Task that will take the requested number of seconds to complete.
+
+        This can run simultaneously with the acq Process.  This Task
+        should run in the reactor thread.
+
+        The session data will be updated with the requested delay as
+        well as the time elapsed so far, for example::
+
+            {'requested_delay': 5.,
+             'delay_so_far': 1.2}
+
+        Args:
+            delay (float): Time to wait before returning, in seconds.
+                Defaults to 5.
+            succeed (bool): Whether to return success or not.
+                Defaults to True.
+
+        """
+        session.set_status('running')
+        delay = params.get('delay', 5)
+        session.data = {'requested_delay': delay,
+                        'delay_so_far': 0}
+        succeed = params.get('succeed', True) is True
+        t0 = time.time()
+        while True:
+            session.data['delay_so_far'] = time.time() - t0
+            sleep_time = min(0.5, delay - session.data['delay_so_far'])
+            if sleep_time < 0:
+                break
+            yield dsleep(sleep_time)
+        return succeed, 'Exited after %.1f seconds' % session.data['delay_so_far']
 
 
 def add_agent_args(parser_in=None):
@@ -171,5 +208,6 @@ if __name__ == '__main__':
     agent.register_process('acq', fdata.start_acq, fdata.stop_acq,
                            blocking=True, startup=startup)
     agent.register_task('set_heartbeat', fdata.set_heartbeat_state)
+    agent.register_task('delay_task', fdata.delay_task, blocking=False)
 
     runner.run(agent, auto_reconnect=True)

@@ -197,6 +197,8 @@ class OCSAgent(ApplicationSession):
 
         self.disconnect()
 
+        # Unsub from all topics, since we've left the realm
+        self.subscribed_topics = set()
         self.realm_joined = False
 
     @inlineCallbacks

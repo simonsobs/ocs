@@ -10,7 +10,7 @@ WORKDIR /app/ocs/agents/registry/
 COPY . .
 
 # Run registry on container startup
-ENTRYPOINT ["python3", "-u", "registry.py"]
+ENTRYPOINT ["dumb-init", "python3", "-u", "registry.py"]
 
 # Sensible defaults for setup with sisock
 CMD ["--site-hub=ws://crossbar:8001/ws", \

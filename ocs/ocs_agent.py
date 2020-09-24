@@ -102,6 +102,7 @@ class OCSAgent(ApplicationSession):
         self.startup_subs = []  # list of dicts with params for subscribe call
         self.subscribed_topics = set()
         self.realm_joined = False
+        self.first_time_startup = True
 
         # Attach the logger.
         log_dir, log_file = site_args.log_dir, None
@@ -171,12 +172,14 @@ class OCSAgent(ApplicationSession):
         for sub in self.startup_subs:
             self.subscribe(**sub)
 
-        # Now do the startup activities.
-        for op_type, op_name, op_params in self.startup_ops:
-            self.log.info('startup-op: launching %s' % op_name)
-            if op_params is True:
-                op_params = {}
-            self.start(op_name, op_params)
+        # Now do the startup activities, only the first time we join
+        if self.first_time_startup:
+            for op_type, op_name, op_params in self.startup_ops:
+                self.log.info('startup-op: launching %s' % op_name)
+                if op_params is True:
+                    op_params = {}
+                self.start(op_name, op_params)
+            self.first_time_startup = False
 
         self.realm_joined = True
 

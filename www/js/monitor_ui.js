@@ -269,10 +269,12 @@ OcsUiHelper.prototype = {
         if (this.op_type == 'task') {
             this.e.append($(`<label class="important">${this.op_name}</label>`
                             +`<input id="${id_base}-start" type="button" value="Start" />`
-                            +`<input id="${id_base}-abort" type="button" value="Abort" />`));
+                            +'<span />'
+                            //+`<input id="${id_base}-abort" type="button" value="Abort" disabled />`
+                           ));
             if (client) {
                 this.on(op_name, 'start', (params) => client.start_task(op_name, params));
-                this.on(op_name, 'abort', () => client.abort_task(op_name));
+                //this.on(op_name, 'abort', () => client.abort_task(op_name));
             }
         } else if (this.op_type == 'process') {
             this.e.append($(`<label class="important">${this.op_name}</label>`

@@ -146,11 +146,15 @@ class FakeDataAgent:
     @inlineCallbacks
     def delay_task(self, session, params={}):
         """Task that will take the requested number of seconds to complete.
-        This can run simultaneously with the acq Process.  The Task
-        populates session.data with the requested_delay and
-        measured_delay.
 
-        This Task should run in the reactor thread.
+        This can run simultaneously with the acq Process.  This Task
+        should run in the reactor thread.
+
+        The session data will be updated with the requested delay as
+        well as the time elapsed so far, for example::
+
+            {'requested_delay': 5.,
+             'delay_so_far': 1.2}
 
         Args:
             delay (float): Time to wait before returning, in seconds.
@@ -167,7 +171,7 @@ class FakeDataAgent:
         t0 = time.time()
         while True:
             session.data['delay_so_far'] = time.time() - t0
-            sleep_time = min(0.5, delay  - session.data['delay_so_far'])
+            sleep_time = min(0.5, delay - session.data['delay_so_far'])
             if sleep_time < 0:
                 break
             yield dsleep(sleep_time)

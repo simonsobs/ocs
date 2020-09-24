@@ -395,18 +395,6 @@ like this::
 OcsUiHelper Method Reference
 ----------------------------
 
-Passive and Formatting Methods
-``````````````````````````````
-
-*Passive elements are intended to show static content, in contrast to
-input or indicator elements.  Formatting methods affect display
-features (such as borders).*
-
-    banner(label_text)
-        This a large font text banner, spanning the entire width of
-        the parent block_unit div.
-
-
 Contextual Methods
 ``````````````````
 
@@ -430,6 +418,23 @@ that subsequent input or indicator elements will be grouped together.*
 
     task(op_name, op_type)
         Equivalent to ``set_context(op_name, 'task')``.
+
+
+Passive and Formatting Methods
+``````````````````````````````
+
+*Passive elements are intended to show static content, in contrast to
+input or indicator elements.  Formatting methods affect display
+features (such as borders).*
+
+    banner(label_text)
+        This a large font text banner, spanning the entire width of
+        the parent block_unit div.
+
+    set_boxes(auto_boxes)
+        This can be passed to a OcsUiHelper prior to setting the first
+        context.  The argument is a boolean that controls whether to
+        display a border box around each operation's controls.
 
 
 Input Elements

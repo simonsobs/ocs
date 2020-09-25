@@ -1,0 +1,90 @@
+{
+    "version": 2,
+    "workers": [
+        {
+            "type": "router",
+            "options": {
+                "pythonpath": [
+                    ".."
+                ]
+            },
+            "realms": [
+                {
+                    "name": "test_realm",
+                    "roles": [
+                        {
+                            "name": "iocs_agent",
+                            "permissions": [
+                                {
+                                    "uri": "observatory.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                }
+                            ]
+                        },
+                        {
+                            "name": "iocs_controller",
+                            "permissions": [
+                                {
+                                    "uri": "observatory.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": false,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "transports": [
+                {
+		    "type": "web",
+                    "endpoint": {
+                        "type": "tcp",
+                        "port": 8001
+                    },
+		    "paths": {
+			"ws": {
+			    "type": "websocket",
+			    "auth": {
+				"anonymous": {
+				    "type": "static",
+				    "role": "iocs_agent"
+				}
+			    }
+			},
+			"call": {
+			    "type": "caller",
+			    "realm": "test_realm",
+			    "role": "iocs_controller",
+			    "options": {
+				}
+			},
+            "info": {
+                "type": "nodeinfo"
+            }
+		    }
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+
+import argparse
+import code
+import readline, rlcompleter
+
+from ocs.matched_client import MatchedClient
+
+parser = argparse.ArgumentParser()
+parser.add_argument('instance_id', help="instance_id, e.g. aggregator or fakedata-1")
+args = parser.parse_args()
+
+c = MatchedClient(args.instance_id,
+                  args=[])
+
+banner = "ocs-client terminal -- use c.<op_name> to talk to %s" % args.instance_id
+
+vars = {'c': c}
+readline.set_completer(rlcompleter.Completer(vars).complete) 
+readline.parse_and_bind("tab: complete")                     
+code.InteractiveConsole(vars).interact(banner=banner)

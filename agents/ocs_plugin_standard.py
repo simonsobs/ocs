@@ -13,5 +13,6 @@ for n,f in [
         ('AggregatorAgent', 'aggregator/aggregator_agent.py'),
         ('HostMaster', 'host_master/host_master.py'),
         ('FakeDataAgent', 'fake_data/fake_data_agent.py'),
+        ('NotesAgent', 'notes/notes_agent.py'),
 ]:
     ocs.site_config.register_agent_class(n, os.path.join(root, f))

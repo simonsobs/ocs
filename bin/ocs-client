@@ -4,10 +4,18 @@ import argparse
 import code
 import readline, rlcompleter
 
+try:
+    from IPython import embed
+    use_ipython = True
+except ImportError:
+    use_ipython = False
+
 from ocs.matched_client import MatchedClient
 
 parser = argparse.ArgumentParser()
 parser.add_argument('instance_id', help="instance_id, e.g. aggregator or fakedata-1")
+parser.add_argument('--simple', action='store_true',
+                    help="Do not use ipython, even if it is available.")
 args = parser.parse_args()
 
 c = MatchedClient(args.instance_id,
@@ -15,7 +23,11 @@ c = MatchedClient(args.instance_id,
 
 banner = "ocs-client terminal -- use c.<op_name> to talk to %s" % args.instance_id
 
-vars = {'c': c}
-readline.set_completer(rlcompleter.Completer(vars).complete) 
-readline.parse_and_bind("tab: complete")                     
-code.InteractiveConsole(vars).interact(banner=banner)
+if use_ipython and not args.simple:
+    embed(header=banner, colors='neutral')
+else:
+    vars = {'c': c}
+    readline.set_completer(rlcompleter.Completer(vars).complete) 
+    readline.parse_and_bind("tab: complete")                     
+    code.InteractiveConsole(vars).interact(banner=banner)
+    

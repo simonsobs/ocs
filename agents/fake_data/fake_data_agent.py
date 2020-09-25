@@ -46,6 +46,20 @@ class FakeDataAgent:
 
         This Process has no useful parameters.
 
+        The most recent fake values are stored in the session.data object in
+        the format::
+
+            {"fields":
+                {"channel_00": 0.10250430068515494,
+                 "channel_01": 0.08550903376216404,
+                 "channel_02": 0.10481891991693446,
+                 "channel_03": 0.10793263271024509},
+             "timestamp":1600448753.9288929}
+
+        The channels kept in fields are the 'faked' data, in a similar
+        structure to the Lakeshore agents. 'timestamp' is the lastest time these values
+        were updated.
+
         """
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
@@ -112,6 +126,13 @@ class FakeDataAgent:
 
             # self.log.info('Sending %i data on %i channels.' % (len(t), len(T)))
             session.app.publish_to_feed('false_temperatures', block.encoded())
+
+            # Update session.data
+            data_cache = {"fields": {}, "timestamp": None}
+            for channel, samples in block.data.items():
+                data_cache['fields'][channel] = samples[-1]
+            data_cache['timestamp'] = block.timestamps[-1]
+            session.data.update(data_cache)
 
         self.agent.feeds['false_temperatures'].flush_buffer()
         self.set_job_done()

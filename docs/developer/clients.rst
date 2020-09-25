@@ -185,6 +185,7 @@ Client example would be::
 
     therm_client.acq.start()
 
+.. _op_replies:
 
 Replies from Operation methods
 ------------------------------

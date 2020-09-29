@@ -1,4 +1,3 @@
-crossbar
 autobahn
 twisted
 wampy>=0.9.20

@@ -5,6 +5,7 @@ deprecation
 msgpack
 influxdb
 ipywidgets
+PyYAML
 
 # Lakeshore240
 pyserial

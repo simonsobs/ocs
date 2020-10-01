@@ -37,7 +37,7 @@ def init_site_agent(args, address=None):
     server, realm = args.site_hub, args.site_realm
     #txaio.start_logging(level='debug')
     agent = OCSAgent(ComponentConfig(realm, {}), args, address=address,
-                     class_name=getattr(args, 'agent_class'))
+                     class_name=getattr(args, 'agent_class', None))
     runner = ApplicationRunner(server, realm)
     return agent, runner
 

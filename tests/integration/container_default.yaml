@@ -1,8 +1,8 @@
 # Site configuration for a fake observatory.
 hub:
 
-  wamp_server: ws://127.0.0.1:8001/ws
-  wamp_http: http://127.0.0.1:8001/call
+  wamp_server: ws://crossbar:8001/ws
+  wamp_http: http://crossbar:8001/call
   wamp_realm: test_realm
   address_root: observatory
   registry_address: observatory.registry

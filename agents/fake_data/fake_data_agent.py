@@ -10,7 +10,8 @@ import numpy as np
 class FakeDataAgent:
     def __init__(self, agent,
                  num_channels=2,
-                 sample_rate=10.):
+                 sample_rate=10.,
+                 frame_length=60):
         self.agent = agent
         self.log = agent.log
         self.lock = threading.Semaphore()
@@ -20,7 +21,7 @@ class FakeDataAgent:
 
         # Register feed
         agg_params = {
-            'frame_length': 60
+            'frame_length': frame_length
         }
         print('registering')
         self.agent.register_feed('false_temperatures',
@@ -210,6 +211,8 @@ def add_agent_args(parser_in=None):
                         'Channels are co-sampled.')
     pgroup.add_argument('--sample-rate', default=9.5, type=float,
                         help='Frequency at which to produce data.')
+    pgroup.add_argument('--frame-length', default=60, type=int,
+                        help='Frame length to pass to the aggregator parameters.')
 
     return parser_in
 
@@ -225,7 +228,8 @@ if __name__ == '__main__':
 
     fdata = FakeDataAgent(agent,
                           num_channels=args.num_channels,
-                          sample_rate=args.sample_rate)
+                          sample_rate=args.sample_rate,
+                          frame_length=args.frame_length)
     agent.register_process('acq', fdata.start_acq, fdata.stop_acq,
                            blocking=True, startup=startup)
     agent.register_task('set_heartbeat', fdata.set_heartbeat_state)

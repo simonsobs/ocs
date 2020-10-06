@@ -1,5 +1,6 @@
 import threading
 from contextlib import contextmanager
+import time
 
 
 class TimeoutLock:
@@ -130,3 +131,56 @@ def in_reactor_context():
         return True
     raise RuntimeError('Could not determine threading context: '
                        'currentThread.name="%s"' % t.name)
+
+
+class Pacemaker:
+    """
+    The Pacemaker is a class to help Agents maintain a regular sampling rate
+    in their processes. The Pacemaker class will correct for the time spent
+    in the body of the process loop in it's sleep function. Additionally, if
+    run with the ``quantize`` options, the pacemaker will attempt to snap samples
+    to a temporal grid (starting on the second) so that different agents can
+    remain relatively synchronized.
+
+    Args:
+        sample_freq (float):
+            The sampling frequency for the pacemaker to enforce. This can be a
+            float, however in order to use the ``quantize`` option it must be
+            a whole number.
+        quantize (bool):
+            If True, the pacemaker will snap to a grid starting on the second.
+            For instance, if ``sample_freq`` is 4 and ``quantize`` is set to
+            True, the pacemaker will make it so samples will land close to
+            ``int(second) + (0, 0.25, 0.5, 0.75)``.
+
+    Here is an example of how the Pacemaker can be used keep a 3 Hz quantized
+    sample rate::
+
+        pm = Pacemaker(10, quantize=True)
+        take_data = True:
+        while take_data:
+            pm.sleep()
+            print("Acquiring thermometry data...")
+            time.sleep(np.random.uniform(0, .3))
+    """
+    def __init__(self, sample_freq, quantize=False):
+        self.sample_freq = sample_freq
+        self.sample_time = 1./self.sample_freq
+        self.next_sample = time.time()
+        self.quantize = quantize
+
+        if quantize and (sample_freq%1 != 0):
+            raise ValueError("Quantization only works for frequencies that are whole numbers.")
+
+    def sleep(self):
+        """
+        Sleeps until the next calculated sampling time.
+        """
+        if time.time() < self.next_sample:
+            time.sleep(self.next_sample - time.time())
+
+        self.next_sample = time.time() + self.sample_time
+        if self.quantize:
+            # Snaps "next_sample" to grid defined by sample_freq
+            self.next_sample = (self.next_sample + self.sample_time/2) \
+                                // self.sample_time * self.sample_time

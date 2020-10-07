@@ -1,9 +1,15 @@
 import time
 import queue
 import argparse
+import txaio
 
+from os import environ
 from ocs import ocs_agent, site_config
 from ocs.agent.aggregator import Aggregator
+
+# For logging
+txaio.use_twisted()
+LOG = txaio.make_logger()
 
 
 class AggregatorAgent:
@@ -66,6 +72,7 @@ class AggregatorAgent:
             return
 
         self.incoming_data.put((data, feed))
+        self.log.debug("Enqueued {d} from Feed {f}", d=data, f=feed)
 
     def start_aggregate(self, session: ocs_agent.OpSession, params=None):
         """
@@ -117,6 +124,9 @@ def make_parser(parser=None):
 
 
 if __name__ == '__main__':
+    # Start logging
+    txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
+
     parser = make_parser()
     args = site_config.parse_args(agent_class='AggregatorAgent',
                                   parser=parser)

@@ -92,11 +92,11 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
 
     """
     # record first file being written by aggregator
-    time.sleep(2) # give a few seconds for things to collect some data
+    time.sleep(5) # give a few seconds for things to collect some data
     agg_client = MatchedClient('aggregator', args=[])
     status = agg_client.record.status()
-    starting_file = status.session.get('data').get('current_file')
-    assert starting_file is not None
+    file00 = status.session.get('data').get('current_file')
+    assert file00 is not None
 
     # restart crossbar
     restart_crossbar()
@@ -106,42 +106,62 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
 
     # wait for file rotation by checking session.data's "current_file" value
     status = agg_client.record.status()
-    current_file = status.session.get('data').get('current_file')
+    file01 = status.session.get('data').get('current_file')
     iterations = 0
-    while current_file == starting_file:
+    while file01 == file00:
         time.sleep(1)
         status = agg_client.record.status()
-        current_file = status.session.get('data').get('current_file')
+        file01 = status.session.get('data').get('current_file')
         iterations += 1
 
-        # setting in default.yaml is 10 second files, though 20 seconds happens
-        if iterations > 25:
-            raise RuntimeError(f'Aggregator file not rotating. {starting_file} == {current_file}')
+        # setting in default.yaml is 30 second files, though 40 seconds happens
+        if iterations > 45:
+            raise RuntimeError(f'Aggregator file not rotating. {file00} == {file01}')
 
     # open rotated file and see if any data after recorded time exists
-    scanner = hk.HKArchiveScanner()
-    scanner.process_file("." + starting_file)
-    arc = scanner.finalize()
-    data = arc.simple(['channel_00'])
-    assert np.any(data[0][0] > now)
+    # scanner = hk.HKArchiveScanner()
+    # scanner.process_file("." + file00)
+    # arc = scanner.finalize()
+    # data = arc.simple(['channel_00'])
+    # assert np.any(data[0][0] > now)
 
     # wait for another rotation and check that file?
     status = agg_client.record.status()
-    next_file = status.session.get('data').get('current_file')
+    file02 = status.session.get('data').get('current_file')
     iterations = 0
-    while current_file == next_file:
+    while file01 == file02:
         time.sleep(1)
         status = agg_client.record.status()
-        next_file = status.session.get('data').get('current_file')
+        file02 = status.session.get('data').get('current_file')
         iterations += 1
 
-        # setting in default.yaml is 10 second files, though 20 seconds happens
-        if iterations > 25:
-            raise RuntimeError(f'Aggregator file not rotating. {starting_file} == {current_file}')
+        # setting in default.yaml is 30 second files, though 40 seconds happens
+        if iterations > 45:
+            raise RuntimeError(f'Aggregator file not rotating. {file01} == {file02}')
 
-    # check "current_file" is not empty
+    # check "file01" is not empty
+    # scanner = hk.HKArchiveScanner()
+    # scanner.process_file("." + file01)
+    # arc = scanner.finalize()
+    # data = arc.simple(['channel_00'])
+    # assert data[0][0].size
+
+    # Perhaps the best test of whether we've lost data is to see if there are
+    # gaps between datapoints
+
+    # Open all created files and make sure no gaps
     scanner = hk.HKArchiveScanner()
-    scanner.process_file("." + current_file)
+    files = [file00, file01, file02]
+    for f in files:
+        scanner.process_file("." + f)
     arc = scanner.finalize()
-    data = arc.simple(['channel_00'])
-    assert data[0][0].size
+
+    # Get all fields in the file
+    all_fields = []
+    for k, v in arc.get_fields()[0].items():
+        all_fields.append(k)
+    data = arc.simple(all_fields)
+
+    # Check for gaps in all timestreams
+    for i, dataset in enumerate(data):
+        assert np.all(np.diff(dataset[0]) < 0.25), f"{all_fields[i]} contains gap in data larger than 0.25 seconds"

@@ -43,7 +43,7 @@ hosts:
       {'agent-class': 'AggregatorAgent',
        'instance-id': 'aggregator',
        'arguments': [['--initial-state', 'record'],
-                     ['--time-per-file', '10'],
+                     ['--time-per-file', '30'],
                      ['--data-dir', '/data/']]},
     ]
   }

@@ -445,7 +445,10 @@ class Provider:
             frame['blocks'].append(m)
             block_names.append(block_name)
 
-        frame['block_names'] = core.G3VectorString(block_names)
+        if 'block_names' in frame:
+            frame['block_names'].extend(block_names)
+        else:
+            frame['block_names'] = core.G3VectorString(block_names)
 
         if clear:
             self.clear()

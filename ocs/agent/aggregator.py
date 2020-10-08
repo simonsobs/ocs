@@ -435,6 +435,9 @@ class Provider:
 
         for block_name, block in self.blocks.items():
             if not block.timestamps:
+                # Remove empty block's block_name
+                bnidx = list(frame['block_names']).index(block_name)
+                frame['block_names'].__delitem__(bnidx)
                 continue
             try:
                 m = core.G3TimesampleMap()

@@ -77,6 +77,76 @@ def test_passing_non_float_like_str_in_provider_to_frame():
 
     provider.to_frame(hksess=sess)
 
+def test_sparsely_sampled_block():
+    """If a block is sparsely sampled and published, the aggregator was
+    including its block_name anyway, even when missing. This test publishes two
+    blocks, writes to_frame, then publishes only one block then checks to makes
+    sure the blocks and block_names arrays are of the same length. Lastly, we
+    check that the block_name returns when we again save the sparse block.
+
+    """
+    # Dummy Provider for testing
+    provider = Provider('test_provider', 'test_sessid', 3, 1)
+    provider.frame_start_time = time.time()
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [time.time()],
+                     'data': {'key3': [0],
+                              'key4': ['z']},
+                     'prefix': ''}
+           }
+    provider.save_to_block(data)
+    data = {'test2': {'block_name': 'test2',
+                     'timestamps': [time.time()],
+                     'data': {'key1': [1],
+                              'key2': ['a']},
+                     'prefix': ''}
+           }
+    provider.save_to_block(data)
+
+    # Dummy HKSessionHelper
+    sess = so3g.hk.HKSessionHelper(description="testing")
+    sess.start_time = time.time()
+    sess.session_id = 'test_sessid'
+
+    a = provider.to_frame(hksess=sess, clear=True)
+
+    # Now omit the 'test' block.
+    provider.frame_start_time = time.time()
+    data = {'test2': {'block_name': 'test2',
+                     'timestamps': [time.time()],
+                     'data': {'key1': [1],
+                              'key2': ['a']},
+                     'prefix': ''}
+           }
+    provider.save_to_block(data)
+
+    b = provider.to_frame(hksess=sess, clear=True)
+
+    assert len(b['block_names']) == len(b['blocks'])
+
+    # Check the name is present if we again publish 'test'
+    provider.frame_start_time = time.time()
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [time.time()],
+                     'data': {'key3': [0],
+                              'key4': ['z']},
+                     'prefix': ''}
+           }
+    provider.save_to_block(data)
+    data = {'test2': {'block_name': 'test2',
+                     'timestamps': [time.time()],
+                     'data': {'key1': [1],
+                              'key2': ['a']},
+                     'prefix': ''}
+           }
+    provider.save_to_block(data)
+
+    c = provider.to_frame(hksess=sess, clear=True)
+
+    assert len(c['block_names']) == len(c['blocks'])
+    assert 'test' in c['block_names']
+    assert 'test2' in c['block_names']
+
 # This is perhaps another problem, I'm passing irregular length data sets and
 # it's not raising any sort of alarm. How does this get handled?
 def test_data_type_in_provider_save_to_block():

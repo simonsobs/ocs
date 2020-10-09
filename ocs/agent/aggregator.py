@@ -428,11 +428,8 @@ class Provider:
 
         frame['address'] = self.address
         frame['provider_session_id'] = self.sessid
-        if 'block_names' in frame:
-            frame['block_names'].extend(list(self.blocks.keys()))
-        else:
-            frame['block_names'] = core.G3VectorString(list(self.blocks.keys()))
 
+        block_names = []
         for block_name, block in self.blocks.items():
             if not block.timestamps:
                 continue
@@ -446,6 +443,13 @@ class Provider:
                               e=e)
                 continue
             frame['blocks'].append(m)
+            block_names.append(block_name)
+
+        if 'block_names' in frame:
+            frame['block_names'].extend(block_names)
+        else:
+            frame['block_names'] = core.G3VectorString(block_names)
+
         if clear:
             self.clear()
         return frame

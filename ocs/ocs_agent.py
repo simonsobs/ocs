@@ -296,7 +296,11 @@ class OCSAgent(ApplicationSession):
             return self.class_name
 
     def publish_status(self, message, session):
-        self.publish(self.agent_address + '.feed', session.encoded())
+        try:
+            self.publish(self.agent_address + '.feed', session.encoded())
+        except TransportLost:
+            self.log.error('Unable to publish status. TransportLost. ' +
+                           'crossbar server likely unreachable.')
 
     def register_task(self, name, func, blocking=True, startup=False):
         """Register a Task for this agent.

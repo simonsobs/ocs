@@ -17,7 +17,8 @@ from autobahn.wamp.exception import ApplicationError, TransportLost
 from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
 
-import time, datetime
+import time
+import datetime
 import os
 from deprecation import deprecated
 from ocs import client_t
@@ -79,6 +80,16 @@ class OCSAgent(ApplicationSession):
         updates are published (written by the Agent; subscribed by any
         interested Control Tools).
 
+    Attributes:
+        realm_joined (bool): Tracks whether the Agent is connected to crossbar
+            realm or not. True when connected, False when disconnected.
+        last_connection (float): ctime of last realm connection time. Use for
+            timeout shutdown if the realm connection is dropped for an extended
+            period of time.
+        first_time_startup (bool): Tracks if this is the first time the Agent
+            has started. If it is, run the startup operations. If not, and the
+            Agent is reconnecting to the realm, skip startup operations.
+
     """
 
     def __init__(self, config, site_args, address=None, class_name=None):
@@ -102,6 +113,7 @@ class OCSAgent(ApplicationSession):
         self.startup_subs = []  # list of dicts with params for subscribe call
         self.subscribed_topics = set()
         self.realm_joined = False
+        self.last_connection = None
         self.first_time_startup = True
 
         # Attach the logger.
@@ -182,6 +194,7 @@ class OCSAgent(ApplicationSession):
             self.first_time_startup = False
 
         self.realm_joined = True
+        self.last_connection = time.time()
 
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
@@ -198,31 +211,52 @@ class OCSAgent(ApplicationSession):
         self.disconnect()
 
         # Unsub from all topics, since we've left the realm
+        # This effectively forces a re-subscribe when we rejoin
         self.subscribed_topics = set()
         self.realm_joined = False
 
-    @inlineCallbacks
+    #@inlineCallbacks
     def onDisconnect(self):
         self.log.info('transport disconnected')
 
-        # Wait to see if we reconnect before stopping the reactor
-        self._countdown = 10
-        while self._countdown > 0:
-            # successful reconnection
+        #timeout_def = Deferred()
+        #reactor.callLater(timeout, td.callback, None)
+
+        def check_reconnect():
             if self.realm_joined:
                 self.log.info('realm rejoined')
                 return
 
-            self.log.info('waiting for reconnect for {} more seconds'.format(self._countdown))
-            yield dsleep(1)
-            self._countdown -= 1
+            now = time.time()
 
-        if self._countdown <= 0:
-            try:
-                self.log.info('stopping reactor')
-                reactor.stop()
-            except ReactorNotRunning:
-                pass
+            if now - self.last_connection > 10:
+                try:
+                    self.log.info('stopping reactor')
+                    reactor.stop()
+                except ReactorNotRunning:
+                    pass
+
+        self.log.info('will check for reconnection in 10 seconds')
+        reactor.callLater(10, check_reconnect)
+
+        ## Wait to see if we reconnect before stopping the reactor
+        #self._countdown = 10
+        #while self._countdown > 0:
+        #    # successful reconnection
+        #    if self.realm_joined:
+        #        self.log.info('realm rejoined')
+        #        return
+
+        #    self.log.info('waiting for reconnect for {} more seconds'.format(self._countdown))
+        #    yield dsleep(1)
+        #    self._countdown -= 1
+
+        #if self._countdown <= 0:
+        #    try:
+        #        self.log.info('stopping reactor')
+        #        reactor.stop()
+        #    except ReactorNotRunning:
+        #        pass
 
     def log_publish(self, event):
         text = log_formatter(event)

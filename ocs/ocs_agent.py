@@ -129,6 +129,15 @@ class OCSAgent(ApplicationSession):
         self.log.info('ocs: starting %s @ %s' % (str(self.__class__), address))
         self.log.info('log_file is apparently %s' % (log_file))
 
+    def _stop_all_running_sessions(self):
+        """Stops all currently running sessions."""
+        for session in self.sessions:
+            if self.sessions[session] is not None:
+                self.log.info("Stopping session {sess}", sess=session)
+                self.log.debug("session details: {sess}",
+                               sess=self.sessions[session].encoded())
+                self.stop(session)
+
     """
     Methods below are implementations of the ApplicationSession.
     """
@@ -190,10 +199,7 @@ class OCSAgent(ApplicationSession):
 
         # Normal shutdown
         if details.reason == "wamp.close.normal":
-            # Stops all currently running sessions
-            for session in self.sessions:
-                if self.sessions[session] is not None:
-                    self.stop(session)
+            self._stop_all_running_sessions()
 
         self.disconnect()
 
@@ -218,6 +224,7 @@ class OCSAgent(ApplicationSession):
             self._countdown -= 1
 
         if self._countdown <= 0:
+            self._stop_all_running_sessions()
             try:
                 self.log.info('stopping reactor')
                 reactor.stop()

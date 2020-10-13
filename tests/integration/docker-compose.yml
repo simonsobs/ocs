@@ -43,6 +43,7 @@ services:
 
   fake-data1:
     image: ocs-fake-data-agent
+    container_name: "fake-data-agent"
     hostname: ocs-docker
     volumes:
       - ./default.yaml:/config/default.yaml:ro

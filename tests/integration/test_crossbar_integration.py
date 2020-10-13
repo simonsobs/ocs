@@ -165,3 +165,30 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     # Check for gaps in all timestreams
     for i, dataset in enumerate(data):
         assert np.all(np.diff(dataset[0]) < 0.25), f"{all_fields[i]} contains gap in data larger than 0.25 seconds"
+
+def test_proper_agent_shutdown_on_lost_transport(wait_for_crossbar):
+    """If the crossbar server goes down, i.e. TransportLost, after the timeout
+    period an Agent should shutdown after the reactor.stop() call. This will mean
+    the container running the Agent is gone.
+
+    Startup everything. Shutdown the crossbar server. Check for fake data agent
+    container. It's gotta be gone for a pass.
+
+    """
+    time.sleep(5) # give a few seconds for things to make first connection
+
+    # shutdown crossbar
+    crossbar_container = CLIENT.containers.get('crossbar')
+    crossbar_container.stop()
+
+    # 15 seconds should be enough with default 10 second timeout
+    timeout = 15
+    while timeout > 0:
+        time.sleep(1) # give time for the fake-data-agent to timeout, then shutdown
+        fake_data_container = CLIENT.containers.get('fake-data-agent')
+        if fake_data_container.status == "exited":
+            break
+        timeout -= 1
+
+    fake_data_container = CLIENT.containers.get('fake-data-agent')
+    assert fake_data_container.status == "exited"

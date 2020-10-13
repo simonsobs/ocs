@@ -1,5 +1,6 @@
 from ocs.ocs_agent import in_reactor_context
 from twisted.internet import reactor
+from autobahn.wamp.exception import TransportLost
 import time
 import re
 
@@ -124,10 +125,14 @@ class Feed:
             return
 
         if self.record:
-            self.agent.publish(self.address,(
-                                   {k: b.encoded() for k,b in self.blocks.items() if b.timestamps},
-                                    self.encoded()
-                               ))
+            try:
+                self.agent.publish(self.address,(
+                                       {k: b.encoded() for k,b in self.blocks.items() if b.timestamps},
+                                        self.encoded()
+                                   ))
+            except TransportLost:
+                self.agent.log.error('Could not publish to Feed. TransportLost. ' +
+                                     'crossbar server likely unreachable.')
             for k,b in self.blocks.items():
                 b.clear()
 
@@ -226,7 +231,11 @@ class Feed:
 
         else:
             # Publish message immediately
-            self.agent.publish(self.address, (message, self.encoded()))
+            try:
+                self.agent.publish(self.address, (message, self.encoded()))
+            except TransportLost:
+                self.agent.log.error('Could not publish to Feed. TransportLost. ' +
+                                     'crossbar server likely unreachable.')
 
     @staticmethod
     def verify_message_data_type(value):

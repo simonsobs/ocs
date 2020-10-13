@@ -193,6 +193,26 @@ class OCSAgent(ApplicationSession):
             # Stops all currently running sessions
             for session in self.sessions:
                 if self.sessions[session] is not None:
+                    self.log.info("Stopping session {sess}", sess=session)
+                    self.log.debug("session details: {sess}",
+                                   sess=self.sessions[session].encoded())
+                    self.stop(session)
+        elif details.reason == "wamp.close.transport_lost":
+            self.log.info('transport lost during onLeave')
+            # still need to stop sessions like normal shutdown, but also be
+            # able to restart them once we regain transport
+            self.sessions_to_resume = []
+            for session in self.sessions:
+                if self.sessions[session] is not None:
+                    resume_me = {}
+                    resume_me['op_name'] = session
+                    resume_me['params'] = self.sessions[session].params
+                    self.sessions_to_resume.append(resume_me)
+                    self.log.info("Stopping session {sess}. " +
+                                  "Will resume onJoin {resume_params}",
+                                  sess=session, resume_params=resume_me)
+                    self.log.debug("session details: {sess}",
+                                   sess=self.sessions[session].encoded())
                     self.stop(session)
 
         self.disconnect()
@@ -554,7 +574,8 @@ class OCSAgent(ApplicationSession):
                     return (ocs.ERROR, 'Operation "%s" already in progress.' % op_name,
                             session.encoded())
             # Mark as started.
-            session = OpSession(self.next_session_id, op_name, app=self)
+            session = OpSession(self.next_session_id, op_name, app=self,
+                                params=params)
             self.next_session_id += 1
             self.sessions[op_name] = session
 
@@ -740,9 +761,18 @@ class OpSession:
     add_message).
 
     The message buffer is purged periodically.
+
+    Args:
+        params (dict): params passesd to the session Task/Process during
+            OpSession creation.
+
+    Attributes:
+        params (dict): params passesd to the session Task/Process during
+            OpSession creation.
+
     """
     def __init__(self, session_id, op_name, status='starting', log_status=True,
-                 app=None, purge_policy=None):
+                 app=None, purge_policy=None, params=None):
         # Note that some data members are used internally, while others are
         # communicated over WAMP to Agent control clients.
 
@@ -755,6 +785,7 @@ class OpSession:
         self.app = app
         self.success = None
         self.status = None
+        self.params = params
 
         # This has to be the last call since it depends on init...
         self.set_status(status, log_status=log_status, timestamp=self.start_time)
@@ -789,6 +820,7 @@ class OpSession:
                 'status': self.status,
                 'start_time': self.start_time,
                 'end_time': self.end_time,
+                'params': self.params,
                 'success': self.success,
                 'data': self.data,
                 'messages': self.messages}

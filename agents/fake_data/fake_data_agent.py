@@ -2,10 +2,17 @@ from ocs import ocs_agent, site_config, client_t, ocs_feed
 import time
 import threading
 import os
+import txaio
+
+from os import environ
+import numpy as np
 from autobahn.wamp.exception import ApplicationError
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
-import numpy as np
+
+# For logging
+txaio.use_twisted()
+LOG = txaio.make_logger()
 
 class FakeDataAgent:
     def __init__(self, agent,
@@ -217,6 +224,9 @@ def add_agent_args(parser_in=None):
     return parser_in
 
 if __name__ == '__main__':
+    # Start logging
+    txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
+
     parser = add_agent_args()
     args = site_config.parse_args(agent_class='FakeDataAgent', parser=parser)
 

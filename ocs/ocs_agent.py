@@ -129,6 +129,7 @@ class OCSAgent(ApplicationSession):
         self.log.info('ocs: starting %s @ %s' % (str(self.__class__), address))
         self.log.info('log_file is apparently %s' % (log_file))
 
+    @inlineCallbacks
     def _stop_all_running_sessions(self):
         """Stops all currently running sessions."""
         for session in self.sessions:
@@ -136,7 +137,9 @@ class OCSAgent(ApplicationSession):
                 self.log.info("Stopping session {sess}", sess=session)
                 self.log.debug("session details: {sess}",
                                sess=self.sessions[session].encoded())
-                self.stop(session)
+                yield self.stop(session)
+        # Give a second for processes to stop cleanly
+        yield dsleep(1)
 
     """
     Methods below are implementations of the ApplicationSession.

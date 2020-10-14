@@ -14,7 +14,6 @@ from so3g import hk
 # Set OCS_CONFIG_DIR environment variable
 os.environ['OCS_CONFIG_DIR'] = "/home/koopman/git/ocs/tests/integration/"
 
-CLIENT = docker.from_env()
 pytest_plugins = ("docker_compose",)
 
 # Fixture to wait for crossbar server to be available.
@@ -37,7 +36,8 @@ def wait_for_crossbar(function_scoped_container_getter):
 
 def restart_crossbar():
     """Restart the crossbar server and wait for it to come back online."""
-    crossbar_container = CLIENT.containers.get('crossbar')
+    client = docker.from_env()
+    crossbar_container = client.containers.get('crossbar')
     crossbar_container.restart()
 
     attempts = 0
@@ -180,20 +180,22 @@ def test_proper_agent_shutdown_on_lost_transport(wait_for_crossbar):
     container. It's gotta be gone for a pass.
 
     """
+    client = docker.from_env()
+
     time.sleep(5) # give a few seconds for things to make first connection
 
     # shutdown crossbar
-    crossbar_container = CLIENT.containers.get('crossbar')
+    crossbar_container = client.containers.get('crossbar')
     crossbar_container.stop()
 
     # 15 seconds should be enough with default 10 second timeout
     timeout = 15
     while timeout > 0:
         time.sleep(1) # give time for the fake-data-agent to timeout, then shutdown
-        fake_data_container = CLIENT.containers.get('fake-data-agent')
+        fake_data_container = client.containers.get('fake-data-agent')
         if fake_data_container.status == "exited":
             break
         timeout -= 1
 
-    fake_data_container = CLIENT.containers.get('fake-data-agent')
+    fake_data_container = client.containers.get('fake-data-agent')
     assert fake_data_container.status == "exited"

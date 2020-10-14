@@ -54,10 +54,12 @@ def restart_crossbar():
     assert code == 200
     print("Crossbar server online.")
 
+@pytest.mark.integtest
 def test_testing(wait_for_crossbar):
     "Just testing if the docker-compose/crossbar wait fixture is working."
     assert True
 
+@pytest.mark.integtest
 def test_fake_data_after_crossbar_restart(wait_for_crossbar):
     """Restart the crossbar server, then test whether we can issue a command to
     run a task, then check the sesssion.data on the acq process to see if it's
@@ -79,6 +81,7 @@ def test_fake_data_after_crossbar_restart(wait_for_crossbar):
     response = therm_client.acq.status()
     assert response.session.get('data').get('timestamp') > now
 
+@pytest.mark.integtest
 def test_influxdb_publisher_after_crossbar_restart(wait_for_crossbar):
     """Test that the InfluxDB publisher reconnects after a crossbar restart and
     continues to publish data to the InfluxDB.
@@ -86,6 +89,7 @@ def test_influxdb_publisher_after_crossbar_restart(wait_for_crossbar):
     """
     pass
 
+@pytest.mark.integtest
 def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     """Test that the aggregator reconnects after a crossbar restart and that
     data from after the reconnection makes it into the latest .g3 file.
@@ -166,6 +170,7 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     for i, dataset in enumerate(data):
         assert np.all(np.diff(dataset[0]) < 0.25), f"{all_fields[i]} contains gap in data larger than 0.25 seconds"
 
+@pytest.mark.integtest
 def test_proper_agent_shutdown_on_lost_transport(wait_for_crossbar):
     """If the crossbar server goes down, i.e. TransportLost, after the timeout
     period an Agent should shutdown after the reactor.stop() call. This will mean

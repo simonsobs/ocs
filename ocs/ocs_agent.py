@@ -218,24 +218,25 @@ class OCSAgent(ApplicationSession):
         self.log.info('transport disconnected')
 
         # Wait to see if we reconnect before stopping the reactor
-        self._countdown = 10
-        while self._countdown > 0:
+        timeout = 10
+        disconnected_at = time.time()
+        while time.time() - disconnected_at < timeout:
             # successful reconnection
             if self.realm_joined:
                 self.log.info('realm rejoined')
                 return
 
-            self.log.info('waiting for reconnect for {} more seconds'.format(self._countdown))
+            time_left = timeout - (time.time() - disconnected_at)
+            self.log.info('waiting for reconnect for {} more seconds'.format(time_left))
             yield dsleep(1)
-            self._countdown -= 1
 
-        if self._countdown <= 0:
-            self._stop_all_running_sessions()
-            try:
-                self.log.info('stopping reactor')
-                reactor.stop()
-            except ReactorNotRunning:
-                pass
+        # shutdown after timeout expires
+        self._stop_all_running_sessions()
+        try:
+            self.log.info('stopping reactor')
+            reactor.stop()
+        except ReactorNotRunning:
+            pass
 
     def log_publish(self, event):
         text = log_formatter(event)

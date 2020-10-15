@@ -12,7 +12,7 @@ from ocs.matched_client import MatchedClient
 from so3g import hk
 
 # Set OCS_CONFIG_DIR environment variable
-os.environ['OCS_CONFIG_DIR'] = "/home/koopman/git/ocs/tests/integration/"
+os.environ['OCS_CONFIG_DIR'] = os.path.dirname(os.path.realpath(__file__))
 
 pytest_plugins = ("docker_compose",)
 
@@ -69,6 +69,7 @@ def test_fake_data_after_crossbar_restart(wait_for_crossbar):
     and the acq process should still be running.
 
     """
+    time.sleep(5) # give a few seconds for things to make first connection
     restart_crossbar()
     now = time.time()
     # Check fake data Agent is accessible and producing new data.

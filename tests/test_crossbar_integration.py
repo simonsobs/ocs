@@ -12,7 +12,7 @@ from ocs.matched_client import MatchedClient
 from so3g import hk
 
 # Set OCS_CONFIG_DIR environment variable
-os.environ['OCS_CONFIG_DIR'] = os.path.dirname(os.path.realpath(__file__))
+os.environ['OCS_CONFIG_DIR'] = os.getcwd()
 
 pytest_plugins = ("docker_compose",)
 

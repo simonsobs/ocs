@@ -44,6 +44,35 @@ all integration tests with::
 
   python3 -m pytest -m integtest
 
+Reducing Turnaround Time in Testing
+...................................
+Since the integration tests depend on docker containers you need to have the
+docker images built prior to running the tests. You can build all of the docker
+images from the root of the ocs repo::
+
+  $ docker-compose build
+
+However, if you're making changes to the core of OCS, having to rebuild all
+images with every change prior to running the tests quickly becomes time
+consuming. To avoid having to do the rebuild, you can mount the local copy of
+ocs over the one in the container, located at ``/app/ocs/``. To do this, add a
+new volume to the docker-compose file in this tests directory for the
+Agent/container you are working on. For example, in the fake-data-agent::
+
+  fake-data1:
+    image: ocs-fake-data-agent
+    container_name: "fake-data-agent"
+    hostname: ocs-docker
+    environment:
+      - LOGLEVEL=debug
+    volumes:
+      - ./default.yaml:/config/default.yaml:ro
+      - /home/user/git/ocs/:/app/ocs/
+    command:
+      - "--instance-id=fake-data1"
+      - "--site-hub=ws://crossbar:8001/ws"
+      - "--site-http=http://crossbar:8001/call"
+
 Code Coverage
 `````````````
 Code coverage reports can be produced with the ``--cov`` flag::

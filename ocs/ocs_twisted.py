@@ -1,6 +1,8 @@
 import threading
 from contextlib import contextmanager
 import time
+from autobahn.twisted.util import sleep as dsleep
+from twisted.internet.defer import inlineCallbacks
 
 
 class TimeoutLock:
@@ -156,7 +158,7 @@ class Pacemaker:
     Here is an example of how the Pacemaker can be used keep a 3 Hz quantized
     sample rate::
 
-        pm = Pacemaker(10, quantize=True)
+        pm = Pacemaker(3, quantize=True)
         take_data = True:
         while take_data:
             pm.sleep()
@@ -172,15 +174,29 @@ class Pacemaker:
         if quantize and (sample_freq%1 != 0):
             raise ValueError("Quantization only works for frequencies that are whole numbers.")
 
-    def sleep(self):
-        """
-        Sleeps until the next calculated sampling time.
-        """
-        if time.time() < self.next_sample:
-            time.sleep(self.next_sample - time.time())
-
+    def _set_next_sample(self):
         self.next_sample = time.time() + self.sample_time
         if self.quantize:
             # Snaps "next_sample" to grid defined by sample_freq
             self.next_sample = (self.next_sample + self.sample_time/2) \
                                 // self.sample_time * self.sample_time
+
+    def sleep(self):
+        """
+        Sleeps until the next calculated sampling time.
+        """
+        now = time.time()
+        if now < self.next_sample:
+            time.sleep(self.next_sample - now)
+        self._set_next_sample()
+
+    @inlineCallbacks
+    def dsleep(self):
+        """
+        Sleeps in a non-blocking way by returning the deferred created by
+        twisted's sleep method.
+        """
+        now = time.time()
+        if now < self.next_sample:
+            yield dsleep(self.next_sample - now)
+        self._set_next_sample()

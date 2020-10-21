@@ -142,7 +142,7 @@ class OCSAgent(ApplicationSession):
                 elif session in self.processes:
                     yield self.stop(session)
         # Give a second for processes to stop cleanly
-        yield dsleep(1)
+        yield dsleep(3)
 
     """
     Methods below are implementations of the ApplicationSession.

@@ -22,6 +22,12 @@ unit tests run::
 This ``-m 'not integtest'`` argument skips all tests marked as integration
 tests, leaving just the unit tests.
 
+    *Note:* Unit tests can be run within a Docker container to avoid the
+    spt3g/so3g dependencies on the host system. Ensure the ocs Docker image is
+    built with your changes, then run::
+
+        $ docker run --rm ocs sh -c "python3 -m pytest -p no:wampy -m 'not integtest' ./tests/"
+
 Integration Tests
 `````````````````
 These tests are built to test the running OCS system, and as such need several
@@ -81,8 +87,7 @@ Code coverage reports can be produced with the ``--cov`` flag::
 
 These results are also published to `coveralls`_.
 
-.. note::
-    Code coverage for the integration tests is a bit tricky with things running
-    in containers, and so is not accurately reflected in these reports.
+    *Note:* Code coverage for the integration tests is a bit tricky with things
+    running in containers, and so is not accurately reflected in these reports.
 
 .. _coveralls: https://coveralls.io/github/simonsobs/ocs

@@ -15,7 +15,7 @@ def test_quantized():
         pm.sleep()
         print("Sample time: {}".format(time.time()))
         times.append(time.time())
-        time.sleep(np.random.uniform(0, 1/sample_freq))
+        time.sleep(1/sample_freq/3)
     diffs = np.diff(np.array(times))
     # Checks if the diffs (minus the first point due to quantization) match
     tolerance = 1/sample_freq / 5
@@ -35,7 +35,7 @@ def test_nonquantized():
         pm.sleep()
         print("Sample time: {}".format(time.time()))
         times.append(time.time())
-        time.sleep(np.random.uniform(0, 1/sample_freq))
+        time.sleep(1/sample_freq/3)
     diffs = np.diff(np.array(times))
     # Checks if the diffs (minus the first point due to quantization) match
     tolerance = 1/sample_freq / 5

@@ -1,9 +1,15 @@
 import time
 import queue
 import argparse
+import txaio
 
+from os import environ
 from ocs import ocs_agent, site_config
 from ocs.agent.aggregator import Aggregator
+
+# For logging
+txaio.use_twisted()
+LOG = txaio.make_logger()
 
 
 class AggregatorAgent:
@@ -66,12 +72,30 @@ class AggregatorAgent:
             return
 
         self.incoming_data.put((data, feed))
+        self.log.debug("Enqueued {d} from Feed {f}", d=data, f=feed)
 
     def start_aggregate(self, session: ocs_agent.OpSession, params=None):
         """
         Process for starting data aggregation. This process will create an
         Aggregator instance, which will collect and write provider data to disk
         as long as this process is running.
+
+        The most recent file and active providers will be returned in
+        session.data::
+
+            {"current_file": "/data/16020/1602089117.g3",
+             "providers": {
+                "observatory.fake-data1.feeds.false_temperatures": {
+                    "last_refresh": 1602089118.8225083,
+                    "sessid": "1602088928.8294137",
+                    "stale": false,
+                    "last_block_received": "temps"},
+                "observatory.LSSIM.feeds.temperatures": {
+                     "last_refresh": 1602089118.8223345,
+                     "sessid": "1602088932.335811",
+                     "stale": false,
+                     "last_block_received": "temps"}}}
+
         """
         session.set_status('starting')
         self.aggregate = True
@@ -117,6 +141,9 @@ def make_parser(parser=None):
 
 
 if __name__ == '__main__':
+    # Start logging
+    txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
+
     parser = make_parser()
     args = site_config.parse_args(agent_class='AggregatorAgent',
                                   parser=parser)

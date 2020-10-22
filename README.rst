@@ -9,7 +9,6 @@ OCS - Observatory Control System
 .. image:: https://readthedocs.org/projects/ocs/badge/?version=latest
     :target: https://ocs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
-
 .. image:: https://coveralls.io/repos/github/simonsobs/ocs/badge.svg
     :target: https://coveralls.io/github/simonsobs/ocs
 
@@ -55,10 +54,10 @@ Installation
 ------------
 Clone this repository and install using pip::
 
-  git clone https://github.com/simonsobs/ocs.git
-  cd ocs/
-  pip3 install -r requirements.txt
-  python3 setup.py install
+  $ git clone https://github.com/simonsobs/ocs.git
+  $ cd ocs/
+  $ pip3 install -r requirements.txt
+  $ python3 setup.py install
 
 **Note:** If you want to install locally, not globally, throw the `--user` flag
 on both the pip3 and setup.py commands.
@@ -89,13 +88,32 @@ Documentation
 The OCS documentation can be built using sphinx once you have performed the
 installation::
 
-  cd docs/
-  make html
+  $ cd docs/
+  $ make html
 
 You can then open ``docs/_build/html/index.html`` in your preferred web
 browser. You can also find a copy hosted on `Read the Docs`_.
 
 .. _Read the Docs: https://ocs.readthedocs.io/en/latest/
+
+Tests
+-----
+The tests for OCS can be run using pytest, and should be run from the
+``tests/`` directory::
+
+  $ cd tests/
+  $ python3 -m pytest
+
+To run the tests within a Docker container (useful if your local environment is
+missing some dependencies), first make sure you build the latest ocs image,
+then use docker run::
+
+  $ docker build -t ocs .
+  $ docker run --rm ocs sh -c "python3 -m pytest -p no:wampy -m 'not integtest' ./tests/"
+
+For more details see `tests/README.rst <tests_>`_.
+
+.. _tests: tests/README.rst
 
 Example
 -------

@@ -38,6 +38,8 @@ docker-compose service configuration is shown here::
     fake-data1:
         image: simonsobs/ocs-fake-data-agent
         hostname: ocs-docker
+        environment:
+          - LOGLEVEL=info
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
         command:

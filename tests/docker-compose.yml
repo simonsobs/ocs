@@ -1,0 +1,78 @@
+version: '2'
+services:
+  # InfluxDB Backend for Grafana
+  influxdb:
+    image: influxdb:1.7
+    container_name: "influxdb"
+    #restart: always
+    #ports:
+    #  - "8086:8086"
+
+  # --------------------------------------------------------------------------
+  # Crossbar Server
+  # --------------------------------------------------------------------------
+  crossbar:
+    #image: ocs-crossbar:latest
+    image: simonsobs/ocs-crossbar:v0.7.0-9-g1d136a3-dev
+    container_name: "crossbar"
+    ports:
+      - "8001:8001" # expose for OCS
+    volumes:
+      - ./config.json:/app/crossbar/config.json
+    environment:
+         - PYTHONUNBUFFERED=1
+
+  ocs-web:
+    image: ocs-web:latest
+    volumes:
+      #- ./:/config:ro
+      - ./default.yaml:/config/default.yaml:ro
+    ports:
+      - "127.0.0.1:3002:80"
+
+  # --------------------------------------------------------------------------
+  # OCS Components
+  # --------------------------------------------------------------------------
+  ocs-influx-publisher:
+    image: ocs-influxdb-publisher-agent:latest
+    hostname: ocs-docker
+    volumes:
+      - ./default.yaml:/config/default.yaml:ro
+    environment:
+      - LOGLEVEL=debug
+
+  fake-data1:
+    image: ocs-fake-data-agent
+    container_name: "fake-data-agent"
+    hostname: ocs-docker
+    volumes:
+      - ./default.yaml:/config/default.yaml:ro
+    command:
+      - "--instance-id=fake-data1"
+      - "--site-hub=ws://crossbar:8001/ws"
+      - "--site-http=http://crossbar:8001/call"
+
+  ocs-aggregator:
+    image: ocs-aggregator-agent
+    #image: simonsobs/ocs-aggregator-agent:v0.7.0-9-g1d136a3-dev
+    hostname: ocs-docker
+    volumes:
+      - ./default.yaml:/config/default.yaml:ro
+      - "./data/:/data"
+    environment:
+      - LOGLEVEL=debug
+
+  # # Client for fully containerized interactions
+  # ocs-client:
+  #   image: socs:latest
+  #   depends_on:
+  #     - "crossbar"
+  #   stdin_open: true
+  #   tty: true
+  #   hostname: ocs-docker
+  #   volumes:
+  #     - ./default.yaml:/config/default.yaml:ro
+  #     - "./clients:/clients"
+  #   environment:
+  #     - OCS_CONFIG_DIR=/config
+  #   working_dir: /clients

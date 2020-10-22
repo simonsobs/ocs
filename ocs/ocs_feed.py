@@ -5,12 +5,11 @@ import time
 import re
 
 class Block:
-    def __init__(self, name, keys, prefix=''):
+    def __init__(self, name, keys):
         """
         Structure of block for a so3g IrregBlockDouble.
         """
         self.name = name
-        self.prefix = prefix
         self.timestamps = []
         self.data = {
             k: [] for k in keys
@@ -58,7 +57,6 @@ class Block:
             'block_name': self.name,
             'data': {k: self.data[k] for k in self.data.keys()},
             'timestamps': self.timestamps,
-            'prefix': self.prefix
         }
 
 class Feed:
@@ -211,7 +209,7 @@ class Feed:
             try:
                 b = self.blocks[block_name]
             except KeyError:
-                b = Block(block_name, message['data'].keys(), message.get('prefix', ''))
+                b = Block(block_name, message['data'].keys())
                 self.blocks[block_name] = b
 
             if 'timestamp' in message:

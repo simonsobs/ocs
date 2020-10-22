@@ -168,7 +168,9 @@ class Provider:
         self.last_refresh = time.time() # Determines if
         self.last_block_received = None
 
-        self.log.warn("Recieved unxpected keyword argument(s): {kwarg}", kwarg=kwargs)
+        self.log.warn("Recieved unxpected keyword argument(s), {kwarg}, when " +
+                      "registering the feed with address '{add}'",
+                      kwarg=kwargs, add=self.address)
 
     def encoded(self):
         return {

@@ -6,6 +6,7 @@ import re
 from typing import Dict
 
 import txaio
+txaio.use_twisted()
 
 from ocs import ocs_feed
 
@@ -151,7 +152,7 @@ class Provider:
             txaio logger
 
     """
-    def __init__(self, address, sessid, prov_id, frame_length=5*60, fresh_time=3*60):
+    def __init__(self, address, sessid, prov_id, frame_length=5*60, fresh_time=3*60, **kwargs):
         self.address = address
         self.sessid = sessid
         self.frame_length = frame_length
@@ -166,6 +167,10 @@ class Provider:
         self.fresh_time = fresh_time
         self.last_refresh = time.time() # Determines if
         self.last_block_received = None
+
+        self.log.warn("Recieved unxpected keyword argument(s), {kwarg}, when " +
+                      "registering the feed with address '{add}'",
+                      kwarg=kwargs, add=self.address)
 
     def encoded(self):
         return {

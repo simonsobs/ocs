@@ -146,7 +146,7 @@ configuration.
     left off. However, the "latest" image is subject to change. Pulling a "latest"
     version today will not be guaranteed to get you the same image at another time.
 
-    What this means is for reputability of your deployment, and perhaps for
+    What this means is for reproducability of your deployment, and perhaps for
     your own sanity, we recommend you use explicit version tags. Tags can be
     identified on an image's Docker Hub page.
 

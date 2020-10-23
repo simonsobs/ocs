@@ -6,8 +6,8 @@ OCS - Observatory Control System
     :target: https://github.com/simonsobs/ocs/actions?query=workflow%3A%22Build+Develop+Images%22
     :alt: GitHub Workflow Status
 
-.. image:: https://readthedocs.org/projects/ocs/badge/?version=latest
-    :target: https://ocs.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/ocs/badge/?version=develop
+    :target: https://ocs.readthedocs.io/en/develop/?badge=develop
     :alt: Documentation Status
 .. image:: https://coveralls.io/repos/github/simonsobs/ocs/badge.svg
     :target: https://coveralls.io/github/simonsobs/ocs

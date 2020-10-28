@@ -18,102 +18,21 @@ the interface to the crossbar server.
 
 Example Config
 --------------
-Here is the default OCS crossbar config that is bundled into
-``simonsobs/ocs-crossbar``: 
+An example of the default OCS crossbar config that is bundled into
+``simonsobs/ocs-crossbar`` can be found in the repository at
+`ocs/docker/crossbar/config.json`_. This is based on the template in
+`ocs/ocs/support/crossbar_config.json`_.
 
-.. code-block:: json
+The unique parts of this to OCS are the realm name, "test_realm", defined
+roles of "iocs_agent" and "iocs_controller, and "address_root" of
+"observatory.". Additionally, we run on port 8001.
 
-    {
-        "version": 2,
-        "workers": [
-            {   
-                "type": "router",
-                "options": {
-                    "pythonpath": [
-                        ".."
-                    ]   
-                },  
-                "realms": [
-                    {   
-                        "name": "test_realm",
-                        "roles": [
-                            {   
-                                "name": "iocs_agent",
-                                "permissions": [
-                                    {   
-                                        "uri": "observatory.",
-                                        "match": "prefix",
-                                        "allow": {
-                                            "call": true,
-                                            "register": true,
-                                            "publish": true,
-                                            "subscribe": true
-                                        },  
-                                        "disclose": {
-                                            "caller": false,
-                                            "publisher": false
-                                        },  
-                                        "cache": true
-                                    }   
-                                ]   
-                            },  
-                            {   
-                                "name": "iocs_controller",
-                                "permissions": [
-                                    {   
-                                        "uri": "observatory.",
-                                        "match": "prefix",
-                                        "allow": {
-                                            "call": true,
-                                            "register": false,
-                                            "publish": true,
-                                            "subscribe": true
-                                        },  
-                                        "disclose": {
-                                            "caller": false,
-                                            "publisher": false
-                                        },  
-                                        "cache": true
-                                    }   
-                                ]   
-                            }   
-                        ]   
-                    }   
-                ],  
-                "transports": [
-                    {   
-                "type": "web",
-                        "endpoint": {
-                            "type": "tcp",
-                            "port": 8001
-                        },  
-                "paths": {
-                "ws": {
-                    "type": "websocket",
-                    "auth": {
-                    "anonymous": {
-                        "type": "static",
-                        "role": "iocs_agent"
-                    }   
-                    }   
-                },  
-                "call": {
-                    "type": "caller",
-                    "realm": "test_realm",
-                    "role": "iocs_controller",
-                    "options": {
-                    }   
-                }   
-                }   
-                    }   
-                ]   
-            }   
-        ]   
-    }
+For further details on crossbar server configuration, see the crossbar `Router
+Configuration`_ page.
 
-The unique parts of this to OCS are the realm name, "test_realm", and defined
-roles of "iocs_agent" and "iocs_controller. These include the uri prefix of
-"observatory.". Additionally we run on port 8001. 
+.. _`ocs/docker/crossbar/config.json`: https://github.com/simonsobs/ocs/blob/develop/docker/crossbar/config.json
+.. _`ocs/ocs/support/crossbar_config.json`: https://github.com/simonsobs/ocs/blob/develop/ocs/support/crossbar_config.json
+.. _`Router Configuration`: https://crossbar.io/docs/Router-Configuration/
 
 Generating a New Config File
 ----------------------------

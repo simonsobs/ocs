@@ -365,7 +365,7 @@ class Provider:
                              'timestamps': [time.time()],
                              'data': {'key1': [1],
                                       'key2': [2]},
-                             'prefix': ''}
+                             }
                        }
             >>> prov.save_to_block(data)
 
@@ -400,7 +400,6 @@ class Provider:
             except KeyError:
                 self.blocks[key] = ocs_feed.Block(
                     key, block['data'].keys(),
-                    prefix=block['prefix']
                 )
                 b = self.blocks[key]
 

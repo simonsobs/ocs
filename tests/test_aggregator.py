@@ -17,7 +17,7 @@ def test_passing_float_in_provider_to_frame():
                      'timestamps': [time.time()],
                      'data': {'key1': [1],
                               'key2': [2]},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -41,7 +41,7 @@ def test_passing_float_like_str_in_provider_to_frame():
                      'timestamps': [time.time()],
                      'data': {'key1': [1, 2],
                               'key2': ['1', 2]},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -66,7 +66,7 @@ def test_passing_non_float_like_str_in_provider_to_frame():
                      'timestamps': [time.time()],
                      'data': {'key1': [1],
                               'key2': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -92,14 +92,14 @@ def test_sparsely_sampled_block():
                      'timestamps': [time.time()],
                      'data': {'key3': [0],
                               'key4': ['z']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
     data = {'test2': {'block_name': 'test2',
                      'timestamps': [time.time()],
                      'data': {'key1': [1],
                               'key2': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -116,7 +116,7 @@ def test_sparsely_sampled_block():
                      'timestamps': [time.time()],
                      'data': {'key1': [1],
                               'key2': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -130,14 +130,14 @@ def test_sparsely_sampled_block():
                      'timestamps': [time.time()],
                      'data': {'key3': [0],
                               'key4': ['z']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
     data = {'test2': {'block_name': 'test2',
                      'timestamps': [time.time()],
                      'data': {'key1': [1],
                               'key2': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -156,7 +156,7 @@ def test_data_type_in_provider_save_to_block():
                      'timestamps': [time.time()],
                      'data': {'key1': [1],
                               'key2': ['1', 1]},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -176,7 +176,7 @@ def test_passing_invalid_data_field_name1():
                      'timestamps': [time.time()],
                      'data': {'invalid.key': [1],
                               'key2': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -198,7 +198,7 @@ def test_passing_invalid_data_field_name2():
                      'timestamps': [time.time()],
                      'data': {'__123invalid.key': [1],
                               'key2': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -222,7 +222,7 @@ def test_passing_too_long_data_field_name():
                      'timestamps': [time.time()],
                      'data': {'a'*1000: [1],
                               'key2': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -245,7 +245,7 @@ def test_long_duplicate_name():
                      'timestamps': [time.time()],
                      'data': {'a'*1000: [1],
                               'a'*1001: ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -268,7 +268,7 @@ def test_reducing_to_duplicate_field_names():
                      'timestamps': [time.time()],
                      'data': {'an.invalid.key#': [1],
                               'an.invalid.key%': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -293,7 +293,7 @@ def test_space_replacement_in_field_names():
                      'timestamps': [time.time()],
                      'data': {'_an invalid key': [1],
                               'key2': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -314,7 +314,7 @@ def test_empty_field_name():
                      'timestamps': [time.time()],
                      'data': {'': [1],
                               'key2': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 
@@ -335,7 +335,7 @@ def test_enforced_field_which_becomes_empty():
                      'timestamps': [time.time()],
                      'data': {'123': [1],
                               'key2': ['a']},
-                     'prefix': ''}
+                     }
            }
     provider.save_to_block(data)
 

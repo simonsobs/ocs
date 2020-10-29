@@ -36,7 +36,7 @@ Configuration`_ page.
 
 Generating a New Config File
 ----------------------------
-``ocsbow`` can be used to generate a default configuation file, based on
+``ocsbow`` can be used to generate a default configuration file, based on
 options in your OSC file, which can then be modified if needed.
 
 First, we make sure our ``OCS_CONFIG_DIR`` environment variable is set::
@@ -45,7 +45,7 @@ First, we make sure our ``OCS_CONFIG_DIR`` environment variable is set::
     $ export OCS_CONFIG_DIR=`pwd`
 
 We should make a directory for the crossbar config, let's call it
-``dot_crossbar/`` (typically a dot directory, but for visilibity we'll avoid
+``dot_crossbar/`` (typically a dot directory, but for visibility we'll avoid
 that)::
 
     $ mkdir -p ocs-site-configs/dot_crossbar/
@@ -103,8 +103,8 @@ Bind Mounting the Configuration
 -------------------------------
 To instead mount the new configuration into the pre-built image, first chown
 your file to be owned by user and group 242 (the default crossbar UID/GID),
-then mount it appropriately in your docker-compsose file. Here we assume you
-put the configuration in the direcitory ``./dot_crossbar/``::
+then mount it appropriately in your docker-compose file. Here we assume you
+put the configuration in the directory ``./dot_crossbar/``::
 
     $ chown -R 242:242 dot_crossbar/
 

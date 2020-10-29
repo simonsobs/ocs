@@ -1,24 +1,23 @@
 # ocs-crossbar
 # A containerized crossbar server.
+# https://crossbar.io/docs/Creating-Docker-Images/
 
 # Use ocs base image
-FROM ocs:latest
+FROM crossbario/crossbar:cpy3-20.8.1
 
-# Set the working directory to /app/crossbar
-WORKDIR /app/crossbar
+# Run as root to put config in place and chown
+USER root
 
 # Copy in config and requirements files
-COPY . /app/crossbar/
+COPY config.json /ocs/.crossbar/config.json
+RUN chown -R crossbar:crossbar /ocs
 
-# Required for crossbar build to work
-RUN apt-get update && apt-get install -y libsnappy-dev
-
-# Install requirements
-RUN pip3 install -r requirements.txt
+# Run image as crossbar user during normal operation
+USER crossbar
 
 # Default OCS crossbar port
 EXPOSE 8001
 
 # Run crossbar when the container launches
-# User made config.json should be mounted to /app/crossbar/config.json
-CMD ["crossbar", "start"]
+# User made config.json should be mounted to /ocs/.crossbar/config.json
+ENTRYPOINT ["crossbar", "start", "--cbdir", "/ocs/.crossbar"]

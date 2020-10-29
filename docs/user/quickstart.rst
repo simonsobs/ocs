@@ -14,10 +14,9 @@ the data to an InfluxDB, and view the data in Grafana.
 Configuration Files
 -------------------
 Before we begin we need to setup the configuration files. Let's first create a
-directory to keep all of our site configuration files in (we'll use the
-`dot_crossbar` sub-directory soon)::
+directory to keep all of our site configuration files in::
 
-    $ mkdir -p ocs-site-configs/dot_crossbar/
+    $ mkdir -p ocs-site-configs
     $ cd ocs-site-configs/
 
 Next we need to write our two configuration files, first the OCS site config
@@ -71,7 +70,7 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
       # Grafana for the live monitor.
       # --------------------------------------------------------------------------
       grafana:
-        image: grafana/grafana:6.5.0
+        image: grafana/grafana:latest
         ports:
           - "127.0.0.1:3000:3000"
     
@@ -90,8 +89,6 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
         image: simonsobs/ocs-crossbar:latest
         ports:
           - "127.0.0.1:8001:8001" # expose for OCS
-        volumes:
-          - ./config.json:/app/crossbar/config.json
         environment:
              - PYTHONUNBUFFERED=1
     
@@ -148,28 +145,6 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
         environment:
           - OCS_CONFIG_DIR=/config
         working_dir: /clients
-
-Lastly, we need to generate our crossbar configuration file. ``ocsbow`` can be
-used to generate the configuration file, first we will set our
-``OCS_CONFIG_DIR`` environment variable, then generate the config::
-
-    $ export OCS_CONFIG_DIR=`pwd`
-    $ ocsbow crossbar generate_config
-    The crossbar config-dir is set to:
-      ./dot_crossbar/
-    Using
-      ./dot_crossbar/config.json
-    as the target output file.
-    
-    Generating crossbar config text.
-    Wrote ./dot_crossbar/config.json
-
-You should now see a crossbar config file in ``./dot_crossbar/``.
-
-.. note::
-    The crossbar 'config-dir' block and the 'agent-instance' block defining the
-    'HostMaster' Agent are both required for the system you are running ocsbow on.
-    Be sure to add these to your SCF if they do not exist.
 
 .. warning::
     This bare configuration does not consider persistent storage. Any

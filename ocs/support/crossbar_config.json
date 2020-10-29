@@ -70,7 +70,14 @@
 				    "type": "static",
 				    "role": "iocs_agent"
 				}
-			    }
+			    },
+                "options": {
+                    "open_handshake_timeout": 2500,
+                    "close_handshake_timeout": 1000,
+                    "auto_ping_interval": 10000,
+                    "auto_ping_timeout": 5000,
+                    "auto_ping_size": 4
+                }
 			},
 			"call": {
 			    "type": "caller",

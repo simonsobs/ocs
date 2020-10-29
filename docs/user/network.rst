@@ -62,6 +62,8 @@ hardware.
     additional configuration, particularly if it needs to also communicate with the
     crossbar server.
 
+.. _multiconfig:
+
 Multiple-Configuration Files
 ````````````````````````````
 A single configuration file might be simple, however, for some containers it

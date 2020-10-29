@@ -168,6 +168,8 @@ Here is an example configuration::
         container_name: ocs-aggregator
         hostname: ocs-docker
         user: "9000"
+        environment:
+          - LOGLEVEL=info
         volumes:
           - ${OCS_CONFIG_DIR}:/config
           - /path/to/host/data:/data

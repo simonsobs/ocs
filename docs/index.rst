@@ -21,6 +21,7 @@ write OCS Agents or Clients.
     user/quickstart
     user/configuration
     user/network
+    user/logging
     user/ocs_web
     user/cli_tools
     user/ocs_util
@@ -43,9 +44,10 @@ write OCS Agents or Clients.
 
     developer/architecture
     developer/site_config
-    developer/feeds
     developer/agents
     developer/clients
+    developer/data
+    developer/web
 
 
 .. toctree::

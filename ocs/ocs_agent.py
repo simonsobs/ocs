@@ -12,7 +12,9 @@ from twisted.logger import formatEvent, FileLogObserver
 
 from autobahn.wamp.types import ComponentConfig, SubscribeOptions
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
-from autobahn.wamp.exception import ApplicationError
+from autobahn.twisted.util import sleep as dsleep
+from autobahn.wamp.exception import ApplicationError, TransportLost
+from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
 
 import time, datetime
@@ -36,7 +38,8 @@ def init_site_agent(args, address=None):
         address = '%s.%s' % (args.address_root, args.instance_id)
     server, realm = args.site_hub, args.site_realm
     #txaio.start_logging(level='debug')
-    agent = OCSAgent(ComponentConfig(realm, {}), args, address=address)
+    agent = OCSAgent(ComponentConfig(realm, {}), args, address=address,
+                     class_name=getattr(args, 'agent_class', None))
     runner = ApplicationRunner(server, realm)
     return agent, runner
 
@@ -78,7 +81,7 @@ class OCSAgent(ApplicationSession):
 
     """
 
-    def __init__(self, config, site_args, address=None):
+    def __init__(self, config, site_args, address=None, class_name=None):
         ApplicationSession.__init__(self, config)
         self.log.info("Using OCS version {v}", v=ocs.__version__)
         self.site_args = site_args
@@ -89,6 +92,7 @@ class OCSAgent(ApplicationSession):
         self.next_session_id = 0
         self.session_archive = {} # by op_name, lists of OpSession.
         self.agent_address = address
+        self.class_name = class_name
         self.registered = False
         self.log = txaio.make_logger()
         self.heartbeat_call = None
@@ -97,6 +101,8 @@ class OCSAgent(ApplicationSession):
         self.startup_ops = []  # list of (op_type, op_name)
         self.startup_subs = []  # list of dicts with params for subscribe call
         self.subscribed_topics = set()
+        self.realm_joined = False
+        self.first_time_startup = True
 
         # Attach the logger.
         log_dir, log_file = site_args.log_dir, None
@@ -122,6 +128,21 @@ class OCSAgent(ApplicationSession):
         # Can we log already?
         self.log.info('ocs: starting %s @ %s' % (str(self.__class__), address))
         self.log.info('log_file is apparently %s' % (log_file))
+
+    @inlineCallbacks
+    def _stop_all_running_sessions(self):
+        """Stops all currently running sessions."""
+        for session in self.sessions:
+            if self.sessions[session] is not None:
+                self.log.info("Stopping session {sess}", sess=session)
+                self.log.debug("session details: {sess}",
+                               sess=self.sessions[session].encoded())
+                if session in self.tasks:
+                    yield self.abort(session)
+                elif session in self.processes:
+                    yield self.stop(session)
+        # Give a second for processes to stop cleanly
+        yield dsleep(3)
 
     """
     Methods below are implementations of the ApplicationSession.
@@ -166,36 +187,56 @@ class OCSAgent(ApplicationSession):
         for sub in self.startup_subs:
             self.subscribe(**sub)
 
-        # Now do the startup activities.
-        for op_type, op_name, op_params in self.startup_ops:
-            self.log.info('startup-op: launching %s' % op_name)
-            if op_params is True:
-                op_params = {}
-            self.start(op_name, op_params)
+        # Now do the startup activities, only the first time we join
+        if self.first_time_startup:
+            for op_type, op_name, op_params in self.startup_ops:
+                self.log.info('startup-op: launching %s' % op_name)
+                if op_params is True:
+                    op_params = {}
+                self.start(op_name, op_params)
+            self.first_time_startup = False
+
+        self.realm_joined = True
 
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
         if self.heartbeat_call is not None:
             self.heartbeat_call.stop()
 
-        # Stops all currently running sessions
-        for session in self.sessions:
-            if self.sessions[session] is not None:
-                self.stop(session)
+        # Normal shutdown
+        if details.reason == "wamp.close.normal":
+            self._stop_all_running_sessions()
 
         self.disconnect()
 
+        # Unsub from all topics, since we've left the realm
+        self.subscribed_topics = set()
+        self.realm_joined = False
+
+    @inlineCallbacks
     def onDisconnect(self):
         self.log.info('transport disconnected')
-        # this is to clean up stuff. it is not our business to
-        # possibly reconnect the underlying connection
-        self._countdown = 1
-        self._countdown -= 1
-        if self._countdown <= 0:
-            try:
-                reactor.stop()
-            except ReactorNotRunning:
-                pass
+
+        # Wait to see if we reconnect before stopping the reactor
+        timeout = 10
+        disconnected_at = time.time()
+        while time.time() - disconnected_at < timeout:
+            # successful reconnection
+            if self.realm_joined:
+                self.log.info('realm rejoined')
+                return
+
+            time_left = timeout - (time.time() - disconnected_at)
+            self.log.info('waiting for reconnect for {} more seconds'.format(time_left))
+            yield dsleep(1)
+
+        # shutdown after timeout expires
+        self._stop_all_running_sessions()
+        try:
+            self.log.info('stopping reactor')
+            reactor.stop()
+        except ReactorNotRunning:
+            pass
 
     def log_publish(self, event):
         text = log_formatter(event)
@@ -226,35 +267,54 @@ class OCSAgent(ApplicationSession):
         if action == 'status':
             return self.status(op_name)
 
+    def _gather_sessions(self, parent):
+        """Gather the session data for self.tasks or self.sessions, for return
+        through the management_handler.
+
+        Args:
+          parent: either self.tasks or self.processes.
+
+        Returns:
+          A list of session data blocks.  Each session block contains
+          at least entries for 'op_name' and 'status'.  In the case
+          that the operation has ever run, it will contain all the
+          stuff from OpSession.encode; otherwise 'no_history' is
+          returned for the status.
+
+        """
+        result = []
+        for k, v in sorted(parent.items()):
+            session = self.sessions.get(k)
+            if session is None:
+                session = {'op_name': k, 'status': 'no_history'}
+            else:
+                session = session.encoded()
+            result.append((k, session, v.encoded()))
+        return result
+
     def my_management_handler(self, q, **kwargs):
+        if q == 'get_api':
+            return {
+                'tasks': self._gather_sessions(self.tasks),
+                'processes': self._gather_sessions(self.processes),
+                'feeds': [(k, v.encoded()) for k, v in self.feeds.items()],
+                'agent_class': self.class_name
+            }
         if q == 'get_tasks':
-            result = []
-            for k,v in sorted(self.tasks.items()):
-                session = self.sessions.get(k)
-                if session is None:
-                    session = {'op_name': k, 'status': 'no_history'}
-                else:
-                    session = session.encoded()
-                result.append((k, session, v.encoded()))
-            return result
+            return self._gather_sessions(self.tasks)
         if q == 'get_processes':
-            result = []
-            for k,v in sorted(self.processes.items()):
-                session = self.sessions.get(k)
-                if session is None:
-                    session = {'op_name': k, 'status': 'no_history'}
-                else:
-                    session = session.encoded()
-                result.append((k, session, v.encoded()))
-            return result
+            return self._gather_sessions(self.processes)
         if q == 'get_feeds':
-            result = []
-            for k, v in self.feeds.items():
-                result.append((k, v.encoded()))
-            return result
+            return [(k, v.encoded()) for k, v in self.feeds.items()]
+        if q == 'get_agent_class':
+            return self.class_name
 
     def publish_status(self, message, session):
-        self.publish(self.agent_address + '.feed', session.encoded())
+        try:
+            self.publish(self.agent_address + '.feed', session.encoded())
+        except TransportLost:
+            self.log.error('Unable to publish status. TransportLost. ' +
+                           'crossbar server likely unreachable.')
 
     def register_task(self, name, func, blocking=True, startup=False):
         """Register a Task for this agent.
@@ -792,7 +852,11 @@ class OpSession:
         if status == 'done':
             self.end_time = timestamp
         if log_status:
-            self.add_message('Status is now "%s".' % status, timestamp=timestamp)
+            try:
+                self.add_message('Status is now "%s".' % status, timestamp=timestamp)
+            except (TransportLost, Disconnected):
+                self.app.log.error('setting session status to "{s}" failed. ' +
+                                   'transport lost or disconnected', s=status)
 
     def add_message(self, message, timestamp=None):
         """Add a log message to the OpSession messages buffer.

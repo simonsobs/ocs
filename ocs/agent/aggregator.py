@@ -6,16 +6,12 @@ import re
 from typing import Dict
 
 import txaio
+txaio.use_twisted()
 
 from ocs import ocs_feed
 
-if os.getenv('OCS_DOC_BUILD') != 'True':
-    from spt3g import core
-    import so3g
-    G3Module = core.G3Module
-else:
-    # Alias classes that are needed for clean import in docs build.
-    G3Module = object
+from spt3g import core
+import so3g
 
 
 HKAGG_VERSION = 2
@@ -156,7 +152,7 @@ class Provider:
             txaio logger
 
     """
-    def __init__(self, address, sessid, prov_id, frame_length=5*60, fresh_time=3*60):
+    def __init__(self, address, sessid, prov_id, frame_length=5*60, fresh_time=3*60, **kwargs):
         self.address = address
         self.sessid = sessid
         self.frame_length = frame_length
@@ -171,6 +167,10 @@ class Provider:
         self.fresh_time = fresh_time
         self.last_refresh = time.time() # Determines if
         self.last_block_received = None
+
+        self.log.warn("Recieved unxpected keyword argument(s), {kwarg}, when " +
+                      "registering the feed with address '{add}'",
+                      kwarg=kwargs, add=self.address)
 
     def encoded(self):
         return {
@@ -365,7 +365,7 @@ class Provider:
                              'timestamps': [time.time()],
                              'data': {'key1': [1],
                                       'key2': [2]},
-                             'prefix': ''}
+                             }
                        }
             >>> prov.save_to_block(data)
 
@@ -400,7 +400,6 @@ class Provider:
             except KeyError:
                 self.blocks[key] = ocs_feed.Block(
                     key, block['data'].keys(),
-                    prefix=block['prefix']
                 )
                 b = self.blocks[key]
 
@@ -433,11 +432,8 @@ class Provider:
 
         frame['address'] = self.address
         frame['provider_session_id'] = self.sessid
-        if 'block_names' in frame:
-            frame['block_names'].extend(list(self.blocks.keys()))
-        else:
-            frame['block_names'] = core.G3VectorString(list(self.blocks.keys()))
 
+        block_names = []
         for block_name, block in self.blocks.items():
             if not block.timestamps:
                 continue
@@ -451,12 +447,19 @@ class Provider:
                               e=e)
                 continue
             frame['blocks'].append(m)
+            block_names.append(block_name)
+
+        if 'block_names' in frame:
+            frame['block_names'].extend(block_names)
+        else:
+            frame['block_names'] = core.G3VectorString(block_names)
+
         if clear:
             self.clear()
         return frame
 
 
-class G3FileRotator(G3Module):
+class G3FileRotator(core.G3Module):
     """
     G3 module which handles file rotation.
     After time_per_file has elapsed, the rotator will end that file and create

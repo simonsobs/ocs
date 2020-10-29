@@ -14,10 +14,9 @@ the data to an InfluxDB, and view the data in Grafana.
 Configuration Files
 -------------------
 Before we begin we need to setup the configuration files. Let's first create a
-directory to keep all of our site configuration files in (we'll use the
-`dot_crossbar` sub-directory soon)::
+directory to keep all of our site configuration files in::
 
-    $ mkdir -p ocs-site-configs/dot_crossbar/
+    $ mkdir -p ocs-site-configs
     $ cd ocs-site-configs/
 
 Next we need to write our two configuration files, first the OCS site config
@@ -28,8 +27,8 @@ file, use this file, unchanged.
     # Site configuration for a fake observatory.
     hub:
     
-      wamp_server: ws://sisock-crossbar:8001/ws
-      wamp_http: http://sisock-crossbar:8001/call
+      wamp_server: ws://crossbar:8001/ws
+      wamp_http: http://crossbar:8001/call
       wamp_realm: test_realm
       address_root: observatory
       registry_address: observatory.registry
@@ -71,7 +70,7 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
       # Grafana for the live monitor.
       # --------------------------------------------------------------------------
       grafana:
-        image: grafana/grafana:6.5.0
+        image: grafana/grafana:latest
         ports:
           - "127.0.0.1:3000:3000"
     
@@ -86,12 +85,10 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
       # --------------------------------------------------------------------------
       # Crossbar Server
       # --------------------------------------------------------------------------
-      sisock-crossbar:
-        image: simonsobs/sisock-crossbar:latest
+      crossbar:
+        image: simonsobs/ocs-crossbar:latest
         ports:
           - "127.0.0.1:8001:8001" # expose for OCS
-        volumes:
-          - ./dot_crossbar:/app/.crossbar
         environment:
              - PYTHONUNBUFFERED=1
     
@@ -117,15 +114,15 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
         image: simonsobs/ocs-lakeshore240-agent:latest
         hostname: ocs-docker
         depends_on:
-          - "sisock-crossbar"
+          - "crossbar"
         environment:
           - LOGLEVEL=debug
         volumes:
           - ./:/config:ro
         command:
           - "--instance-id=LSSIM"
-          - "--site-hub=ws://sisock-crossbar:8001/ws"
-          - "--site-http=http://sisock-crossbar:8001/call"
+          - "--site-hub=ws://crossbar:8001/ws"
+          - "--site-http=http://crossbar:8001/call"
 
       # InfluxDB Publisher 
       ocs-influx-publisher:
@@ -138,7 +135,7 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
       ocs-client:
         image: simonsobs/socs:latest
         depends_on:
-          - "sisock-crossbar"
+          - "crossbar"
         stdin_open: true
         tty: true
         hostname: ocs-docker
@@ -148,28 +145,6 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
         environment:
           - OCS_CONFIG_DIR=/config
         working_dir: /clients
-
-Lastly, we need to generate our crossbar configuration file. ``ocsbow`` can be
-used to generate the configuration file, first we will set our
-``OCS_CONFIG_DIR`` environment variable, then generate the config::
-
-    $ export OCS_CONFIG_DIR=`pwd`
-    $ ocsbow crossbar generate_config
-    The crossbar config-dir is set to:
-      ./dot_crossbar/
-    Using
-      ./dot_crossbar/config.json
-    as the target output file.
-    
-    Generating crossbar config text.
-    Wrote ./dot_crossbar/config.json
-
-You should now see a crossbar config file in ``./dot_crossbar/``.
-
-.. note::
-    The crossbar 'config-dir' block and the 'agent-instance' block defining the
-    'HostMaster' Agent are both required for the system you are running ocsbow on.
-    Be sure to add these to your SCF if they do not exist.
 
 .. warning::
     This bare configuration does not consider persistent storage. Any
@@ -187,7 +162,7 @@ Now that the system is configured, we can start it with a single
     Creating self-contained-quickstart_grafana_1              ... done
     Creating self-contained-quickstart_ls240-sim_1            ... done
     Creating influxdb                                         ... done
-    Creating self-contained-quickstart_sisock-crossbar_1      ... done
+    Creating self-contained-quickstart_crossbar_1             ... done
     Creating self-contained-quickstart_ocs-LSSIM_1            ... done
     Creating self-contained-quickstart_ocs-client_1           ... done
 
@@ -203,7 +178,7 @@ You can view the running containers with::
     41e4eb3529f5        simonsobs/socs:latest                           "/bin/bash"              11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ocs-client_1
     15d785830335        simonsobs/ocs-lakeshore240-agent:latest         "python3 -u LS240_ag…"   11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ocs-LSSIM_1
     48ea293ab900        influxdb:1.7                                    "/entrypoint.sh infl…"   11 minutes ago      Up 11 minutes       0.0.0.0:8086->8086/tcp     influxdb
-    cff53a069dd5        simonsobs/sisock-crossbar:latest                "crossbar start"         11 minutes ago      Up 11 minutes       127.0.0.1:8001->8001/tcp   self-contained-quickstart_sisock-crossbar_1
+    cff53a069dd5        simonsobs/crossbar:latest                       "crossbar start"         11 minutes ago      Up 11 minutes       127.0.0.1:8001->8001/tcp   self-contained-quickstart_crossbar_1
     807d27607f40        simonsobs/ocs-lakeshore240-simulator:latest     "python3 -u ls240_si…"   11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ls240-sim_1
     e1574571de93        simonsobs/ocs-influxdb-publisher-agent:latest   "python3 -u influxdb…"   11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ocs-influx-publisher_1
     f92628c36f58        grafana/grafana:6.5.0                           "/run.sh"                11 minutes ago      Up 11 minutes       127.0.0.1:3000->3000/tcp   self-contained-quickstart_grafana_1

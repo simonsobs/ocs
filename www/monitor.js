@@ -1,17 +1,26 @@
-var debugs = {};         // For stashing debug data.
+/* monitor.js
+ *
+ * This is the main source file for the OCS monitoring and control web
+ * interface.  The interface is presented as a series of tabs,
+ * including a main "Browser" tab that can be used to browse through
+ * all Agents and to launch specialized Agent control tabs.
+ *
+ * The coding style in monitor_ui.js and the Agent UI scripts is to be
+ * preferred to the style you'll find here.
+ */
 
-var reconnection_timer = null;
-var reconnection_delay = 5.;
-var reconnection_count = 0;
-var reconnect_requested = false;
+
+/* Shared globals needed for all plugins */
+var ocs_connection;
+var debugs = {};
+var tabman = new TabManager();
 
 // Timer for querying Operation status.
 var query_op_timer = null;
 
-/* The way forward here is to generalize the notion of a viewport, and
- * have different data sources get attached to different view ports.
- * But for now, there is one, and this string says what is allowed to
- * write into it. */
+/* feed_view is a string: 'data', or 'feed'.  It determines whether
+ * the feed window should be used to display session.data info or a
+ * subscribed feed. */
 var feed_view = null;
 
 
@@ -48,6 +57,9 @@ function init() {
         log('Page init function is running...');
         log('Autobahn version:', autobahn.version);
 
+        // Tab setup.
+        tabs = $('#tabs').tabs();
+
         // Set up defaults -- these could be fed from elsewhere... ?
         $('#wamp_router').val('ws://localhost:8001/ws');
         $('#wamp_realm').val('test_realm');
@@ -61,7 +73,33 @@ function init() {
                      '#messages',
                      ' [show]', ' [hide]', true).addClass('clickable');
 
-        connect();
+        // Set up the global OCS connector and assign handlers.
+        ocs_connection = new OCSConnection(
+            function () { return $('#wamp_router').val(); },
+            function () { return $('#wamp_realm').val(); });
+        //ocs_connection.on('connected', function () { $('#connection_checkmark').html(' &#10003;'); });
+        ocs_connection.on('connected', () => $('#connection_checkmark').html(' &#10003;'));
+        ocs_connection.on('disconnected', () => $('#connection_checkmark').html(' &#10005;'));
+        ocs_connection.on('try_connect', () => $('#connection_checkmark').html(' &#10067;'));
+
+        // Begin connection attempts.
+        ocs_connection.start();
+
+        // Maintenance on the agent list.
+        var al_timer = setInterval(function () {
+            ocs_connection.agent_list.update_agent_info();
+        }, 1000);
+
+        // For debugging you can create and activate a tab, on load.
+        // The timeout is set to 1000 ms to allow the OCS connection
+        // to come up.
+        //
+        //setTimeout(function () {
+        //    console.log('Launch!')
+        //    tab_info = tabman.add('faker-1', 'FakeDataAgent',
+        //                          {address: 'observatory.faker-1'});
+        //    tabman.activate(tab_info.base_id);
+        //}, 1000);
     });
 }
 
@@ -72,110 +110,105 @@ function init() {
  */
 
 function AgentList () {
-    this.agent_list = [];
+    // This is a map from agent_address to info block.
+    this.agent_list = {};
+
+    // Map from agent_address to map from subscriber to callback.
+    // Callback is invoked with (agent_addr, heartbeat_ok).
+    this.callbacks = {};
 }
 
 AgentList.prototype = {
+    subscribe: function(subscriber, agent_addr, callback) {
+        if (!this.callbacks[agent_addr])
+            this.callbacks[agent_addr] = {};
+        this.callbacks[agent_addr][subscriber] = callback;
+        if (this.agent_list[agent_addr])
+            callback(agent_addr, this.agent_list[agent_addr].ok);
+    },
 
-    update_agent_info: function(info) {
+    unsubscribe: function (subscriber) {
+        $.each(this.callbacks, function(agent_addr, cbs) {
+            delete cbs[subscriber];
+        });
+    },
+
+    handle_heartbeat_info: function(info) {
         var addr = info.agent_address;
-        if (!this.agent_list.includes(addr)) {
-            this.agent_list.push(addr);
-            this.agent_list.sort();
-            var table = $('<table>');
-            //table.append($('<tr><td class="data_h">Agents</td></tr>'));
-            this.agent_list.forEach(function (x) {
-                link = $('<span class="clickable">' + x + '</span>').on(
+        var now = timestamp_now();
+        if (!this.agent_list[addr]) {
+            this.agent_list[addr] = {
+                'last_update': now,
+            };
+            this.update_agent_info();
+            var client = new AgentClient(ocs_connection, addr);
+            var dest = this.agent_list[addr];
+            client.scan(function () {
+                dest.agent_class = client.agent_class;
+            });
+        } else
+            this.agent_list[addr]['last_update'] = now;
+    },
+
+    update_agent_info: function() {
+        var table = $('<table width="100%">');
+        var key_order = [];
+        var AL = this;
+        $.each(AL.agent_list, (k, v) => key_order.push(k));
+        key_order.sort();
+        $.each(key_order, function(i, x) {
+            var info = AL.agent_list[x];
+            link = $('<span>').html(x);
+            var is_now_ok = (timestamp_now() - info['last_update'] <= 5);
+
+            // Callbacks on change.
+            if ((is_now_ok != info.ok) && AL.callbacks[x]) {
+                $.each(AL.callbacks[x], function (sub, func) {
+                    func(x, is_now_ok);
+                });
+                info.ok = is_now_ok;
+            }
+
+            if (!is_now_ok) {
+                // Mark as missing and make a button to remove the
+                // entry from this list.
+                link.addClass('ocs_missing_agent');
+                but1 = $('');
+                but2 = $('<span>').append('<i class="fa fa-times">').on(
+                    'click', function () {
+                        delete AL.agent_list[x];
+                        AL.update_agent_info();
+                    }).addClass('obviously_clickable');
+            } else {
+                link.addClass('clickable').on(
                     'click', function () {
                         $('#target_agent').val(x);
                         query_agent();
                     });
-                table.append($('<tr>').append($('<td class="data_1">').append(link)));
-                debugs['x'] = link;
-            });
-            var dump = $('#agent_list').html('').append(table).append('<br>');
-        }
-    }
+                but1 = $('<span>').append('<i class="fa fa-plus">').on(
+                    'click', function () {
+                        tabman.add(x, info['agent_class'], {address: x});
+                    }).addClass('obviously_clickable');
+                but2 = $('<span>').append('<i class="fa fa-arrow-up">').on(
+                    'click', function () {
+                        var tab_info = tabman.add(x, info['agent_class'], {address: x});
+                        tabman.activate(tab_info.base_id);
+                    }).addClass('obviously_clickable');
+            }
+            table.append($('<tr>')
+                         .append($('<td class="data_1">').append(link))
+                         .append($('<td class="data_1">').append(but1).append(but2))
+                        );
+            debugs['x'] = link;
+        });
+        var dump = $('#agent_list').html('').append(table).append('<br>');
+    },
 }
 
 /* Interface attachments. */
 
-function connect() {
-    url = $('#wamp_router').val();
-    realm = $('#wamp_realm').val();
-
-    // See connection options at...
-    // https://github.com/crossbario/autobahn-js/blob/master/packages/autobahn/lib/connection.js
-    //
-    // We set max_retries=0 and manage retries ourself, so that
-    // retries always go to address in the input boxes.
-    ocs = new autobahn.Connection({
-	url: url,
-        realm: realm,
-        max_retries: 0,
-    });
-
-    ocs.onopen = function(_session, details) {
-        ocs_log('connected.');
-        reconnection_count = 0;
-
-        $('#connection_checkmark').html(' &#10003;');
-        var agent_list = new AgentList();
-
-        // Monitor heartbeat feeds to see what Agents are online.
-        ocs.session.subscribe('observatory..feeds.heartbeat', function (args, kwargs, details) {
-            var info = args[0][1];
-            agent_list.update_agent_info(info);
-        }, {'match': 'wildcard'});
-
-        // Try subscribe?
-        var agent_addr = $('#target_agent').val();
-        var feed_id = $('#target_feed').val();
-        if (agent_addr && feed_id) {
-            var feed_to_monitor = agent_addr + '.feeds.' + feed_id;
-            $('#feed_monitor_legend').html('Feed: ' + feed_to_monitor);
-            ocs.session.subscribe(
-                feed_to_monitor,
-                function (args, kwargs, details) {
-                    if (feed_view != 'feed') return;
-                    var timestr = get_date_time_string(null, ' ');
-                    var text = '<b>' + feed_to_monitor + ' @ ' + timestr +
-                        '</b><br>\n' +
-                        '<p>' + JSON.stringify(args[0]) +'</p>';
-                    $('#feed_monitor').html(text);
-                });
-        }
-    
-
-    };
-    ocs.onclose = function(reason, details) {
-        // Reasons observed:
-        // - "lost" - crossbar dropped out.
-        // - "closed" - app has called close() -- but this also occurs
-        //   if the realm could not be joined.
-        // - "unreachable" - failed to connect (onopen never called)
-        ocs_log('closed because: ' + reason + ' : ' + details.message);
-
-        $('#connection_checkmark').html(' &#10005;');
-        $('#feed_monitor').html('(Cleared on connection reset.)');
-
-        // If this looks like an orderly deliberate shutdown, do an
-        // immediate reconnect.  Otherwise, keep the pace low...
-        if (reason == 'closed' && reconnect_requested) {
-            connect();
-        } else if (reconnection_count++ < 1000) {
-            reconnection_timer = setInterval(connect, reconnection_delay*1000.);
-        }
-        reconnect_requested = false;
-    };
-
-    log('Trying connection to "' + url + '", realm "' + realm + '"...');
-    $('#connection_checkmark').html(' &#10067;');
-
-    if (reconnection_timer)
-        clearInterval(reconnection_timer);
-
-    ocs.open();
+function reconnect() {
+    ocs_connection.connect();
 }
 
 function query_agent() {
@@ -183,36 +216,41 @@ function query_agent() {
     // AgentClient.scan.  The results are loaded into the "Interface"
     // window.
 
-    if (ocs == null) return;
+    if (ocs_connection == null) return;
     agent_addr = $('#target_agent').val();
-    client = new AgentClient(ocs, agent_addr);
+    client = new AgentClient(ocs_connection, agent_addr);
 
     client.scan(function () {
-        log('Client scan completed.');
-        var summary = $('<table>');
+        var summary = $('<table width=100%>');
         $('#target_op').val('');
         
-        summary.append($('<tr><td class="data_h">Processes</td></tr>'));
+        summary.append($('<tr><td class="data_h" colspan=2>Processes</td></tr>'));
         client.procs.forEach(function (x) {
-            var link = $('<span class="clickable">' + x[0] + '</span><br />');
+            var link = $('<span class="clickable">' + x[0] + '</span>');
             link.on('click', function () {
                 $('#target_op').val(x[0]);
                 query_op(true);
             });
-            summary.append($('<tr>').append(($('<td class="data_1">').append(link))));
+            var indicator = $('<span class="op_status">' + x[1].status + '</span>');
+            summary.append($('<tr>')
+                           .append(($('<td class="data_1a">').append(link)))
+                           .append($('<td class="data_1b">').append(indicator)));
         });
-        summary.append($('<tr><td class="data_h">Tasks</td></tr>'));
+        summary.append($('<tr><td class="data_h" colspan=2>Tasks</td></tr>'));
         client.tasks.forEach(function (x) {
-            var link = $('<span class="clickable">' + x[0] + '</span><br />');
+            var link = $('<span class="clickable">' + x[0] + '</span>');
             link.on('click', function () {
                 $('#target_op').val(x[0]);
                 query_op(true);
             });
-            summary.append($('<tr>').append(($('<td class="data_1">').append(link))));
+            var indicator = $('<span class="op_status">' + x[1].status + '</span>');
+            summary.append($('<tr>')
+                           .append(($('<td class="data_1a">').append(link)))
+                           .append($('<td class="data_1b">').append(indicator)));
         });
-        summary.append($('<tr>').append($('<td class="data_h">').append('Feeds')));//</td></tr>'));
+        summary.append($('<tr>').append($('<td class="data_h" colspan=2>').append('Feeds')));
         client.feeds.forEach(function (x) {
-            var link = $('<span class="clickable">' + x[0] + '</span><br />');
+            var link = $('<span class="clickable">' + x[0] + '</span>');
             link.on('click', function () {
                 $('#target_feed').val(x[0]);
                 subscribe_feed();
@@ -241,7 +279,7 @@ function query_op(reset_query) {
     // the request goes out... otherwise, it is left as-is so it won't
     // flicker if the data have not changed.
 
-    if (ocs == null) return;
+    if (ocs_connection == null) return;
     agent_addr = $('#target_agent').val();
     agent_op = $('#target_op').val();
 
@@ -252,7 +290,7 @@ function query_op(reset_query) {
     if (!query_op_valid)
         return;
         
-    client = new AgentClient(ocs, agent_addr);
+    client = new AgentClient(ocs_connection, agent_addr);
     //$('#op_status_legend').html('Op Session Info');
 
     client.status(agent_op).then(function (args, kwargs) {
@@ -319,10 +357,28 @@ function query_op(reset_query) {
 
 function subscribe_feed() {
     feed_view = 'feed';
-    // Only way to subscribe is to reconnect.
-    if (ocs == null) return;
-    reconnect_requested = true;
-    ocs.close();
+    if (ocs_connection == null) return;
+
+    var agent_addr = $('#target_agent').val();
+    var feed_id = $('#target_feed').val();
+    if (!(agent_addr && feed_id))
+        return;
+
+    var feed_to_monitor = agent_addr + '.feeds.' + feed_id;
+    $('#feed_monitor_legend').html('Feed: ' + feed_to_monitor);
+    ocs_connection.set_feed(feed_to_monitor,
+                            function (args, kwargs, details) {
+                                if (feed_view != 'feed') return;
+                                if (args == null) {
+                                    $('#feed_monitor').html('(Cleared on connection reset.)');
+                                    return;
+                                }
+                                var timestr = get_date_time_string(null, ' ');
+                                var text = '<b>' + feed_to_monitor + ' @ ' + timestr +
+                                    '</b><br>\n' +
+                                    '<p>' + JSON.stringify(args[0]) +'</p>';
+                                $('#feed_monitor').html(text);
+                            });
 }
 
 function connect_data() {

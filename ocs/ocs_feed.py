@@ -1,15 +1,15 @@
 from ocs.ocs_agent import in_reactor_context
 from twisted.internet import reactor
+from autobahn.wamp.exception import TransportLost
 import time
 import re
 
 class Block:
-    def __init__(self, name, keys, prefix=''):
+    def __init__(self, name, keys):
         """
         Structure of block for a so3g IrregBlockDouble.
         """
         self.name = name
-        self.prefix = prefix
         self.timestamps = []
         self.data = {
             k: [] for k in keys
@@ -57,7 +57,6 @@ class Block:
             'block_name': self.name,
             'data': {k: self.data[k] for k in self.data.keys()},
             'timestamps': self.timestamps,
-            'prefix': self.prefix
         }
 
 class Feed:
@@ -124,10 +123,14 @@ class Feed:
             return
 
         if self.record:
-            self.agent.publish(self.address,(
-                                   {k: b.encoded() for k,b in self.blocks.items() if b.timestamps},
-                                    self.encoded()
-                               ))
+            try:
+                self.agent.publish(self.address,(
+                                       {k: b.encoded() for k,b in self.blocks.items() if b.timestamps},
+                                        self.encoded()
+                                   ))
+            except TransportLost:
+                self.agent.log.error('Could not publish to Feed. TransportLost. ' +
+                                     'crossbar server likely unreachable.')
             for k,b in self.blocks.items():
                 b.clear()
 
@@ -206,7 +209,7 @@ class Feed:
             try:
                 b = self.blocks[block_name]
             except KeyError:
-                b = Block(block_name, message['data'].keys(), message.get('prefix', ''))
+                b = Block(block_name, message['data'].keys())
                 self.blocks[block_name] = b
 
             if 'timestamp' in message:
@@ -226,7 +229,11 @@ class Feed:
 
         else:
             # Publish message immediately
-            self.agent.publish(self.address, (message, self.encoded()))
+            try:
+                self.agent.publish(self.address, (message, self.encoded()))
+            except TransportLost:
+                self.agent.log.error('Could not publish to Feed. TransportLost. ' +
+                                     'crossbar server likely unreachable.')
 
     @staticmethod
     def verify_message_data_type(value):
@@ -239,7 +246,7 @@ class Feed:
                 'data' dictionary value published (see Feed.publish_message for details).
 
         """
-        valid_types = (float, int)
+        valid_types = (float, int, str)
 
         # multi-sample check
         if isinstance(value, list):

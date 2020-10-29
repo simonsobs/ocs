@@ -15,6 +15,11 @@ span.clickable {
      color:blue;
 }
 
+span.obviously_clickable {
+     cursor:pointer;
+     color:black;
+}
+
 
 /* Lay-out -- implement the two-column / one-column responsiveness. */
 
@@ -93,4 +98,106 @@ p.hanging_logmsg {
     font-family: monospace;
     font-size: 15pt;
     padding-left: 20px;
+}
+
+.data_1a {
+    font-family: monospace;
+    font-size: 15pt;
+    padding-left: 20px;
+    width: 80%;
+}
+
+.data_1b {
+    font-family: monospace;
+    font-size: 10pt;
+    padding-left: 0px;
+    text-align: center;
+    
+}
+
+
+/*
+ * monitor_ui
+ */
+
+
+/* Override jquery UI padding of tab container divs. */
+.ui-tabs .ui-tabs-panel {
+    padding: 0px;
+}
+
+/* Grid-based layout -- a 3-column approach, for either:
+   label | widget | widget
+   label |    big-widget
+ */
+.ocs_ui {
+    display: grid;
+    font-family: monospace;
+    grid-template-columns: 30% 2fr 2fr;
+    grid-gap: 5px;
+}
+
+/* Classes for 2-column and 3-column inputs / indicators. */
+.ocs_double {
+    grid-column-start: span 2;
+}
+.ocs_triple {
+    grid-column-start: span 3;
+}
+
+.ocs_ui > .important {
+    font-weight: bold;
+}
+
+.box {
+    border-style: solid;
+    border-width: 2px;
+    border-color: black;
+    padding: 10px;
+}
+
+.ocs_ui > input {
+    display: grid;
+    font-family: monospace;
+    padding: 10px;
+    border: 2px solid black;
+    border-radius: 4px;
+}
+
+.ocs_ui > select {
+    font-family: monospace;
+}
+
+/* Apply to :-moz-read-only (Firefox) and :read-only (other). */
+.ocs_ui > input:read-only {
+    border: 1px solid gray;
+    border-radius: 4px;
+}
+.ocs_ui > input:-moz-read-only {
+    border: 1px solid gray;
+    border-radius: 4px;
+}
+
+/* Used to mark connection text or Agent in list as unexpectedly absent */
+.ocs_missing_agent {
+    color: white;
+    background-color: red;
+}
+
+.ocs_ui > label {
+    padding: 10px;
+}
+
+/* Animation for when an operation is running. */
+@keyframes spinner {
+    to {transform: rotate(360deg); }
+}
+.operation_icon {
+    float: right;
+    font-size: 20px;
+    color: gray;
+}
+.spinning {
+    color: black;
+    animation: spinner 10s linear infinite;
 }

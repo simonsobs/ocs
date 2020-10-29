@@ -1,4 +1,3 @@
-crossbar
 autobahn
 twisted
 wampy>=0.9.20
@@ -6,6 +5,7 @@ deprecation
 msgpack
 influxdb
 ipywidgets
+PyYAML
 
 # Lakeshore240
 pyserial
@@ -25,3 +25,5 @@ tqdm
 # testing
 pytest
 pytest-cov
+docker
+pytest-docker-compose

@@ -31,24 +31,28 @@ components)::
       # Grafana for the live monitor.
       # --------------------------------------------------------------------------
       grafana:
-        image: grafana/grafana:5.4.0
+        image: grafana/grafana:latest
         restart: always
         ports:
           - "127.0.0.1:3000:3000"
-        environment:
-          - GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel
         volumes:
           - /srv/grafana:/var/lib/grafana
 
+      # InfluxDB Backend for Grafana
+      influxdb:
+        image: influxdb:1.7
+        container_name: "influxdb"
+        restart: always
+        ports:
+          - "8086:8086"
+
       # --------------------------------------------------------------------------
-      # sisock Components
+      # Crossbar
       # --------------------------------------------------------------------------
-      sisock-crossbar:
-        image: simonsobs/sisock-crossbar:latest
+      crossbar:
+        image: simonsobs/ocs-crossbar:latest
         ports:
           - "127.0.0.1:8001:8001" # expose for OCS
-        volumes:
-          - ./.crossbar:/app/.crossbar
         environment:
              - PYTHONUNBUFFERED=1
 
@@ -63,7 +67,7 @@ components)::
           - ${OCS_CONFIG_DIR}:/config:ro
           - "/data:/data"
         depends_on:
-          - "sisock-crossbar"
+          - "crossbar"
 
       ocs-influx-publisher:
         image: simonsobs/ocs-influxdb-publisher-agent:latest
@@ -119,7 +123,7 @@ other container configurations::
         SQL_HOST: "database"
         SQL_DB: "files"
     depends_on:
-      - "sisock-crossbar"
+      - "crossbar"
       - "database"
 
 The top line, ``example-container-name``, defines the name of the service to
@@ -140,7 +144,7 @@ configuration.
     Pay attention to your version tags. "latest" is a convention in Docker to
     roughly mean the "most up to date" image. It is the default if a tag is
     left off. However, the "latest" image is subject to change. Pulling a "latest"
-    version today will not be guarenteed to get you the same image at another time.
+    version today will not be guaranteed to get you the same image at another time.
 
     What this means is for reproducability of your deployment, and perhaps for
     your own sanity, we recommend you use explicit version tags. Tags can be
@@ -171,5 +175,120 @@ For more details on configurations for individual containers, see the service
 documentation pages, for instance in the Agent Reference section.
 
 .. _reference: https://docs.docker.com/compose/compose-file/compose-file-v2/
-.. _sisock: https://github.com/simonsobs/sisock
 .. _`docker compose documentation`: https://docs.docker.com/compose/environment-variables/
+
+Considerations for Deployment
+-----------------------------
+The above examples are simple and meant to get you running quickly. However,
+they might not be the best configuration for deployment. One inconvenient thing
+is everything is managed in a single ``docker-compose.yml`` file. This means
+when you bring the system down, or restart it, all components are shutdown,
+this includes Grafana, which is one thing you might want running all the time,
+even if not actively collecting data with OCS, since you might want to look at
+past data. To achieve this you can separate the long-running services to
+different configuration files in separate directories, for instance::
+
+    .
+    ├── default.yaml
+    ├── docker-compose.yml
+    ├── influxdb
+    │   └── docker-compose.yml
+    └── crossbar
+        └── docker-compose.yml
+
+Where the separate compose files would look something like::
+
+    # influxdb/docker-compose.yml
+    version: '3.7'
+    networks:
+      default:
+        external:
+          name: ocs-net
+    services:
+      influxdb:
+        image: "influxdb:1.7"
+        container_name: "influxdb"
+        restart: always
+        ports:
+          - "8086:8086"
+        volumes:
+          - /srv/influxdb:/var/lib/influxdb
+
+::
+
+    # crossbar/docker-compose.yml
+    version: '3.7'
+    networks:
+      default:
+        external:
+          name: ocs-net
+    services:
+      crossbar:
+        image: simonsobs/ocs-crossbar:latest
+        restart: always
+        ports:
+          - "127.0.0.1:8001:8001" # expose for OCS
+        environment:
+             - PYTHONUNBUFFERED=1
+
+::
+
+    # web/docker-compose.yml
+    version: '3.7'
+    networks:
+      default:
+        external:
+          name: ocs-net
+    services:
+      grafana:
+        image: grafana/grafana:latest
+        restart: always
+        ports:
+          - "127.0.0.1:3000:3000"
+        volumes:
+          - /srv/grafana:/var/lib/grafana
+
+::
+
+    # docker-compose.yml
+    version: '3.7'
+    networks:
+      default:
+        external:
+          name: ocs-net
+    services:
+      ocs-aggregator:
+        image: simonsobs/ocs-aggregator-agent:latest
+        hostname: ocs-docker
+        user: "9000"
+        volumes:
+          - ${OCS_CONFIG_DIR}:/config:ro
+          - "/data:/data"
+        depends_on:
+          - "crossbar"
+
+      ocs-influx-publisher:
+        image: simonsobs/ocs-influxdb-publisher-agent:latest
+        hostname: ocs-docker
+        volumes:
+          - ${OCS_CONFIG_DIR}:/config:ro
+
+      ocs-LSA99ZZ:
+        image: simonsobs/ocs-lakeshore372-agent:latest
+        hostname: grumpy-docker
+        network_mode: "host"
+        volumes:
+          - ${OCS_CONFIG_DIR}:/config:ro
+        command:
+          - "--instance-id=LSA99ZZ"
+          - "--site-hub=ws://10.10.10.2:8001/ws"
+          - "--site-http=http://10.10.10.2:8001/call"
+
+Once the separate influxdb, crossbar, and web services are brought up, they
+should rarely need to be restarted, and are configured to automatically start
+at boot. This allows one to restart or shutdown the OCS Agents completely
+separately without worry of bringing down other components of the system.
+
+.. note::
+    This uses a Docker network, "ocs-net", which needs to be configured.
+    Details can be found in :ref:`multiconfig`.

@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y python3 \
     python3-pip \
     vim
 
+# Install init system
+RUN pip3 install dumb-init
+
 # Copy the current directory contents into the container at /app
 COPY . /app/ocs/
 

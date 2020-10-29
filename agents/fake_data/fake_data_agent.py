@@ -2,13 +2,23 @@ from ocs import ocs_agent, site_config, client_t, ocs_feed
 import time
 import threading
 import os
-from autobahn.wamp.exception import ApplicationError
+import txaio
+
+from os import environ
 import numpy as np
+from autobahn.wamp.exception import ApplicationError
+from twisted.internet.defer import inlineCallbacks
+from autobahn.twisted.util import sleep as dsleep
+
+# For logging
+txaio.use_twisted()
+LOG = txaio.make_logger()
 
 class FakeDataAgent:
     def __init__(self, agent,
                  num_channels=2,
-                 sample_rate=10.):
+                 sample_rate=10.,
+                 frame_length=60):
         self.agent = agent
         self.log = agent.log
         self.lock = threading.Semaphore()
@@ -18,7 +28,7 @@ class FakeDataAgent:
 
         # Register feed
         agg_params = {
-            'frame_length': 60
+            'frame_length': frame_length
         }
         print('registering')
         self.agent.register_feed('false_temperatures',
@@ -43,6 +53,20 @@ class FakeDataAgent:
         """**Process:**  Acquire data and write to the feed.
 
         This Process has no useful parameters.
+
+        The most recent fake values are stored in the session.data object in
+        the format::
+
+            {"fields":
+                {"channel_00": 0.10250430068515494,
+                 "channel_01": 0.08550903376216404,
+                 "channel_02": 0.10481891991693446,
+                 "channel_03": 0.10793263271024509},
+             "timestamp":1600448753.9288929}
+
+        The channels kept in fields are the 'faked' data, in a similar
+        structure to the Lakeshore agents. 'timestamp' is the lastest time these values
+        were updated.
 
         """
         ok, msg = self.try_set_job('acq')
@@ -111,6 +135,13 @@ class FakeDataAgent:
             # self.log.info('Sending %i data on %i channels.' % (len(t), len(T)))
             session.app.publish_to_feed('false_temperatures', block.encoded())
 
+            # Update session.data
+            data_cache = {"fields": {}, "timestamp": None}
+            for channel, samples in block.data.items():
+                data_cache['fields'][channel] = samples[-1]
+            data_cache['timestamp'] = block.timestamps[-1]
+            session.data.update(data_cache)
+
         self.agent.feeds['false_temperatures'].flush_buffer()
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
@@ -124,6 +155,8 @@ class FakeDataAgent:
         return (ok, {True: 'Requested process stop.',
                      False: 'Failed to request process stop.'}[ok])
 
+    # Tasks
+    
     def set_heartbeat_state(self, session, params=None):
         """Task to set the state of the agent heartbeat.
 
@@ -139,6 +172,39 @@ class FakeDataAgent:
 
         return True, "Set heartbeat_on: {}".format(heartbeat_state)
 
+    @inlineCallbacks
+    def delay_task(self, session, params={}):
+        """Task that will take the requested number of seconds to complete.
+
+        This can run simultaneously with the acq Process.  This Task
+        should run in the reactor thread.
+
+        The session data will be updated with the requested delay as
+        well as the time elapsed so far, for example::
+
+            {'requested_delay': 5.,
+             'delay_so_far': 1.2}
+
+        Args:
+            delay (float): Time to wait before returning, in seconds.
+                Defaults to 5.
+            succeed (bool): Whether to return success or not.
+                Defaults to True.
+
+        """
+        session.set_status('running')
+        delay = params.get('delay', 5)
+        session.data = {'requested_delay': delay,
+                        'delay_so_far': 0}
+        succeed = params.get('succeed', True) is True
+        t0 = time.time()
+        while True:
+            session.data['delay_so_far'] = time.time() - t0
+            sleep_time = min(0.5, delay - session.data['delay_so_far'])
+            if sleep_time < 0:
+                break
+            yield dsleep(sleep_time)
+        return succeed, 'Exited after %.1f seconds' % session.data['delay_so_far']
 
 
 def add_agent_args(parser_in=None):
@@ -152,10 +218,15 @@ def add_agent_args(parser_in=None):
                         'Channels are co-sampled.')
     pgroup.add_argument('--sample-rate', default=9.5, type=float,
                         help='Frequency at which to produce data.')
+    pgroup.add_argument('--frame-length', default=60, type=int,
+                        help='Frame length to pass to the aggregator parameters.')
 
     return parser_in
 
 if __name__ == '__main__':
+    # Start logging
+    txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
+
     parser = add_agent_args()
     args = site_config.parse_args(agent_class='FakeDataAgent', parser=parser)
 
@@ -167,9 +238,11 @@ if __name__ == '__main__':
 
     fdata = FakeDataAgent(agent,
                           num_channels=args.num_channels,
-                          sample_rate=args.sample_rate)
+                          sample_rate=args.sample_rate,
+                          frame_length=args.frame_length)
     agent.register_process('acq', fdata.start_acq, fdata.stop_acq,
                            blocking=True, startup=startup)
     agent.register_task('set_heartbeat', fdata.set_heartbeat_state)
+    agent.register_task('delay_task', fdata.delay_task, blocking=False)
 
     runner.run(agent, auto_reconnect=True)

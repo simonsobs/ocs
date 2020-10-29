@@ -10,13 +10,13 @@
             },
             "realms": [
                 {
-                    "name": "{realm}",
+                    "name": "test_realm",
                     "roles": [
                         {
                             "name": "iocs_agent",
                             "permissions": [
                                 {
-                                    "uri": "{address_root}.",
+                                    "uri": "observatory.",
                                     "match": "prefix",
                                     "allow": {
                                         "call": true,
@@ -36,7 +36,7 @@
                             "name": "iocs_controller",
                             "permissions": [
                                 {
-                                    "uri": "{address_root}.",
+                                    "uri": "observatory.",
                                     "match": "prefix",
                                     "allow": {
                                         "call": true,
@@ -60,7 +60,7 @@
 		    "type": "web",
                     "endpoint": {
                         "type": "tcp",
-                        "port": {port}
+                        "port": 8001
                     },
 		    "paths": {
 			"ws": {
@@ -70,22 +70,18 @@
 				    "type": "static",
 				    "role": "iocs_agent"
 				}
-			    },
-                "options": {
-                    "open_handshake_timeout": 2500,
-                    "close_handshake_timeout": 1000,
-                    "auto_ping_interval": 10000,
-                    "auto_ping_timeout": 5000,
-                    "auto_ping_size": 4
-                }
+			    }
 			},
 			"call": {
 			    "type": "caller",
-			    "realm": "{realm}",
+			    "realm": "test_realm",
 			    "role": "iocs_controller",
 			    "options": {
 				}
-			}
+			},
+            "info": {
+                "type": "nodeinfo"
+            }
 		    }
                 }
             ]

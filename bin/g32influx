@@ -277,8 +277,19 @@ class DataLoader:
             else:
                 logging.debug(f"Unpublished file {path} not in file_list, skipping.")
 
-    def run(self):
-        self.check_filelist_against_sqlite()
+    def run(self, skip_file_check=False):
+        """Run file check and upload.
+
+        Parameters
+        ----------
+        skip_file_check : bool
+            Skip the file check step, proccessing only files already in the
+            database from a previous scan. Helpful if restarting a run where
+            you know input files haven't changed.
+
+        """
+        if not skip_file_check:
+            self.check_filelist_against_sqlite()
         self.publish_all_files_to_influxdb()
 
 
@@ -480,7 +491,7 @@ class SingleFileScanner:
             self.scan_file()
         except Exception:
             logging.error("Unable to read %s, likely due to old sog3 format."
-                          % self.basename)
+                          % self.path)
             return 2
         pub_ret = self.publish_file()
 
@@ -501,6 +512,8 @@ def main():
                         help='Set loglevel.')
     parser.add_argument('--logfile', '-f', default='g32influx.log',
                         help='Set the logfile.')
+    parser.add_argument('--skip-file-check', '-s', action='store_true',
+                        help='Skip file check step.')
     # parser.add_argument('--docker', '-d', action='store_true',
     #                     help='Force use of docker, even if so3g is installed.')
     args = parser.parse_args()
@@ -513,7 +526,7 @@ def main():
 
     dl = DataLoader(args.target, args.database, host=args.host, port=args.port,
                     startdate=args.start, enddate=args.end)
-    dl.run()
+    dl.run(args.skip_file_check)
 
 
 if __name__ == "__main__":

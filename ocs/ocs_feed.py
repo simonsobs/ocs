@@ -72,13 +72,18 @@ class Feed:
             Determines if feed should be aggregated. At the moment, each agent
             can have at most one aggregated feed. Defaults to False
         agg_params (dict, optional):
-            Parameters used by the aggregator.
+            Parameters used by the aggregator and influx publisher.
 
             Params:
                 **frame_length** (float):
                     Deterimes the amount of time each G3Frame should be (in seconds).
-                **fresh_time** (float)
+                **fresh_time** (float):
                     Time until feed is considered stale by aggregator.
+                **exclude_aggregator** (bool):
+                    If True, the HK Aggregator will not record feed to g3.
+                **exclude_influx** (bool):
+                    If True, the InfluxPublisher will not write the feed to
+                    Influx.
 
         buffer_time (int, optional):
             Specifies time that messages should be buffered in seconds.

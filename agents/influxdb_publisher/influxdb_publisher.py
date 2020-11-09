@@ -91,7 +91,7 @@ class Publisher:
         while not self.incoming_data.empty():
             data, feed = self.incoming_data.get()
             if feed['agg_params'].get('exclude_influx', False):
-                return
+                continue
 
             LOG.debug("Pulling data from queue.")
 

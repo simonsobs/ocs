@@ -413,20 +413,9 @@ class OCSAgent(ApplicationSession):
                 Determines if feed should be aggregated. At the moment, each agent
                 can have at most one aggregated feed. Defaults to False
             agg_params (dict, optional):
-                Parameters used by the aggregator.
-
-                Params:
-                    **frame_length** (float):
-                        Deterimes the amount of time each G3Frame should be (in seconds).
-                    **fresh_time** (float):
-                        Time (seconds) before feed is considered "stale" and
-                        removed from the HK status frame
-                    **exclude_aggregator** (bool):
-                        If True, the HK Aggregator will not record feed to g3.
-                    **exclude_influx** (bool):
-                        If True, the InfluxPublisher will not write the feed to
-                        Influx.
-
+                Parameters used by the aggregator and influx publisher.  See
+                the ``ocs.ocs_feed.Feed`` docstring for the full list of
+                aggregator params.
             buffer_time (int, optional):
                 Specifies time that messages should be buffered in seconds.
                 If 0, message will be published immediately.

@@ -618,7 +618,7 @@ class Aggregator:
             data, feed = self.incoming_data.get()
 
             if feed['agg_params'].get('exclude_aggregator', False):
-                return
+                continue
 
             address = feed['address']
             sessid = feed['session_id']

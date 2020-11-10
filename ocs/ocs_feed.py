@@ -306,8 +306,8 @@ class Feed:
         # check for invalid characters
         result = check_invalid.search(field)
         if result:
-            raise ValueError("message 'data' block contains a key with the " +
-                             f"invalid character '{result.group(0)}'. "
+            raise ValueError(f"message 'data' block contains the key {field} "
+                             f"with the invalid character '{result.group(0)}'. "
                              "Valid characters are a-z, A-Z, 0-9, and underscore.")
 
         # check for non-letter start, even after underscores

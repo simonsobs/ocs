@@ -3,6 +3,7 @@ import time
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
 from collections import defaultdict
+from enum import Enum
 
 
 class RegisteredAgent:
@@ -22,21 +23,28 @@ class RegisteredAgent:
         self.expired = False
         self.time_expired = None
         self.last_updated = time.time()
+        self.op_codes = {}
 
-    def refresh(self):
+    def refresh(self, op_codes=None):
         self.expired = False
         self.time_expired = None
         self.last_updated = time.time()
 
+        if op_codes:
+            self.op_codes.update(op_codes)
+
     def expire(self):
         self.expired = True
         self.time_expired = time.time()
+        for k in self.op_codes:
+            self.op_codes[k] = ocs_agent.OpCode.EXPIRED.value
 
     def encoded(self):
         return {
             'expired': self.expired,
             'time_expired': self.time_expired,
-            'last_updated': self.last_updated
+            'last_updated': self.last_updated,
+            'op_codes': self.op_codes,
         }
 
 
@@ -76,13 +84,22 @@ class Registry:
             options={'match': 'wildcard'}
         )
 
+        agg_params = {
+            'frame_length': 30*60,
+            'fresh_time': 10,
+        }
+        self.agent.register_feed('agent_operations', record=True,
+                                 agg_params=agg_params, buffer_time=0)
+
+
+
     def _register_heartbeat(self, _data):
         """ 
             Function that is called whenever a heartbeat is received from an agent.
             It will update that agent in the Registry's registered_agent dict.
         """
-        data, feed = _data
-        self.registered_agents[feed['agent_address']].refresh()
+        op_codes, feed = _data
+        self.registered_agents[feed['agent_address']].refresh(op_codes=op_codes)
 
     @inlineCallbacks
     def main(self, session: ocs_agent.OpSession, params=None):
@@ -119,11 +136,25 @@ class Registry:
 
             for k, agent in self.registered_agents.items():
                 if time.time() - agent.last_updated > self.agent_timeout:
-                    agent.expire() 
+                    agent.expire()
 
             session.data = {
                 k: agent.encoded() for k, agent in self.registered_agents.items()
             }
+
+            for addr, agent in self.registered_agents.items():
+                _addr = addr.replace('.', '_')
+                _addr = _addr.replace('-', '_')
+                msg = {
+                    'block_name': _addr,
+                    'timestamp': time.time(),
+                    'data': {
+                        f'{_addr}_{op_name}': op_code
+                        for op_name, op_code in agent.op_codes.items()
+                    }
+                }
+                self.agent.publish_to_feed('agent_operations', msg)
+
         return True, "Stopped registry main process"
 
     def stop(self, session, params=None):

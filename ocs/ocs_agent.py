@@ -20,6 +20,7 @@ from .ocs_twisted import in_reactor_context
 import time, datetime
 import os
 from deprecation import deprecated
+from enum import Enum
 from ocs import client_t
 from ocs import ocs_feed
 
@@ -178,7 +179,14 @@ class OCSAgent(ApplicationSession):
             if self._heartbeat_on:
                 self.log.debug(' {:.1f} {address} heartbeat '
                                .format(time.time(), address=self.agent_address))
-                self.publish_to_feed("heartbeat", 0, from_reactor=True)
+
+                op_codes = {}
+                for name, session in self.sessions.items():
+                    if session is None:
+                        op_codes[name] = OpCode.NONE.value
+                    else:
+                        op_codes[name] = session.op_code.value
+                self.publish_to_feed("heartbeat", op_codes, from_reactor=True)
 
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0) # Calls the hearbeat every second
@@ -733,6 +741,17 @@ class AgentProcess:
 
 SESSION_STATUS_CODES = [None, 'starting', 'running', 'stopping', 'done']
 
+
+class OpCode(Enum):
+    NONE = 1
+    STARTING = 2
+    RUNNING = 3
+    STOPPING = 4
+    SUCCEEDED = 5
+    FAILED = 6
+    EXPIRED = 7
+
+
 class OpSession:
     """
     When a caller requests that an Operation (Process or Task) is
@@ -800,6 +819,22 @@ class OpSession:
                 'success': self.success,
                 'data': self.data,
                 'messages': self.messages}
+
+    @property
+    def op_code(self):
+        """
+        Returns the OpCode for the given session.  This is what will be
+        published to the registry's ``operation_status`` feed.
+        """
+        if self.status is None:
+            return OpCode.NONE
+        elif self.status in ['starting', 'running', 'stopping']:
+            return {'starting': OpCode.STARTING, 'running': OpCode.RUNNING,
+                    'stopping': OpCode.STOPPING}[self.status]
+        elif self.success:
+            return OpCode.SUCCEEDED
+        else:
+            return OpCode.FAILED
 
     def set_status(self, status, timestamp=None, log_status=True):
         """Update the OpSession status and possibly post a message about it.

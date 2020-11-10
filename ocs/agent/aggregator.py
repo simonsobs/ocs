@@ -152,7 +152,7 @@ class Provider:
             txaio logger
 
     """
-    def __init__(self, address, sessid, prov_id, frame_length=5*60, fresh_time=3*60, **kwargs):
+    def __init__(self, address, sessid, prov_id, frame_length=5*60, fresh_time=3*60):
         self.address = address
         self.sessid = sessid
         self.frame_length = frame_length
@@ -167,10 +167,6 @@ class Provider:
         self.fresh_time = fresh_time
         self.last_refresh = time.time() # Determines if
         self.last_block_received = None
-
-        self.log.warn("Recieved unxpected keyword argument(s), {kwarg}, when " +
-                      "registering the feed with address '{add}'",
-                      kwarg=kwargs, add=self.address)
 
     def encoded(self):
         return {
@@ -616,8 +612,9 @@ class Aggregator:
         while not self.incoming_data.empty():
 
             data, feed = self.incoming_data.get()
+            agg_params = feed['agg_params']
 
-            if feed['agg_params'].get('exclude_aggregator', False):
+            if agg_params.get('exclude_aggregator', False):
                 continue
 
             address = feed['address']
@@ -625,7 +622,12 @@ class Aggregator:
 
             pid = self.pids.get((address, sessid))
             if pid is None:
-                pid = self.add_provider(address, sessid, **feed['agg_params'])
+                prov_kwargs = {}
+                for key in ['frame_length', 'fresh_time']:
+                    if key in agg_params:
+                        prov_kwargs[key] = agg_params[key]
+
+                pid = self.add_provider(address, sessid, **prov_kwargs)
 
             prov = self.providers[pid]
             prov.save_to_block(data)

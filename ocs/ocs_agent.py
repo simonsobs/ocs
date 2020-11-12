@@ -20,9 +20,9 @@ from .ocs_twisted import in_reactor_context
 import time, datetime
 import os
 from deprecation import deprecated
-from enum import Enum
 from ocs import client_t
 from ocs import ocs_feed
+from ocs.base import OpCode
 
 def init_site_agent(args, address=None):
     """
@@ -746,16 +746,6 @@ class AgentProcess:
 
 
 SESSION_STATUS_CODES = [None, 'starting', 'running', 'stopping', 'done']
-
-
-class OpCode(Enum):
-    NONE = 1
-    STARTING = 2
-    RUNNING = 3
-    STOPPING = 4
-    SUCCEEDED = 5
-    FAILED = 6
-    EXPIRED = 7
 
 
 class OpSession:

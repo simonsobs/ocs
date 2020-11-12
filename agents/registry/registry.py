@@ -1,9 +1,10 @@
 from ocs import ocs_agent, site_config
+from ocs.base import OpCode
 import time
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
 from collections import defaultdict
-from enum import Enum
+from ocs.ocs_feed import Feed
 
 
 class RegisteredAgent:
@@ -18,6 +19,10 @@ class RegisteredAgent:
                 is not expired.
             last_updated (float):
                 ctime at which the agent was last updated
+            op_codes (dict):
+                Dictionary of operation codes for each of the agent's
+                operations. For details on what the operation codes mean, see
+                docs from the ``ocs_agent`` module
     """
     def __init__(self):
         self.expired = False
@@ -37,7 +42,7 @@ class RegisteredAgent:
         self.expired = True
         self.time_expired = time.time()
         for k in self.op_codes:
-            self.op_codes[k] = ocs_agent.OpCode.EXPIRED.value
+            self.op_codes[k] = OpCode.EXPIRED.value
 
     def encoded(self):
         return {
@@ -85,16 +90,14 @@ class Registry:
         )
 
         agg_params = {
-            'frame_length': 30*60,
+            'frame_length': 60,
             'fresh_time': 10,
         }
         self.agent.register_feed('agent_operations', record=True,
                                  agg_params=agg_params, buffer_time=0)
 
-
-
     def _register_heartbeat(self, _data):
-        """ 
+        """
             Function that is called whenever a heartbeat is received from an agent.
             It will update that agent in the Registry's registered_agent dict.
         """
@@ -143,17 +146,21 @@ class Registry:
             }
 
             for addr, agent in self.registered_agents.items():
-                _addr = addr.replace('.', '_')
-                _addr = _addr.replace('-', '_')
-                msg = {
-                    'block_name': _addr,
-                    'timestamp': time.time(),
-                    'data': {
-                        f'{_addr}_{op_name}': op_code
-                        for op_name, op_code in agent.op_codes.items()
-                    }
-                }
-                self.agent.publish_to_feed('agent_operations', msg)
+                msg = { 'block_name': addr,
+                        'timestamp': time.time(),
+                        'data': {}}
+                for op_name, op_code in agent.op_codes.items():
+                    field = f'{addr}_{op_name}'
+                    field = field.replace('.', '_')
+                    field = field.replace('-', '_')
+                    try:
+                        Feed.verify_data_field_string(field)
+                    except ValueError as e:
+                        self.log.warn(f"Improper field name: {field}\n{e}")
+                        continue
+                    msg['data'][field] = op_code
+                if msg['data']:
+                    self.agent.publish_to_feed('agent_operations', msg)
 
         return True, "Stopped registry main process"
 

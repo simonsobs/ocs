@@ -17,6 +17,8 @@ agent.aggregator
     :undoc-members:
     :show-inheritance:
 
+.. _ocs_base_api:
+
 ocs.base
 --------
 

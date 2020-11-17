@@ -6,6 +6,7 @@ from autobahn.twisted.util import sleep as dsleep
 from collections import defaultdict
 from ocs.ocs_feed import Feed
 
+from ocs.agent.aggregator import Provider
 
 class RegisteredAgent:
     """
@@ -114,7 +115,7 @@ class Registry:
             The session.data object for this process will be a dictionary containing
             the encoded RegisteredAgent object for each agent observed during the
             lifetime of the registry. For instance, this might look like
-            
+
             >>> session.data
             {'observatory.aggregator': 
                 {'expired': False,
@@ -153,6 +154,7 @@ class Registry:
                     field = f'{addr}_{op_name}'
                     field = field.replace('.', '_')
                     field = field.replace('-', '_')
+                    field = Provider._enforce_field_name_rules(field)
                     try:
                         Feed.verify_data_field_string(field)
                     except ValueError as e:

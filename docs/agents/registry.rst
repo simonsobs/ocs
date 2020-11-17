@@ -50,7 +50,7 @@ The registry is also used to track the status of each agent's tasks and
 processes. `Operation codes` for each operation are regularly passed through an
 agent's heartbeat feed, which the registry assembles and publishes through its
 own OCS feed. This makes it possible to monitor individual operation states in
-grafan and to easily set alerts when a process stops running or when a task
+grafana and to easily set alerts when a process stops running or when a task
 fails.
 
 By mapping the enumeration values described in the ``OpCode`` documentation in

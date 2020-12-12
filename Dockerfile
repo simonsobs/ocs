@@ -2,7 +2,7 @@
 # A container setup with an installation of ocs.
 
 # Use ubuntu base image
-FROM simonsobs/so3g:v0.1.0
+FROM simonsobs/so3g:v0.1.0-24-g5645096
 
 # Set locale
 ENV LANG C.UTF-8

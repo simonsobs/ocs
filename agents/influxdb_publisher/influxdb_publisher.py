@@ -3,6 +3,7 @@ import datetime
 import queue
 import argparse
 import txaio
+import numpy as np
 
 from functools import wraps
 from os import environ
@@ -86,6 +87,8 @@ class Publisher:
         self.incoming_data = incoming_data
         self.protocol = protocol
         self.gzip = gzip
+        self.last_timing_log = None
+        self.timing_logs = []
 
         print(f"gzip encoding enabled: {gzip}")
         print(f"data protocol: {protocol}")
@@ -109,7 +112,7 @@ class Publisher:
 
         self.client.switch_database(self.db)
 
-    @timing
+    #@timing
     def process_incoming_data(self):
         """
         Takes all data from the incoming_data queue, and puts them into
@@ -139,7 +142,7 @@ class Publisher:
             except InfluxDBServerError as err:
                 LOG.error("InfluxDB Server Error: {e}", e=err)
 
-    @timing
+    #@timing
     def format_data(self, data, feed, protocol):
         """Format the data from an OCS feed into a dict for pushing to InfluxDB.
 
@@ -215,7 +218,19 @@ class Publisher:
         data, removes stale providers, and writes active providers to disk.
 
         """
+        ts = time.time()
         self.process_incoming_data()
+        te = time.time()
+        self.timing_logs.append(te-ts)
+        # quick temporary timing logging
+        t_log = 60  # s
+        if self.last_timing_log is None or te-self.last_timing_log > t_log:
+            t_avg = np.mean(self.timing_logs)
+            t_max = np.max(self.timing_logs)
+            LOG.info('process_incoming_data: {tdiff} sec avg over {t_log} s - max {max_} s',
+                     tdiff=f'{t_avg:.4f}', max_=f'{t_max:.4f}', t_log=t_log)
+            self.last_timing_log = time.time()
+            self.timing_logs = []
 
     def close(self):
         """Flushes all remaining data and closes InfluxDB connection."""
@@ -301,7 +316,7 @@ class InfluxDBAgent:
         session.set_status('running')
         while self.aggregate:
             time.sleep(self.loop_time)
-            self.log.info(f"Approx. queue size: {self.incoming_data.qsize()}")
+            self.log.debug(f"Approx. queue size: {self.incoming_data.qsize()}")
             publisher.run()
 
         publisher.close()

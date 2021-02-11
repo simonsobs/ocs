@@ -85,12 +85,5 @@ environments.
 twisted and autobahn
 ````````````````````
 twisted and autobahn are for asynchronous I/O and WAMP, respectively.
-These are required to run an OCS Agent.  They are also required to run
-asynchronous Control Clients, such as example_ctrl.py.  However, one
-can write Control Clients instead using the simpler, non-asynchronous
-WAMP library called ``wampy``; see below.
-
-wampy
-`````
-A simple, blocking Control Client can be written in python using only
-the ``wampy`` library. Such a client uses the module ocs.client_wampy.
+These are required to run an OCS Agent. They are also required to run
+asynchronous Control Clients, such as example_ctrl.py.

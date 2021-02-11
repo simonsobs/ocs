@@ -5,7 +5,6 @@ ocsbow is used to launch and communicate with the HostMaster agent.
 """
 
 import ocs
-from ocs import client_wampy
 from ocs import client_http
 
 import argparse
@@ -211,9 +210,6 @@ class HostMasterManager:
             self.client = ocs.site_config.get_control_client(
                 instance.data['instance-id'], args=args)
         except ConnectionError:
-            self.client = None
-        except client_wampy.WampyError as e:
-            print('WampyError: %s' % e)
             self.client = None
 
     def generate_crossbar_config(self):

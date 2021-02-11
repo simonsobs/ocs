@@ -1,6 +1,5 @@
 autobahn
 twisted
-wampy>=0.9.20
 deprecation
 msgpack
 influxdb

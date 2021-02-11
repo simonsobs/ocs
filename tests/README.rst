@@ -26,7 +26,7 @@ tests, leaving just the unit tests.
     spt3g/so3g dependencies on the host system. Ensure the ocs Docker image is
     built with your changes, then run::
 
-        $ docker run --rm ocs sh -c "python3 -m pytest -p no:wampy -m 'not integtest' ./tests/"
+        $ docker run --rm ocs sh -c "python3 -m pytest -m 'not integtest' ./tests/"
 
 Integration Tests
 `````````````````

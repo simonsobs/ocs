@@ -8,11 +8,6 @@ class TestGetControlClient:
     """Test site_config.get_control_client().
 
     """
-    def test_none_client_type(self):
-        """None should assume 'http' appropriately."""
-        mock_site = MagicMock()
-        get_control_client('test', site=mock_site)
-
     def test_wampy_client_type(self):
         """'wampy' client type should raise error."""
         mock_site = MagicMock()

@@ -86,4 +86,6 @@ twisted and autobahn
 ````````````````````
 twisted and autobahn are for asynchronous I/O and WAMP, respectively.
 These are required to run an OCS Agent. They are also required to run
-asynchronous Control Clients, such as example_ctrl.py.
+asynchronous Control Clients, such as example_ctrl.py. However, simple clients
+can be written in the usual Python synchronous framework, without any need for
+twisted or autobahn.

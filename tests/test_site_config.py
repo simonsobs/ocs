@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from ocs.site_config import get_control_client
+from ocs.client_http import ControlClient
 
 
 class TestGetControlClient:
@@ -30,7 +31,8 @@ class TestGetControlClient:
                               'address_root': 'observatory',
                               'registry_address': 'observatory.registry'}
 
-        get_control_client('test', site=mock_site, client_type=None)
+        test_client = get_control_client('test', site=mock_site, client_type=None)
+        assert isinstance(test_client, ControlClient)
 
     def test_none_client_type_wo_wamp_http_site(self):
         """None client_type should determine type from site.hub.data. Missing

@@ -555,9 +555,9 @@ def reparse_args(args, agent_class=None):
 
 
 def get_control_client(instance_id, site=None, args=None, start=True,
-                       client_type=None):
-    """Instantiate and return a wampy_http.ControlClient or a
-    wampy_client.ControlClient, targeting the specified instance_id.
+                       client_type='http'):
+    """Instantiate and return a client_http.ControlClient, targeting the
+    specified instance_id.
 
     Args:
         site (SiteConfig): All configuration will be taken from this
@@ -575,9 +575,9 @@ def get_control_client(instance_id, site=None, args=None, start=True,
         start (bool): Determines whether to call .start() on the client before
             returning it.
 
-        client_type (str): Insist on 'wampy' or 'http' type client.
-            Default is None, which will return an http client if
-            hub_http address is known or a wampy client otherwise.
+        client_type (str): Select the client type, currently only 'http'.
+            wamp_http address must be known. Note that 'wampy' used to be a
+            supported type, but was dropped in OCS v0.8.0.
 
     Returns a ControlClient.
 
@@ -599,13 +599,7 @@ def get_control_client(instance_id, site=None, args=None, start=True,
         else:
             client_type = 'wampy'
     if client_type == 'wampy':
-        from ocs import client_wampy
-        client = client_wampy.ControlClient(
-            master_addr,
-            url=site.hub.data['wamp_server'],
-            realm=site.hub.data['wamp_realm'])
-        if start:
-            client.start()
+        raise ValueError('client_type %s no longer supported' % client_type)
     elif client_type == 'http':
         from ocs import client_http
         client = client_http.ControlClient(

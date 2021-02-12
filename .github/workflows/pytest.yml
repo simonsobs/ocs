@@ -33,7 +33,7 @@ jobs:
 
     - name: Test with pytest wtihin a docker container
       run: |
-        docker run -v $PWD:/coverage --rm ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest -p no:wampy -m 'not integtest' --cov /app/ocs/ocs/ ./tests/"
+        docker run -v $PWD:/coverage --rm ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest -m 'not integtest' --cov /app/ocs/ocs/ ./tests/"
 
     - name: Report test coverage
       env:

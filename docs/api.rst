@@ -43,14 +43,6 @@ ocs.client_t
     :undoc-members:
     :show-inheritance:
 
-ocs.client_wampy
-----------------
-
-.. automodule:: ocs.client_wampy
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 ocs.matched_client
 ------------------
 

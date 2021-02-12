@@ -24,5 +24,6 @@ tqdm
 # testing
 pytest
 pytest-cov
+responses
 docker
 pytest-docker-compose

@@ -34,7 +34,11 @@ These tests are built to test the running OCS system, and as such need several
 running components. This includes a crossbar server and each core OCS
 Agent. In order to run these in an isolated environment we make use of Docker
 and Docker Compose. This includes use of the pytest plugin,
-pytest-docker-compose.
+pytest-docker-compose. The containers configured for the integration tests are
+defined in ``./tests/docker-compose.yml``. For the tests to run, we should be
+in the directory with this docker-compose file::
+
+  $ cd ./tests/
 
 For each integration test, a set of Docker containers is started and interacted
 with. Startup and shutdown of these containers can increase the testing time.
@@ -43,12 +47,12 @@ behavior after some interactions with the system, which can also take some
 time. As such you might be interested in running just a single test that you
 are working on. You can do so with::
 
-  python3 -m pytest -k <function name of test you are running>
+  $ python3 -m pytest -k <function name of test you are running>
 
 This should deselect all other tests and run the test of interest. You can run
 all integration tests with::
 
-  python3 -m pytest -m integtest
+  $ python3 -m pytest -m integtest
 
 Reducing Turnaround Time in Testing
 ...................................

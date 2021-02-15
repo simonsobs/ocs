@@ -19,6 +19,8 @@ Add an InfluxDBAgent to your OCS configuration file::
        'arguments': [['--initial-state', 'record'],
                      ['--host', 'influxdb'],
                      ['--port', 8086],
+                     ['--protocol', 'line'],
+                     ['--gzip', True],
                      ['--database', 'ocs_feeds']]},
 
 docker-compose Configuration
@@ -96,3 +98,11 @@ the SELECT query.
 For more information about using InfluxDB in Grafana, see the `Grafana Documentation`_.
 
 .. _`Grafana Documentation`: https://grafana.com/docs/features/datasources/influxdb/
+
+API
+---
+
+Publisher
+`````````
+.. autoclass:: agents.influxdb_publisher.influxdb_publisher.Publisher
+    :members:

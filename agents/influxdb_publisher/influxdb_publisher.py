@@ -6,7 +6,7 @@ import txaio
 
 from os import environ
 from influxdb import InfluxDBClient
-from influxdb.exceptions import InfluxDBClientError
+from influxdb.exceptions import InfluxDBClientError, InfluxDBServerError
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from ocs import ocs_agent, site_config
@@ -16,16 +16,22 @@ txaio.use_twisted()
 LOG = txaio.make_logger()
 
 
-def timestamp2influxtime(time):
+def timestamp2influxtime(time, protocol):
     """Convert timestamp for influx
 
     Args:
         time:
             ctime timestamp
+        protocol:
+            'json' or line'
 
     """
-    t_dt = datetime.datetime.fromtimestamp(time)
-    return t_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+    if protocol == 'json':
+        t_dt = datetime.datetime.fromtimestamp(time)
+        influx_t = t_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+    elif protocol == 'line':
+        influx_t = int(time*1e9)  # ns
+    return influx_t
 
 
 class Publisher:
@@ -44,6 +50,10 @@ class Publisher:
             database name within InfluxDB to publish to
         port (int, optional):
             port for InfluxDB instance, defaults to 8086.
+        protocol (str, optional):
+            Protocol for writing data. Either 'line' or 'json'.
+        gzip (bool, optional):
+            compress influxdb requsts with gzip
 
     Attributes:
         host (str):
@@ -58,13 +68,18 @@ class Publisher:
             InfluxDB client connection
 
     """
-    def __init__(self, host, database, incoming_data, port=8086):
+    def __init__(self, host, database, incoming_data, port=8086, protocol='line', gzip=False):
         self.host = host
         self.port = port
         self.db = database
         self.incoming_data = incoming_data
+        self.protocol = protocol
+        self.gzip = gzip
 
-        self.client = InfluxDBClient(host=self.host, port=self.port)
+        print(f"gzip encoding enabled: {gzip}")
+        print(f"data protocol: {protocol}")
+
+        self.client = InfluxDBClient(host=self.host, port=self.port, gzip=gzip)
 
         db_list = None
         # ConnectionError here is indicative of InfluxDB being down
@@ -73,7 +88,7 @@ class Publisher:
                 db_list = self.client.get_list_database()
             except RequestsConnectionError:
                 LOG.error("Connection error, attempting to reconnect to DB.")
-                self.client = InfluxDBClient(host=self.host, port=self.port)
+                self.client = InfluxDBClient(host=self.host, port=self.port, gzip=gzip)
                 time.sleep(1)
         db_names = [x['name'] for x in db_list]
 
@@ -96,18 +111,23 @@ class Publisher:
             LOG.debug("Pulling data from queue.")
 
             # Formatted for writing to InfluxDB
-            payload = self.format_data(data, feed)
+            payload = self.format_data(data, feed, protocol=self.protocol)
             try:
-                self.client.write_points(payload)
+                self.client.write_points(payload,
+                                         batch_size=10000,
+                                         protocol=self.protocol,
+                                         )
                 LOG.debug("wrote payload to influx")
             except RequestsConnectionError:
                 LOG.error("InfluxDB unavailable, attempting to reconnect.")
-                self.client = InfluxDBClient(host=self.host, port=self.port)
+                self.client = InfluxDBClient(host=self.host, port=self.port, gzip=self.gzip)
                 self.client.switch_database(self.db)
             except InfluxDBClientError as err:
                 LOG.error("InfluxDB Client Error: {e}", e=err)
+            except InfluxDBServerError as err:
+                LOG.error("InfluxDB Server Error: {e}", e=err)
 
-    def format_data(self, data, feed):
+    def format_data(self, data, feed, protocol):
         """Format the data from an OCS feed into a dict for pushing to InfluxDB.
 
         The scheme here is as follows:
@@ -124,6 +144,8 @@ class Publisher:
             feed (dict):
                 feed from the OCS Feed subscription, contains feed information
                 used to structure our influxdb query
+            protocol (str):
+                Protocol for writing data. Either 'line' or 'json'.
 
         """
         measurement = feed['agent_address']
@@ -143,16 +165,31 @@ class Publisher:
                 grouped_data_points.append(grouped_dict)
 
             for fields, time_ in zip(grouped_data_points, times):
-                json_body.append(
-                    {
-                        "measurement": measurement,
-                        "time": timestamp2influxtime(time_),
-                        "fields": fields,
-                        "tags": {
-                            "feed": feed_tag
+                if protocol == 'line':
+                    fields_line = []
+                    for mk, mv in fields.items():
+                        f_line = f"{mk}={mv}"
+                        if isinstance(mv, int):
+                            f_line += "i"
+                        fields_line.append(f_line)
+
+                    measurement_line = ','.join(fields_line)
+                    t_line = timestamp2influxtime(time_, protocol='line')
+                    line = f"{measurement},feed={feed_tag} {measurement_line} {t_line}"
+                    json_body.append(line)
+                elif protocol == 'json':
+                    json_body.append(
+                        {
+                            "measurement": measurement,
+                            "time": timestamp2influxtime(time_, protocol='json'),
+                            "fields": fields,
+                            "tags": {
+                                "feed": feed_tag
+                            }
                         }
-                    }
-                )
+                    )
+                else:
+                    self.log.warn(f"Protocol '{protocol}' not supported.")
 
         LOG.debug("payload: {p}", p=json_body)
 
@@ -237,13 +274,19 @@ class InfluxDBAgent:
         session.set_status('starting')
         self.aggregate = True
 
-        LOG.debug("Instatiating Publisher class")
-        publisher = Publisher(self.args.host, self.args.database,
-                              self.incoming_data, port=self.args.port)
+        self.log.debug("Instatiating Publisher class")
+        publisher = Publisher(self.args.host,
+                              self.args.database,
+                              self.incoming_data,
+                              port=self.args.port,
+                              protocol=self.args.protocol,
+                              gzip=self.args.gzip,
+                              )
 
         session.set_status('running')
         while self.aggregate:
             time.sleep(self.loop_time)
+            self.log.debug(f"Approx. queue size: {self.incoming_data.qsize()}")
             publisher.run()
 
         publisher.close()
@@ -274,6 +317,14 @@ def make_parser(parser=None):
     pgroup.add_argument('--database',
                         default='ocs_feeds',
                         help="Database within InfluxDB to publish data to.")
+    pgroup.add_argument('--protocol',
+                        default='line',
+                        choices=['json', 'line'],
+                        help="Protocol for writing data. Either 'line' or 'json'.")
+    pgroup.add_argument('--gzip',
+                        type=bool,
+                        default=False,
+                        help="Use gzip content encoding to compress requests.")
 
     return parser
 

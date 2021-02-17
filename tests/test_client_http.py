@@ -99,3 +99,40 @@ class TestControlClient:
         assert resp[0][0] == 'acq'
         assert resp[0][1]['op_name'] == 'acq'
         assert resp[0][2]['blocking'] == True
+
+    @responses.activate
+    def test_get_feeds(self, control_client):
+        """Start just passes"""
+        params = {'procedure': control_client.agent_addr,
+                  'args': ['get_feeds'], 'kwargs': {}}
+        ex_response = {"args": [[["false_temperatures",
+                                  {"agent_address": "observatory.fake-data1",
+                                   "agg_params": {"frame_length": 60},
+                                   "feed_name": "false_temperatures",
+                                   "address": "observatory.fake-data1.feeds.false_temperatures",
+                                   "record": True,
+                                   "session_id": "1613602402.074973"}],
+                                 ["heartbeat",
+                                  {"agent_address": "observatory.fake-data1",
+                                  "agg_params": {},
+                                  "feed_name": "heartbeat",
+                                  "address": "observatory.fake-data1.feeds.heartbeat",
+                                  "record": False,
+                                  "session_id":"1613602402.074973"}]]]}
+
+        responses.add(responses.POST,
+                      url='http://example.com/call',
+                      #url='http://127.0.0.1:8001/call',
+                      body='',
+                      match=[
+                        responses.json_params_matcher(params)
+                      ],
+                      json=ex_response
+        )
+
+        resp = control_client.get_feeds()
+
+        # Check some simple parts of the response
+        assert resp[0][0] == 'false_temperatures'
+        assert resp[1][0] == 'heartbeat'
+        assert resp[0][1]['address'] == 'observatory.fake-data1.feeds.false_temperatures'

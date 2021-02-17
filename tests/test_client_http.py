@@ -36,13 +36,16 @@ class TestControlClient:
     @responses.activate
     def test_get_tasks(self, control_client):
         """Start just passes"""
+        params = {'procedure': control_client.agent_addr,
+                  'args': ['get_tasks'], 'kwargs': {}}
+
         responses.add(responses.POST,
                       url='http://example.com/call',
-                      #body='',
-                      #status=201,
+                      #url='http://127.0.0.1:8001/call',
+                      body='',
                       match=[
-                        #responses.json_params_matcher({"args": 'get_tasks'})
-                        responses.json_params_matcher({"procedure": "observatory.test", "args": ["get_tasks"], "kwargs": {}})
+                        #responses.json_params_matcher({"procedure": "observatory.test", "args": ["get_tasks"], "kwargs": {}})
+                        responses.json_params_matcher(params)
                       ],
                       json={"args": [[["delay_task", {"op_name": "delay_task", "status": "no_history"},
                                                      {"blocking": False,
@@ -51,34 +54,48 @@ class TestControlClient:
                                       {"blocking": True, "docstring": "Task to set the state of the agent heartbeat."}]]]}
                       
         )
-        #params = json.dumps({'procedure': control_client.agent_addr,
-        #                     'args': ['get_tasks'], 'kwargs': []})
-        #responses.add(responses.POST,
-        #              url='http://example.com/call',
-        #              #body='',
-        #              status=201,
-        #              match=[
-        #                #responses.json_params_matcher({"args": 'get_tasks'})
-        #                responses.json_params_matcher(params)
-        #              ],
-        #              json={'error': 'not found'}
-        #              
-        #)
-
-
         resp = control_client.get_tasks()
         #params = json.dumps({"args": 'get_tasks'})
                            
         #resp = requests.post('http://example.com/call', data=params, headers={'content-type': 'application/json'})
         #resp = requests.post('http://example.com/call', data=params)
         print(resp)
-        print(dir(resp))
         #print(resp.json())
 
+    @responses.activate
+    def test_get_processes(self, control_client):
+        """Start just passes"""
+        params = {'procedure': control_client.agent_addr,
+                  'args': ['get_processes'], 'kwargs': {}}
+        ex_response = {"args": [[["acq",
+                                  {"session_id": 0,
+                                  "op_name": "acq",
+                                  "status": "running",
+                                  "start_time": 1613602407.7834675,
+                                  "end_time": None,
+                                  "success": None,
+                                  "data": {"fields": {"channel_00": 0.09792315743251072,
+                                                      "channel_01": 0.10505459024661522,
+                                                      "channel_02": 0.09813845706627806,
+                                                      "channel_03": 0.11473606863867097},
+                                           "timestamp": 1613602476.5843427},
+                                           "messages": [[1613602407.7834675, "Status is now \"starting\"."],
+                                                        [1613602407.784276,"Status is now \"running\"."]]},
+                                  {"blocking": True, "docstring":"Process docstring."}]]]}
 
+        responses.add(responses.POST,
+                      url='http://example.com/call',
+                      #url='http://127.0.0.1:8001/call',
+                      body='',
+                      match=[
+                        responses.json_params_matcher(params)
+                      ],
+                      json=ex_response
+        )
 
-def example():
-    """'wampy' client type should raise error."""
-    master_addr = '%s.%s' % ('observatory', 'test')
-    client = ControlClient(master_addr, url='http://127.0.0.1:8001', realm='test_realm')
-    return client
+        resp = control_client.get_processes()
+
+        # Check some simple parts of the response
+        assert resp[0][0] == 'acq'
+        assert resp[0][1]['op_name'] == 'acq'
+        assert resp[0][2]['blocking'] == True

@@ -81,14 +81,6 @@ ocs.ocs_twisted
     :undoc-members:
     :show-inheritance:
 
-ocs.ocs_widgets
----------------
-
-.. automodule:: ocs.ocs_widgets
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 ocs.site_config
 ---------------
 

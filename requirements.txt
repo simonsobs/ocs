@@ -3,7 +3,6 @@ twisted
 deprecation
 msgpack
 influxdb
-ipywidgets
 PyYAML
 
 # Lakeshore240

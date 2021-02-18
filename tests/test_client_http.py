@@ -136,3 +136,38 @@ class TestControlClient:
         assert resp[0][0] == 'false_temperatures'
         assert resp[1][0] == 'heartbeat'
         assert resp[0][1]['address'] == 'observatory.fake-data1.feeds.false_temperatures'
+
+    @responses.activate
+    def test_request(self, control_client):
+        """Start just passes"""
+
+        params = {'procedure': control_client.agent_addr + '.ops',
+                  'args': ['start', 'acq', {}], 'kwargs': {}}
+        ex_response = {"args": [[0,
+                                 "Started process \"acq\".",
+                                 {"session_id": 1,
+                                  "op_name": "acq",
+                                  "status": "starting",
+                                  "start_time": 1613604806.6000252,
+                                  "end_time": None,
+                                  "success": None,
+                                  "data":{},
+                                  "messages":[[1613604806.6000252,
+                                               "Status is now \"starting\"."]]}]]}
+
+        responses.add(responses.POST,
+                      url='http://example.com/call',
+                      #url='http://127.0.0.1:8001/call',
+                      body='',
+                      match=[
+                        responses.json_params_matcher(params)
+                      ],
+                      json=ex_response
+        )
+
+        resp = control_client.request(action='start', op_name='acq', params={})
+
+        # Check some simple parts of the response
+        assert resp[0] == 0
+        assert resp[2]['op_name'] == 'acq'
+        assert resp[2]['status'] == 'starting'

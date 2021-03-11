@@ -122,7 +122,8 @@ class Publisher:
             except InfluxDBServerError as err:
                 LOG.error("InfluxDB Server Error: {e}", e=err)
 
-    def format_data(self, data, feed, protocol):
+    @staticmethod
+    def format_data(data, feed, protocol):
         """Format the data from an OCS feed into a dict for pushing to InfluxDB.
 
         The scheme here is as follows:
@@ -163,7 +164,11 @@ class Publisher:
                 if protocol == 'line':
                     fields_line = []
                     for mk, mv in fields.items():
-                        f_line = f"{mk}={mv}"
+                        # Strings must be in quotes for line protocol
+                        if isinstance(mv, str):
+                            f_line = f'{mk}="{mv}"'
+                        else:
+                            f_line = f"{mk}={mv}"
                         if isinstance(mv, int):
                             f_line += "i"
                         fields_line.append(f_line)
@@ -184,7 +189,7 @@ class Publisher:
                         }
                     )
                 else:
-                    self.log.warn(f"Protocol '{protocol}' not supported.")
+                    LOG.warn(f"Protocol '{protocol}' not supported.")
 
         LOG.debug("payload: {p}", p=json_body)
 

@@ -112,7 +112,7 @@ def make_parser(parser=None):
     pgroup = parser.add_argument_group('Agent Options')
     pgroup.add_argument('--initial-state',
                         default='record', choices=['idle', 'record'],
-                        help="Initial state of argument parser. Can be either"
+                        help="Initial state of argument parser. Can be either "
                              "idle or record")
     pgroup.add_argument('--host',
                         default='influxdb',
@@ -126,7 +126,8 @@ def make_parser(parser=None):
     pgroup.add_argument('--protocol',
                         default='line',
                         choices=['json', 'line'],
-                        help="Protocol for writing data. Either 'line' or 'json'.")
+                        help="Protocol for writing data. Either 'line' or "
+                             "'json'.")
     pgroup.add_argument('--gzip',
                         type=bool,
                         default=False,

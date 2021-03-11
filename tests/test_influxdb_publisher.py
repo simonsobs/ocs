@@ -4,8 +4,8 @@ from ocs.agent.influxdb_publisher import Publisher, timestamp2influxtime
 
 
 @pytest.mark.parametrize("t,protocol,expected",
-                         [(1615389657.2904894, 'json', '2021-03-10T10:20:57.290489'),
-                          (1615389657.2904894, 'line', 1615389657290489344)])
+                         [(1615389657.290489, 'json', '2021-03-10T10:20:57.290489'),
+                          (1615389657.290489, 'line', 1615389657290488832)])
 def test_timestamp2influxtime(t, protocol, expected):
     """Test converting timestamps to InfluxDB compatible formats."""
     assert timestamp2influxtime(t, protocol) == expected

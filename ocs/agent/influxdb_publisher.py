@@ -1,7 +1,7 @@
 import time
-import datetime
 import txaio
 
+from datetime import datetime, timezone
 from influxdb import InfluxDBClient
 from influxdb.exceptions import InfluxDBClientError, InfluxDBServerError
 from requests.exceptions import ConnectionError as RequestsConnectionError
@@ -12,7 +12,7 @@ LOG = txaio.make_logger()
 
 
 def timestamp2influxtime(time, protocol):
-    """Convert timestamp for influx
+    """Convert timestamp for influx, always in UTC.
 
     Args:
         time:
@@ -22,7 +22,9 @@ def timestamp2influxtime(time, protocol):
 
     """
     if protocol == 'json':
-        t_dt = datetime.datetime.fromtimestamp(time)
+        t_dt = datetime.fromtimestamp(time)
+        # InfluxDB expects UTC by default
+        t_dt = t_dt.astimezone(tz=timezone.utc)
         influx_t = t_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
     elif protocol == 'line':
         influx_t = int(time*1e9)  # ns

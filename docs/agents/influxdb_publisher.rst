@@ -104,5 +104,5 @@ API
 
 Publisher
 `````````
-.. autoclass:: agents.influxdb_publisher.influxdb_publisher.Publisher
+.. autoclass:: ocs.agent.influxdb_publisher.Publisher
     :members:

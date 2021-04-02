@@ -126,16 +126,13 @@ A simple example of this process can be found in the HWP Simulator Agent:
   if __name__ == '__main__':
 
     # Create an argument parser
-    parser = site_config.add_arguments()
+    parser = argparse.ArgumentParser()
 
     # Tell OCS that the kind of arguments you're adding are for an agent
     pgroup = parser.add_argument_group('Agent Options')
 
-    # Tell OCS to read the arguments
-    args = parser.parse_args()
-
     # Process arguments, choosing the class that matches 'HWPSimulatorAgent'
-    site_config.reparse_args(args, 'HWPSimulatorAgent')
+    args = site_config.parse_args(agent_class='HWPSimulatorAgent', parser=parser)
 
     # Create a session and a runner which communicate over WAMP
     agent, runner = ocs_agent.init_site_agent(args)
@@ -241,13 +238,11 @@ example of a simple Agent.
                                 return False, 'acq is not currently running.'
 
         if __name__ == '__main__':
-                parser = site_config.add_arguments()
+                parser = argparse.ArgumentParser()
 
                 pgroup = parser.add_argument_group('Agent Options')
 
-                args = parser.parse_args()
-
-                site_config.reparse_args(args, 'HWPSimulatorAgent')
+                args = site_config.parse_args(agent_class='HWPSimulatorAgent', parser=parser)
 
                 agent, runnr = ocs_agent.init_site_agent(args)
 

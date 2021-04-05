@@ -1,5 +1,10 @@
 /* AcuAgent UI */
 
+//var acu_POINT = 'point';
+//var acu_BORESIGHT = 'boresight_rotation';
+var acu_POINT = 'go_to';
+var acu_BORESIGHT = 'set_boresight';
+
 function Acu_populate(p, base_id, args) {
     /* See interface definition in monitor_ui.js preamble.
      *
@@ -25,13 +30,13 @@ function Acu_populate(p, base_id, args) {
     var ui1 = new OcsUiHelper(base_id, client);
     ui1.dest($('#' + base_id + '-controls'))
 
-        .task('point')
+        .task(acu_POINT)
         .op_header()
         .text_input('az', 'Azimuth (deg)')
         .text_input('el', 'Elevation (deg)')
         .status_indicator()
 
-        .task('boresight_rotation')
+        .task(acu_BORESIGHT)
         .op_header()
         .text_input('third', 'Value (deg)')
         .status_indicator()
@@ -56,11 +61,17 @@ function Acu_populate(p, base_id, args) {
     // client: option will have default handlers set up.  But anything
     // that needs validation or type conversion of input data must be
     // explicitly assigned liked this.
-    ui1.on('point', 'start', function(data) {
+    ui1.on(acu_POINT, 'start', function(data) {
         var params = {};
         params.az = parseFloat(data.az);
         params.el = parseFloat(data.el);
-        client.start_task('point', params);
+        client.start_task(acu_POINT, params);
+    });
+
+    ui1.on(acu_BORESIGHT, 'start', function(data) {
+        var params = {};
+        params.b = parseFloat(data.third);
+        client.start_task(acu_BORESIGHT, params);
     });
 
     //
@@ -98,7 +109,7 @@ function Acu_populate(p, base_id, args) {
 //
 
     // One handler for the status... this should be canned!
-    $.each(['point', 'boresight_rotation', 'track_fromfile', 'monitor', 'udp_monitor'],
+    $.each([acu_POINT, acu_BORESIGHT, 'track_fromfile', 'monitor', 'udp_monitor'],
            function (idx, op_name) {
                client.add_watcher(op_name, 1., function(op_name, method, stat, msg, session) {
                    ui1.set_status(op_name, session);

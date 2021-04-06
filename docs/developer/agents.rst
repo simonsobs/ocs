@@ -175,9 +175,9 @@ A simple example of this process can be found in the FakeDataAgent:
     # Run the agent
     runner.run(agent, auto_reconnect=True)
 
-
-If desired, ``pgroup`` may also have arguments (see ``LS240_agent`` for an
-example).
+Here we also set the Agent's commandline arguments using the built in Python
+module ``argparse``. For details on how to using ``argparse`` with OCS see
+:ref:`parse_args`.
 
 Example Agent
 -------------

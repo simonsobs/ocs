@@ -103,6 +103,7 @@ The structure of InstanceConfig encoding is described in the
     :members: from_dict
     :noindex:
 
+.. _parse_args:
 
 Agent Site-related Command Line Parameters
 ==========================================

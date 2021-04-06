@@ -6,6 +6,14 @@ to do something useful. Agents can be used to communicate with hardware, or to
 perform functions on preexisting data files. This guide will teach you how to
 write a basic agent that can publish data to a feed.
 
+.. note::
+
+    Throughout this guide we will reference a core ocs Agent, "FakeDataAgent",
+    which generates random data for testing parts of OCS. We will reproduce
+    sections of code here with slight modifications to demonstrate certain
+    features. The full, unmodified, agent code is accessible on `GitHub
+    <https://github.com/simonsobs/ocs/blob/develop/agents/fake_data/fake_data_agent.py>`_.
+
 Basics and Dependencies
 -----------------------
 An Agent is generally written as a Python class, and relies on modules
@@ -32,25 +40,30 @@ agent to register functions in OCS (this will be addressed in more detail in
 the Registration and Running section of this guide). This can be added by 
 including an ``agent`` variable in the function, which we will establish later 
 with an ``ocs_agent`` function. A simple initialization function is given by 
-the ``HWPSimulatorAgent`` class:
+the ``FakeDataAgent`` class:
 
 ::
 
-  def __init__(self, agent, port):
-      self.active = True
-      self.agent = agent
-      self.log = agent.log
-      self.lock = TimeoutLock()
-      self.port = port
-      self.take_data = False
-      self.arduino = HWPSimulator(port = self.port)
+    def __init__(self, agent,
+                 num_channels=2,
+                 sample_rate=10.,
+                 frame_length=60):
+        self.agent = agent
+        self.log = agent.log
+        self.lock = threading.Semaphore()
+        self.job = None
+        self.channel_names = ['channel_%02i' % i for i in range(num_channels)]
+        self.sample_rate = max(1e-6, sample_rate) # #nozeros
 
-      self.initialized = False
-
-      agg_params = {'frame_length':60}
-      self.agent.register_feed('amplitudes', record=True, agg_params=agg_params,
-       buffer_time=1)
-
+        # Register feed
+        agg_params = {
+            'frame_length': frame_length
+        }
+        print('registering')
+        self.agent.register_feed('false_temperatures',
+                                 record=True,
+                                 agg_params=agg_params,
+                                 buffer_time=0.)
 
 The ``agent`` variable provides both the log and the data feed, which are
 important for storing and logging data through OCS. The ``__init__`` function
@@ -67,10 +80,9 @@ usually set to 1.
 
 In some Agents, it is convenient to create a separate class (or even an external
 driver file) to write functions that the Agent class can call, but do not need
-to be included in the OCS-connected Agent directly. In the case of the HWP 
-Simulator agent, a separate HWPSimulator class is written to make a serial 
-connection to the HWP simulator arduino and read data. Other Agents may require 
-more complex helper classes and driver files (see ``LS240_Agent`` for an example).
+to be included in the OCS-connected Agent directly. A good example of this is
+in the `HKAggregatorAgent
+<https://github.com/simonsobs/ocs/blob/develop/ocs/agent/aggregator.py>`.
 
 Generally, a good first step in creating a function is to *lock* the function.
 Locking checks that you are not running multiple functions simultaneously,
@@ -96,10 +108,10 @@ the locking mechanism with an initialization function is written as follows:
                         self.arduino.read()
                 except ValueError:
                         pass
-                print("HWP Simulator initialized")
+                print("Agent initialized")
         # This part is for the record and to allow future calls to proceed, so does not require the lock
         self.initialized = True
-        return True, 'HWP Simulator initialized.'
+        return True, 'Agent initialized.'
 
 
 Registration and Running
@@ -119,140 +131,61 @@ OCS divides the functions that Agents can run into two categories:
   by the user, or perhaps another function. An example of this type of function
   is one that acquires data from a piece of hardware.
 
-A simple example of this process can be found in the HWP Simulator Agent:
+A simple example of this process can be found in the FakeDataAgent:
 
 ::
 
   if __name__ == '__main__':
+    # Start logging
+    txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
     # Create an argument parser
-    parser = argparse.ArgumentParser()
+    parser = add_agent_args()
 
     # Tell OCS that the kind of arguments you're adding are for an agent
     pgroup = parser.add_argument_group('Agent Options')
+    pgroup.add_argument("--port", help="Port connect to device on")
+    pgroup.add_argument("--mode", default="idle", choices=['idle', 'acq'])
 
-    # Process arguments, choosing the class that matches 'HWPSimulatorAgent'
-    args = site_config.parse_args(agent_class='HWPSimulatorAgent', parser=parser)
+    # Process arguments, choosing the class that matches 'FakeDataAgent'
+    args = site_config.parse_args(agent_class='FakeDataAgent', parser=parser)
+
+    # Configure auto-startup based on args.mode
+    startup = False
+    if args.mode == 'acq':
+        startup=True
 
     # Create a session and a runner which communicate over WAMP
     agent, runner = ocs_agent.init_site_agent(args)
 
     # Pass the new agent session to the agent class
-    arduino_agent = HWPSimulatorAgent(agent)
-
-    # Register a task (name, agent_function)
-    agent.register_task('init_arduino', arduino_agent.init_arduino)
+    fdata = FakeDataAgent(agent,
+                          num_channels=args.num_channels,
+                          sample_rate=args.sample_rate,
+                          frame_length=args.frame_length)
 
     # Register a process (name, agent_start_function, agent_end_function)
-    agent.register_process('acq', arduino_agent.start_acq, arduino_agent.stop_acq, startup=True)
+    agent.register_process('acq', fdata.start_acq, fdata.stop_acq,
+                           blocking=True, startup=startup)
+
+    # Register some tasks (name, agent_function)
+    agent.register_task('set_heartbeat', fdata.set_heartbeat_state)
+    agent.register_task('delay_task', fdata.delay_task, blocking=False)
 
     # Run the agent
     runner.run(agent, auto_reconnect=True)
+
 
 If desired, ``pgroup`` may also have arguments (see ``LS240_agent`` for an
 example).
 
 Example Agent
 -------------
-For clarity and completeness, the entire HWP Simulator Agent is included here as an 
+For clarity and completeness, the entire FakeDataAgent is included here as an
 example of a simple Agent.
 
-::
-
-        from ocs import ocs_agent, site_config, client_t
-        import time
-        import threading
-        import serial
-        from ocs.ocs_twisted import TimeoutLock
-        from autobahn.wamp.exception import ApplicationError
-
-        # Helper  class to establish how to read from the Arduino
-        class HWPSimulator:
-                def __init__(self, port='/dev/ttyACM0', baud=9600, timeout=0.1):
-                        self.com = serial.Serial(port=port, baudrate=baud, timeout=timeout)
-
-                def read(self):
-                        try:
-                                data = bytes.decode(self.com.readline()[:-2])
-                                num_data = float(data.split(' ')[1])
-                                return num_data
-                        except Exception as e:
-                                print(e)
-
-         # Agent class with functions for initialization and acquiring data
-         class HWPSimulatorAgent:
-                def __init__(self, agent, port='/dev/ttyACM0'):
-                        self.active = True
-                        self.agent = agent
-                        self.log = agent.log
-                        self.lock = TimeoutLock()
-                        self.port = port
-                        self.take_data = False
-                        self.arduino = HWPSimulator(port=self.port)
-
-                        self.initialized = False
-
-                        agg_params = {'frame_length':60}
-                        self.agent.register_feed('amplitudes', record=True, agg_params=agg_params, buffer_time=1}
-
-                def init_arduino(self):
-                        if self.initialized:
-                                return True, "Already initialized."
-
-                        with self.lock.acquire_timeout(timeout=0, job='init') as acquired:
-                                if not acquired:
-                                        self.log.warn("Could not start init because {} is already running".format(self.lock.job))
-                                        return False, "Could not acquire lock."
-                                try:
-                                        self.arduino.read()
-                                except ValueError:
-                                        pass
-                                print("HWP Simulator Arduino initialized.")
-                        self.initialized = True
-                        return True, "HWP Simulator Arduino initialized."
-
-                def start_acq(self, session, params):
-                        f_sample = params.get('sampling frequency', 2.5)
-                        sleep_time = 1/f_sample - 0.1
-                        if not self.initialized:
-                                self.init_arduino()
-                        with self.lock.acquire_timeout(timeout=0, job='acq') as acquired:
-                                if not acquired:
-                                        self.log.warn("Could not start acq because {} is already running".format(self.lock.job))
-                                        return False, "Could not acquire lock."
-                                session.set_status('running')
-                                self.take_data = True
-                                while self.take_data:
-                                        data = {'timestamp':time.time(), 'block_name':'amps','data':{}}
-                                        data['data']['amplitude'] = self.arduino.read()
-                                        time.sleep(sleep_time)
-                                        self.agent.publish_to_feed('amplitudes',data)
-                                self.agent.feeds['amplitudes'].flush_buffer()
-                        return True, 'Acquisition exited cleanly.'
-
-                def stop_acq(self, session, params=None):
-                        if self.take_data:
-                                self.take_data = False
-                                return True, 'requested to stop taking data.'
-                        else:
-                                return False, 'acq is not currently running.'
-
-        if __name__ == '__main__':
-                parser = argparse.ArgumentParser()
-
-                pgroup = parser.add_argument_group('Agent Options')
-
-                args = site_config.parse_args(agent_class='HWPSimulatorAgent', parser=parser)
-
-                agent, runnr = ocs_agent.init_site_agent(args)
-
-                arduino_agent = HWPSimulatorAgent(agent)
-
-                agent.register_task('init_arduino', arduino_agent.init_arduino)
-                agent.register_process('acq', arduino_agent.start_acq, arduino_agent.stop_acq, startup=True)
-
-                runner.run(agent, auto_reconnect=True)
-
+.. include:: ../../agents/fake_data/fake_data_agent.py
+    :code: python
 
 Configuration
 -------------
@@ -263,7 +196,7 @@ file. To do this, change directories to ``ocs-site-configs/your_institution``.
 Within this directory, you should find a yaml file to establish your OCS
 agents. Within this file, you should find (or create) a dictionary of hosts.
 As an example, we use the registry and aggregator agents, which are
-necessary for taking any data with OCS, as well as the HWP Simulator agent.
+necessary for taking any data with OCS, as well as the FakeDataAgent.
 
 ::
 
@@ -282,10 +215,12 @@ necessary for taking any data with OCS, as well as the HWP Simulator agent.
                            ['--time-per-file', '3600'],
                            ['--data-dir', '/data/']]},
 
-            # HWP Simulator Arduino
-            {'agent-class': 'HWPSimulatorAgent',
-             'instance-id': 'arduino',
-             'arguments': []},
+            # FakeDataAgent
+            {'agent-class': 'FakeDataAgent',
+             'instance-id': 'fake-data1',
+             'arguments': [['--mode', 'acq'],
+                           ['--num-channels', '16'],
+                           ['--sample-rate', '4']]},
         ]
     }
 
@@ -308,20 +243,8 @@ first element of the tuple is the name of the agent class, and the second elemen
 is the path to the Agent file (from the ``socs/agents`` directory). An example 
 of this script is shown below:
 
-::
-
-        import ocs
-        import os
-        root =os.path.abspath(os.path.split(__file__)[0])
-
-        for n,f in [
-                ('Lakeshore372Agent', 'lakeshore372/LS372_agent.py'),
-                ('Lakeshore240Agent', 'lakeshore240/LS240_agent.py'),
-                ('BlueforsAgent', 'bluefors/bluefors_log_tracker.py'),
-                ('HWPSimulatorAgent', 'hwp_sim/hwp_simulator_agent.py')
-        ]:
-            ocs.site_config.register_agent_class(n, os.path.join(root, f))
-
+.. include:: ../../agents/ocs_plugin_standard.py
+    :code: python
 
 Docker
 ------
@@ -337,32 +260,14 @@ your data feed when you run the Agent.
 
 To create a ``Dockerfile``, change directories to the directory containing your 
 Agent file. Within this directory, create a file called ``Dockerfile``. The format 
-of this file is as follows (using the HWP Simulator as an example):
+of this file is as follows (using the as FakeDataAgent an example):
 
-::
-
-        # SOCS HWP Simulator Agent
-        # socs Agent container for interacting with an HWP Simulator arduino
-
-        # Use socs base image
-        FROM socs:latest
-
-        # Set the working directory to registry directory
-        WORKDIR /app/agents/hwp_sim/
-
-        # Copy this agent into the app/agents directory
-        COPY . /app/agents/hwp_sim/
-
-        # Run registry on container startup
-        ENTRYPOINT ["python3", "-u", "hwp_simulator_agent.py"]
-
-        CMD ["--site-hub=ws://crossbar:8001/ws", \
-             "--site-http=http://crossbar:8001/call"]
-
+.. include:: ../../agents/fake_data/Dockerfile
+    :code: Dockerfile
 
 In this case, the ``WORKDIR``, ``COPY``, and ``ENTRYPOINT`` arguments are all set 
 specifically to the correct in-container paths to the directories and files for 
-the HWP Simulator agent. The final ``CMD`` argument provides a default for the 
+the FakeDataAgent. The final ``CMD`` argument provides a default for the
 Crossbar (WAMP) connection. 
 
 To include your new Agent among the services provided by your OCS Docker
@@ -374,13 +279,13 @@ docker will run. You can add your new agent following the example format:
 ::
 
   services:
-    hwp-simulator:
-      image: grumpy.physics.yale.edu/ocs-hwpsimulator-agent:latest
+    fake-data1:
+      image: simonsobs/ocs-fake-data-agent
+      hostname: ocs-docker
       environment:
-          TARGET: hwp-simulator
-          NAME: 'hwp-simulator'
-          DESCRIPTION: "hwp-simulator"
-          FEED: "amplitudes"
+        - LOGLEVEL=info
+      volumes:
+        - ${OCS_CONFIG_DIR}:/config:ro
       logging:
         options:
           max-size: "20m"
@@ -411,7 +316,7 @@ run it from the command line with
 
 ::
 
-        python3 agent_name.py --instance-id=hwp-simulator
+        python3 agent_name.py --instance-id=fake-data1
 
 Here ``--instance-id`` is the same as that given in your ocs-site-configs
 ``default.yaml`` file. The agent will then run until it is manually ended.

@@ -1,4 +1,4 @@
-jupyter
+jupyterlab
 scipy
 
 # Requirements for sotodlib

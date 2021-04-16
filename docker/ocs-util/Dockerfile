@@ -11,5 +11,5 @@ USER ocs:ocs
 ENV JUPYTER_CONFIG_DIR /home/ocs/.jupyter
 COPY --chown=ocs:ocs dot_jupyter /home/ocs/.jupyter
 
-ENTRYPOINT ["jupyter", "notebook"]
+ENTRYPOINT ["jupyter", "lab"]
 CMD ["/data"]

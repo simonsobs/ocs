@@ -11,5 +11,8 @@ USER ocs:ocs
 ENV JUPYTER_CONFIG_DIR /home/ocs/.jupyter
 COPY --chown=ocs:ocs dot_jupyter /home/ocs/.jupyter
 
+ENV JUPYTER_PORT 8880
+EXPOSE 8880/tcp
+
 ENTRYPOINT ["jupyter", "lab"]
 CMD ["/data"]

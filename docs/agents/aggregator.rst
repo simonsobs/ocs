@@ -8,26 +8,11 @@ Aggregator Agent
 
 First Time Setup
 ----------------
-The OCS aggregator agent runs as a user called `ocs`, with a UID of 9000. We
-will setup the same `ocs` user on the host system, as well as an `ocs` group.
-The data written by the aggregator will belong to this user and group::
 
-    $ groupadd -g 9000 ocs
-    $ useradd -u 9000 -g 9000 ocs
-
-Next we need to create the data directory which the aggregator will write files
-to. This can be any directory, however we suggest using ``/data``, and will use
-this in our example::
-
-    $ mkdir /data
-    $ chown 9000:9000 /data
-
-Finally, we should add the current user account to the `ocs` group, replace
-`user` with your current user::
-
-    $ sudo usermod -a -G ocs user
-
-These steps must only be performed once before running the aggregator.
+.. note::
+    Be sure to follow the instructions for :ref:`create_ocs_user` during
+    installation to ensure proper permissions for the Aggregator Agent to write
+    data to disk.
 
 SO3G File Format and Usage
 --------------------------

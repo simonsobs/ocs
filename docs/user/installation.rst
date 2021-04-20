@@ -67,3 +67,33 @@ To install, clone the repository and use pip to install::
     on both the pip3 and setup.py commands.
 
 .. _Docker Compose: https://docs.docker.com/compose/install/
+
+.. _create_ocs_user:
+
+Creating the OCS User
+`````````````````````
+If you plan to run OCS within Docker (the recommended configuration) then you
+should create the `ocs` user on your host system as well. This is the user
+that is used within the Docker containers, and creating it on the host will
+allow Agents that write to disk to write to bind mounted volumes within the
+container.
+
+The OCS user, `ocs`, has a UID of 9000, and a matching group, also called
+`ocs`, with a GID of 9000. To create the group and user run::
+
+    $ groupadd -g 9000 ocs
+    $ useradd -u 9000 -g 9000 ocs
+
+Next we need to create the data directory which the aggregator will write files
+to. This can be any directory, for example, ``/data``, which we will use
+throughout this documentation::
+
+    $ mkdir /data
+    $ chown 9000:9000 /data
+
+Finally, we should add the current user account to the `ocs` group, replace
+`user` with your current user::
+
+    $ sudo usermod -a -G ocs user
+
+These steps must only be performed once.

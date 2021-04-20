@@ -10,14 +10,14 @@ Overview
 ========
 
 In many situations you might want to run OCS clients or view so3g data without 
-having to install the software on your local system. The OCS Util docker is a 
-general purpose utility docker which can be used to easily view data or run 
-ocs clients through a jupyter notebook or a command line interface.
+having to install the software on your local system. The ocs-util container is a 
+general purpose utility docker container which can be used to easily view data
+or run ocs clients through a jupyter notebook or a command line interface.
 
 Setup
 =====
 
-The OCS Util docker can be setup by putting the following entry in your system's
+The ocs-util container can be setup by putting the following entry in your system's
 ``docker-compose.yml`` file::
 
   ocs-util:
@@ -32,8 +32,8 @@ The OCS Util docker can be setup by putting the following entry in your system's
     ports:
       - 8880:8880
 
-Then on docker-compose up, the ocs-util docker will automatically start up a 
-jupyter server on port 8880, with a password "password". To change the port,
+Then on docker-compose up, the ocs-util container will automatically start up a 
+Jupyter Lab server on port 8880, with a password "password". To change the port,
 you can change the ``JUPYTER_PORT`` environment variable, and change the 
 ``ports`` entry to expose your chosen port.
 
@@ -42,6 +42,13 @@ you can change the ``JUPYTER_PORT`` environment variable, and change the
     It is highly recommended that you change ``JUPYTER_PW`` to something other than 
     "password", since access to this notebook will give anyone the opportunity to run 
     arbitrary code from the "ocs" user.
+
+.. note::
+
+    The ``/data/`` directory bind mounted to the container needs proper
+    permissions for the Jupyter Lab server to write files to disk. The server runs
+    as the `ocs` user and by default writes to ``/data``. To ensure proper
+    permissions you should for :ref:`create_ocs_user`.
 
 Usage
 =====

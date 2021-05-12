@@ -60,12 +60,19 @@ The following options can be specified here:
 .. list-table:: Aggregator params
     :widths: 20 20
 
-    * - frame_length
+    * - frame_length (float)
       - Aggregation time (seconds) before frame is written to disk
 
-    * - fresh_time
+    * - fresh_time (float)
       - Time (seconds) before feed is considered "stale", and is removed from
         the HK status frame
+
+    * - exclude_aggregator (bool)
+      - If True, the HK Aggregator will not record this feed to G3.
+
+    * - exclude_influx (bool)
+      - If True, the InfluxPublisher will not publish feed to the influx
+        database.
 
 
 Publishing to a Feed

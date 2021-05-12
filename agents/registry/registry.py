@@ -1,9 +1,12 @@
 from ocs import ocs_agent, site_config
+from ocs.base import OpCode
 import time
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
 from collections import defaultdict
+from ocs.ocs_feed import Feed
 
+from ocs.agent.aggregator import Provider
 
 class RegisteredAgent:
     """
@@ -17,26 +20,37 @@ class RegisteredAgent:
                 is not expired.
             last_updated (float):
                 ctime at which the agent was last updated
+            op_codes (dict):
+                Dictionary of operation codes for each of the agent's
+                operations. For details on what the operation codes mean, see
+                docs from the ``ocs_agent`` module
     """
     def __init__(self):
         self.expired = False
         self.time_expired = None
         self.last_updated = time.time()
+        self.op_codes = {}
 
-    def refresh(self):
+    def refresh(self, op_codes=None):
         self.expired = False
         self.time_expired = None
         self.last_updated = time.time()
 
+        if op_codes:
+            self.op_codes.update(op_codes)
+
     def expire(self):
         self.expired = True
         self.time_expired = time.time()
+        for k in self.op_codes:
+            self.op_codes[k] = OpCode.EXPIRED.value
 
     def encoded(self):
         return {
             'expired': self.expired,
             'time_expired': self.time_expired,
-            'last_updated': self.last_updated
+            'last_updated': self.last_updated,
+            'op_codes': self.op_codes,
         }
 
 
@@ -76,13 +90,20 @@ class Registry:
             options={'match': 'wildcard'}
         )
 
+        agg_params = {
+            'frame_length': 60,
+            'fresh_time': 10,
+        }
+        self.agent.register_feed('agent_operations', record=True,
+                                 agg_params=agg_params, buffer_time=0)
+
     def _register_heartbeat(self, _data):
-        """ 
+        """
             Function that is called whenever a heartbeat is received from an agent.
             It will update that agent in the Registry's registered_agent dict.
         """
-        data, feed = _data
-        self.registered_agents[feed['agent_address']].refresh()
+        op_codes, feed = _data
+        self.registered_agents[feed['agent_address']].refresh(op_codes=op_codes)
 
     @inlineCallbacks
     def main(self, session: ocs_agent.OpSession, params=None):
@@ -94,7 +115,7 @@ class Registry:
             The session.data object for this process will be a dictionary containing
             the encoded RegisteredAgent object for each agent observed during the
             lifetime of the registry. For instance, this might look like
-            
+
             >>> session.data
             {'observatory.aggregator': 
                 {'expired': False,
@@ -119,11 +140,30 @@ class Registry:
 
             for k, agent in self.registered_agents.items():
                 if time.time() - agent.last_updated > self.agent_timeout:
-                    agent.expire() 
+                    agent.expire()
 
             session.data = {
                 k: agent.encoded() for k, agent in self.registered_agents.items()
             }
+
+            for addr, agent in self.registered_agents.items():
+                msg = { 'block_name': addr,
+                        'timestamp': time.time(),
+                        'data': {}}
+                for op_name, op_code in agent.op_codes.items():
+                    field = f'{addr}_{op_name}'
+                    field = field.replace('.', '_')
+                    field = field.replace('-', '_')
+                    field = Provider._enforce_field_name_rules(field)
+                    try:
+                        Feed.verify_data_field_string(field)
+                    except ValueError as e:
+                        self.log.warn(f"Improper field name: {field}\n{e}")
+                        continue
+                    msg['data'][field] = op_code
+                if msg['data']:
+                    self.agent.publish_to_feed('agent_operations', msg)
+
         return True, "Stopped registry main process"
 
     def stop(self, session, params=None):

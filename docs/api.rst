@@ -17,6 +17,8 @@ agent.aggregator
     :undoc-members:
     :show-inheritance:
 
+.. _ocs_base_api:
+
 ocs.base
 --------
 
@@ -37,14 +39,6 @@ ocs.client_t
 ------------
 
 .. automodule:: ocs.client_t
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ocs.client_wampy
-----------------
-
-.. automodule:: ocs.client_wampy
     :members:
     :undoc-members:
     :show-inheritance:
@@ -83,14 +77,6 @@ ocs.ocs_twisted
 ---------------
 
 .. automodule:: ocs.ocs_twisted
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ocs.ocs_widgets
----------------
-
-.. automodule:: ocs.ocs_widgets
     :members:
     :undoc-members:
     :show-inheritance:

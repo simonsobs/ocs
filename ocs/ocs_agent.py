@@ -22,6 +22,7 @@ import os
 from deprecation import deprecated
 from ocs import client_t
 from ocs import ocs_feed
+from ocs.base import OpCode
 
 def init_site_agent(args, address=None):
     """
@@ -178,7 +179,14 @@ class OCSAgent(ApplicationSession):
             if self._heartbeat_on:
                 self.log.debug(' {:.1f} {address} heartbeat '
                                .format(time.time(), address=self.agent_address))
-                self.publish_to_feed("heartbeat", 0, from_reactor=True)
+
+                op_codes = {}
+                for name, session in self.sessions.items():
+                    if session is None:
+                        op_codes[name] = OpCode.NONE.value
+                    else:
+                        op_codes[name] = session.op_code.value
+                self.publish_to_feed("heartbeat", op_codes, from_reactor=True)
 
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0) # Calls the hearbeat every second
@@ -413,15 +421,9 @@ class OCSAgent(ApplicationSession):
                 Determines if feed should be aggregated. At the moment, each agent
                 can have at most one aggregated feed. Defaults to False
             agg_params (dict, optional):
-                Parameters used by the aggregator.
-
-                Params:
-                    **frame_length** (float):
-                        Deterimes the amount of time each G3Frame should be (in seconds).
-                    **fresh_time** (float):
-                        Time (seconds) before feed is considered "stale" and
-                        removed from the HK status frame
-
+                Parameters used by the aggregator and influx publisher.  See
+                the ``ocs.ocs_feed.Feed`` docstring for the full list of
+                aggregator params.
             buffer_time (int, optional):
                 Specifies time that messages should be buffered in seconds.
                 If 0, message will be published immediately.
@@ -739,6 +741,7 @@ class AgentProcess:
 
 SESSION_STATUS_CODES = [None, 'starting', 'running', 'stopping', 'done']
 
+
 class OpSession:
     """
     When a caller requests that an Operation (Process or Task) is
@@ -806,6 +809,22 @@ class OpSession:
                 'success': self.success,
                 'data': self.data,
                 'messages': self.messages}
+
+    @property
+    def op_code(self):
+        """
+        Returns the OpCode for the given session.  This is what will be
+        published to the registry's ``operation_status`` feed.
+        """
+        if self.status is None:
+            return OpCode.NONE
+        elif self.status in ['starting', 'running', 'stopping']:
+            return {'starting': OpCode.STARTING, 'running': OpCode.RUNNING,
+                    'stopping': OpCode.STOPPING}[self.status]
+        elif self.success:
+            return OpCode.SUCCEEDED
+        else:
+            return OpCode.FAILED
 
     def set_status(self, status, timestamp=None, log_status=True):
         """Update the OpSession status and possibly post a message about it.

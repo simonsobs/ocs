@@ -363,10 +363,3 @@ def test_g3_cast():
     for x in incorrect_tests:
         with pytest.raises(TypeError) as e_info:
             g3_cast(x)
-
-# Tests related to #148
-def test_arbitrary_args_to_provider():
-    """Unexpected kwargs should be ignored."""
-    malformed_agg_params = {'not a valid key': 60,
-                            'frame length': 120}
-    provider = Provider('test_provider', 'test_sessid', 3, 1, **malformed_agg_params)

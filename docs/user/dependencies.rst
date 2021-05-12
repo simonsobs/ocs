@@ -23,8 +23,6 @@ the ``requirements.txt`` file. Some of the dependencies are:
 * `crossbar.io`_ - An implementation of a WAMP router.
 * `Autobahn`_ - Provides open-source implementations of WAMP.
 * `twisted`_ - Used with Autobahn for networking.
-* `wampy`_ - A non-asynchronus WAMP library providing RPC and Pub/Sub for
-  Python applications.
 
 Other Dependencies
 ``````````````````
@@ -111,4 +109,3 @@ For examples of possible network configurations see the socs documentation -
 .. _crossbar.io: https://crossbar.io/
 .. _Autobahn: https://crossbar.io/autobahn/
 .. _twisted: https://twistedmatrix.com/trac/
-.. _wampy: https://github.com/noisyboiler/wampy

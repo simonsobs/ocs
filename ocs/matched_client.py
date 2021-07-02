@@ -79,17 +79,17 @@ class MatchedClient:
     """
 
     def __init__(self, instance_id, **kwargs):
-        """MatchedClient __init__ function.
-
+        """
         Args:
             instance_id (str): Instance id for agent to run
             args (list or args object, optional):
                 Takes in the parser arguments for the client.
-                If None, reads from command line.
+                If None, pass an empty list.
                 If list, reads in list elements as arguments.
                 Defaults to None.
 
-        For additional kwargs see site_config.get_control_client.
+        .. note::
+            For additional ``**kwargs`` see site_config.get_control_client.
 
         """
         if kwargs.get('args') is None:

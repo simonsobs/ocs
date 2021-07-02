@@ -92,6 +92,9 @@ class MatchedClient:
         For additional kwargs see site_config.get_control_client.
 
         """
+        if kwargs.get('args') is None:
+            kwargs['args'] = []
+
         self._client = site_config.get_control_client(instance_id, **kwargs)
         self.instance_id = instance_id
 

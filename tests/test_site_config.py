@@ -52,7 +52,7 @@ class TestGetControlClient:
             config = CrossbarConfig.from_dict({})
             assert config.binary == "someplace/bin/crossbar"
 
-        crossbar_not_found = MagicMock()
+        crossbar_not_found = MagicMock(return_value=None)
         with patch("shutil.which", crossbar_not_found), pytest.raises(RuntimeError):
             config = CrossbarConfig.from_dict({})
 

@@ -47,13 +47,13 @@ class TestGetControlClient:
 
     def test_missing_crossbar(self):
         crossbar_found = MagicMock(return_value="someplace/bin/crossbar")
-        with patch("shutils.which", crossbar_found), \
+        with patch("shutil.which", crossbar_found), \
                 patch("os.path.exists", MagicMock(return_value=True)):
             config = CrossbarConfig.from_dict({})
             assert config.binary == "someplace/bin/crossbar"
 
         crossbar_not_found = MagicMock()
-        with patch("shutils.which", crossbar_not_found), pytest.raises(RuntimeError):
+        with patch("shutil.which", crossbar_not_found), pytest.raises(RuntimeError):
             config = CrossbarConfig.from_dict({})
 
         with pytest.raises(FileNotFoundError):

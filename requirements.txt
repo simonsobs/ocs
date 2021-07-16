@@ -1,3 +1,4 @@
+crossbar
 autobahn
 twisted
 deprecation

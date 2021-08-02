@@ -138,10 +138,12 @@ class OCSAgent(ApplicationSession):
                 self.log.info("Stopping session {sess}", sess=session)
                 self.log.debug("session details: {sess}",
                                sess=self.sessions[session].encoded())
-                if session in self.tasks:
-                    yield self.abort(session)
-                elif session in self.processes:
-                    yield self.stop(session)
+                # Only try to stop starting or running sessions
+                if self.sessions[session].status not in ['stopping', 'done']:
+                    if session in self.tasks:
+                        yield self.abort(session)
+                    elif session in self.processes:
+                        yield self.stop(session)
         # Give a second for processes to stop cleanly
         yield dsleep(3)
 

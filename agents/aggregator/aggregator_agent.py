@@ -3,6 +3,8 @@ import queue
 import argparse
 import txaio
 
+from twisted.internet import reactor
+
 from os import environ
 from ocs import ocs_agent, site_config
 from ocs.agent.aggregator import Aggregator
@@ -100,12 +102,18 @@ class AggregatorAgent:
         session.set_status('starting')
         self.aggregate = True
 
-        aggregator = Aggregator(
-            self.incoming_data,
-            self.time_per_file,
-            self.data_dir,
-            session=session
-        )
+        try:
+            aggregator = Aggregator(
+                self.incoming_data,
+                self.time_per_file,
+                self.data_dir,
+                session=session
+            )
+        except PermissionError:
+            self.log.error("Unable to intialize Aggregator due to permission "
+                           "error, stopping twisted reactor")
+            reactor.callFromThread(reactor.stop)
+            return False, "Aggregation not started"
 
         session.set_status('running')
         while self.aggregate:

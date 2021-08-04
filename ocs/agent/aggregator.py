@@ -22,6 +22,8 @@ _g3_list_casts = {
     str: core.G3VectorString, int: core.G3VectorInt, float: core.G3VectorDouble,
 }
 
+LOG = txaio.make_logger()
+
 
 def g3_cast(data, time=False):
     """
@@ -106,7 +108,12 @@ def make_filename(base_dir, make_subdirs=True):
 
     if not os.path.exists(subdir):
         if make_subdirs:
-            os.makedirs(subdir)
+            try:
+                os.makedirs(subdir)
+            except PermissionError as e:
+                LOG.error("Permission error encountered while trying to create "
+                          f"data sub-directory: {e}")
+                raise e
         else:
             raise FileNotFoundError("Subdir {} does not exist"
                                     .format(subdir))

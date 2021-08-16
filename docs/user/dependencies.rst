@@ -32,7 +32,7 @@ Other Dependencies
 * `Docker Compose`_ - CLI tool for running multi-container Docker
   applications.
 
-Crossbar ay be installed via pip if it will be used without Docker; if it
+Crossbar may be installed via pip if it will be used without Docker; if it
 will be used with Docker it does not need to be separately installed.
 
 Operating System

@@ -22,7 +22,6 @@ class OcsbowError(Exception):
 
 def get_parser():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
-    parser = ocs.site_config.add_arguments(parser)
     cmdsubp = parser.add_subparsers(dest='command')
 
     # basic catch-alls
@@ -476,11 +475,9 @@ def print_status(stat):
 
 def main():
     parser = get_parser()
-
-    args = parser.parse_args()
+    args = ocs.site_config.parse_args(agent_class='*host*', parser=parser)
     if args.working_dir is None:
         args.working_dir = os.getcwd()
-    ocs.site_config.reparse_args(args, '*host*')
 
     if args.command == 'config':
         return print_config(args)

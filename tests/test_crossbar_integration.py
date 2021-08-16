@@ -9,12 +9,24 @@ import docker
 import numpy as np
 
 from ocs.matched_client import MatchedClient
-from so3g import hk
+
+try:
+    from so3g import hk
+except ModuleNotFoundError as e:
+    print(f"Unable to import so3g: {e}")
 
 # Set OCS_CONFIG_DIR environment variable
 os.environ['OCS_CONFIG_DIR'] = os.getcwd()
 
 pytest_plugins = ("docker_compose",)
+
+@pytest.mark.dependency(name="so3g")
+def test_so3g_spt3g_import():
+    """Test that we can import so3g. Used to skip tests dependent on
+    this import.
+
+    """
+    import so3g
 
 # Fixture to wait for crossbar server to be available.
 @pytest.fixture(scope="function")
@@ -90,6 +102,7 @@ def test_influxdb_publisher_after_crossbar_restart(wait_for_crossbar):
     """
     pass
 
+@pytest.mark.dependency(depends=["so3g"])
 @pytest.mark.integtest
 def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     """Test that the aggregator reconnects after a crossbar restart and that

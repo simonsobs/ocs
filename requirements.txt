@@ -5,6 +5,9 @@ msgpack
 influxdb
 PyYAML
 
+# FakeDataAgent
+numpy
+
 # Lakeshore240
 pyserial
 

@@ -6,7 +6,7 @@ setup (name = 'ocs',
        description='Observatory Control System',
        package_dir={'ocs': 'ocs'},
        packages=find_packages(include=['ocs', 'ocs.*']),
-       scripts=['bin/ocsbow'],
+       scripts=['bin/ocsbow', 'bin/ocs-client-cli'],
        package_data={'': ['support/*json']}, 
        version=versioneer.get_version(),
        cmdclass=versioneer.get_cmdclass())

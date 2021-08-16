@@ -4,11 +4,25 @@ import pytest
 
 from unittest.mock import patch
 
-import so3g
-from spt3g import core
+try:
+    import so3g
+    from spt3g import core
 
-from ocs.agent.aggregator import Provider, g3_cast, make_filename
+    from ocs.agent.aggregator import Provider, g3_cast, make_filename
+except ModuleNotFoundError as e:
+    print(f"Unable to import either so3g or spt3g: {e}")
 
+
+@pytest.mark.dependency(name="so3g")
+def test_so3g_spt3g_import():
+    """Test that we can import spt3g/so3g. Used to skip tests dependent on
+    these imports.
+
+    """
+    import so3g
+    from spt3g import core
+
+@pytest.mark.dependency(depends=["so3g"])
 def test_passing_float_in_provider_to_frame():
     """Float is the expected type we should be passing.
 
@@ -31,6 +45,7 @@ def test_passing_float_in_provider_to_frame():
 
     provider.to_frame(hksess=sess)
 
+@pytest.mark.dependency(depends=["so3g"])
 def test_passing_float_like_str_in_provider_to_frame():
     """Here we test passing a string amongst ints. This shouldn't make it to
     the aggregator, and instead the Aggregator logs should display an error
@@ -55,6 +70,7 @@ def test_passing_float_like_str_in_provider_to_frame():
 
     provider.to_frame(hksess=sess)
 
+@pytest.mark.dependency(depends=["so3g"])
 def test_passing_non_float_like_str_in_provider_to_frame():
     """Similar to passing a float like str, here we test passing a non-float
     like str. We can't put this into an so3g.IrregBlockDouble(), so this'll fail.
@@ -80,6 +96,7 @@ def test_passing_non_float_like_str_in_provider_to_frame():
 
     provider.to_frame(hksess=sess)
 
+@pytest.mark.dependency(depends=["so3g"])
 def test_sparsely_sampled_block():
     """If a block is sparsely sampled and published, the aggregator was
     including its block_name anyway, even when missing. This test publishes two
@@ -346,6 +363,7 @@ def test_enforced_field_which_becomes_empty():
     assert 'invalid_field_123' in provider.blocks['test'].data.keys()
 
 
+@pytest.mark.dependency(depends=["so3g"])
 def test_g3_cast():
     correct_tests = [
         ([1, 2, 3, 4], core.G3VectorInt),

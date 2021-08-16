@@ -50,6 +50,9 @@ There are also several Python package dependencies, which are listed in the
 
 .. _requirements.txt: requirements.txt
 
+Additionally ``crossbar`` is a required dependency which is not automatically
+installed. It can be installed with pip or run via Docker.
+
 Installation
 ------------
 Clone this repository and install using pip::

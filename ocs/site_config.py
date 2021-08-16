@@ -8,6 +8,7 @@ import yaml
 import argparse
 import collections
 import deprecation
+import errno
 
     
 class SiteConfig:
@@ -134,6 +135,10 @@ class CrossbarConfig:
         self = cls()
         self.parent = parent
         self.binary = data.get('bin', shutil.which('crossbar'))
+        if self.binary is None:
+            raise RuntimeError("Unable to locate crossbar binary")
+        if not os.path.exists(self.binary):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.binary)
         self.cbdir = data.get('config-dir')
         if self.cbdir is None:
             self.cbdir_args = []

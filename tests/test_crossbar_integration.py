@@ -28,6 +28,9 @@ def test_so3g_spt3g_import():
     """
     import so3g
 
+    # Just to prevent flake8 from complaining
+    print(so3g.__file__)
+
 # Fixture to wait for crossbar server to be available.
 @pytest.fixture(scope="function")
 def wait_for_crossbar(function_scoped_container_getter):

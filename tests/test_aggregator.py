@@ -22,6 +22,10 @@ def test_so3g_spt3g_import():
     import so3g
     from spt3g import core
 
+    # Just to avoid flake8 complaining we aren't using these imports
+    print(so3g.__file__)
+    print(core.__file__)
+
 @pytest.mark.dependency(depends=["so3g"])
 def test_passing_float_in_provider_to_frame():
     """Float is the expected type we should be passing.

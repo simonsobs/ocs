@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import sys
 import code
@@ -28,7 +26,6 @@ If you want to query the registry for a list of Agents, run::
 
   %(prog)s scan
 
-----
 """
 
 
@@ -135,6 +132,3 @@ def main(args=None):
         shell(parser, args)
     else:
         parser.error(f"Unknown command '{args.command}'")
-
-if __name__ == '__main__':
-    main()

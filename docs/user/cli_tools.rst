@@ -153,3 +153,18 @@ For information on how to run::
     is meant to only avoid reuploading already pushed data, particularly valuable
     if you need to restart a large upload job. This will be ``.g32influx.db`` in
     the directory you run the script from.
+
+
+ocs-client-cli
+==============
+
+(The output from ``ocs-client-cli --help`` should be rendered here.
+In addition to the options discussed, the script supports the same
+"Site Config Options" that Agents usually support, such as
+``--site-file=...``.  If there are some stray instances of
+``%(prog)s``, imagine ``ocs-client-cli`` in their place.)
+
+.. argparse::
+   :module: ocs.client_cli
+   :func: get_parser
+   :prog: ocs-client-cli

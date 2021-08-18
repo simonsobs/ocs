@@ -1,4 +1,4 @@
-from .base import RET_VALS, OK, ERROR, TIMEOUT
+from .base import OK, ERROR, TIMEOUT, ResponseCode, OpCode
 
 from . import site_config
 

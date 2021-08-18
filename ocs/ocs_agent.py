@@ -630,13 +630,25 @@ class OCSAgent(ApplicationSession):
         session = self.sessions[op_name]
         if session is None:
             return (ocs.OK, 'Idle.', {})
-        ready = True
-        if timeout is None:
-            results = yield session.d
-        elif timeout <= 0:
-            ready = bool(session.d.called)
+
+        # Note that you can't just trust session.d.called to see if
+        # the Op has ended.  For a "non-blocking" Operation
+        # implementation (launched with task.deferLater and runs in
+        # the reactor), the Deferred in session.d fires its first
+        # callback, and sets called=True, when the start() function is
+        # initiated, not when it completes.  Unfortunately this means
+        # we have to trust session.status ... but that should be fine.
+        done = False
+
+        if session.status == 'done' or timeout is None:
+            # Op is either done or we're happy to wait for it
+            yield session.d
+            done = True
+        elif timeout < 0:
+            # Op is running, but don't wait.
+            pass
         else:
-            # Make a timeout...
+            # Op is running, wait for a limited duration.
             td = Deferred()
             reactor.callLater(timeout, td.callback, None)
             dl = DeferredList([session.d, td], fireOnOneCallback=True,
@@ -648,10 +660,12 @@ class OCSAgent(ApplicationSession):
                 td.cancel()
                 e.subFailure.raiseException()
             else:
-                if td.called:
-                    ready = False
-        if ready:
-            return (ocs.OK, 'Operation "%s" just exited.' % op_name, session.encoded())
+                done = (session.status == 'done')
+
+        if done:
+            success_str = {True: 'SUCCEEDED'}.get(session.success, 'FAILED')
+            return (ocs.OK, f'Operation "{op_name}" is currently not running '
+                    + f'({success_str}).', session.encoded())
         else:
             return (ocs.TIMEOUT, 'Operation "%s" still running; wait timed out.' % op_name,
                     session.encoded())

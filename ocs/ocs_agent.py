@@ -745,8 +745,7 @@ SESSION_STATUS_CODES = [None, 'starting', 'running', 'stopping', 'done']
 
 
 class OpSession:
-    """
-    When a caller requests that an Operation (Process or Task) is
+    """When a caller requests that an Operation (Process or Task) is
     started, an OpSession object is created and is associated with
     that run of the Operation.  The Operation codes are given access
     to the OpSession object, and may update the status and post
@@ -758,7 +757,12 @@ class OpSession:
     OpSession must support both these contexts (see, for example,
     add_message).
 
+    Control Clients are given a copy of the latest session information
+    in each response from the Operation API.  The format of that
+    information is described in ``.encoded()``.
+
     The message buffer is purged periodically.
+
     """
     def __init__(self, session_id, op_name, status='starting', log_status=True,
                  app=None, purge_policy=None):
@@ -803,12 +807,54 @@ class OpSession:
         self.purger = task.deferLater(reactor, next_purge_time, self.purge_log)
 
     def encoded(self):
+        """Encode the session data in a dict.  This is the data structure that
+        is returned to Control Clients using the Operation API, as the
+        "session" information.  Note the returned object is a dict
+        with entries described below.
+
+        Returns
+        -------
+        session_id : int
+          A unique identifier for a single session.
+          When an Operation is initiated, a new session object is
+          created and can be distinguished from other times the
+          Operation has been run using this id.
+        op_name : str
+          The OCS Operation name.
+        op_code : int
+          The OpCode, which combines information from status and
+          success; see `ocs.base.ResponseCode`.
+        status : str
+          The Operation run status (e.g. 'starting', 'done', ...).
+          See SESSION_STATUS_CODES.
+        success : int or None
+          If the Operation Session has completed, this is an integer
+          with value 0 (OK), -1 (ERROR), or 1 (TIMEOUT).  Prior to the
+          completion of the operation, the value is NOne.
+        start_time : float
+          The time the Operation Session started, as a unix timestamp.
+        end_time : float or None
+          The time the Operation Session ended, as a unix timestamp.
+          While the Session is still on-going, this is None.
+        data : dict
+          This is an area for the Operation code to store custom
+          information that might be of interest to a Control Client,
+          such as the most recent data readings from a device,
+          structured information about the configuration and progress
+          of the Operation, or diagnostics.
+        messages : list
+          A buffer of messages posted by the Operation.  Each element
+          of the list is a tuple, (timestamp, message) where timestamp
+          is a unix timestamp and message is a string.
+
+        """
         return {'session_id': self.session_id,
                 'op_name': self.op_name,
+                'op_code': self.op_code,
                 'status': self.status,
+                'success': self.success,
                 'start_time': self.start_time,
                 'end_time': self.end_time,
-                'success': self.success,
                 'data': self.data,
                 'messages': self.messages}
 

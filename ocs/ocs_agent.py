@@ -529,7 +529,7 @@ class OCSAgent(ApplicationSession):
     def _handle_task_error(self, *args, **kw):
         try:
             ex, session = args
-            session.success = ocs.ERROR
+            session.success = False
             session.add_message('Crash in thread: %s' % str(ex))
             session.set_status('done')
         except:

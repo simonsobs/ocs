@@ -532,8 +532,12 @@ class OCSAgent(ApplicationSession):
     def _handle_task_error(self, *args, **kw):
         try:
             ex, session = args
+            if ex.check(ParamError):
+                message = 'ERROR: {}'.format(ex.getErrorMessage())
+            else:
+                message = 'CRASH: %s' % str(ex)
+            session.add_message(message)
             session.success = False
-            session.add_message('Crash in thread: %s' % str(ex))
             session.set_status('done')
         except:
             print('Failure to decode _handle_task_error args:',
@@ -574,19 +578,29 @@ class OCSAgent(ApplicationSession):
                 else:
                     return (ocs.ERROR, 'Operation "%s" already in progress.' % op_name,
                             session.encoded())
-            # Mark as started.
-            session = OpSession(self.next_session_id, op_name, app=self)
-            self.next_session_id += 1
-            self.sessions[op_name] = session
 
-            # Get the task/process, prepare to launch.
+            # Get the task/process launch function
             if is_task:
                 op = self.tasks[op_name]
                 msg = 'Started task "%s".' % op_name
             else:
                 op = self.processes[op_name]
                 msg = 'Started process "%s".' % op_name
-                args = (op.launcher, session, params)
+
+            # Pre-process params?
+            if hasattr(op.launcher, '_ocs_prescreen'):
+                try:
+                    handler = ParamHandler(params)
+                    params = handler.batch(op.launcher._ocs_prescreen)
+                except ParamError as err:
+                    return (ocs.ERROR, err.msg, {})
+                except Exception as err:
+                    return (ocs.ERROR, f'CRASH: during param pre-processing: {str(err)}', {})
+
+            # Mark as started.
+            session = OpSession(self.next_session_id, op_name, app=self)
+            self.next_session_id += 1
+            self.sessions[op_name] = session
 
             # Launch differently depending on whether op intends to
             # block or not.
@@ -988,3 +1002,228 @@ class OpSession:
         self.app.log.info('%s:%i %s' % (self.op_name, self.session_id, message))
 
 
+class ParamError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+class ParamHandler:
+    """Helper for Agent Operation codes to extract params.  Supports type
+    checking, has casting, and will raise errors that are
+    automatically added to the session log and propagated to the
+    caller in a useful way.
+
+    There are two ways to use this.  The first and recommended way is
+    to use the @param decorator.  Example::
+
+        from ocs import ocs_agent
+
+        class MyAgent:
+            ...
+
+            @ocs_agent.param('voltage', type=float)
+            @ocs_agent.param('delay_time', default=1., type=float)
+            @ocs_agent.param('other_action', default=None, cast=str)
+            def my_task(self, session, params={}):
+                # (Type checking and default substitution have been done already)
+                voltage = params['voltage']
+                delay_time = params['delay_time']
+                other_action = params['other_action']
+                ...
+
+    When you use the @param decorator, the OCS code can check the
+    parameters immediately when they are received from the client, and
+    immediatley return an error message to the client's start reequest
+    (without even calling the Op start function)::
+
+        OCSReply: ERROR : Param 'delay'=two_seconds is not of required type (<class 'float'>)
+           (no session -- op has never run)
+
+
+    A second possibility is to instantiate a ParamHandler at the start
+    of your Op start function, and use it to extract parameters.
+    Example::
+
+        from ocs import ocs_agent
+
+        class MyAgent:
+            ...
+            def my_task(self, session, params={}):
+                params = ocs_agent.ParamHandler(params)
+                # Mandatory, and cannot be None.
+                voltage = params.get('voltage', type=float)
+                # Optional, defaults to 1.
+                delay_time = params.get('delay_time', default=1., type=float)
+                # Optional, interpret as string, but defaults to None.
+                other_action = params.get('other_action', default=None, cast=str)
+                ...
+
+    In this case, errors will not be immediatley returned to the user,
+    but the Operation will quickly fail, and the error message will
+    show up in the message log::
+
+        OCSReply: OK : Operation "my_task" is currently not running (FAILED).
+          my_task[session=1]; status=done with ERROR 0.115665 s ago, took 0.000864 s
+          messages (4 of 4):
+            1629464204.780 Status is now "starting".
+            1629464204.780 Status is now "running".
+            1629464204.781 ERROR: Param 'delay'=two_seconds is not of required type (<class 'float'>)
+            1629464204.781 Status is now "done".
+          other keys in .session: op_code, data
+
+    """
+    def __init__(self, params):
+        self._params = params
+        self._checked = set()
+
+    def get(self, key, default=ParamError(''), check=None, cast=None, type=None,
+            choices=None, treat_none_as_missing=True):
+        """Retrieve a value from the wrapped params dict, with optional type
+        checking, casting, and validity checks.  If a parameter is
+        found to be missing, or its value not valid, then a ParamError
+        is raised.
+
+        In Agent Op implementatations, the ParamError will be caught
+        by the API wrapper and automatically propagated to the caller.
+        The Operation session will be marked as "done", with
+        success=False.
+
+        This works best if the implementation validates all parameters
+        *before* beginning any Operation activities!
+
+        Args
+        ----
+        key : str
+          The name of the parameter to extract.
+        default : any
+          The value to use if the value is not set.  If this isn't
+          explicitly set, then a missing key causes an error to be
+          raised (see also the treat_none_as_missing arg).
+        check : callable
+          A function that will validate the argument; if the function
+          returns False then a ParamError will be raised.
+        cast : callable
+          A function to run on the value to convert it.  For example
+          cast=str.lower would help convert user argument "Voltage" to
+          value "voltage".
+        type : type
+          Class to which the result will be compared, unless it is
+          ``None``.  Note that if you pass ``type=float``, ``int``
+          values will automatically be cast to ``float`` and accepted
+          as valid.
+        choices : list
+          Acceptable values for the parameter.  This is checked after
+          casting.
+        treat_none_as_missing : bool
+          Determines whether a value of ``None`` for a parameter
+          should be treated in the same way as if the parameter were
+          not set at all.  See notes.
+
+        Returns
+        -------
+        The fully processed value.
+
+        Notes
+        -----
+
+        The default behavior is to treat ``{'param': None}`` as the
+        same as ``{}``; i.e. passing ``None`` as the value for a
+        parameter is the same as leaving the parameter unset.  In both
+        of these cases, unless a ``default=...`` is specified, a
+        ``ParamError`` will be raised.  Note this doesn't preclude you
+        from setting ``default=None``, which would effectively convert
+        ``{}`` to ``{'param': None}``.  If you really need to block
+        ``{}`` while allowing ``{'param': None}`` to be taken at face
+        value, then set ``treat_none_as_missing=False``.
+
+        Note that the type checking and the cast and check functions
+        are only activated if the value (or the substituted default
+        value) is not ``None``.
+
+        """
+        self._checked.add(key)
+        value = self._params.get(key, None)
+        is_unset = value is None and \
+            (treat_none_as_missing or key not in self._params)
+        if is_unset:
+            if isinstance(default, ParamError):
+                raise ParamError(f"Param '{key}' is required and must not be None")
+            value = default
+        if value is not None:
+            if cast is not None:
+                try:
+                    value = cast(value)
+                except:
+                    raise ParamError(f"Param '{key}'={value} could not be cast to {cast}.")
+            if type is not None:
+                # Free cast from int to float.
+                if type is float and isinstance(value, int):
+                    value = float(value)
+                if not isinstance(value, type):
+                    raise ParamError(f"Param '{key}'={value} is not of required type ({type})")
+            if choices is not None:
+                if value not in choices:
+                    raise ParamError(f"Param '{key}'={value} is not in allowed set ({choices})")
+        if check is not None:
+            if not check(value):
+                raise ParamError(f"Param '{key}' failed validity check (see docs?).")
+        return value
+
+    def batch(self, instructions, check_for_strays=True):
+        """
+        Supports the @params decorator ... see code.
+        """
+        params = {}
+        for key, kw in instructions:
+            if key == '_':
+                pass
+            elif key == '_no_check_strays':
+                check_for_strays = False
+            else:
+                params[key] = self.get(key, **kw)
+        if check_for_strays:
+            self.check_for_strays()
+        return params
+
+    def check_for_strays(self, ignore=[]):
+        """Raise a ParamError if there were arguments passed in that have not
+        yet been extracted with .get().  Keys passed in ignore (list)
+        will be ignored regardless.
+
+        """
+        weird_args = [k for k in self._params.keys()
+                      if k not in self._checked and k not in ignore]
+        if len(weird_args):
+            raise ParamError(f"params included unexpected values: {weird_args}")
+
+def param(key, **kwargs):
+    """Decorator for Agent operation functions to assist with checking
+    params prior to actually trying to execute the code.  Example::
+
+      class MyAgent:
+        ...
+        @param('voltage', type=float)
+        @param('delay', default=0., type=float)
+        @inlineCallbacks
+        def set_voltage(self, session, params):
+          ...
+
+    Note the ``@param`` decorators should be all together, and
+    outermost (listed first).  ``@inlineCallbacks``, if in use, should
+    be the last decorator.
+
+    See :class:`ocs.ocs_agent.ParamHandler` for more details.  Note the
+    signature for @param is the same as for :func:`ParamHandler.get`.
+
+    """
+    # Validate the kwargs by passing them to "get" with trivial data.
+    if 'default' in kwargs:
+        ParamHandler({}).get(key, **kwargs)
+    else:
+        ParamHandler({}).get(key, default=None, **kwargs)
+    # Start a cache and append these args to it...
+    def deco(func):
+        if not hasattr(func, '_ocs_prescreen'):
+            setattr(func, '_ocs_prescreen', [])
+        func._ocs_prescreen.append((key, kwargs))
+        return func
+    return deco

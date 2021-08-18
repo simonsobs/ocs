@@ -827,10 +827,10 @@ class OpSession:
         status : str
           The Operation run status (e.g. 'starting', 'done', ...).
           See SESSION_STATUS_CODES.
-        success : int or None
-          If the Operation Session has completed, this is an integer
-          with value 0 (OK), -1 (ERROR), or 1 (TIMEOUT).  Prior to the
-          completion of the operation, the value is NOne.
+        success : bool or None
+          If the Operation Session has completed, this indicates that
+          the Operation was deemed successful.  Prior to the
+          completion of the operation, the value is None.
         start_time : float
           The time the Operation Session started, as a unix timestamp.
         end_time : float or None
@@ -850,7 +850,7 @@ class OpSession:
         """
         return {'session_id': self.session_id,
                 'op_name': self.op_name,
-                'op_code': self.op_code,
+                'op_code': self.op_code.value,
                 'status': self.status,
                 'success': self.success,
                 'start_time': self.start_time,

@@ -272,10 +272,13 @@ class OCSAgent(ApplicationSession):
             return self.start(op_name, params=params)
         if action == 'stop':
             return self.stop(op_name, params=params)
+        if action == 'abort':
+            return self.abort(op_name, params=params)
         if action == 'wait':
             return self.wait(op_name, timeout=timeout)
         if action == 'status':
             return self.status(op_name)
+        return (ocs.ERROR, 'No implementation for "%s"' % op_name, {})
 
     def _gather_sessions(self, parent):
         """Gather the session data for self.tasks or self.sessions, for return
@@ -690,7 +693,7 @@ class OCSAgent(ApplicationSession):
 
           ocs.ERROR: you called a function that does not do anything.
         """
-        return (ocs.ERROR, 'No implementation for operation "%s"' % op_name, {})
+        return (ocs.ERROR, 'No implementation of abort() for operation "%s"' % op_name, {})
 
     def status(self, op_name, params=None):
         """

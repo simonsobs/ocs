@@ -5,6 +5,9 @@ msgpack
 influxdb
 PyYAML
 
+# FakeDataAgent
+numpy
+
 # Lakeshore240
 pyserial
 
@@ -25,3 +28,4 @@ pytest
 pytest-cov
 docker
 pytest-docker-compose
+pytest-dependency

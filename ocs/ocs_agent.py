@@ -832,37 +832,68 @@ class OpSession:
         Returns
         -------
         session_id : int
-          A unique identifier for a single session.
-          When an Operation is initiated, a new session object is
-          created and can be distinguished from other times the
-          Operation has been run using this id.
+          A unique identifier for a single session (a single "run" of
+          the Operation).  When an Operation is initiated, a new
+          session object is created and can be distinguished from
+          other times the Operation has been run using this id.
         op_name : str
           The OCS Operation name.
         op_code : int
           The OpCode, which combines information from status and
-          success; see `ocs.base.ResponseCode`.
+          success; see :class:`ocs.base.ResponseCode`.
         status : str
           The Operation run status (e.g. 'starting', 'done', ...).
-          See SESSION_STATUS_CODES.
+          See :ref:`ocs.ocs_agent.SESSION_STATUS_CODES`.
         success : bool or None
-          If the Operation Session has completed, this indicates that
-          the Operation was deemed successful.  Prior to the
-          completion of the operation, the value is None.
+          If the Operation Session has completed (`status == 'done'`),
+          this indicates that the Operation was deemed successful.
+          Prior to the completion of the operation, the value is None.
+          The value could be False if the Operation reported failure,
+          or if it crashed and failure was marked by the encapsulating
+          OCS code.
         start_time : float
           The time the Operation Session started, as a unix timestamp.
         end_time : float or None
           The time the Operation Session ended, as a unix timestamp.
           While the Session is still on-going, this is None.
         data : dict
+
           This is an area for the Operation code to store custom
-          information that might be of interest to a Control Client,
-          such as the most recent data readings from a device,
-          structured information about the configuration and progress
-          of the Operation, or diagnostics.
+          information that might be of interest to a Control Client
+          (the user), such as the most recent data readings from a
+          device, structured information about the configuration and
+          progress of the Operation, or diagnostics.
+
         messages : list
           A buffer of messages posted by the Operation.  Each element
           of the list is a tuple, (timestamp, message) where timestamp
           is a unix timestamp and message is a string.
+
+        Notes
+        -----
+        This ``data`` field may be used by Agent code to provide data
+        that might be of interest to a user (whether human or
+        automated), such as the most recent readings from a device,
+        structured information about the configuration and progress of
+        the Operation, or diagnostics.
+
+        The structure of the ``data`` entry is not strictly defined,
+        but please observe the following:
+
+        - Document your ``data`` structure in the Operation docstring.
+        - Provide a `timestamp` with the readings, or with each group
+          of readings, so that the consumer can confirm they're
+          recent.
+        - The session data is passed to clients with every API
+          response, so avoid storing a lot of data in there (as a rule
+          of thumb, try to keep it < 100 kB).
+        - Fight the urge to store timestreams (i.e. a history of
+          recent readings) -- try to use data feeds for that.
+        - When data are so useful that they are used by other clients
+          / control scripts to make decisions in automated contexts,
+          then they should also be pushed out to a data feed, so that
+          there is an archive of all variables that were affecting
+          system behavior.
 
         """
         return {'session_id': self.session_id,

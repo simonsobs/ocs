@@ -1,11 +1,14 @@
+.. _session_data:
+
 session.data
 ============
 
 Data Feeds make use of the crossbar Pub/Sub functionality to pass data around
 the network, however, sometimes you might not want to receive all data, just
-the most recent values. For this purpose there is the OpSession data attribute.
-This is per OCS operation location to store recent data of interest to OCS
-Agent users.
+the most recent values. For this purpose there is the ``session.data`` attribute.
+This is a per OCS operation location to store recent data of interest to OCS
+Agent users.  The ``session`` argument passed to each Operation function is an
+object of class :class:`ocs.ocs_agent.OpSession`.
 
 Often this is used to store the most recent values that are queried by the
 Agent, for example the temperature of thermometers on a Lakeshore device. This

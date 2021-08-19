@@ -378,9 +378,11 @@ class HostMaster:
                 session.add_message('... master Process has exited.')
             else:
                 session.add_message('... timed-out waiting for master Process exit!')
-        # Die.
-        self.agent.leave()
-        return True, 'Quitting.'
+
+        # Schedule program exit.
+        reactor.callLater(1., reactor.stop)
+
+        return True, 'This HostMaster should terminate in about 1 second.'
 
 
 class AgentProcessProtocol(protocol.ProcessProtocol):

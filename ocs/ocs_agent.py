@@ -167,8 +167,8 @@ class OCSAgent(ApplicationSession):
         # Register our processes...
         # Register the device interface functions.
         try:
-            yield self.register(self.my_device_handler, self.agent_address + '.ops')
-            yield self.register(self.my_management_handler, self.agent_address)
+            yield self.register(self._ops_handler, self.agent_address + '.ops')
+            yield self.register(self._management_handler, self.agent_address)
         except ApplicationError:
             self.log.error('Failed to register basic handlers @ %s; '
                            'agent probably running already.' % self.agent_address)
@@ -267,7 +267,7 @@ class OCSAgent(ApplicationSession):
             'processes': list(self.processes.keys())
         }
 
-    def my_device_handler(self, action, op_name, params=None, timeout=None):
+    def _ops_handler(self, action, op_name, params=None, timeout=None):
         if action == 'start':
             return self.start(op_name, params=params)
         if action == 'stop':
@@ -288,24 +288,57 @@ class OCSAgent(ApplicationSession):
           parent: either self.tasks or self.processes.
 
         Returns:
-          A list of session data blocks.  Each session block contains
-          at least entries for 'op_name' and 'status'.  In the case
-          that the operation has ever run, it will contain all the
-          stuff from OpSession.encode; otherwise 'no_history' is
-          returned for the status.
+
+          A list of Operation description tuples, one per registered
+          Task or Process.  Each tuple consists of elements `(name,
+          session, op_info)`:
+
+          - `name`: The name of the operation.
+          - `session`: dict with OpSession.encode(() info for the
+            active or most recent session.  If no such session exists
+            the result will have member 'status' set to 'no_history'.
+          - `op_info`: information registered about the operation,
+            such as `op_type`, `docstring` and `blocking`.
 
         """
         result = []
-        for k, v in sorted(parent.items()):
-            session = self.sessions.get(k)
+        for name, op_info in sorted(parent.items()):
+            session = self.sessions.get(name)
             if session is None:
-                session = {'op_name': k, 'status': 'no_history'}
+                session = {'op_name': name, 'status': 'no_history'}
             else:
                 session = session.encoded()
-            result.append((k, session, v.encoded()))
+            result.append((name, session, op_info.encoded()))
         return result
 
-    def my_management_handler(self, q, **kwargs):
+    def _management_handler(self, q, **kwargs):
+        """Get a description of this Agent's API.  This is for adaptive
+        clients (such as MatchedClient) to construct their interfaces.
+
+        Params
+        ------
+        q : string
+          One of 'get_api', 'get_tasks', 'get_processes', 'get_feeds',
+          'get_agent_class'.
+
+        Returns
+        -------
+        api_description : dict
+          If the argument is 'get_api', then a dict with the following
+          entries is returned:
+
+          - 'agent_class': The class name of this agent.
+          - 'feeds': The list of encoded feed information, tuples
+            (feed_name, feed_info).
+          - 'tasks': The list of Task api description info, as
+            returned by :func:`_gather_sessions`.
+          - 'processes': The list of Process api description info, as
+            returned by :func:`_gather_sessions`.
+
+          Passing get_X will return only that subset of the full API.
+          Maybe don't use those.
+
+        """
         if q == 'get_api':
             return {
                 'tasks': self._gather_sessions(self.tasks),
@@ -753,9 +786,11 @@ class AgentTask:
         self.docstring = launcher.__doc__
 
     def encoded(self):
+        """Dict of static info for API self-description."""
         return {
             'blocking': self.blocking,
             'docstring': self.docstring,
+            'op_type': 'task',
         }
 
 class AgentProcess:
@@ -766,9 +801,11 @@ class AgentProcess:
         self.docstring = launcher.__doc__
 
     def encoded(self):
+        """Dict of static info for API self-description."""
         return {
             'blocking': self.blocking,
             'docstring': self.docstring,
+            'op_type': 'process',
         }
 
 

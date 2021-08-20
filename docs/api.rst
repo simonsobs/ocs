@@ -59,6 +59,7 @@ ocs.ocs_agent
 .. automodule:: ocs.ocs_agent
     :members:
     :undoc-members:
+    :private-members:
     :show-inheritance:
 
 .. _ocs_feed_api:

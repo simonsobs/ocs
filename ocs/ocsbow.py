@@ -359,7 +359,13 @@ class HostMasterManager:
                 print('\nWARNING: the expected log dir, %s, does not exist!\n' %
                       log_dir)
         # Most important is the site filename and host alias.
-        hm_script = os.path.join(host.agent_paths[0], 'host_master/host_master.py')
+        for agent_path in host.agent_paths:
+            hm_script = os.path.join(agent_path, 'host_master/host_master.py')
+            if os.path.exists(hm_script):
+                break
+        else:
+            return False, "Could not find host_master.py in the agent_paths!"
+
         print('Launching HostMaster through %s' % hm_script)
         print('Log dir is: %s' % log_dir)
         cmd = [sys.executable, hm_script,

@@ -36,7 +36,22 @@ class ControlClient():
             raise RuntimeError([0,0,0,0,decoded['error'],decoded['args'],decoded['kwargs']])
         return decoded['args'][0]
 
-    # These are API we want to add.
+    def get_api(self, simple=False):
+        """Query the API from the Agent; this includes lists of Processes,
+        Tasks, and Feeds exposed by the agent, and their current
+        session information.
+
+        See :func:`ocs.ocs_agent.OCSAgent._management_handler`
+
+        If simple=True, then return just lists of the op & feed names
+        without accompanying detail.
+
+        """
+        data = self.call(self.agent_addr, 'get_api')
+        if not simple:
+            return data
+        return {k: [_v[0] for _v in v]
+                for k, v in data.items() if isinstance(v, dict)}
 
     def get_tasks(self):
         """

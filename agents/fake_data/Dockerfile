@@ -1,5 +1,5 @@
-# OCS Registry Agent
-# ocs Agent container for running the registry.
+# OCS Fake Data Agent
+# ocs Agent container for generating random data
 
 # Use ocs base image
 FROM ocs:latest
@@ -7,6 +7,7 @@ FROM ocs:latest
 # Set the working directory to registry directory
 WORKDIR /app/ocs/agents/fake_data/
 
+# Copy this agent into the WORKDIR
 COPY . .
 
 # Run registry on container startup

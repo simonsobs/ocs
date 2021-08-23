@@ -140,13 +140,8 @@ if __name__ == '__main__':
     # Start logging
     txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
-    parser = site_config.add_arguments()
-
-    parser = make_parser(parser)
-
-    args = parser.parse_args()
-
-    site_config.reparse_args(args, 'InfluxDBAgent')
+    parser = make_parser()
+    args = site_config.parse_args(agent_class='InfluxDBAgent', parser=parser)
 
     agent, runner = ocs_agent.init_site_agent(args)
 

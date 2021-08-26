@@ -628,9 +628,16 @@ Documentation
 -------------
 
 Documentation is important for users writing OCSClients that can interact with
-your new Agent. You should aim to be a thorough as possible when writing
-documentation for your Agent. Here is a complete example of a well documented
-Task (or Process)::
+your new Agent. When writing a new Agent you must document the Tasks and
+Processes with appropriate docstrings. Additionally a page must be created
+within the docs to describe the Agent and provide other key information such as
+configuration file examples. You should aim to be a thorough as possible when
+writing documentation for your Agent.
+
+Task and Process Documentation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Each Task and Process within an Agent must be accompanied by a docstring. Here
+is a complete example of a well documented Task (or Process)::
 
     def demo(self, session, params=None):
         """demo(arg1=None, arg2=7)
@@ -664,7 +671,7 @@ Task (or Process)::
 Keep reading for more details on what's going on in this example.
 
 Overriding the Method Signature
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```````````````````````````````
 ``session`` and ``params`` are both required parameters when writing an OCS
 Task or Process, but both are hidden from users writing OCSClients. When
 documenting a Task or Process, the method signature should be overridden to
@@ -682,7 +689,7 @@ default values should be put in this documentation. If a parameter is required,
 set the param to ``None`` in the method signature.
 
 Keyword Arguments
-^^^^^^^^^^^^^^^^^
+`````````````````
 Internal to OCS the keyword arguments provided to an OCSClient are passed as a
 `dict` to ``params``. For the benefit of the end user, these keyword arguments
 should be documented in the Agent as if passed as such. So the docstring should
@@ -694,7 +701,7 @@ look like::
                              :func:`socs.agent.lakeshore.LakeshoreClass.the_method`
 
 Examples
-^^^^^^^^
+````````
 Examples should be given using the "Examples" header when it would improve the
 clarity of how to interact with a given Task or Process::
 
@@ -704,7 +711,7 @@ clarity of how to interact with a given Task or Process::
                 client.demo(arg1=False, arg2=5)
 
 session.data
-^^^^^^^^^^^^
+````````````
 The ``session.data`` object structure is left up to the Agent author. As such,
 it needs to be documented so that OCSClient authors know what to expect. If
 your Task or Process makes use of ``session.data``, provide an example of the
@@ -724,3 +731,23 @@ structure under the "Notes" header::
             }
 
 For more details on the ``session.data`` object see :ref:`session_data`.
+
+Agent Reference Pages
+^^^^^^^^^^^^^^^^^^^^^
+Now that you have documented your Agent's Tasks and Processes appropriately we
+need to make the page that will display that documentation. Agent reference
+pages are kept in ``ocs/docs/agents/``. Each Agent has a separate `.rst` file.
+Each Agent reference page must contain:
+
+* Brief description of the Agent
+* Example ocs-site-config configuration block
+* Example docker-compose configuration block (if Agent is dockerized)
+* Agent API reference
+
+Reference pages can also include:
+
+* Detailed description of Agent or related material
+* Example client scripts
+* Supporting APIs
+
+For examples, see the Reference Pages for other existing Agents.

@@ -185,7 +185,7 @@ Here is an example configuration::
 Agent API
 ---------
 .. autoclass:: agents.aggregator.aggregator_agent.AggregatorAgent
-    :members: start_aggregate
+    :members:
 
 Supporting APIs
 ---------------

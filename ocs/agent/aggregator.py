@@ -31,6 +31,7 @@ def g3_cast(data, time=False):
         int   -> G3Int
         str   -> G3String
         float -> G3Double
+
     and lists of type X will go to G3VectorX. If ``time`` is set to True, will
     convert to G3Time or G3VectorTime with the assumption that ``data`` consists
     of unix timestamps.

@@ -158,11 +158,13 @@ For information on how to run::
 ocs-client-cli
 ==============
 
-(The output from ``ocs-client-cli --help`` should be rendered here.
-In addition to the options discussed, the script supports the same
-"Site Config Options" that Agents usually support, such as
-``--site-file=...``.  If there are some stray instances of
-``%(prog)s``, imagine ``ocs-client-cli`` in their place.)
+.. note::
+
+    The output from ``ocs-client-cli --help`` should be rendered here.
+    In addition to the options discussed, the script supports the same
+    "Site Config Options" that Agents usually support, such as
+    ``--site-file=...``.  If there are some stray instances of
+    ``%(prog)s``, imagine ``ocs-client-cli`` in their place.)
 
 .. argparse::
    :module: ocs.client_cli

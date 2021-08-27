@@ -58,6 +58,13 @@ def get_parser():
     p.add_argument('--details', action='store_true', help=
                    "Show the running 'status' of all operations.")
 
+    # scan
+    p = client_sp.add_parser('listen', help=
+                             "Subscribe to feed(s) and dump to stdout.")
+    p.add_argument('feed_selector', help=
+                   "Feed name, which can include wildcard matching (double "
+                   " ..).  E.g., try 'observatory..feeds.heartbeat'")
+
     return parser
 
 # Note there's a similar function to this in ocsbow ... consider
@@ -76,6 +83,32 @@ def get_instance_id(full_address, args):
     prefix = args.address_root + '.'
     assert(full_address.startswith(prefix))
     return full_address[len(prefix):]
+
+def listen(parser, args):
+    from twisted.internet import reactor, defer
+    from autobahn.wamp.types import SubscribeOptions
+    from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
+
+    feeds = args.feed_selector
+    print(f'Subscribing to {feeds}')
+
+    class Listener(ApplicationSession):
+        @defer.inlineCallbacks
+        def onJoin(self, details):
+            topic = feeds
+            options = SubscribeOptions(match='wildcard', details=True)
+            sub = yield self.subscribe(self.on_event, topic, options=options)
+        def on_event(self, msg, details=None):
+            print(f'[{details.topic}] {msg}')
+        def onDisconnect(self):
+            if reactor.running:
+                reactor.stop()
+
+    url = args.site_hub
+    realm = args.site_realm
+    runner = ApplicationRunner(url, realm)
+    runner.run(Listener)
+
 
 def scan(parser, args):
     if args.site_http is None:
@@ -151,5 +184,7 @@ def main(args=None):
         scan(parser, args)
     elif args.command == 'shell':
         shell(parser, args)
+    elif args.command == 'listen':
+        listen(parser, args)
     else:
         parser.error(f"Unknown command '{args.command}'")

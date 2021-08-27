@@ -2,12 +2,21 @@ import argparse
 import sys
 import code
 import readline, rlcompleter
+import re
 
 try:
     import IPython
     use_ipython = True
 except ImportError:
     use_ipython = False
+
+try:
+    from twisted.internet import reactor, defer
+    from autobahn.wamp.types import SubscribeOptions
+    from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
+    use_twisted = True
+except ModuleNotFoundError:
+    use_twisted = False
 
 from ocs.matched_client import MatchedClient
 from ocs import site_config, base
@@ -22,7 +31,8 @@ If you know the instance-id of the Agent you want to talk to, run::
 
   %(prog)s shell INSTANCE_ID
 
-If you want to query the registry for a list of Agents, run::
+If you want to listen to heartbeat feeds to get a list of Agents in
+the system, run::
 
   %(prog)s scan
 
@@ -54,9 +64,11 @@ def get_parser():
 
     # scan
     p = client_sp.add_parser('scan', help=
-                             "Gather and print list of registered Agents.")
+                             "Gather and print list of Agents.")
     p.add_argument('--details', action='store_true', help=
-                   "Show the running 'status' of all operations.")
+                   "List all Operations with their current status OpCode.")
+    p.add_argument('--use-registry', action='store_true', help=
+                   "Query the registry (faster than listening for heartbeats).")
 
     # scan
     p = client_sp.add_parser('listen', help=
@@ -85,10 +97,8 @@ def get_instance_id(full_address, args):
     return full_address[len(prefix):]
 
 def listen(parser, args):
-    from twisted.internet import reactor, defer
-    from autobahn.wamp.types import SubscribeOptions
-    from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
-
+    if not use_twisted:
+        parser.error('The "listen" function requires twisted and autobahn packages.')
     feeds = args.feed_selector
     print(f'Subscribing to {feeds}')
 
@@ -114,24 +124,62 @@ def scan(parser, args):
     if args.site_http is None:
         parser.error('Unable to find the OCS config; set OCS_CONFIG_DIR?')
 
-    reg_addr = args.registry_address
-    if reg_addr is None:
-        reg_addr = 'registry'
-    try:
-        c = MatchedClient(get_instance_id(reg_addr, args), args=args)
-    except RuntimeError as e:
-        parsed, err_name, text = decode_exception(e.args)
-        if parsed and err_name == 'wamp.error.no_such_procedure':
-            parser.error(
-                f'Failed to connect to registry at {reg_addr}; the registry '
-                'must be running for "scan" to work.')
-        else:
-            raise e
+    if args.use_registry:
+        reg_addr = args.registry_address
+        if reg_addr is None:
+            reg_addr = 'registry'
+        try:
+            c = MatchedClient(get_instance_id(reg_addr, args), args=args)
+        except RuntimeError as e:
+            parsed, err_name, text = decode_exception(e.args)
+            if parsed and err_name == 'wamp.error.no_such_procedure':
+                parser.error(
+                    f'Failed to connect to registry at {reg_addr}; the registry '
+                    'must be running for "scan" to work.')
+            else:
+                raise e
+        status = c.main.status()
+        info = status.session['data']
+        adjective = 'Registered'
+
+    else:
+        if not use_twisted:
+            parser.error('The "scan" function requires twisted and autobahn '
+                         'unless --use-registry is passed.')
+        beats = {}
+        class Listener(ApplicationSession):
+            @defer.inlineCallbacks
+            def onJoin(self, details):
+                topic = f'{args.address_root}..feeds.heartbeat'
+                options = SubscribeOptions(match='wildcard', details=True)
+                sub = yield self.subscribe(self.on_event, topic, options=options)
+            def on_event(self, msg, details=None):
+                beats[details.topic] = msg
+            def onDisconnect(self):
+                if reactor.running:
+                    reactor.stop()
+
+        url = args.site_hub
+        realm = args.site_realm
+        runner = ApplicationRunner(url, realm)
+
+        print('Listening to heartbeat feeds for 2 seconds ...')
+        reactor.callLater(2.0, reactor.stop)
+        runner.run(Listener)
+        # Un-log
+        if hasattr(sys, '__stdout__'):
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+
+        # Convert to ressemble registry format.
+        info = {}
+        for k, v in beats.items():
+            instance_id = re.search(f'{args.address_root}.(.*).feeds.heartbeat', k)[1]
+            info[instance_id] = {'op_codes': v[0]}
+        adjective = 'Detected'
 
     # Get agent list.
-    status = c.main.status()
-    info = status.session['data']
-    print(f'List of Registered Agents: ({len(info)})')
+    print(f'List of {adjective} Agents: ({len(info)})')
     for addr, data in info.items():
         try:
             instance_id = get_instance_id(addr, args)

@@ -758,6 +758,18 @@ class AgentProcess:
         }
 
 
+#: These are the valid values for session.status.  Use like this:
+#:
+#: - None: uninitialized.
+#: - ``starting``: the Operation code has been launched and is
+#:   performing basic quick checks in anticipation of moving to the
+#:   (longer term) "running" state.
+#: - ``running``: the Operation code has performed basic quick checks
+#:   and has started to do the requested thing.
+#: - ``stopping``: the Operation code has acknowledged receipt of a
+#:   "stop" or "abort" request.
+#: - ``done``: the Operation has exited, either succesfully or not.
+#:
 SESSION_STATUS_CODES = [None, 'starting', 'running', 'stopping', 'done']
 
 
@@ -840,10 +852,10 @@ class OpSession:
           The OCS Operation name.
         op_code : int
           The OpCode, which combines information from status and
-          success; see :class:`ocs.base.ResponseCode`.
+          success; see :class:`ocs.base.OpCode`.
         status : str
           The Operation run status (e.g. 'starting', 'done', ...).
-          See :ref:`ocs.ocs_agent.SESSION_STATUS_CODES`.
+          See :data:`ocs.ocs_agent.SESSION_STATUS_CODES`.
         success : bool or None
           If the Operation Session has completed (`status == 'done'`),
           this indicates that the Operation was deemed successful.
@@ -857,13 +869,11 @@ class OpSession:
           The time the Operation Session ended, as a unix timestamp.
           While the Session is still on-going, this is None.
         data : dict
-
           This is an area for the Operation code to store custom
           information that might be of interest to a Control Client
           (the user), such as the most recent data readings from a
           device, structured information about the configuration and
           progress of the Operation, or diagnostics.
-
         messages : list
           A buffer of messages posted by the Operation.  Each element
           of the list is a tuple, (timestamp, message) where timestamp

@@ -17,7 +17,7 @@ class ResponseCode(Enum):
 
     #: ERROR indicates that the request could not be propagated fully.
     #: This may occur, for example, if an invalid Operation name is
-    #: passed, if request is made that conflicts with an Operation's
+    #: passed, if a request is made that conflicts with an Operation's
     #: current state (e.g. .start() is called on an already-running
     #: Operation), if an API call is made to a Operation of an
     #: incompatible type (e.g. .stop() on a Task), or due to API
@@ -56,7 +56,7 @@ class OpCode(Enum):
     #: RUNNING indicates that the Operation has performed its basic
     #: initialization and parameter checking and is performing its
     #: task.  Operation codes need to explicitly mark themselves as
-    #: running by calling session.set_state('runnig').
+    #: running by calling session.set_state('running').
     RUNNING = 3
 
     #: STOPPING indicates that the Agent has received a stop or abort

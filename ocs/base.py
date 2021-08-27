@@ -64,7 +64,8 @@ class OpCode(Enum):
     STOPPING = 4
 
     #: SUCCEEDED indicates that the Operation has terminated and has
-    #: indicated the Operation was successful.
+    #: indicated the Operation was successful.  This includes the case
+    #: of a Process that was asked to stop and has shut down cleanly.
     SUCCEEDED = 5
 
     #: FAILED indicates that the Operation has terminated with some

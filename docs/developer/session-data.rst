@@ -144,10 +144,25 @@ is lines 95-100::
 
 
 This block formats the latest values for each "channel" into a dictionary and
-stores it in ``session.data``. The format of the data stored in
-``session.data`` is left to the Agent developer, and should be documented in
-the docstring for the Process. This documentation should include a description
-of what you are including and what that information means.
+stores it in ``session.data``.
+
+
+The structure of the ``data`` entry is not strictly defined, but
+please observe the following guidelines:
+
+- Document your ``data`` structure in the Operation docstring.
+- Provide a `timestamp` with the readings, or with each group of
+  readings, so that the consumer can confirm they're recent.
+- The session data is passed to clients with every API response, so
+  avoid storing a lot of data in there (as a rule of thumb, try to
+  keep it < 100 kB).
+- Fight the urge to store timestreams (i.e. a history of recent
+  readings) -- try to use data feeds for that.
+- When data are so useful that they are used by other clients /
+  control scripts to make decisions in automated contexts, then they
+  should also be pushed out to a data feed, so that there is a full
+  record of all variables that were affecting system behavior.
+
 
 .. note::
     You should consider the desired structure carefully, as future changes the

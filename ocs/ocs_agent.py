@@ -870,10 +870,8 @@ class OpSession:
           While the Session is still on-going, this is None.
         data : dict
           This is an area for the Operation code to store custom
-          information that might be of interest to a Control Client
-          (the user), such as the most recent data readings from a
-          device, structured information about the configuration and
-          progress of the Operation, or diagnostics.
+          information for Control Clients to consume.  See notes
+          below.
         messages : list
           A buffer of messages posted by the Operation.  Each element
           of the list is a tuple, (timestamp, message) where timestamp
@@ -881,29 +879,14 @@ class OpSession:
 
         Notes
         -----
-        This ``data`` field may be used by Agent code to provide data
+        The ``data`` field may be used by Agent code to provide data
         that might be of interest to a user (whether human or
         automated), such as the most recent readings from a device,
         structured information about the configuration and progress of
         the Operation, or diagnostics.
 
-        The structure of the ``data`` entry is not strictly defined,
-        but please observe the following:
-
-        - Document your ``data`` structure in the Operation docstring.
-        - Provide a `timestamp` with the readings, or with each group
-          of readings, so that the consumer can confirm they're
-          recent.
-        - The session data is passed to clients with every API
-          response, so avoid storing a lot of data in there (as a rule
-          of thumb, try to keep it < 100 kB).
-        - Fight the urge to store timestreams (i.e. a history of
-          recent readings) -- try to use data feeds for that.
-        - When data are so useful that they are used by other clients
-          / control scripts to make decisions in automated contexts,
-          then they should also be pushed out to a data feed, so that
-          there is an archive of all variables that were affecting
-          system behavior.
+        Please see developer documentation (:ref:`session_data`) for
+        advice on structuring your Agent session data.
 
         """
         return {'session_id': self.session_id,

@@ -171,10 +171,14 @@ def scan(parser, args):
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__
 
-        # Convert to ressemble registry format.
+        # Convert to resemble registry format.  Originally, heartbeat
+        # data was just the integer 0; then with OpCode it became a
+        # dict mapping op_name -> op_code value.
         info = {}
         for k, v in beats.items():
             instance_id = re.search(f'{args.address_root}.(.*).feeds.heartbeat', k)[1]
+            if not isinstance(v[0], dict):
+                v[0] = {'old_agent_no_opcodes': base.OpCode.EXPIRED}
             info[instance_id] = {'op_codes': v[0]}
         adjective = 'Detected'
 

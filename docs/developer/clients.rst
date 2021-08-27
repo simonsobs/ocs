@@ -190,11 +190,12 @@ Client example would be::
 Replies from Operation methods
 ------------------------------
 
-The responses from Operation methods is a tuple, (status, message,
-session).  The elements of the tuple are:
+The response from Operation methods is a tuple, ``(status, message,
+session)``.  The elements of the tuple are:
 
   ``status``
-    An integer value equal to ocs.OK, ocs.ERROR, or ocs.TIMEOUT.
+    An integer value equal to ocs.OK, ocs.ERROR, or ocs.TIMEOUT (see
+    :class:`ocs.base.ResponseCode`).
 
   ``message``
     A string providing a brief description of the result (this is
@@ -205,8 +206,8 @@ session).  The elements of the tuple are:
     The session information... see below.
 
 Responses obtained from MatchedClient calls are lightly wrapped by
-class ``OCSReply`` so that ``__repr__`` produces a nicely formatted
-description of the result.  For example::
+class :class:`ocs.matched_client.OCSReply` so that ``__repr__``
+produces a nicely formatted description of the result.  For example::
 
   >>> c.set_autoscan.wait()
   OCSReply: OK : Operation "set_autoscan" just exited.
@@ -220,43 +221,16 @@ description of the result.  For example::
 
 
 The ``session`` portion of the reply is dictionary containing a bunch
-of potentially useful information.  This information corresponds to
-the OpSession maintained by the OCSAgent class for each run of an
-Agent's Operation (see OpSession in ocs/ocs_agent.py):
+of potentially useful information, such as timestamps for the
+Operation run's start and end, a success code, and a custom data
+structure populated by the Agent.
 
-  ``'session_id'``
-    An integer identifying this run of the Operation.  If an Op ends
-    and is started again, ``session_id`` will be different.
+The information can be accessed through the OCSReply, for example::
 
-  ``'op_name'``
-    The operation name.  You probably already know this.
+  >>> reply = c.set_autoscan.status()
+  >>> reply.session['start_time']
+  1585667844.423
 
-  ``'status'``
-    A string representing the state of the operation.  The possible
-    values are 'starting', 'running', 'done'.
-
-  ``'start_time'``
-    The timestamp corresponding to when this run was started.
-
-  ``'end_time'``
-    If ``status`` == ``'done'``, then this is the timestamp at which
-    the run completed.  Otherwise it will be None.
-
-  ``'success'``
-    If ``status`` == ``'done'``, then this is a boolean indicating
-    whether the operation reported that it completed successfully
-    (rather than with an error).
-
-  ``'data'``
-    Agent-specific data that might of interest to a user.  This may be
-    updated while an Operation is running, but once ``status`` becomes
-    ``'done'`` then ``data`` should not change any more.  A typical
-    use case here would be for a Process that is monitoring some
-    system to report the current values of key parametrs.  This should
-    not be used as an alternative to providing a data feed... rather
-    it should provide current values to answer immediate questions.
-
-  ``'messages'``
-    A list of Operation log messages.  Each entry in the list is a
-    tuple, (timestamp, text).
-
+For more information on the contents of ``.session``, see the
+docstring for :func:`ocs.ocs_agent.OpSession.encoded`, and the Data
+Access section on :ref:`session_data`.

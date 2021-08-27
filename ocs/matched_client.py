@@ -15,8 +15,8 @@ def get_op(op_type, name, session, encoded, client):
         def start(self, **kwargs):
             return OCSReply(*client.request('start', name, params=kwargs))
 
-        def wait(self):
-            return OCSReply(*client.request('wait', name))
+        def wait(self, timeout=None):
+            return OCSReply(*client.request('wait', name, timeout=timeout))
 
         def status(self):
             return OCSReply(*client.request('status', name))
@@ -122,8 +122,10 @@ def humanized_time(t):
 class OCSReply(collections.namedtuple('_OCSReply',
                                       ['status', 'msg', 'session'])):
     def __repr__(self):
-        ok_str = {ocs.OK: 'OK', ocs.ERROR: 'ERROR',
-                  ocs.TIMEOUT: 'TIMEOUT'}.get(self.status, '???')
+        try:
+            ok_str = ocs.ResponseCode(self.status).name
+        except ValueError:
+            ok_str = '???'
         text = 'OCSReply: %s : %s\n' % (ok_str, self.msg)
         if self.session is None or len(self.session.keys()) == 0:
             return text + '  (no session -- op has never run)'
@@ -143,7 +145,7 @@ class OCSReply(collections.namedtuple('_OCSReply',
                 if s['success']:
                     run_str += ' without error'
                 else:
-                    run_str += ' with error'
+                    run_str += ' with ERROR'
                 run_str += ' %s ago, took %s' % (
                     humanized_time(time.time() - s['end_time']),
                     humanized_time(s['end_time'] - s['start_time']))

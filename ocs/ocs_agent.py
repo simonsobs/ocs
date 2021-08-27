@@ -272,10 +272,13 @@ class OCSAgent(ApplicationSession):
             return self.start(op_name, params=params)
         if action == 'stop':
             return self.stop(op_name, params=params)
+        if action == 'abort':
+            return self.abort(op_name, params=params)
         if action == 'wait':
             return self.wait(op_name, timeout=timeout)
         if action == 'status':
             return self.status(op_name)
+        return (ocs.ERROR, 'No implementation for "%s"' % op_name, {})
 
     def _gather_sessions(self, parent):
         """Gather the session data for self.tasks or self.sessions, for return
@@ -529,7 +532,7 @@ class OCSAgent(ApplicationSession):
     def _handle_task_error(self, *args, **kw):
         try:
             ex, session = args
-            session.success = ocs.ERROR
+            session.success = False
             session.add_message('Crash in thread: %s' % str(ex))
             session.set_status('done')
         except:
@@ -627,13 +630,25 @@ class OCSAgent(ApplicationSession):
         session = self.sessions[op_name]
         if session is None:
             return (ocs.OK, 'Idle.', {})
-        ready = True
-        if timeout is None:
-            results = yield session.d
-        elif timeout <= 0:
-            ready = bool(session.d.called)
+
+        # Note that you can't just trust session.d.called to see if
+        # the Op has ended.  For a "non-blocking" Operation
+        # implementation (launched with task.deferLater and runs in
+        # the reactor), the Deferred in session.d fires its first
+        # callback, and sets called=True, when the start() function is
+        # initiated, not when it completes.  Unfortunately this means
+        # we have to trust session.status ... but that should be fine.
+        done = False
+
+        if session.status == 'done' or timeout is None:
+            # Op is either done or we're happy to wait for it
+            yield session.d
+            done = True
+        elif timeout < 0:
+            # Op is running, but don't wait.
+            pass
         else:
-            # Make a timeout...
+            # Op is running, wait for a limited duration.
             td = Deferred()
             reactor.callLater(timeout, td.callback, None)
             dl = DeferredList([session.d, td], fireOnOneCallback=True,
@@ -645,10 +660,12 @@ class OCSAgent(ApplicationSession):
                 td.cancel()
                 e.subFailure.raiseException()
             else:
-                if td.called:
-                    ready = False
-        if ready:
-            return (ocs.OK, 'Operation "%s" just exited.' % op_name, session.encoded())
+                done = (session.status == 'done')
+
+        if done:
+            success_str = {True: 'SUCCEEDED'}.get(session.success, 'FAILED')
+            return (ocs.OK, f'Operation "{op_name}" is currently not running '
+                    + f'({success_str}).', session.encoded())
         else:
             return (ocs.TIMEOUT, 'Operation "%s" still running; wait timed out.' % op_name,
                     session.encoded())
@@ -690,7 +707,7 @@ class OCSAgent(ApplicationSession):
 
           ocs.ERROR: you called a function that does not do anything.
         """
-        return (ocs.ERROR, 'No implementation for operation "%s"' % op_name, {})
+        return (ocs.ERROR, 'No implementation of abort() for operation "%s"' % op_name, {})
 
     def status(self, op_name, params=None):
         """
@@ -741,12 +758,23 @@ class AgentProcess:
         }
 
 
+#: These are the valid values for session.status.  Use like this:
+#:
+#: - None: uninitialized.
+#: - ``starting``: the Operation code has been launched and is
+#:   performing basic quick checks in anticipation of moving to the
+#:   (longer term) "running" state.
+#: - ``running``: the Operation code has performed basic quick checks
+#:   and has started to do the requested thing.
+#: - ``stopping``: the Operation code has acknowledged receipt of a
+#:   "stop" or "abort" request.
+#: - ``done``: the Operation has exited, either succesfully or not.
+#:
 SESSION_STATUS_CODES = [None, 'starting', 'running', 'stopping', 'done']
 
 
 class OpSession:
-    """
-    When a caller requests that an Operation (Process or Task) is
+    """When a caller requests that an Operation (Process or Task) is
     started, an OpSession object is created and is associated with
     that run of the Operation.  The Operation codes are given access
     to the OpSession object, and may update the status and post
@@ -758,7 +786,12 @@ class OpSession:
     OpSession must support both these contexts (see, for example,
     add_message).
 
+    Control Clients are given a copy of the latest session information
+    in each response from the Operation API.  The format of that
+    information is described in ``.encoded()``.
+
     The message buffer is purged periodically.
+
     """
     def __init__(self, session_id, op_name, status='starting', log_status=True,
                  app=None, purge_policy=None):
@@ -803,12 +836,66 @@ class OpSession:
         self.purger = task.deferLater(reactor, next_purge_time, self.purge_log)
 
     def encoded(self):
+        """Encode the session data in a dict.  This is the data structure that
+        is returned to Control Clients using the Operation API, as the
+        "session" information.  Note the returned object is a dict
+        with entries described below.
+
+        Returns
+        -------
+        session_id : int
+          A unique identifier for a single session (a single "run" of
+          the Operation).  When an Operation is initiated, a new
+          session object is created and can be distinguished from
+          other times the Operation has been run using this id.
+        op_name : str
+          The OCS Operation name.
+        op_code : int
+          The OpCode, which combines information from status and
+          success; see :class:`ocs.base.OpCode`.
+        status : str
+          The Operation run status (e.g. 'starting', 'done', ...).
+          See :data:`ocs.ocs_agent.SESSION_STATUS_CODES`.
+        success : bool or None
+          If the Operation Session has completed (`status == 'done'`),
+          this indicates that the Operation was deemed successful.
+          Prior to the completion of the operation, the value is None.
+          The value could be False if the Operation reported failure,
+          or if it crashed and failure was marked by the encapsulating
+          OCS code.
+        start_time : float
+          The time the Operation Session started, as a unix timestamp.
+        end_time : float or None
+          The time the Operation Session ended, as a unix timestamp.
+          While the Session is still on-going, this is None.
+        data : dict
+          This is an area for the Operation code to store custom
+          information for Control Clients to consume.  See notes
+          below.
+        messages : list
+          A buffer of messages posted by the Operation.  Each element
+          of the list is a tuple, (timestamp, message) where timestamp
+          is a unix timestamp and message is a string.
+
+        Notes
+        -----
+        The ``data`` field may be used by Agent code to provide data
+        that might be of interest to a user (whether human or
+        automated), such as the most recent readings from a device,
+        structured information about the configuration and progress of
+        the Operation, or diagnostics.
+
+        Please see developer documentation (:ref:`session_data`) for
+        advice on structuring your Agent session data.
+
+        """
         return {'session_id': self.session_id,
                 'op_name': self.op_name,
+                'op_code': self.op_code.value,
                 'status': self.status,
+                'success': self.success,
                 'start_time': self.start_time,
                 'end_time': self.end_time,
-                'success': self.success,
                 'data': self.data,
                 'messages': self.messages}
 

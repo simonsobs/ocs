@@ -7,6 +7,11 @@ setup (name = 'ocs',
        package_dir={'ocs': 'ocs'},
        packages=find_packages(include=['ocs', 'ocs.*']),
        scripts=['bin/ocsbow'],
+       entry_points={
+           'console_scripts': [
+               'ocs-client-cli=ocs.client_cli:main',
+               ],
+       },
        package_data={'': ['support/*json']}, 
        version=versioneer.get_version(),
        cmdclass=versioneer.get_cmdclass())

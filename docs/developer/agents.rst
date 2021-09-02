@@ -750,4 +750,10 @@ Reference pages can also include:
 * Example client scripts
 * Supporting APIs
 
-For examples, see the Reference Pages for other existing Agents.
+Here is a template for an Agent documentation page. Text starting with a '#' is
+there to guide you in writing the page and should be replaced or removed.
+Unneeded sections should be removed.
+
+.. include:: ../../example/docs/agent_template.rst
+    :code: rst
+

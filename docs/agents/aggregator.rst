@@ -26,6 +26,54 @@ Dependencies
 The Aggregator Agent depends on both the `spt3g_software`_ and `so3g`_
 packages.
 
+Configuration File Examples
+---------------------------
+
+Below are configuration examples for the ocs config file and for running the
+Agent in a docker container.
+
+ocs-config
+``````````
+The aggregator agent takes three site-config arguments.
+``--initial-state`` can be either ``record`` or ``idle``,
+and determines whether or not the aggregator starts recording
+as soon as it is initialized.
+``--time-per-file`` specifies how long each file should be in seconds,
+and ``--data-dir`` specifies the default data directory.
+Both of these can also be manually specified in ``params`` when
+the ``record`` process is started.
+An example site-config entry is::
+
+    {'agent-class': 'AggregatorAgent',
+       'instance-id': 'aggregator',
+       'arguments': [['--initial-state', 'record'],
+                     ['--time-per-file', '3600'],
+                     ['--data-dir', '/data/hk']
+       ]},
+
+.. note::
+    ``/data/hk`` is used to avoid conflict with other collections of data. In
+    general, it is recommended to use ``/data/timestreams`` to store detector
+    timestreams, and ``/data/pysmurf`` to store archived pysmurf files.
+
+
+Docker
+```````
+The docker image for the aggregator agent is simonsobs/ocs-aggregator-agent
+Here is an example configuration::
+
+    ocs-aggregator:
+        image: simonsobs/ocs-aggregator-agent:latest
+        container_name: ocs-aggregator
+        hostname: ocs-docker
+        user: "9000"
+        environment:
+          - LOGLEVEL=info
+        volumes:
+          - ${OCS_CONFIG_DIR}:/config
+          - /path/to/host/data:/data
+
+
 Description
 -----------
 The job of the HK aggregator is to take data published by "Providers" and write
@@ -133,54 +181,6 @@ each timesample map corresponds to a group of co-sampled data, grouped by their
 :ref:`block name <feed_message_format>`.
 Each G3TimesampleMap contains a G3Vector for each ``field_name`` specified in the
 data and a vector of timestamps.
-
-Configuration File Examples
----------------------------
-
-Below are configuration examples for the ocs config file and for running the
-Agent in a docker container.
-
-ocs-config
-``````````
-The aggregator agent takes three site-config arguments.
-``--initial-state`` can be either ``record`` or ``idle``,
-and determines whether or not the aggregator starts recording
-as soon as it is initialized.
-``--time-per-file`` specifies how long each file should be in seconds,
-and ``--data-dir`` specifies the default data directory.
-Both of these can also be manually specified in ``params`` when
-the ``record`` process is started.
-An example site-config entry is::
-
-    {'agent-class': 'AggregatorAgent',
-       'instance-id': 'aggregator',
-       'arguments': [['--initial-state', 'record'],
-                     ['--time-per-file', '3600'],
-                     ['--data-dir', '/data/hk']
-       ]},
-
-.. note::
-    ``/data/hk`` is used to avoid conflict with other collections of data. In
-    general, it is recommended to use ``/data/timestreams`` to store detector
-    timestreams, and ``/data/pysmurf`` to store archived pysmurf files.
-
-
-Docker
-```````
-The docker image for the aggregator agent is simonsobs/ocs-aggregator-agent
-Here is an example configuration::
-
-    ocs-aggregator:
-        image: simonsobs/ocs-aggregator-agent:latest
-        container_name: ocs-aggregator
-        hostname: ocs-docker
-        user: "9000"
-        environment:
-          - LOGLEVEL=info
-        volumes:
-          - ${OCS_CONFIG_DIR}:/config
-          - /path/to/host/data:/data
-
 
 Agent API
 ---------

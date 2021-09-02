@@ -51,7 +51,7 @@ class FakeDataAgent:
     # Process functions.
 
     @ocs_agent.param('_')  # Reject all params.
-    def start_acq(self, session, params=None):
+    def start_acq(self, session, params):
         """**Process:**  Acquire data and write to the feed.
 
         This Process has no useful parameters.
@@ -157,7 +157,7 @@ class FakeDataAgent:
     # Tasks
     
     @ocs_agent.param('heartbeat', default=True, type=bool)
-    def set_heartbeat_state(self, session, params=None):
+    def set_heartbeat_state(self, session, params):
         """Task to set the state of the agent heartbeat.
 
         Args:
@@ -172,9 +172,9 @@ class FakeDataAgent:
         return True, "Set heartbeat_on: {}".format(heartbeat_state)
 
     @ocs_agent.param('delay', default=5., type=float, check=lambda x: x >= 0)
-    @ocs_agent.param('succeed', default=True)
+    @ocs_agent.param('succeed', default=True, type=bool)
     @inlineCallbacks
-    def delay_task(self, session, params={}):
+    def delay_task(self, session, params):
         """Task that will take the requested number of seconds to complete.
 
         This can run simultaneously with the acq Process.  This Task

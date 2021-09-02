@@ -352,15 +352,15 @@ parameters that are accepted by an Operation start function.
 An example of this can be found in the FakeDataAgent::
 
     @ocs_agent.param('delay', default=5., type=float, check=lambda x: 0 < x < 100)
-    @ocs_agent.param('succeed', default=True)
+    @ocs_agent.param('succeed', default=True, type=bool)
     @inlineCallbacks
-    def delay_task(self, session, params={}):
+    def delay_task(self, session, params):
 
 (Note that ``@inlineCallbacks`` is a Twisted thing that is not part of
 parameter decoration.)
 
 Using decorators is optional, but provides benefits to both the Agent
-developer and to the user on the client side.  For the developer, the
+developer and to the user on the Client side.  For the developer, the
 Operation code (the ``delay_task`` function body) may now assume that:
 
 - ``params['delay']`` is set and contains a float with a value between
@@ -409,7 +409,7 @@ Here are a few more examples of decorator usage:
     @ocs_agent.param('voltage', check=lambda x: 0 <= x <= 24)
 
   *If the data is passed in, it must be an integer.  But if not passed
-  in, default to None.*
+  in, default to None.*::
 
     @ocs_agent.param('repeat', default=None, type=int)
 
@@ -429,7 +429,7 @@ FakeDataAgent ``delay_task``::
 
   def delay_task(self, session, params):
       try:
-          delay = float(delay params.get('delay', 5))
+          delay = float(params.get('delay', 5))
       except ValueError:
           raise ocs_agent.ParamError("Invalid value for parameter 'delay'")
 
@@ -452,7 +452,7 @@ manually.  For example::
 
   def delay_task(self, session, params):
       try:
-          delay = float(delay params.get('delay', 5))
+          delay = float(params.get('delay', 5))
       except ValueError:
           return False, "Invalid value for parameter 'delay'"
 

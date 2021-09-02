@@ -1023,7 +1023,7 @@ class ParamHandler:
             @ocs_agent.param('voltage', type=float)
             @ocs_agent.param('delay_time', default=1., type=float)
             @ocs_agent.param('other_action', default=None, cast=str)
-            def my_task(self, session, params={}):
+            def my_task(self, session, params):
                 # (Type checking and default substitution have been done already)
                 voltage = params['voltage']
                 delay_time = params['delay_time']
@@ -1032,7 +1032,7 @@ class ParamHandler:
 
     When you use the @param decorator, the OCS code can check the
     parameters immediately when they are received from the client, and
-    immediatley return an error message to the client's start reequest
+    immediately return an error message to the client's start request
     (without even calling the Op start function)::
 
         OCSReply: ERROR : Param 'delay'=two_seconds is not of required type (<class 'float'>)
@@ -1047,7 +1047,7 @@ class ParamHandler:
 
         class MyAgent:
             ...
-            def my_task(self, session, params={}):
+            def my_task(self, session, params):
                 params = ocs_agent.ParamHandler(params)
                 # Mandatory, and cannot be None.
                 voltage = params.get('voltage', type=float)
@@ -1082,8 +1082,8 @@ class ParamHandler:
         found to be missing, or its value not valid, then a ParamError
         is raised.
 
-        In Agent Op implementatations, the ParamError will be caught
-        by the API wrapper and automatically propagated to the caller.
+        In Agent Op implementations, the ParamError will be caught by
+        the API wrapper and automatically propagated to the caller.
         The Operation session will be marked as "done", with
         success=False.
 
@@ -1103,8 +1103,8 @@ class ParamHandler:
           returns False then a ParamError will be raised.
         cast : callable
           A function to run on the value to convert it.  For example
-          cast=str.lower would help convert user argument "Voltage" to
-          value "voltage".
+          ``cast=str.lower`` would help convert user argument
+          "Voltage" to value "voltage".
         type : type
           Class to which the result will be compared, unless it is
           ``None``.  Note that if you pass ``type=float``, ``int``
@@ -1135,9 +1135,10 @@ class ParamHandler:
         ``{}`` while allowing ``{'param': None}`` to be taken at face
         value, then set ``treat_none_as_missing=False``.
 
-        Note that the type checking and the cast and check functions
-        are only activated if the value (or the substituted default
-        value) is not ``None``.
+        The cast function, if specified, is applied before the type,
+        choices, and check arguments are processed.  If the value (or
+        the substituted default value) is ``None``, then any specified
+        cast and checks will not be performed.
 
         """
         self._checked.add(key)
@@ -1208,8 +1209,9 @@ def param(key, **kwargs):
           ...
 
     Note the ``@param`` decorators should be all together, and
-    outermost (listed first).  ``@inlineCallbacks``, if in use, should
-    be the last decorator.
+    outermost (listed first).  This is because the current
+    implementation caches data in the decorated function (or
+    generator) directly, and additional decorators will conceal that.
 
     See :class:`ocs.ocs_agent.ParamHandler` for more details.  Note the
     signature for @param is the same as for :func:`ParamHandler.get`.

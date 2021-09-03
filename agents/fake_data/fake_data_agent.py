@@ -49,7 +49,9 @@ class FakeDataAgent:
             self.job = None
 
     # Process functions.
-    def start_acq(self, session, params=None):
+
+    @ocs_agent.param('_')  # Reject all params.
+    def start_acq(self, session, params):
         """**Process:**  Acquire data and write to the feed.
 
         This Process has no useful parameters.
@@ -72,9 +74,6 @@ class FakeDataAgent:
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
         session.set_status('running')
-
-        if params is None:
-            params = {}
 
         T = [.100 for c in self.channel_names]
         block = ocs_feed.Block('temps', self.channel_names)
@@ -157,23 +156,25 @@ class FakeDataAgent:
 
     # Tasks
     
-    def set_heartbeat_state(self, session, params=None):
+    @ocs_agent.param('heartbeat', default=True, type=bool)
+    def set_heartbeat_state(self, session, params):
         """Task to set the state of the agent heartbeat.
 
         Args:
-            heartbeat (bool): True for on, False for off
+            heartbeat (bool): True for on (the default), False for off
 
         """
-        # Default to on, which is what we generally want to be true
-        heartbeat_state = params.get('heartbeat', True)
+        heartbeat_state = params['heartbeat']
 
         self.agent._heartbeat_on = heartbeat_state
         self.log.info("Setting heartbeat_on: {}...".format(heartbeat_state))
 
         return True, "Set heartbeat_on: {}".format(heartbeat_state)
 
+    @ocs_agent.param('delay', default=5., type=float, check=lambda x: x >= 0)
+    @ocs_agent.param('succeed', default=True, type=bool)
     @inlineCallbacks
-    def delay_task(self, session, params={}):
+    def delay_task(self, session, params):
         """Task that will take the requested number of seconds to complete.
 
         This can run simultaneously with the acq Process.  This Task
@@ -192,11 +193,12 @@ class FakeDataAgent:
                 Defaults to True.
 
         """
-        session.set_status('running')
-        delay = params.get('delay', 5)
+        delay = params['delay']
+        succeed = params['succeed'] is True
+
         session.data = {'requested_delay': delay,
                         'delay_so_far': 0}
-        succeed = params.get('succeed', True) is True
+        session.set_status('running')
         t0 = time.time()
         while True:
             session.data['delay_so_far'] = time.time() - t0

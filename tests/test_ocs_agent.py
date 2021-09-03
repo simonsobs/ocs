@@ -20,6 +20,16 @@ def tfunc(session, a):
     Path('./test.txt').touch()
     return True, 'words'
 
+def tfunc_raise(session, a):
+    """Test function to call as a mocked OCS Task.
+
+    This currently makes a file, as I wanted to see some external effect easily
+    to know if the function ran while figuring out the twisted interaction.
+
+    """
+    raise Exception('look an error')
+    return tfunc(session, a)
+
 @pytest.fixture
 def mock_agent():
     """Test fixture to setup a mocked OCSAgent.
@@ -179,21 +189,80 @@ def test_start_unregistered_task(mock_agent):
     assert res[2] == {}
 
 @pytest_twisted.inlineCallbacks
-def test_agent_wait(mock_agent):
-    # insert a task into the Agent
-    # TODO make 'test' an AgentTask (or maybe just call a.register_task()?
-    #a.tasks = {'test_task': 'test'}
+def test_wait(mock_agent):
+    """Test an OCSAgent.wait() call on a short task that completes."""
     mock_agent.register_task('test_task', tfunc)
-    #a.agent_address = 'test.address'
     mock_agent.start('test_task')
-    assert mock_agent.next_session_id == 1
-    print(mock_agent.sessions['test_task'].encoded())
-    # This is the deferred we get from threads.deferToThread -- we don't
-    # actually wait for a respons here in this test...
-    # TODO: do we want to do that? how would we do that?
-    print(mock_agent.sessions['test_task'].d)
-    #res = yield a.sessions['test_task'].d
-    #print('result:', res)
-    print(mock_agent.wait('test_task'))
     res = yield mock_agent.wait('test_task')
     print('result:', res)
+    assert res[0] == 0
+    assert res[1] == 'Operation "test_task" is currently not running (SUCCEEDED).'
+    assert res[2]['session_id'] == 0
+    assert res[2]['op_name'] == 'test_task'
+    assert res[2]['op_code'] == 5
+    assert res[2]['status'] == 'done'
+    assert res[2]['success'] is True
+    assert res[2]['end_time'] > res[2]['start_time']
+    assert res[2]['data'] == {}
+
+@pytest_twisted.inlineCallbacks
+def test_wait_unregistered_task(mock_agent):
+    """Test an OCSAgent.wait() call on an unregistered task."""
+    res = yield mock_agent.wait('test_task')
+    print('result:', res)
+    assert res[0] == -1
+    assert res[1] == 'Unknown operation "test_task".'
+    assert res[2] == {}
+
+@pytest_twisted.inlineCallbacks
+def test_wait_idle(mock_agent):
+    """Test an OCSAgent.wait() call on an idle task with no session."""
+    mock_agent.register_task('test_task', tfunc)
+    res = yield mock_agent.wait('test_task')
+    print('result:', res)
+    assert res[0] == 0
+    assert res[1] == 'Idle.'
+    assert res[2] == {}
+
+@pytest_twisted.inlineCallbacks
+def test_wait_expired_timeout(mock_agent):
+    """Test an OCSAgent.wait() call with an already expired timeout."""
+    mock_agent.register_task('test_task', tfunc)
+    mock_agent.start('test_task')
+    res = yield mock_agent.wait('test_task', timeout=-1)
+    print('result:', res)
+    assert res[0] == 1
+    assert res[1] == 'Operation "test_task" still running; wait timed out.'
+    assert res[2]['session_id'] == 0
+    assert res[2]['op_name'] == 'test_task'
+    assert res[2]['op_code'] == 2
+    assert res[2]['status'] == 'starting'
+    assert res[2]['success'] is None
+    assert res[2]['end_time'] is None
+    assert res[2]['data'] == {}
+
+@pytest_twisted.inlineCallbacks
+def test_wait_timeout(mock_agent):
+    """Test an OCSAgent.wait() call with a timeout."""
+    mock_agent.register_task('test_task', tfunc)
+    mock_agent.start('test_task')
+    res = yield mock_agent.wait('test_task', timeout=1)
+    print('result:', res)
+    assert res[0] == 0
+    assert res[1] == 'Operation "test_task" is currently not running (SUCCEEDED).'
+    assert res[2]['session_id'] == 0
+    assert res[2]['op_name'] == 'test_task'
+    assert res[2]['op_code'] == 5
+    assert res[2]['status'] == 'done'
+    assert res[2]['success'] is True
+    assert res[2]['end_time'] > res[2]['start_time']
+    assert res[2]['data'] == {}
+
+@pytest_twisted.inlineCallbacks
+def test_wait_timeout_w_error(mock_agent):
+    """Test an OCSAgent.wait() call with a timeout where an error is raised."""
+    mock_agent.register_task('test_task', tfunc_raise)
+    mock_agent.start('test_task')
+    res = yield mock_agent.wait('test_task', timeout=1)
+    print('result:', res)
+    # Hmm, I thought maybe this would hit the except FirstErorr as e line, but it doesn't.

@@ -1,6 +1,7 @@
 from ocs.ocs_agent import OCSAgent, AgentTask, AgentProcess
 
 from unittest.mock import MagicMock
+from twisted.internet.defer import Deferred
 
 import pytest
 import pytest_twisted
@@ -15,6 +16,7 @@ def tfunc(session, a):
 
     """
     print(a)
+    print("print from tfunc")
     Path('./test.txt').touch()
     return True, 'words'
 
@@ -75,18 +77,106 @@ def test_register_process_w_startup(mock_agent):
     print(mock_agent.startup_ops)
     assert mock_agent.startup_ops == [('process', 'test_process', True)]
 
-def test_agent_start(mock_agent):
-    # insert a task into the Agent
-    # TODO make 'test' an AgentTask (or maybe just call a.register_task()?
-    #a.tasks = {'test_task': 'test'}
+def test_start_task(mock_agent):
+    """Test a typical task that is blocking and already not running."""
     mock_agent.register_task('test_task', tfunc)
-    #a.agent_address = 'test.address'
-    qq = mock_agent.start('test_task')
-    assert mock_agent.next_session_id == 1
-    print(mock_agent.sessions['test_task'].encoded())
-    print(mock_agent.sessions['test_task'].d)
-    print('look', qq)
-    #print('result:', res)
+    res = mock_agent.start('test_task', params={'a': 1})
+    # The Deferred we get from launching
+    # mock_agent.sessions['test_task'].d
+    print(res)
+    assert res[0] == 0
+    assert res[1] == 'Started task "test_task".'
+    assert res[2]['session_id'] == 0
+    assert res[2]['op_name'] == 'test_task'
+    assert res[2]['op_code'] == 2
+    assert res[2]['status'] == 'starting'
+    assert res[2]['success'] is None
+    assert res[2]['end_time'] is None
+    assert res[2]['data'] == {}
+
+def test_start_process(mock_agent):
+    """Test a typical process that is blocking and already not running."""
+    mock_agent.register_process('test_process', tfunc, tfunc)
+    res = mock_agent.start('test_process', params={'a': 1})
+    print(res)
+    assert res[0] == 0
+    assert res[1] == 'Started process "test_process".'
+    assert res[2]['session_id'] == 0
+    assert res[2]['op_name'] == 'test_process'
+    assert res[2]['op_code'] == 2
+    assert res[2]['status'] == 'starting'
+    assert res[2]['success'] is None
+    assert res[2]['end_time'] is None
+    assert res[2]['data'] == {}
+
+def test_start_nonblocking_task(mock_agent):
+    """Test a typical task that is non-blocking and already not running."""
+    mock_agent.register_task('test_task', tfunc, blocking=False)
+    res = mock_agent.start('test_task', params={'a': 1})
+    # The Deferred we get from launching
+    # mock_agent.sessions['test_task'].d
+    print(res)
+    assert res[0] == 0
+    assert res[1] == 'Started task "test_task".'
+    assert res[2]['session_id'] == 0
+    assert res[2]['op_name'] == 'test_task'
+    assert res[2]['op_code'] == 2
+    assert res[2]['status'] == 'starting'
+    assert res[2]['success'] is None
+    assert res[2]['end_time'] is None
+    assert res[2]['data'] == {}
+
+def test_start_task_done_status(mock_agent):
+    """Test a task that's already marked as 'done'. In this case, we expect
+    output to match test_start(), so the same asserts are made.
+
+    """
+    mock_agent.register_task('test_task', tfunc)
+
+    # set session to 'done'
+    mock_session = MagicMock()
+    mock_session.status = 'done'
+    mock_agent.sessions['test_task'] = mock_session
+
+    res = mock_agent.start('test_task', params={'a': 1})
+    print(res)
+    assert res[0] == 0
+    assert res[1] == 'Started task "test_task".'
+    assert res[2]['session_id'] == 0
+    assert res[2]['op_name'] == 'test_task'
+    assert res[2]['op_code'] == 2
+    assert res[2]['status'] == 'starting'
+    assert res[2]['success'] is None
+    assert res[2]['end_time'] is None
+    assert res[2]['data'] == {}
+
+def test_start_task_other_status(mock_agent):
+    """Test a task that's already marked as 'running'. In this case, we expect
+    an error.
+
+    Not sure we particularly care about the encoded session, so we just use a
+    Mock session.
+
+    """
+    mock_agent.register_task('test_task', tfunc)
+
+    # set session to 'running'
+    mock_session = MagicMock()
+    mock_session.status = 'running'
+    mock_agent.sessions['test_task'] = mock_session
+
+    res = mock_agent.start('test_task', params={'a': 1})
+    print(res)
+    assert res[0] == -1
+    assert res[1] == 'Operation "test_task" already in progress.'
+
+def test_start_unregistered_task(mock_agent):
+    """Test a task that's not registered."""
+    res = mock_agent.start('test_task', params={'a': 1})
+    print(res)
+    assert res[0] == -1
+    assert res[1] == 'No task or process called "test_task"'
+    assert res[2] == {}
 
 @pytest_twisted.inlineCallbacks
 def test_agent_wait(mock_agent):

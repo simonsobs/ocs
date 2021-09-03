@@ -377,7 +377,7 @@ class OCSAgent(ApplicationSession):
                                             blocking=blocking)
         self.sessions[name] = None
         if startup is not False:
-            self.startup_ops.append(('task', name, startup))
+            self.startup_ops.append(('process', name, startup))
 
     @inlineCallbacks
     def call_op(self, agent_address, op_name, action, params=None, timeout=None):

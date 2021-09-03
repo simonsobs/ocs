@@ -1,4 +1,4 @@
-from ocs.ocs_agent import OCSAgent, AgentTask
+from ocs.ocs_agent import OCSAgent, AgentTask, AgentProcess
 
 from unittest.mock import MagicMock
 
@@ -53,7 +53,27 @@ def test_register_task_w_startup(mock_agent):
     assert mock_agent.startup_ops == [('task', 'test_task', True)]
 
 def test_register_process(mock_agent):
-    pass
+    """Registered processes should show up in the Agent processes and sessions
+    dicts.
+
+    """
+    mock_agent.register_process('test_process', tfunc, tfunc)
+
+    assert 'test_process' in mock_agent.processes
+    assert isinstance(mock_agent.processes['test_process'], AgentProcess)
+
+    assert 'test_process' in mock_agent.sessions
+    assert mock_agent.sessions['test_process'] is None
+
+def test_register_process_w_startup(mock_agent):
+    """Registering a task that should run on startup should place the task in
+    the Agents startup_ops list.
+
+    """
+    mock_agent.register_process('test_process', tfunc, tfunc, startup=True)
+
+    print(mock_agent.startup_ops)
+    assert mock_agent.startup_ops == [('process', 'test_process', True)]
 
 def test_agent_start(mock_agent):
     # insert a task into the Agent

@@ -266,3 +266,12 @@ def test_wait_timeout_w_error(mock_agent):
     res = yield mock_agent.wait('test_task', timeout=1)
     print('result:', res)
     # Hmm, I thought maybe this would hit the except FirstErorr as e line, but it doesn't.
+
+def test_abort(mock_agent):
+    """Test an OCSAgent.abort() call."""
+    mock_agent.register_task('test_task', tfunc)
+    res = mock_agent.abort('test_task')
+    print('result:', res)
+    assert res[0] == -1
+    assert res[1] == 'No implementation of abort() for operation "test_task"'
+    assert res[2] == {}

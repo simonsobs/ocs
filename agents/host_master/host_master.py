@@ -191,20 +191,22 @@ class HostMaster:
                     addressable[key]['target_state'] = state
 
     @inlineCallbacks
-    def master_process(self, session, params=None):
-        """The "master" Process maintains a list of child Agents for which it
-        is responsible.  In response to requests from a client, the
-        Proces will launch or terminate child Agents.
+    def master(self, session, params=None):
+        """master(params=None)
+
+        **Process** - The "master" Process maintains a list of child Agents for
+        which it is responsible.  In response to requests from a client, the
+        Process will launch or terminate child Agents.
 
         If an Agent process exits unexpectedly, it will be relaunched
         within a few seconds.
 
-        When the master_process receives a Process stop request, it
-        will terminate all child agents before moving to the 'done'
-        state.
+        When the master Process receives a stop request, it will terminate all
+        child agents before moving to the 'done' state.
 
-        The ``params`` dictionary is passed directly to
-        _update_target_states(); see that docstream.
+        Parameters:
+            params (dict): Passed directly to ``_update_target_states()``; see
+                           :func:`HostMaster._update_target_states`.
 
         """
         self.running = True
@@ -334,20 +336,23 @@ class HostMaster:
             yield dsleep(max(sleep_time, .001))
         return True, 'Exited.'
 
-    def master_process_stop(self, session, params=None):
+    def _stop_master(self, session, params=None):
         if session.status == 'done':
             return
         session.set_status('stopping')
         self.running = False
         return True, 'Stop initiated.'
 
-    def update_task(self, session, params=None):
-        """Update the master process' child Agent parameters.
+    def update(self, session, params=None):
+        """update(params=None)
+
+        **Task** - Update the master process' child Agent parameters.
 
         This Task will fail if the master Process is not running.
 
-        The ``params`` dictionary is passed directly to
-        _update_target_states(); see that docstream.
+        Parameters:
+            params (dict): Passed directly to ``_update_target_states()``; see
+                           :func:`HostMaster._update_target_states`.
 
         """
         if not self.running:
@@ -434,11 +439,11 @@ if __name__ == '__main__':
 
     startup_params = {'requests': [('all', args.initial_state)]}
     agent.register_process('master',
-                           host_master.master_process,
-                           host_master.master_process_stop,
+                           host_master.master,
+                           host_master._stop_master,
                            blocking=False,
                            startup=startup_params)
-    agent.register_task('update', host_master.update_task, blocking=False)
+    agent.register_task('update', host_master.update, blocking=False)
     agent.register_task('die', host_master.die, blocking=False)
     runner.run(agent, auto_reconnect=True)
 

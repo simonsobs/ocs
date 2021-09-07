@@ -15,9 +15,10 @@ def tfunc(session, a):
     to know if the function ran while figuring out the twisted interaction.
 
     """
-    print(a)
-    print("print from tfunc")
-    Path('./test.txt').touch()
+    #print(a)
+    #print("print from tfunc")
+    #Path('./test.txt').touch()
+    pass
     return True, 'words'
 
 def tfunc_raise(session, a):
@@ -41,6 +42,7 @@ def mock_agent():
     a = OCSAgent(mock_config, mock_site_args, address='test.address')
     return a
 
+# Registration
 def test_register_task(mock_agent):
     """Registered tasks should show up in the Agent tasks and sessions
     dicts.
@@ -87,6 +89,7 @@ def test_register_process_w_startup(mock_agent):
     print(mock_agent.startup_ops)
     assert mock_agent.startup_ops == [('process', 'test_process', True)]
 
+# Start
 def test_start_task(mock_agent):
     """Test a typical task that is blocking and already not running."""
     mock_agent.register_task('test_task', tfunc)
@@ -188,6 +191,7 @@ def test_start_unregistered_task(mock_agent):
     assert res[1] == 'No task or process called "test_task"'
     assert res[2] == {}
 
+# Wait
 @pytest_twisted.inlineCallbacks
 def test_wait(mock_agent):
     """Test an OCSAgent.wait() call on a short task that completes."""
@@ -267,6 +271,58 @@ def test_wait_timeout_w_error(mock_agent):
     print('result:', res)
     # Hmm, I thought maybe this would hit the except FirstErorr as e line, but it doesn't.
 
+
+# Stop
+def test_stop_task(mock_agent):
+    """Tasks don't support stop, we should get an error if we try to stop a
+    Task.
+
+    """
+    mock_agent.register_task('test_task', tfunc)
+    res = mock_agent.stop('test_task')
+    print('result:', res)
+    assert res[0] == -1
+    assert res[1] == 'No implementation for "test_task" because it is a task.'
+    assert res[2] == {}
+
+
+def test_stop_unregistered_process(mock_agent):
+    """Trying to stop an unregistered process to return an error."""
+    res = mock_agent.stop('test_process')
+    print('result:', res)
+    assert res[0] == -1
+    assert res[1] == 'No process called "test_process".'
+    assert res[2] == {}
+
+
+def test_stop_process(mock_agent):
+    """Testing stop process with expected behavior."""
+    mock_agent.register_process('test_process', tfunc, tfunc)
+    res = mock_agent.start('test_process', params={'a': 1})
+    res = mock_agent.stop('test_process')
+    print('result:', res)
+    assert res[0] == 0
+    assert res[1] == 'Requested stop on process "test_process".'
+    assert res[2]['session_id'] == 0
+    assert res[2]['op_name'] == 'test_process'
+    assert res[2]['op_code'] == 2
+    assert res[2]['status'] == 'starting'
+    assert res[2]['success'] is None
+    assert res[2]['end_time'] is None
+    assert res[2]['data'] == {}
+
+
+def test_stop_process_no_session(mock_agent):
+    """Stopping a process with no active session should return an error."""
+    mock_agent.register_process('test_process', tfunc, tfunc)
+    res = mock_agent.stop('test_process')
+    print('result:', res)
+    assert res[0] == -1
+    assert res[1] == 'No session active.'
+    assert res[2] == {}
+
+
+# Abort
 def test_abort(mock_agent):
     """Test an OCSAgent.abort() call."""
     mock_agent.register_task('test_task', tfunc)

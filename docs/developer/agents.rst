@@ -641,6 +641,7 @@ is a complete example of a well documented Task (or Process)::
 
     def demo(self, session, params=None):
         """demo(arg1=None, arg2=7)
+
         **Task** (or **Process**) - An example task docstring for illustration purposes.
 
         Parameters:

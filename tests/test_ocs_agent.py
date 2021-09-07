@@ -1,35 +1,29 @@
 from ocs.ocs_agent import OCSAgent, AgentTask, AgentProcess
 
 from unittest.mock import MagicMock
-from twisted.internet.defer import Deferred
 
 import pytest
 import pytest_twisted
 
-from pathlib import Path
 
 def tfunc(session, a):
-    """Test function to call as a mocked OCS Task.
-
-    This currently makes a file, as I wanted to see some external effect easily
-    to know if the function ran while figuring out the twisted interaction.
+    """Test function to call as a mocked OCS Task. We double it as the start
+    and stop methods for test Processes too.
 
     """
-    #print(a)
-    #print("print from tfunc")
-    #Path('./test.txt').touch()
-    pass
-    return True, 'words'
+    # These were useful in debugging twisted interactions
+    # They're annoying when actually running tests though, as pytest can't
+    # suppress the prints
+    # print(a)
+    # print("print from tfunc")
+    return True, 'Task completed successfully'
+
 
 def tfunc_raise(session, a):
-    """Test function to call as a mocked OCS Task.
-
-    This currently makes a file, as I wanted to see some external effect easily
-    to know if the function ran while figuring out the twisted interaction.
-
-    """
-    raise Exception('look an error')
+    """Test Task that tries to raise an exception."""
+    raise Exception('Look! An error!')
     return tfunc(session, a)
+
 
 @pytest.fixture
 def mock_agent():
@@ -41,6 +35,7 @@ def mock_agent():
     mock_site_args.log_dir = "./"
     a = OCSAgent(mock_config, mock_site_args, address='test.address')
     return a
+
 
 # Registration
 def test_register_task(mock_agent):
@@ -56,6 +51,7 @@ def test_register_task(mock_agent):
     assert 'test_task' in mock_agent.sessions
     assert mock_agent.sessions['test_task'] is None
 
+
 def test_register_task_w_startup(mock_agent):
     """Registering a task that should run on startup should place the task in
     the Agents startup_ops list.
@@ -65,6 +61,7 @@ def test_register_task_w_startup(mock_agent):
 
     print(mock_agent.startup_ops)
     assert mock_agent.startup_ops == [('task', 'test_task', True)]
+
 
 def test_register_process(mock_agent):
     """Registered processes should show up in the Agent processes and sessions
@@ -79,6 +76,7 @@ def test_register_process(mock_agent):
     assert 'test_process' in mock_agent.sessions
     assert mock_agent.sessions['test_process'] is None
 
+
 def test_register_process_w_startup(mock_agent):
     """Registering a task that should run on startup should place the task in
     the Agents startup_ops list.
@@ -88,6 +86,7 @@ def test_register_process_w_startup(mock_agent):
 
     print(mock_agent.startup_ops)
     assert mock_agent.startup_ops == [('process', 'test_process', True)]
+
 
 # Start
 def test_start_task(mock_agent):
@@ -107,6 +106,7 @@ def test_start_task(mock_agent):
     assert res[2]['end_time'] is None
     assert res[2]['data'] == {}
 
+
 def test_start_process(mock_agent):
     """Test a typical process that is blocking and already not running."""
     mock_agent.register_process('test_process', tfunc, tfunc)
@@ -121,6 +121,7 @@ def test_start_process(mock_agent):
     assert res[2]['success'] is None
     assert res[2]['end_time'] is None
     assert res[2]['data'] == {}
+
 
 def test_start_nonblocking_task(mock_agent):
     """Test a typical task that is non-blocking and already not running."""
@@ -138,6 +139,7 @@ def test_start_nonblocking_task(mock_agent):
     assert res[2]['success'] is None
     assert res[2]['end_time'] is None
     assert res[2]['data'] == {}
+
 
 def test_start_task_done_status(mock_agent):
     """Test a task that's already marked as 'done'. In this case, we expect
@@ -163,6 +165,7 @@ def test_start_task_done_status(mock_agent):
     assert res[2]['end_time'] is None
     assert res[2]['data'] == {}
 
+
 def test_start_task_other_status(mock_agent):
     """Test a task that's already marked as 'running'. In this case, we expect
     an error.
@@ -183,6 +186,7 @@ def test_start_task_other_status(mock_agent):
     assert res[0] == -1
     assert res[1] == 'Operation "test_task" already in progress.'
 
+
 def test_start_unregistered_task(mock_agent):
     """Test a task that's not registered."""
     res = mock_agent.start('test_task', params={'a': 1})
@@ -190,6 +194,7 @@ def test_start_unregistered_task(mock_agent):
     assert res[0] == -1
     assert res[1] == 'No task or process called "test_task"'
     assert res[2] == {}
+
 
 # Wait
 @pytest_twisted.inlineCallbacks
@@ -209,6 +214,7 @@ def test_wait(mock_agent):
     assert res[2]['end_time'] > res[2]['start_time']
     assert res[2]['data'] == {}
 
+
 @pytest_twisted.inlineCallbacks
 def test_wait_unregistered_task(mock_agent):
     """Test an OCSAgent.wait() call on an unregistered task."""
@@ -217,6 +223,7 @@ def test_wait_unregistered_task(mock_agent):
     assert res[0] == -1
     assert res[1] == 'Unknown operation "test_task".'
     assert res[2] == {}
+
 
 @pytest_twisted.inlineCallbacks
 def test_wait_idle(mock_agent):
@@ -227,6 +234,7 @@ def test_wait_idle(mock_agent):
     assert res[0] == 0
     assert res[1] == 'Idle.'
     assert res[2] == {}
+
 
 @pytest_twisted.inlineCallbacks
 def test_wait_expired_timeout(mock_agent):
@@ -245,6 +253,7 @@ def test_wait_expired_timeout(mock_agent):
     assert res[2]['end_time'] is None
     assert res[2]['data'] == {}
 
+
 @pytest_twisted.inlineCallbacks
 def test_wait_timeout(mock_agent):
     """Test an OCSAgent.wait() call with a timeout."""
@@ -262,6 +271,7 @@ def test_wait_timeout(mock_agent):
     assert res[2]['end_time'] > res[2]['start_time']
     assert res[2]['data'] == {}
 
+
 @pytest_twisted.inlineCallbacks
 def test_wait_timeout_w_error(mock_agent):
     """Test an OCSAgent.wait() call with a timeout where an error is raised."""
@@ -269,7 +279,8 @@ def test_wait_timeout_w_error(mock_agent):
     mock_agent.start('test_task')
     res = yield mock_agent.wait('test_task', timeout=1)
     print('result:', res)
-    # Hmm, I thought maybe this would hit the except FirstErorr as e line, but it doesn't.
+    # Hmm, I thought maybe this would hit the except FirstErorr as e line, but
+    # it doesn't.
 
 
 # Stop

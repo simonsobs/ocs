@@ -331,3 +331,46 @@ def test_abort(mock_agent):
     assert res[0] == -1
     assert res[1] == 'No implementation of abort() for operation "test_task"'
     assert res[2] == {}
+
+
+# Status
+def test_status(mock_agent):
+    """Normally status will return OK, a message about the session, and the
+    encoded session object.
+
+    """
+    mock_agent.register_task('test_task', tfunc)
+    mock_agent.start('test_task')
+    res = mock_agent.status('test_task')
+    print('result:', res)
+    assert res[0] == 0
+    assert res[1] == 'Session active.'
+    assert res[2]['session_id'] == 0
+    assert res[2]['op_name'] == 'test_task'
+    assert res[2]['op_code'] == 2
+    assert res[2]['status'] == 'starting'
+    assert res[2]['success'] is None
+    assert res[2]['end_time'] is None
+    assert res[2]['data'] == {}
+
+
+def test_status_unregistered_task(mock_agent):
+    """Requesting the status of an unregistered task should return an error."""
+    res = mock_agent.status('test_task')
+    print('result:', res)
+    assert res[0] == -1
+    assert res[1] == 'No task or process called "test_task"'
+    assert res[2] == {}
+
+
+def test_status_no_session(mock_agent):
+    """Requesting the status of a task/process without a session returns OK,
+    but with an informative message.
+
+    """
+    mock_agent.register_task('test_task', tfunc)
+    res = mock_agent.status('test_task')
+    print('result:', res)
+    assert res[0] == 0
+    assert res[1] == 'No session active.'
+    assert res[2] == {}

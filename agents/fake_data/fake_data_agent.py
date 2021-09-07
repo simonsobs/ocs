@@ -51,24 +51,25 @@ class FakeDataAgent:
     # Process functions.
 
     @ocs_agent.param('_')  # Reject all params.
-    def start_acq(self, session, params):
-        """**Process:**  Acquire data and write to the feed.
+    def acq(self, session, params):
+        """acq()
 
-        This Process has no useful parameters.
+        **Process** - Acquire data and write to the feed.
 
-        The most recent fake values are stored in the session.data object in
-        the format::
+        Notes:
+            The most recent fake values are stored in the session.data object in
+            the format::
 
-            {"fields":
-                {"channel_00": 0.10250430068515494,
-                 "channel_01": 0.08550903376216404,
-                 "channel_02": 0.10481891991693446,
-                 "channel_03": 0.10793263271024509},
-             "timestamp":1600448753.9288929}
+                {"fields":
+                    {"channel_00": 0.10250430068515494,
+                     "channel_01": 0.08550903376216404,
+                     "channel_02": 0.10481891991693446,
+                     "channel_03": 0.10793263271024509},
+                 "timestamp":1600448753.9288929}
 
-        The channels kept in fields are the 'faked' data, in a similar
-        structure to the Lakeshore agents. 'timestamp' is the lastest time these values
-        were updated.
+            The channels kept in fields are the 'faked' data, in a similar
+            structure to the Lakeshore agents. 'timestamp' is the lastest time these values
+            were updated.
 
         """
         ok, msg = self.try_set_job('acq')
@@ -145,7 +146,7 @@ class FakeDataAgent:
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
 
-    def stop_acq(self, session, params=None):
+    def _stop_acq(self, session, params=None):
         ok = False
         with self.lock:
             if self.job =='acq':
@@ -157,8 +158,10 @@ class FakeDataAgent:
     # Tasks
     
     @ocs_agent.param('heartbeat', default=True, type=bool)
-    def set_heartbeat_state(self, session, params):
-        """Task to set the state of the agent heartbeat.
+    def set_heartbeat(self, session, params):
+        """set_heartbeat(heartbeat=True)
+
+        **Task** -  Set the state of the agent heartbeat.
 
         Args:
             heartbeat (bool): True for on (the default), False for off
@@ -175,22 +178,26 @@ class FakeDataAgent:
     @ocs_agent.param('succeed', default=True, type=bool)
     @inlineCallbacks
     def delay_task(self, session, params):
-        """Task that will take the requested number of seconds to complete.
+        """delay_task(delay=5, succeed=True)
+
+        **Task** - Sleep (delay) for the requested number of seconds.
 
         This can run simultaneously with the acq Process.  This Task
         should run in the reactor thread.
-
-        The session data will be updated with the requested delay as
-        well as the time elapsed so far, for example::
-
-            {'requested_delay': 5.,
-             'delay_so_far': 1.2}
 
         Args:
             delay (float): Time to wait before returning, in seconds.
                 Defaults to 5.
             succeed (bool): Whether to return success or not.
                 Defaults to True.
+
+        Notes:
+            The session data will be updated with the requested delay as
+            well as the time elapsed so far, for example::
+
+                >>> session.data
+                {'requested_delay': 5.,
+                 'delay_so_far': 1.2}
 
         """
         delay = params['delay']
@@ -242,9 +249,9 @@ if __name__ == '__main__':
                           num_channels=args.num_channels,
                           sample_rate=args.sample_rate,
                           frame_length=args.frame_length)
-    agent.register_process('acq', fdata.start_acq, fdata.stop_acq,
+    agent.register_process('acq', fdata.acq, fdata._stop_acq,
                            blocking=True, startup=startup)
-    agent.register_task('set_heartbeat', fdata.set_heartbeat_state)
+    agent.register_task('set_heartbeat', fdata.set_heartbeat)
     agent.register_task('delay_task', fdata.delay_task, blocking=False)
 
     runner.run(agent, auto_reconnect=True)

@@ -6,9 +6,6 @@ The Fake Data Agent is provided with OCS to help demonstrate and debug issues
 with data aggregation and display. It will generate random data and pass it to
 an OCS feed.
 
-Command-line / site config args
--------------------------------
-
 .. argparse::
    :module: agents.fake_data.fake_data_agent
    :func: add_agent_args
@@ -16,7 +13,8 @@ Command-line / site config args
 
 Configuration File Examples
 ---------------------------
-Below are configuration examples for the ocs config file and for running the Agent in a docker container.
+Below are configuration examples for the ocs config file and for running the
+Agent in a docker container.
 
 ocs-config
 ``````````
@@ -36,7 +34,7 @@ The Fake Data Agent can also be run in a Docker container. An example
 docker-compose service configuration is shown here::
 
     fake-data1:
-        image: simonsobs/ocs-fake-data-agent
+        image: simonsobs/ocs-fake-data-agent:latest
         hostname: ocs-docker
         environment:
           - LOGLEVEL=info
@@ -45,8 +43,8 @@ docker-compose service configuration is shown here::
         command:
           - "--instance-id=fake-data1"
 
-Agent Operations
-----------------
+Agent API
+---------
 
 .. autoclass:: agents.fake_data.fake_data_agent.FakeDataAgent
     :members:

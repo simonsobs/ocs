@@ -23,7 +23,8 @@ Agent in a docker container. Also included is an example for setting up
 Grafana to display data from InfluxDB.
 
 OCS Site Config
-`````````````````
+```````````````
+
 Add an InfluxDBAgent to your OCS configuration file::
 
       {'agent-class': 'InfluxDBAgent',
@@ -37,10 +38,11 @@ Add an InfluxDBAgent to your OCS configuration file::
 
 Docker Compose
 ``````````````
+
 Add the InfluxDB Publisher Agent container to your docker-compose file::
 
   ocs-influxdb-publisher:
-    image: simonsobs/ocs-influxdb-publisher-agent
+    image: simonsobs/ocs-influxdb-publisher-agent:latest
     hostname: ocs-docker
     volumes:
       - ${OCS_CONFIG_DIR}:/config:ro

@@ -13,11 +13,13 @@ an OCS feed.
 
 Configuration File Examples
 ---------------------------
+
 Below are configuration examples for the ocs config file and for running the
 Agent in a docker container.
 
-ocs-config
-``````````
+OCS Site Config
+```````````````
+
 To configure the Fake Data Agent we need to add a FakeDataAgent block to our
 ocs configuration file. Here is an example configuration block using all of the
 available arguments::
@@ -28,8 +30,9 @@ available arguments::
                    ['--num-channels', '16'],
                    ['--sample-rate', '4']]},
 
-Docker
-``````
+Docker Compose
+``````````````
+
 The Fake Data Agent can also be run in a Docker container. An example
 docker-compose service configuration is shown here::
 

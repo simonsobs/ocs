@@ -32,8 +32,9 @@ Configuration File Examples
 Below are configuration examples for the ocs config file and for running the
 Agent in a docker container.
 
-ocs-config
-``````````
+OCS Site Config
+```````````````
+
 The aggregator agent takes three site-config arguments.
 ``--initial-state`` can be either ``record`` or ``idle``,
 and determines whether or not the aggregator starts recording
@@ -57,8 +58,9 @@ An example site-config entry is::
     timestreams, and ``/data/pysmurf`` to store archived pysmurf files.
 
 
-Docker
-```````
+Docker Compose
+``````````````
+
 The docker image for the aggregator agent is simonsobs/ocs-aggregator-agent
 Here is an example configuration::
 

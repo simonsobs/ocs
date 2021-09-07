@@ -25,8 +25,8 @@ Configuration File Examples
 Below are configuration examples for the ocs config file and for running the
 Agent in a docker container.
 
-ocs-config
-``````````
+OCS Site Config
+````````````````
 
 An example site-config-file block::
 
@@ -36,8 +36,8 @@ An example site-config-file block::
                      ['--argument-2', 42],
                      ['--argument-3']]},
 
-Docker
-```````
+Docker Compose
+``````````````
 
 An example docker-compose configuration::
 

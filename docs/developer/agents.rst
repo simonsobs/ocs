@@ -674,7 +674,7 @@ Keep reading for more details on what's going on in this example.
 Overriding the Method Signature
 ```````````````````````````````
 ``session`` and ``params`` are both required parameters when writing an OCS
-Task or Process, but both are hidden from users writing OCSClients. When
+Task or Process, but both should be hidden from users writing OCSClients. When
 documenting a Task or Process, the method signature should be overridden to
 remove both ``session`` and ``params``, and to include any parameters your Task
 or Process might take. This is done in the first line of the docstring, by
@@ -703,7 +703,7 @@ look like::
 
 Examples
 ````````
-Examples should be given using the "Examples" header when it would improve the
+Examples should be given using the "Examples" heading when it would improve the
 clarity of how to interact with a given Task or Process::
 
         Examples:
@@ -716,7 +716,7 @@ session.data
 The ``session.data`` object structure is left up to the Agent author. As such,
 it needs to be documented so that OCSClient authors know what to expect. If
 your Task or Process makes use of ``session.data``, provide an example of the
-structure under the "Notes" header::
+structure under the "Notes" heading::
 
     Notes:
         An example of the session data::
@@ -737,8 +737,9 @@ Agent Reference Pages
 ^^^^^^^^^^^^^^^^^^^^^
 Now that you have documented your Agent's Tasks and Processes appropriately we
 need to make the page that will display that documentation. Agent reference
-pages are kept in ``ocs/docs/agents/``. Each Agent has a separate `.rst` file.
-Each Agent reference page must contain:
+pages are kept in `ocs/docs/agents/
+<https://github.com/simonsobs/ocs/tree/develop/docs/agents>`_. Each Agent has a
+separate `.rst` file.  Each Agent reference page must contain:
 
 * Brief description of the Agent
 * Example ocs-site-config configuration block

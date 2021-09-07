@@ -164,7 +164,7 @@ class FakeDataAgent:
         **Task** -  Set the state of the agent heartbeat.
 
         Args:
-            heartbeat (bool): True for on (the default), False for off
+            heartbeat (bool, optional): True for on (the default), False for off
 
         """
         heartbeat_state = params['heartbeat']
@@ -186,9 +186,9 @@ class FakeDataAgent:
         should run in the reactor thread.
 
         Args:
-            delay (float): Time to wait before returning, in seconds.
+            delay (float, optional): Time to wait before returning, in seconds.
                 Defaults to 5.
-            succeed (bool): Whether to return success or not.
+            succeed (bool, optional): Whether to return success or not.
                 Defaults to True.
 
         Notes:

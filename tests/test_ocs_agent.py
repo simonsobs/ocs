@@ -65,6 +65,29 @@ def test_register_task_w_startup(mock_agent):
     assert mock_agent.startup_ops == [('task', 'test_task', True)]
 
 
+def test_register_task_wo_startup(mock_agent):
+    """Registering a task that should not run on startup should leave the
+    startup_ops list empty.
+
+    """
+    mock_agent.register_task('test_task', tfunc, startup=False)
+
+    print(mock_agent.startup_ops)
+    assert mock_agent.startup_ops == []
+
+
+def test_register_task_w_startup_dict(mock_agent):
+    """Registering a task that should run on startup and passing a dict to
+    startup, should place the task in the Agent's startup_ops list with that
+    dict.
+
+    """
+    mock_agent.register_task('test_task', tfunc, startup={'arg1': 12})
+
+    print(mock_agent.startup_ops)
+    assert mock_agent.startup_ops == [('task', 'test_task', {'arg1': 12})]
+
+
 def test_register_process(mock_agent):
     """Registered processes should show up in the Agent processes and sessions
     dicts.
@@ -88,6 +111,29 @@ def test_register_process_w_startup(mock_agent):
 
     print(mock_agent.startup_ops)
     assert mock_agent.startup_ops == [('process', 'test_process', True)]
+
+
+def test_register_process_wo_startup(mock_agent):
+    """Registering a task that should not run on startup should leave the
+    the Agents startup_ops list empty.
+
+    """
+    mock_agent.register_process('test_process', tfunc, tfunc, startup=False)
+
+    print(mock_agent.startup_ops)
+    assert mock_agent.startup_ops == []
+
+
+def test_register_process_w_startup_dict(mock_agent):
+    """Registering a process that should run on startup and passing a dict to
+    startup, should place the process in the Agent's startup_ops list with that
+    dict.
+
+    """
+    mock_agent.register_process('test_process', tfunc, tfunc, startup={'arg1': 12})
+
+    print(mock_agent.startup_ops)
+    assert mock_agent.startup_ops == [('process', 'test_process', {'arg1': 12})]
 
 
 # Start

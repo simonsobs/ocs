@@ -331,6 +331,7 @@ containerized Agents together with the command
 Depending on your host's permissions, this command may need to be run with 
 ``sudo``.
 
+.. _param:
 
 Operation Parameters
 --------------------
@@ -639,7 +640,9 @@ Task and Process Documentation
 Each Task and Process within an Agent must be accompanied by a docstring. Here
 is a complete example of a well documented Task (or Process)::
 
-    def demo(self, session, params=None):
+    @ocs_agent.param('arg1', type=bool)
+    @ocs_agent.param('arg2', default=7, type=int)
+    def demo(self, session, params):
         """demo(arg1=None, arg2=7)
 
         **Task** (or **Process**) - An example task docstring for illustration purposes.
@@ -657,7 +660,7 @@ is a complete example of a well documented Task (or Process)::
         Notes:
             An example of the session data::
 
-                >>> session.data
+                >>> response.session['data']
                 {"fields":
                     {"Channel_05": {"T": 293.644, "R": 33.752, "timestamp": 1601924482.722671},
                      "Channel_06": {"T": 0, "R": 1022.44, "timestamp": 1601924499.5258765},
@@ -687,7 +690,8 @@ above example that looks like::
 This will render the method description as ``delay_task(arg1=None,
 arg2=7)`` within Sphinx, rather than ``delay_task(session, params=None)``. The
 default values should be put in this documentation. If a parameter is required,
-set the param to ``None`` in the method signature.
+set the param to ``None`` in the method signature. For more info on the
+``@ocs_agent.param`` decorator see :ref:`param`.
 
 Keyword Arguments
 `````````````````
@@ -711,17 +715,20 @@ clarity of how to interact with a given Task or Process::
 
                 client.demo(arg1=False, arg2=5)
 
-session.data
+Session Data
 ````````````
 The ``session.data`` object structure is left up to the Agent author. As such,
 it needs to be documented so that OCSClient authors know what to expect. If
 your Task or Process makes use of ``session.data``, provide an example of the
-structure under the "Notes" heading::
+structure under the "Notes" heading. On the OCSClient end, this
+``session.data`` object is returned in the response under
+``response.session['data']``. This is how it should be presented in the example
+docstrings::
 
     Notes:
         An example of the session data::
 
-            >>> session.data
+            >>> response.session['data']
             {"fields":
                 {"Channel_05": {"T": 293.644, "R": 33.752, "timestamp": 1601924482.722671},
                  "Channel_06": {"T": 0, "R": 1022.44, "timestamp": 1601924499.5258765},

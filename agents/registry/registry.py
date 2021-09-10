@@ -115,11 +115,11 @@ class Registry:
         clients.
 
         Notes:
-            The session.data object for this process will be a dictionary containing
+            The session data object for this process will be a dictionary containing
             the encoded RegisteredAgent objects for each agent observed during the
             lifetime of the Registry. For instance, this might look like::
 
-                >>> session.data
+                >>> response.session['data']
                 {'observatory.aggregator':
                     {'expired': False,
                      'last_updated': 1583179794.5175,

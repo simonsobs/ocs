@@ -57,9 +57,10 @@ class FakeDataAgent:
         **Process** - Acquire data and write to the feed.
 
         Notes:
-            The most recent fake values are stored in the session.data object in
+            The most recent fake values are stored in the session data object in
             the format::
 
+                >>> response.session['data']
                 {"fields":
                     {"channel_00": 0.10250430068515494,
                      "channel_01": 0.08550903376216404,
@@ -195,7 +196,7 @@ class FakeDataAgent:
             The session data will be updated with the requested delay as
             well as the time elapsed so far, for example::
 
-                >>> session.data
+                >>> response.session['data']
                 {'requested_delay': 5.,
                  'delay_so_far': 1.2}
 

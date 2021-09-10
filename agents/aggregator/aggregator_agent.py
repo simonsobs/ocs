@@ -84,9 +84,10 @@ class AggregatorAgent:
         running.
 
         Notes:
-            The most recent file and active providers will be returned in
-            session.data::
+            The most recent file and active providers will be returned in the
+            session data::
 
+                >>> response.session['data']
                 {"current_file": "/data/16020/1602089117.g3",
                  "providers": {
                     "observatory.fake-data1.feeds.false_temperatures": {

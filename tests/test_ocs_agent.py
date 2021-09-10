@@ -97,7 +97,7 @@ def test_start_task(mock_agent):
     # mock_agent.sessions['test_task'].d
     print(res)
     assert res[0] == 0
-    assert res[1] == 'Started task "test_task".'
+    assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
     assert res[2]['op_code'] == 2
@@ -113,7 +113,7 @@ def test_start_process(mock_agent):
     res = mock_agent.start('test_process', params={'a': 1})
     print(res)
     assert res[0] == 0
-    assert res[1] == 'Started process "test_process".'
+    assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_process'
     assert res[2]['op_code'] == 2
@@ -131,7 +131,7 @@ def test_start_nonblocking_task(mock_agent):
     # mock_agent.sessions['test_task'].d
     print(res)
     assert res[0] == 0
-    assert res[1] == 'Started task "test_task".'
+    assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
     assert res[2]['op_code'] == 2
@@ -156,7 +156,7 @@ def test_start_task_done_status(mock_agent):
     res = mock_agent.start('test_task', params={'a': 1})
     print(res)
     assert res[0] == 0
-    assert res[1] == 'Started task "test_task".'
+    assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
     assert res[2]['op_code'] == 2
@@ -184,7 +184,7 @@ def test_start_task_other_status(mock_agent):
     res = mock_agent.start('test_task', params={'a': 1})
     print(res)
     assert res[0] == -1
-    assert res[1] == 'Operation "test_task" already in progress.'
+    assert isinstance(res[1], str)
 
 
 def test_start_unregistered_task(mock_agent):
@@ -192,7 +192,7 @@ def test_start_unregistered_task(mock_agent):
     res = mock_agent.start('test_task', params={'a': 1})
     print(res)
     assert res[0] == -1
-    assert res[1] == 'No task or process called "test_task"'
+    assert isinstance(res[1], str)
     assert res[2] == {}
 
 
@@ -205,7 +205,7 @@ def test_wait(mock_agent):
     res = yield mock_agent.wait('test_task')
     print('result:', res)
     assert res[0] == 0
-    assert res[1] == 'Operation "test_task" is currently not running (SUCCEEDED).'
+    assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
     assert res[2]['op_code'] == 5
@@ -221,7 +221,7 @@ def test_wait_unregistered_task(mock_agent):
     res = yield mock_agent.wait('test_task')
     print('result:', res)
     assert res[0] == -1
-    assert res[1] == 'Unknown operation "test_task".'
+    assert isinstance(res[1], str)
     assert res[2] == {}
 
 
@@ -232,7 +232,7 @@ def test_wait_idle(mock_agent):
     res = yield mock_agent.wait('test_task')
     print('result:', res)
     assert res[0] == 0
-    assert res[1] == 'Idle.'
+    assert isinstance(res[1], str)
     assert res[2] == {}
 
 
@@ -244,7 +244,7 @@ def test_wait_expired_timeout(mock_agent):
     res = yield mock_agent.wait('test_task', timeout=-1)
     print('result:', res)
     assert res[0] == 1
-    assert res[1] == 'Operation "test_task" still running; wait timed out.'
+    assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
     assert res[2]['op_code'] == 2
@@ -262,7 +262,7 @@ def test_wait_timeout(mock_agent):
     res = yield mock_agent.wait('test_task', timeout=1)
     print('result:', res)
     assert res[0] == 0
-    assert res[1] == 'Operation "test_task" is currently not running (SUCCEEDED).'
+    assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
     assert res[2]['op_code'] == 5
@@ -293,7 +293,7 @@ def test_stop_task(mock_agent):
     res = mock_agent.stop('test_task')
     print('result:', res)
     assert res[0] == -1
-    assert res[1] == 'No implementation for "test_task" because it is a task.'
+    assert isinstance(res[1], str)
     assert res[2] == {}
 
 
@@ -302,7 +302,7 @@ def test_stop_unregistered_process(mock_agent):
     res = mock_agent.stop('test_process')
     print('result:', res)
     assert res[0] == -1
-    assert res[1] == 'No process called "test_process".'
+    assert isinstance(res[1], str)
     assert res[2] == {}
 
 
@@ -313,7 +313,7 @@ def test_stop_process(mock_agent):
     res = mock_agent.stop('test_process')
     print('result:', res)
     assert res[0] == 0
-    assert res[1] == 'Requested stop on process "test_process".'
+    assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_process'
     assert res[2]['op_code'] == 2
@@ -329,7 +329,7 @@ def test_stop_process_no_session(mock_agent):
     res = mock_agent.stop('test_process')
     print('result:', res)
     assert res[0] == -1
-    assert res[1] == 'No session active.'
+    assert isinstance(res[1], str)
     assert res[2] == {}
 
 
@@ -340,7 +340,7 @@ def test_abort(mock_agent):
     res = mock_agent.abort('test_task')
     print('result:', res)
     assert res[0] == -1
-    assert res[1] == 'No implementation of abort() for operation "test_task"'
+    assert isinstance(res[1], str)
     assert res[2] == {}
 
 
@@ -355,7 +355,7 @@ def test_status(mock_agent):
     res = mock_agent.status('test_task')
     print('result:', res)
     assert res[0] == 0
-    assert res[1] == 'Session active.'
+    assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
     assert res[2]['op_code'] == 2
@@ -370,7 +370,7 @@ def test_status_unregistered_task(mock_agent):
     res = mock_agent.status('test_task')
     print('result:', res)
     assert res[0] == -1
-    assert res[1] == 'No task or process called "test_task"'
+    assert isinstance(res[1], str)
     assert res[2] == {}
 
 
@@ -383,5 +383,5 @@ def test_status_no_session(mock_agent):
     res = mock_agent.status('test_task')
     print('result:', res)
     assert res[0] == 0
-    assert res[1] == 'No session active.'
+    assert isinstance(res[1], str)
     assert res[2] == {}

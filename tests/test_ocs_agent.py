@@ -1,5 +1,6 @@
 import ocs
 from ocs.ocs_agent import OCSAgent, AgentTask, AgentProcess
+from ocs.base import OpCode
 
 from unittest.mock import MagicMock
 
@@ -101,7 +102,7 @@ def test_start_task(mock_agent):
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
-    assert res[2]['op_code'] == 2
+    assert res[2]['op_code'] == OpCode.STARTING.value
     assert res[2]['status'] == 'starting'
     assert res[2]['success'] is None
     assert res[2]['end_time'] is None
@@ -117,7 +118,7 @@ def test_start_process(mock_agent):
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_process'
-    assert res[2]['op_code'] == 2
+    assert res[2]['op_code'] == OpCode.STARTING.value
     assert res[2]['status'] == 'starting'
     assert res[2]['success'] is None
     assert res[2]['end_time'] is None
@@ -135,7 +136,7 @@ def test_start_nonblocking_task(mock_agent):
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
-    assert res[2]['op_code'] == 2
+    assert res[2]['op_code'] == OpCode.STARTING.value
     assert res[2]['status'] == 'starting'
     assert res[2]['success'] is None
     assert res[2]['end_time'] is None
@@ -160,7 +161,7 @@ def test_start_task_done_status(mock_agent):
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
-    assert res[2]['op_code'] == 2
+    assert res[2]['op_code'] == OpCode.STARTING.value
     assert res[2]['status'] == 'starting'
     assert res[2]['success'] is None
     assert res[2]['end_time'] is None
@@ -209,7 +210,7 @@ def test_wait(mock_agent):
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
-    assert res[2]['op_code'] == 5
+    assert res[2]['op_code'] == OpCode.SUCCEEDED.value
     assert res[2]['status'] == 'done'
     assert res[2]['success'] is True
     assert res[2]['end_time'] > res[2]['start_time']
@@ -248,7 +249,7 @@ def test_wait_expired_timeout(mock_agent):
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
-    assert res[2]['op_code'] == 2
+    assert res[2]['op_code'] == OpCode.STARTING.value
     assert res[2]['status'] == 'starting'
     assert res[2]['success'] is None
     assert res[2]['end_time'] is None
@@ -266,7 +267,7 @@ def test_wait_timeout(mock_agent):
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
-    assert res[2]['op_code'] == 5
+    assert res[2]['op_code'] == OpCode.SUCCEEDED.value
     assert res[2]['status'] == 'done'
     assert res[2]['success'] is True
     assert res[2]['end_time'] > res[2]['start_time']
@@ -317,7 +318,7 @@ def test_stop_process(mock_agent):
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_process'
-    assert res[2]['op_code'] == 2
+    assert res[2]['op_code'] == OpCode.STARTING.value
     assert res[2]['status'] == 'starting'
     assert res[2]['success'] is None
     assert res[2]['end_time'] is None
@@ -359,7 +360,7 @@ def test_status(mock_agent):
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
-    assert res[2]['op_code'] == 2
+    assert res[2]['op_code'] == OpCode.STARTING.value
     assert res[2]['status'] == 'starting'
     assert res[2]['success'] is None
     assert res[2]['end_time'] is None

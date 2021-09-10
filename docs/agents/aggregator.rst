@@ -7,7 +7,7 @@ Aggregator Agent
 ================
 
 The Aggregator Agent, also referred to as the Housekeeping Aggregator (or
-HKAggreagtor), is the OCS Agent responsible for recording all data published to
+HKAggregator), is the OCS Agent responsible for recording all data published to
 the OCS Network's :ref:`feeds`. The Aggregator collects this data and writes it
 to disk in the `.g3` file format.
 

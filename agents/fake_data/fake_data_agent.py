@@ -68,8 +68,8 @@ class FakeDataAgent:
                  "timestamp":1600448753.9288929}
 
             The channels kept in fields are the 'faked' data, in a similar
-            structure to the Lakeshore agents. 'timestamp' is the lastest time these values
-            were updated.
+            structure to the Lakeshore agents. 'timestamp' is the last time
+            these values were updated.
 
         """
         ok, msg = self.try_set_job('acq')

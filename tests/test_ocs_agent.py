@@ -1,3 +1,4 @@
+import ocs
 from ocs.ocs_agent import OCSAgent, AgentTask, AgentProcess
 
 from unittest.mock import MagicMock
@@ -96,7 +97,7 @@ def test_start_task(mock_agent):
     # The Deferred we get from launching
     # mock_agent.sessions['test_task'].d
     print(res)
-    assert res[0] == 0
+    assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
@@ -112,7 +113,7 @@ def test_start_process(mock_agent):
     mock_agent.register_process('test_process', tfunc, tfunc)
     res = mock_agent.start('test_process', params={'a': 1})
     print(res)
-    assert res[0] == 0
+    assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_process'
@@ -130,7 +131,7 @@ def test_start_nonblocking_task(mock_agent):
     # The Deferred we get from launching
     # mock_agent.sessions['test_task'].d
     print(res)
-    assert res[0] == 0
+    assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
@@ -155,7 +156,7 @@ def test_start_task_done_status(mock_agent):
 
     res = mock_agent.start('test_task', params={'a': 1})
     print(res)
-    assert res[0] == 0
+    assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
@@ -183,7 +184,7 @@ def test_start_task_other_status(mock_agent):
 
     res = mock_agent.start('test_task', params={'a': 1})
     print(res)
-    assert res[0] == -1
+    assert res[0] == ocs.ERROR
     assert isinstance(res[1], str)
 
 
@@ -191,7 +192,7 @@ def test_start_unregistered_task(mock_agent):
     """Test a task that's not registered."""
     res = mock_agent.start('test_task', params={'a': 1})
     print(res)
-    assert res[0] == -1
+    assert res[0] == ocs.ERROR
     assert isinstance(res[1], str)
     assert res[2] == {}
 
@@ -204,7 +205,7 @@ def test_wait(mock_agent):
     mock_agent.start('test_task')
     res = yield mock_agent.wait('test_task')
     print('result:', res)
-    assert res[0] == 0
+    assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
@@ -220,7 +221,7 @@ def test_wait_unregistered_task(mock_agent):
     """Test an OCSAgent.wait() call on an unregistered task."""
     res = yield mock_agent.wait('test_task')
     print('result:', res)
-    assert res[0] == -1
+    assert res[0] == ocs.ERROR
     assert isinstance(res[1], str)
     assert res[2] == {}
 
@@ -231,7 +232,7 @@ def test_wait_idle(mock_agent):
     mock_agent.register_task('test_task', tfunc)
     res = yield mock_agent.wait('test_task')
     print('result:', res)
-    assert res[0] == 0
+    assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2] == {}
 
@@ -243,7 +244,7 @@ def test_wait_expired_timeout(mock_agent):
     mock_agent.start('test_task')
     res = yield mock_agent.wait('test_task', timeout=-1)
     print('result:', res)
-    assert res[0] == 1
+    assert res[0] == ocs.TIMEOUT
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
@@ -261,7 +262,7 @@ def test_wait_timeout(mock_agent):
     mock_agent.start('test_task')
     res = yield mock_agent.wait('test_task', timeout=1)
     print('result:', res)
-    assert res[0] == 0
+    assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
@@ -292,7 +293,7 @@ def test_stop_task(mock_agent):
     mock_agent.register_task('test_task', tfunc)
     res = mock_agent.stop('test_task')
     print('result:', res)
-    assert res[0] == -1
+    assert res[0] == ocs.ERROR
     assert isinstance(res[1], str)
     assert res[2] == {}
 
@@ -301,7 +302,7 @@ def test_stop_unregistered_process(mock_agent):
     """Trying to stop an unregistered process to return an error."""
     res = mock_agent.stop('test_process')
     print('result:', res)
-    assert res[0] == -1
+    assert res[0] == ocs.ERROR
     assert isinstance(res[1], str)
     assert res[2] == {}
 
@@ -312,7 +313,7 @@ def test_stop_process(mock_agent):
     res = mock_agent.start('test_process', params={'a': 1})
     res = mock_agent.stop('test_process')
     print('result:', res)
-    assert res[0] == 0
+    assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_process'
@@ -328,7 +329,7 @@ def test_stop_process_no_session(mock_agent):
     mock_agent.register_process('test_process', tfunc, tfunc)
     res = mock_agent.stop('test_process')
     print('result:', res)
-    assert res[0] == -1
+    assert res[0] == ocs.ERROR
     assert isinstance(res[1], str)
     assert res[2] == {}
 
@@ -339,7 +340,7 @@ def test_abort(mock_agent):
     mock_agent.register_task('test_task', tfunc)
     res = mock_agent.abort('test_task')
     print('result:', res)
-    assert res[0] == -1
+    assert res[0] == ocs.ERROR
     assert isinstance(res[1], str)
     assert res[2] == {}
 
@@ -354,7 +355,7 @@ def test_status(mock_agent):
     mock_agent.start('test_task')
     res = mock_agent.status('test_task')
     print('result:', res)
-    assert res[0] == 0
+    assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2]['session_id'] == 0
     assert res[2]['op_name'] == 'test_task'
@@ -369,7 +370,7 @@ def test_status_unregistered_task(mock_agent):
     """Requesting the status of an unregistered task should return an error."""
     res = mock_agent.status('test_task')
     print('result:', res)
-    assert res[0] == -1
+    assert res[0] == ocs.ERROR
     assert isinstance(res[1], str)
     assert res[2] == {}
 
@@ -382,6 +383,6 @@ def test_status_no_session(mock_agent):
     mock_agent.register_task('test_task', tfunc)
     res = mock_agent.status('test_task')
     print('result:', res)
-    assert res[0] == 0
+    assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2] == {}

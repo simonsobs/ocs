@@ -97,7 +97,9 @@ class HostMaster:
         return True, 'Kill requested.'
 
     def _update_target_states(self, session, params):
-        """Update the child Agent management parameters of the master process.
+        """_update_target_states(params)
+
+        Update the child Agent management parameters of the master process.
         This function is used both for first-time init of the master
         Process, but also for subsequent parameter updates while
         master Process is running.
@@ -191,8 +193,8 @@ class HostMaster:
                     addressable[key]['target_state'] = state
 
     @inlineCallbacks
-    def master(self, session, params=None):
-        """master(params=None)
+    def master(self, session, params):
+        """master(**kwargs)
 
         **Process** - The "master" Process maintains a list of child Agents for
         which it is responsible.  In response to requests from a client, the
@@ -205,8 +207,9 @@ class HostMaster:
         child agents before moving to the 'done' state.
 
         Parameters:
-            params (dict): Passed directly to ``_update_target_states()``; see
-                           :func:`HostMaster._update_target_states`.
+            **kwargs: Passed directly to
+                ``_update_target_states(params=kwargs)``; see
+                :func:`HostMaster._update_target_states`.
 
         """
         self.running = True
@@ -336,23 +339,24 @@ class HostMaster:
             yield dsleep(max(sleep_time, .001))
         return True, 'Exited.'
 
-    def _stop_master(self, session, params=None):
+    def _stop_master(self, session, params):
         if session.status == 'done':
             return
         session.set_status('stopping')
         self.running = False
         return True, 'Stop initiated.'
 
-    def update(self, session, params=None):
-        """update(params=None)
+    def update(self, session, params):
+        """update(**kwargs)
 
         **Task** - Update the master process' child Agent parameters.
 
         This Task will fail if the master Process is not running.
 
         Parameters:
-            params (dict): Passed directly to ``_update_target_states()``; see
-                           :func:`HostMaster._update_target_states`.
+            **kwargs: Passed directly to
+                ``_update_target_states(params=kwargs)``; see
+                :func:`HostMaster._update_target_states`.
 
         """
         if not self.running:
@@ -362,7 +366,7 @@ class HostMaster:
         return True, 'Update requested.'
 
     @inlineCallbacks
-    def die(self, session, params=None):
+    def die(self, session, params):
         session.set_status('running')
         if not self.running:
             session.add_message('Master process is not running.')

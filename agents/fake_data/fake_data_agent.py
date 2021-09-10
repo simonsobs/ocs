@@ -147,7 +147,7 @@ class FakeDataAgent:
         self.set_job_done()
         return True, 'Acquisition exited cleanly.'
 
-    def _stop_acq(self, session, params=None):
+    def _stop_acq(self, session, params):
         ok = False
         with self.lock:
             if self.job =='acq':

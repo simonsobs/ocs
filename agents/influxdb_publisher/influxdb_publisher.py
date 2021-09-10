@@ -71,7 +71,7 @@ class InfluxDBAgent:
 
         self.incoming_data.put((data, feed))
 
-    def record(self, session: ocs_agent.OpSession, params=None):
+    def record(self, session: ocs_agent.OpSession, params):
         """record()
 
         **Process** - This process will create an Publisher instance, which
@@ -101,7 +101,7 @@ class InfluxDBAgent:
 
         return True, "Aggregation has ended"
 
-    def _stop_record(self, session, params=None):
+    def _stop_record(self, session, params):
         session.set_status('stopping')
         self.aggregate = False
         return True, "Stopping aggregation"

@@ -106,7 +106,7 @@ class Registry:
         self.registered_agents[feed['agent_address']].refresh(op_codes=op_codes)
 
     @inlineCallbacks
-    def main(self, session: ocs_agent.OpSession, params=None):
+    def main(self, session: ocs_agent.OpSession, params):
         """main()
 
         **Process** - Main run process for the Registry agent. This will loop
@@ -170,7 +170,7 @@ class Registry:
 
         return True, "Stopped registry main process"
 
-    def _stop_main(self, session, params=None):
+    def _stop_main(self, session, params):
         """Stop function for the 'main' process."""
         session.set_status('stopping')
         self._run = False

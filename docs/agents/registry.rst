@@ -2,8 +2,44 @@
 
 .. _registry:
 
+==============
 Registry Agent
-=======================
+==============
+
+The Registry Agent tracks all currently running Agents on the OCS network,
+providing the ability to monitor the status of each Agent's Tasks and Processes
+through the :ref:`operation_monitor`.
+
+Configuration File Examples
+----------------------------
+
+Below are configuration examples for the ocs config file and for running the
+Agent in a docker container.
+
+OCS Site Config
+```````````````
+
+An example site-config-file block::
+
+    { 'agent-class': 'RegistryAgent',
+      'instance-id': 'registry',
+      'arguments': []},
+
+Docker Compose
+``````````````
+
+An example docker-compose configuration::
+
+    ocs-registry:
+        image: simonsobs/ocs-registry-agent:latest
+        container_name: ocs-registry
+        hostname: ocs-docker
+        user: "9000"
+        volumes:
+            - ${OCS_CONFIG_DIR}:/config
+
+Description
+-----------
 
 The registry agent is used to keep track of currently running active agents.
 It listens to the heartbeat feeds of all agents on the crossbar server, 
@@ -25,6 +61,7 @@ since the registry started running::
     status, msg, session = registry_client.main.status()
 
     print(session['data'])
+
 which will print a dictionary that might look like::
 
     {'observatory.aggregator':
@@ -43,8 +80,10 @@ which will print a dictionary that might look like::
          'time_expired': 1583179795.3862052,
          'op_codes': {'acq': 3, 'set_heartbeat': 1, 'delay_task': 1}}}
 
+.. _operation_monitor:
+
 Operation Monitor
--------------------
+`````````````````
 
 The registry is also used to track the status of each agent's tasks and
 processes. `Operation codes` for each operation are regularly passed through an
@@ -62,28 +101,14 @@ all operations on a network as pictured below:
 
 
 
-Configuration
---------------------
-To add the registry to your ocs setup, you can add this file to your site-config
-yaml file::
-
-    { 'agent-class': 'RegistryAgent',
-      'instance-id': 'registry',
-      'arguments': []},
-
-Here is an example of a docker service that you can put in your docker-compose 
-file to run the registry::
-
-    ocs-registry:
-        image: simonsobs/ocs-registry-agent:latest
-        container_name: ocs-registry
-        hostname: ocs-docker
-        user: "9000"
-        volumes: 
-            - ${OCS_CONFIG_DIR}:/config
-
-API
----
+Agent API
+---------
 
 .. autoclass:: agents.registry.registry.Registry
     :members:
+
+Supporting APIs
+---------------
+.. autoclass:: agents.registry.registry.RegisteredAgent
+    :members:
+

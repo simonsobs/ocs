@@ -106,29 +106,33 @@ class Registry:
         self.registered_agents[feed['agent_address']].refresh(op_codes=op_codes)
 
     @inlineCallbacks
-    def main(self, session: ocs_agent.OpSession, params=None):
-        """
-            Main run process for the Registry agent. This will loop and keep track of
-            which agents have expired. It will keep track of current active agents
-            in the session.data variable so it can be seen by clients.
+    def main(self, session: ocs_agent.OpSession, params):
+        """main()
 
-            The session.data object for this process will be a dictionary containing
-            the encoded RegisteredAgent object for each agent observed during the
-            lifetime of the registry. For instance, this might look like
+        **Process** - Main run process for the Registry agent. This will loop
+        and keep track of which agents have expired. It will keep track of
+        current active agents in the session.data variable so it can be seen by
+        clients.
 
-            >>> session.data
-            {'observatory.aggregator': 
-                {'expired': False,
-                 'last_updated': 1583179794.5175,
-                 'time_expired': None},
-             'observatory.faker1': 
-                {'expired': False,
-                 'last_updated': 1583179795.072248,
-                 'time_expired': None},
-             'observatory.faker2': 
-                {'expired': True,
-                 'last_updated': 1583179777.0211036,
-                 'time_expired': 1583179795.3862052}}
+        Notes:
+            The session data object for this process will be a dictionary containing
+            the encoded RegisteredAgent objects for each agent observed during the
+            lifetime of the Registry. For instance, this might look like::
+
+                >>> response.session['data']
+                {'observatory.aggregator':
+                    {'expired': False,
+                     'last_updated': 1583179794.5175,
+                     'time_expired': None},
+                 'observatory.faker1':
+                    {'expired': False,
+                     'last_updated': 1583179795.072248,
+                     'time_expired': None},
+                 'observatory.faker2':
+                    {'expired': True,
+                     'last_updated': 1583179777.0211036,
+                     'time_expired': 1583179795.3862052}}
+
         """
 
         session.set_status('starting')
@@ -166,8 +170,8 @@ class Registry:
 
         return True, "Stopped registry main process"
 
-    def stop(self, session, params=None):
-        """Stop function for the 'run' process."""
+    def _stop_main(self, session, params):
+        """Stop function for the 'main' process."""
         session.set_status('stopping')
         self._run = False
 
@@ -188,7 +192,7 @@ if __name__ == '__main__':
     agent, runner = ocs_agent.init_site_agent(args)
     registry = Registry(agent)
 
-    agent.register_process('main', registry.main, registry.stop, blocking=False, startup=True)
+    agent.register_process('main', registry.main, registry._stop_main, blocking=False, startup=True)
     agent.register_task('register_agent', registry._register_agent, blocking=False)
     
     runner.run(agent, auto_reconnect=True)

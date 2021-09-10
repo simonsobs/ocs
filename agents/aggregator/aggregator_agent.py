@@ -53,16 +53,16 @@ class AggregatorAgent:
         # SUBSCRIBES TO ALL FEEDS!!!!
         # If this ends up being too much data, we can add a tag '.record'
         # at the end of the address of recorded feeds, and filter by that.
-        self.agent.subscribe_on_start(self.enqueue_incoming_data,
+        self.agent.subscribe_on_start(self._enqueue_incoming_data,
                                       'observatory..feeds.',
                                       options={'match': 'wildcard'})
 
         record_on_start = (args.initial_state == 'record')
         self.agent.register_process('record',
-                                    self.start_aggregate, self.stop_aggregate,
+                                    self.record, self._stop_record,
                                     startup=record_on_start)
 
-    def enqueue_incoming_data(self, _data):
+    def _enqueue_incoming_data(self, _data):
         """
         Data handler for all feeds. This checks to see if the feeds should
         be recorded, and if they are it puts them into the incoming_data queue
@@ -76,27 +76,30 @@ class AggregatorAgent:
         self.incoming_data.put((data, feed))
         self.log.debug("Enqueued {d} from Feed {f}", d=data, f=feed)
 
-    def start_aggregate(self, session: ocs_agent.OpSession, params=None):
-        """
-        Process for starting data aggregation. This process will create an
-        Aggregator instance, which will collect and write provider data to disk
-        as long as this process is running.
+    def record(self, session: ocs_agent.OpSession, params):
+        """record()
 
-        The most recent file and active providers will be returned in
-        session.data::
+        **Process** - This process will create an Aggregator instance, which
+        will collect and write provider data to disk as long as this process is
+        running.
 
-            {"current_file": "/data/16020/1602089117.g3",
-             "providers": {
-                "observatory.fake-data1.feeds.false_temperatures": {
-                    "last_refresh": 1602089118.8225083,
-                    "sessid": "1602088928.8294137",
-                    "stale": false,
-                    "last_block_received": "temps"},
-                "observatory.LSSIM.feeds.temperatures": {
-                     "last_refresh": 1602089118.8223345,
-                     "sessid": "1602088932.335811",
-                     "stale": false,
-                     "last_block_received": "temps"}}}
+        Notes:
+            The most recent file and active providers will be returned in the
+            session data::
+
+                >>> response.session['data']
+                {"current_file": "/data/16020/1602089117.g3",
+                 "providers": {
+                    "observatory.fake-data1.feeds.false_temperatures": {
+                        "last_refresh": 1602089118.8225083,
+                        "sessid": "1602088928.8294137",
+                        "stale": false,
+                        "last_block_received": "temps"},
+                    "observatory.LSSIM.feeds.temperatures": {
+                         "last_refresh": 1602089118.8223345,
+                         "sessid": "1602088932.335811",
+                         "stale": false,
+                         "last_block_received": "temps"}}}
 
         """
         session.set_status('starting')
@@ -124,7 +127,7 @@ class AggregatorAgent:
 
         return True, "Aggregation has ended"
 
-    def stop_aggregate(self, session, params=None):
+    def _stop_record(self, session, params):
         session.set_status('stopping')
         self.aggregate = False
         return True, "Stopping aggregation"

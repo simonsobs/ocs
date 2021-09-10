@@ -46,16 +46,16 @@ class InfluxDBAgent:
         self.incoming_data = queue.Queue()
         self.loop_time = 1
 
-        self.agent.subscribe_on_start(self.enqueue_incoming_data,
+        self.agent.subscribe_on_start(self._enqueue_incoming_data,
                                       'observatory..feeds.',
                                       options={'match': 'wildcard'})
 
         record_on_start = (args.initial_state == 'record')
         self.agent.register_process('record',
-                                    self.start_aggregate, self.stop_aggregate,
+                                    self.record, self._stop_record,
                                     startup=record_on_start)
 
-    def enqueue_incoming_data(self, _data):
+    def _enqueue_incoming_data(self, _data):
         """Data handler for all feeds. This checks to see if the feeds should
         be recorded, and if they are it puts them into the incoming_data queue
         to be processed by the Publisher during the next run iteration.
@@ -71,10 +71,12 @@ class InfluxDBAgent:
 
         self.incoming_data.put((data, feed))
 
-    def start_aggregate(self, session: ocs_agent.OpSession, params=None):
-        """Process for starting data aggregation. This process will create an
-        Publisher instance, which will collect and write provider data to disk
-        as long as this process is running.
+    def record(self, session: ocs_agent.OpSession, params):
+        """record()
+
+        **Process** - This process will create an Publisher instance, which
+        will collect and write provider data to disk as long as this process is
+        running.
 
         """
         session.set_status('starting')
@@ -99,7 +101,7 @@ class InfluxDBAgent:
 
         return True, "Aggregation has ended"
 
-    def stop_aggregate(self, session, params=None):
+    def _stop_record(self, session, params):
         session.set_status('stopping')
         self.aggregate = False
         return True, "Stopping aggregation"

@@ -99,7 +99,7 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call = None
         self._heartbeat_on = True
         self.agent_session_id = str(time.time())
-        self.startup_ops = []  # list of (op_type, op_name)
+        self.startup_ops = []  # list of (op_type, op_name, op_params)
         self.startup_subs = []  # list of dicts with params for subscribe call
         self.subscribed_topics = set()
         self.realm_joined = False
@@ -377,7 +377,7 @@ class OCSAgent(ApplicationSession):
                                             blocking=blocking)
         self.sessions[name] = None
         if startup is not False:
-            self.startup_ops.append(('task', name, startup))
+            self.startup_ops.append(('process', name, startup))
 
     @inlineCallbacks
     def call_op(self, agent_address, op_name, action, params=None, timeout=None):

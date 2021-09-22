@@ -1164,9 +1164,9 @@ class ParamHandler:
             if choices is not None:
                 if value not in choices:
                     raise ParamError(f"Param '{key}'={value} is not in allowed set ({choices})")
-        if check is not None:
-            if not check(value):
-                raise ParamError(f"Param '{key}' failed validity check (see docs?).")
+            if check is not None:
+                if not check(value):
+                    raise ParamError(f"Param '{key}' failed validity check (see docs?).")
         return value
 
     def batch(self, instructions, check_for_strays=True):

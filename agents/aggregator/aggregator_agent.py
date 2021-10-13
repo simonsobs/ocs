@@ -76,12 +76,17 @@ class AggregatorAgent:
         self.incoming_data.put((data, feed))
         self.log.debug("Enqueued {d} from Feed {f}", d=data, f=feed)
 
+    @ocs_agent.param('run_once', default=False, type=bool)
     def record(self, session: ocs_agent.OpSession, params):
-        """record()
+        """record(run_once=False)
 
         **Process** - This process will create an Aggregator instance, which
         will collect and write provider data to disk as long as this process is
         running.
+
+        Parameters:
+            run_once (bool, optional): Run the record Process loop only once.
+                Default is False
 
         Notes:
             The most recent file and active providers will be returned in the
@@ -123,14 +128,20 @@ class AggregatorAgent:
             time.sleep(self.loop_time)
             aggregator.run()
 
+            if params['run_once']:
+                break
+
         aggregator.close()
 
         return True, "Aggregation has ended"
 
     def _stop_record(self, session, params):
-        session.set_status('stopping')
-        self.aggregate = False
-        return True, "Stopping aggregation"
+        if self.aggregate:
+            session.set_status('stopping')
+            self.aggregate = False
+            return True, "Stopping aggregation"
+        else:
+            return False, "record process not currently running"
 
 
 def make_parser(parser=None):

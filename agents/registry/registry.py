@@ -81,6 +81,9 @@ class Registry:
         self.log = agent.log
         self.agent = agent
 
+        # Tracking for 'main' Process
+        self._run = False
+
         # Dict containing agent_data for each registered agent
         self.registered_agents = defaultdict(RegisteredAgent)
         self.agent_timeout = 5.0 # Removes agent after 5 seconds of no heartbeat.
@@ -105,14 +108,19 @@ class Registry:
         op_codes, feed = _data
         self.registered_agents[feed['agent_address']].refresh(op_codes=op_codes)
 
+    @ocs_agent.param('run_once', default=False, type=bool)
     @inlineCallbacks
     def main(self, session: ocs_agent.OpSession, params):
-        """main()
+        """main(run_once=False)
 
         **Process** - Main run process for the Registry agent. This will loop
         and keep track of which agents have expired. It will keep track of
         current active agents in the session.data variable so it can be seen by
         clients.
+
+        Parameters:
+            run_once (bool, optional): Run the main Process loop only once.
+                Default is False
 
         Notes:
             The session data object for this process will be a dictionary containing
@@ -168,12 +176,19 @@ class Registry:
                 if msg['data']:
                     self.agent.publish_to_feed('agent_operations', msg)
 
+            if params['run_once']:
+                break
+
         return True, "Stopped registry main process"
 
     def _stop_main(self, session, params):
         """Stop function for the 'main' process."""
-        session.set_status('stopping')
-        self._run = False
+        if self._run:
+            session.set_status('stopping')
+            self._run = False
+            return True, 'requested to stop main process'
+        else:
+            return False, 'main process not currently running'
 
     def _register_agent(self, session, agent_data):
         self.log.warn(

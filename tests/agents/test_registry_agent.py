@@ -3,35 +3,13 @@ sys.path.insert(0, '../agents/registry/')
 from registry import Registry
 
 import time
-import pytest
 import pytest_twisted
-from unittest import mock
 
-from ocs.ocs_agent import OpSession
-
-import txaio
-txaio.use_twisted()
+from util import create_session, create_agent_fixture
 
 
-@pytest.fixture
-def agent():
-    """Test fixture to setup a mocked OCSAgent."""
-    mock_agent = mock.MagicMock()
-    log = txaio.make_logger()
-    txaio.start_logging(level='debug')
-    mock_agent.log = log
-    log.info('Initialized mock OCSAgent')
-    agent = Registry(mock_agent)
-
-    return agent
-
-
-def create_session(op_name):
-    """Create an OpSession with a mocked app for testing."""
-    mock_app = mock.MagicMock()
-    session = OpSession(1, op_name, app=mock_app)
-
-    return session
+# fixtures
+agent = create_agent_fixture(Registry)
 
 
 @pytest_twisted.inlineCallbacks

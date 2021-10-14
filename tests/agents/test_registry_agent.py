@@ -1,17 +1,23 @@
 import sys
 sys.path.insert(0, '../agents/registry/')
-from registry import Registry
 
 import time
+import pytest
 import pytest_twisted
 
 from util import create_session, create_agent_fixture
 
 
-# fixtures
-agent = create_agent_fixture(Registry)
+try:
+    # depends on spt3g
+    from registry import Registry
+
+    agent = create_agent_fixture(Registry)
+except ModuleNotFoundError as e:
+    print(f"Unable to import: {e}")
 
 
+@pytest.mark.dependency(depends=['so3g'], scope='session')
 @pytest_twisted.inlineCallbacks
 def test_registry_main(agent):
     session = create_session('main')
@@ -34,6 +40,7 @@ def test_registry_main(agent):
     assert res[0] is True
 
 
+@pytest.mark.dependency(depends=['so3g'], scope='session')
 @pytest_twisted.inlineCallbacks
 def test_registry_main_expire_agent(agent):
     session = create_session('main')
@@ -61,6 +68,7 @@ def test_registry_main_expire_agent(agent):
     assert res[0] is True
 
 
+@pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_registry_stop_main(agent):
     session = create_session('main')
 
@@ -71,12 +79,14 @@ def test_registry_stop_main(agent):
     assert res[0] is True
 
 
+@pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_registry_stop_main_not_running(agent):
     session = create_session('main')
     res = agent._stop_main(session, params=None)
     assert res[0] is False
 
 
+@pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_registry_register_agent(agent):
     session = create_session('main')
     agent_data = {'agent_address': 'observatory.test_agent'}

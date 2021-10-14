@@ -12,7 +12,7 @@ try:
 except ModuleNotFoundError as e:
     print(f"Unable to import either so3g or spt3g: {e}")
 
-
+@pytest.mark.spt3g
 @pytest.mark.dependency(name="so3g")
 def test_so3g_spt3g_import():
     """Test that we can import spt3g/so3g. Used to skip tests dependent on

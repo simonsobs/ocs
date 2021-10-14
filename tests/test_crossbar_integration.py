@@ -20,6 +20,7 @@ os.environ['OCS_CONFIG_DIR'] = os.getcwd()
 
 pytest_plugins = ("docker_compose",)
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(name="so3g")
 def test_so3g_spt3g_import():
     """Test that we can import so3g. Used to skip tests dependent on

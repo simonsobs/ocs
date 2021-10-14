@@ -32,9 +32,9 @@ jobs:
       run: |
         COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not (integtest or spt3g)'
 
-    #- name: Build docker images
-    #  run: |
-    #    docker-compose build
+    - name: Build docker images
+      run: |
+        docker-compose build
 
     # I like this idea, but let's hold off for now.
     #- name: Lint with flake8
@@ -44,9 +44,9 @@ jobs:
     #    # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
     #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    #- name: Test with pytest wtihin a docker container
-    #  run: |
-    #    docker run -v $PWD:/coverage --rm -w="/app/ocs/tests/" ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov -m 'spt3g'"
+    - name: Test with pytest wtihin a docker container
+      run: |
+        docker run -v $PWD:/coverage --rm -w="/app/ocs/tests/" ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov -m 'spt3g'"
 
     - name: Report test coverage
       env:

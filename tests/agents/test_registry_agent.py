@@ -17,6 +17,7 @@ except ModuleNotFoundError as e:
     print(f"Unable to import: {e}")
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')
 @pytest_twisted.inlineCallbacks
 def test_registry_main(agent):
@@ -40,6 +41,7 @@ def test_registry_main(agent):
     assert res[0] is True
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')
 @pytest_twisted.inlineCallbacks
 def test_registry_main_expire_agent(agent):
@@ -68,6 +70,7 @@ def test_registry_main_expire_agent(agent):
     assert res[0] is True
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_registry_stop_main(agent):
     session = create_session('main')
@@ -79,6 +82,7 @@ def test_registry_stop_main(agent):
     assert res[0] is True
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_registry_stop_main_not_running(agent):
     session = create_session('main')
@@ -86,6 +90,7 @@ def test_registry_stop_main_not_running(agent):
     assert res[0] is False
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_registry_register_agent(agent):
     session = create_session('main')

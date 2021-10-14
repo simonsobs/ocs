@@ -12,6 +12,7 @@ try:
 except ModuleNotFoundError as e:
     print(f"Unable to import either so3g or spt3g: {e}")
 
+
 @pytest.mark.spt3g
 @pytest.mark.dependency(name="so3g")
 def test_so3g_spt3g_import():
@@ -26,6 +27,8 @@ def test_so3g_spt3g_import():
     print(so3g.__file__)
     print(core.__file__)
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_passing_float_in_provider_to_frame():
     """Float is the expected type we should be passing.
@@ -49,6 +52,8 @@ def test_passing_float_in_provider_to_frame():
 
     provider.to_frame(hksess=sess)
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_passing_float_like_str_in_provider_to_frame():
     """Here we test passing a string amongst ints. This shouldn't make it to
@@ -74,6 +79,8 @@ def test_passing_float_like_str_in_provider_to_frame():
 
     provider.to_frame(hksess=sess)
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_passing_non_float_like_str_in_provider_to_frame():
     """Similar to passing a float like str, here we test passing a non-float
@@ -100,6 +107,8 @@ def test_passing_non_float_like_str_in_provider_to_frame():
 
     provider.to_frame(hksess=sess)
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_sparsely_sampled_block():
     """If a block is sparsely sampled and published, the aggregator was
@@ -171,8 +180,10 @@ def test_sparsely_sampled_block():
     assert 'test' in c['block_names']
     assert 'test2' in c['block_names']
 
+
 # This is perhaps another problem, I'm passing irregular length data sets and
 # it's not raising any sort of alarm. How does this get handled?
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_data_type_in_provider_save_to_block():
     provider = Provider('test_provider', 'test_sessid', 3, 1)
@@ -185,7 +196,9 @@ def test_data_type_in_provider_save_to_block():
            }
     provider.save_to_block(data)
 
+
 # 'data' field names
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_passing_invalid_data_field_name1():
     """Invalid data field names should get caught by the Feed, however, we
@@ -209,6 +222,8 @@ def test_passing_invalid_data_field_name1():
     assert 'invalidkey' in provider.blocks['test'].data.keys()
     assert 'invalid.key' not in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_passing_invalid_data_field_name2():
     """Invalid data field names should get caught by the Feed, however, we
@@ -232,6 +247,8 @@ def test_passing_invalid_data_field_name2():
     assert '__invalidkey' in provider.blocks['test'].data.keys()
     assert '__123invalid.key' not in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_passing_too_long_data_field_name():
     """Invalid data field names should get caught by the Feed, however, we
@@ -256,6 +273,8 @@ def test_passing_too_long_data_field_name():
 
     assert 'a'*255 in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_long_duplicate_name():
     """Invalid data field names should get caught by the Feed, however, we
@@ -281,6 +300,8 @@ def test_long_duplicate_name():
     assert 'a'*255 in provider.blocks['test'].data.keys()
     assert 'a'*252 + '_01' in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_reducing_to_duplicate_field_names():
     """Invalid data field names get modified by the Aggregator to comply with
@@ -309,6 +330,8 @@ def test_reducing_to_duplicate_field_names():
     assert 'aninvalidkey' in provider.blocks['test'].data.keys()
     assert 'aninvalidkey_01' in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_space_replacement_in_field_names():
     """Invalid data field names should get caught by the Feed, however, we
@@ -331,6 +354,8 @@ def test_space_replacement_in_field_names():
     assert '_an_invalid_key' in provider.blocks['test'].data.keys()
     assert 'key2' in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_empty_field_name():
     """Invalid data field names should get caught by the Feed, however, we
@@ -352,6 +377,8 @@ def test_empty_field_name():
 
     assert '' not in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_enforced_field_which_becomes_empty():
     """Invalid data field names should get caught by the Feed, however, we
@@ -376,6 +403,7 @@ def test_enforced_field_which_becomes_empty():
     assert 'invalid_field_123' in provider.blocks['test'].data.keys()
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_g3_cast():
     correct_tests = [
@@ -399,6 +427,7 @@ def test_g3_cast():
             g3_cast(x)
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_make_filename_directory_creation(tmpdir):
     """make_filename() should be able to create directories to store the .g3
@@ -411,6 +440,7 @@ def test_make_filename_directory_creation(tmpdir):
     os.path.isdir(os.path.basename(fname))
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 def test_make_filename_directory_creation_no_subdirs(tmpdir):
     """make_filename() should raise a FileNotFoundError if make_subdirs is
@@ -422,6 +452,7 @@ def test_make_filename_directory_creation_no_subdirs(tmpdir):
         make_filename(test_dir, make_subdirs=False)
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=["so3g"])
 @patch('os.makedirs', side_effect=PermissionError('mocked permission error'))
 def test_make_filename_directory_creation_permissions(tmpdir):

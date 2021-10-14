@@ -1,20 +1,27 @@
 import sys
 sys.path.insert(0, '../agents/aggregator/')
-from aggregator_agent import AggregatorAgent
 
+import pytest
 from unittest import mock
 
 from util import create_session, create_agent_fixture, generate_data_for_queue
 
-# fixtures
-args = mock.MagicMock()
-args.time_per_file = 3
-args.data_dir = '/tmp/data'
-args.initial_state = 'idle'  # start idle so we can use a tmpdir for data_dir
+try:
+    # depends on spt3g
+    from aggregator_agent import AggregatorAgent
 
-agent = create_agent_fixture(AggregatorAgent, {'args': args})
+    args = mock.MagicMock()
+    args.time_per_file = 3
+    args.data_dir = '/tmp/data'
+    # start idle so we can use a tmpdir for data_dir
+    args.initial_state = 'idle'
+
+    agent = create_agent_fixture(AggregatorAgent, {'args': args})
+except ModuleNotFoundError as e:
+    print(f"Unable to import: {e}")
 
 
+@pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_record(agent, tmpdir):
     # repoint data_dir to tmpdir fixture
     agent.data_dir = tmpdir
@@ -27,6 +34,7 @@ def test_aggregator_agent_record(agent, tmpdir):
     assert res[0] is True
 
 
+@pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_record_data(agent, tmpdir):
     # repoint data_dir to tmpdir fixture
     agent.data_dir = tmpdir
@@ -44,6 +52,7 @@ def test_aggregator_agent_record_data(agent, tmpdir):
     assert res[0] is True
 
 
+@pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_enqueue_data_no_aggregate(agent):
     agent.aggregate = False
 
@@ -53,6 +62,7 @@ def test_aggregator_agent_enqueue_data_no_aggregate(agent):
     assert agent.incoming_data.empty()
 
 
+@pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_stop_record(agent):
     session = create_session('record')
     agent.aggregate = True
@@ -60,6 +70,7 @@ def test_aggregator_agent_stop_record(agent):
     assert res[0] is True
 
 
+@pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_stop_record_not_running(agent):
     session = create_session('record')
     res = agent._stop_record(session, params=None)

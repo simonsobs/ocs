@@ -13,15 +13,28 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
-    - uses: actions/checkout@v2
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
         python-version: 3.8
 
-    - name: Build docker images
+    - name: clone ocs
+      uses: actions/checkout@v2
+
+    - name: Install ocs
       run: |
-        docker-compose build
+        pip3 install -r requirements.txt
+        pip3 install -e .
+
+    # Unit Tests
+    - name: Run unit tests
+      working-directory: ./tests
+      run: |
+        COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not (integtest or spt3g)'
+
+    #- name: Build docker images
+    #  run: |
+    #    docker-compose build
 
     # I like this idea, but let's hold off for now.
     #- name: Lint with flake8
@@ -31,14 +44,15 @@ jobs:
     #    # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
     #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    - name: Test with pytest wtihin a docker container
-      run: |
-        docker run -v $PWD:/coverage --rm ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest -m 'not integtest' --cov /app/ocs/ocs/ ./tests/"
+    #- name: Test with pytest wtihin a docker container
+    #  run: |
+    #    docker run -v $PWD:/coverage --rm -w="/app/ocs/tests/" ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov -m 'spt3g'"
 
     - name: Report test coverage
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        mv ./tests/.coverage.* ./
         pip install coveralls
         coverage combine
         coverage report

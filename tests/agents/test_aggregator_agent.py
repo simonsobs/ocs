@@ -21,6 +21,7 @@ except ModuleNotFoundError as e:
     print(f"Unable to import: {e}")
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_record(agent, tmpdir):
     # repoint data_dir to tmpdir fixture
@@ -34,6 +35,7 @@ def test_aggregator_agent_record(agent, tmpdir):
     assert res[0] is True
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_record_data(agent, tmpdir):
     # repoint data_dir to tmpdir fixture
@@ -52,6 +54,7 @@ def test_aggregator_agent_record_data(agent, tmpdir):
     assert res[0] is True
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_enqueue_data_no_aggregate(agent):
     agent.aggregate = False
@@ -62,6 +65,7 @@ def test_aggregator_agent_enqueue_data_no_aggregate(agent):
     assert agent.incoming_data.empty()
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_stop_record(agent):
     session = create_session('record')
@@ -70,6 +74,7 @@ def test_aggregator_agent_stop_record(agent):
     assert res[0] is True
 
 
+@pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_stop_record_not_running(agent):
     session = create_session('record')

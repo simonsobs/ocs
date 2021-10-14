@@ -83,7 +83,7 @@ Code Coverage
 `````````````
 Code coverage reports can be produced with the ``--cov`` flag::
 
-  python3 -m pytest -m 'not integtest' --cov=ocs
+  python3 -m pytest -m 'not integtest' --cov
 
 These results are also published to `coveralls`_.
 

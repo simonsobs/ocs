@@ -112,7 +112,7 @@ missing some dependencies), first make sure you build the latest ocs image,
 then use docker run::
 
   $ docker build -t ocs .
-  $ docker run --rm ocs sh -c "python3 -m pytest -p no:wampy -m 'not integtest' ./tests/"
+  $ docker run --rm -w="/app/ocs/tests/" ocs sh -c "python3 -m pytest -m 'not integtest'"
 
 For more details see `tests/README.rst <tests_>`_.
 

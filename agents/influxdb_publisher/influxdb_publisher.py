@@ -71,12 +71,17 @@ class InfluxDBAgent:
 
         self.incoming_data.put((data, feed))
 
+    @ocs_agent.param('run_once', default=False, type=bool)
     def record(self, session: ocs_agent.OpSession, params):
         """record()
 
         **Process** - This process will create an Publisher instance, which
         will collect and write provider data to disk as long as this process is
         running.
+
+        Parameters:
+            run_once (bool, optional): Run the record Process loop only once.
+                Default is False
 
         """
         session.set_status('starting')
@@ -97,14 +102,20 @@ class InfluxDBAgent:
             self.log.debug(f"Approx. queue size: {self.incoming_data.qsize()}")
             publisher.run()
 
+            if params['run_once']:
+                break
+
         publisher.close()
 
         return True, "Aggregation has ended"
 
     def _stop_record(self, session, params):
-        session.set_status('stopping')
-        self.aggregate = False
-        return True, "Stopping aggregation"
+        if self.aggregate:
+            session.set_status('stopping')
+            self.aggregate = False
+            return True, "Stopping aggregation"
+        else:
+            return False, "record process not currently running"
 
 
 def make_parser(parser=None):

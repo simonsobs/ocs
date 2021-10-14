@@ -2,11 +2,9 @@ import sys
 sys.path.insert(0, '../agents/aggregator/')
 from aggregator_agent import AggregatorAgent
 
-import time
 from unittest import mock
 
-from util import create_session, create_agent_fixture
-
+from util import create_session, create_agent_fixture, generate_data_for_queue
 
 # fixtures
 args = mock.MagicMock()
@@ -37,18 +35,8 @@ def test_aggregator_agent_record_data(agent, tmpdir):
     session = create_session('record')
 
     # inject some data to the queue
-    data = {'temps': {'block_name': 'test',
-                      'data': {'field_0': [1, 2],
-                               'field_01': [3, 4]},
-                      'timestamps': [time.time(), time.time()+1]}}
-    feed = {'agent_address': 'observatory.test-agent1',
-            'agg_params': {'frame_length': 60},
-            'feed_name': 'test_feed',
-            'address': 'observatory.test-agent1.feeds.test_feed',
-            'record': True,
-            'session_id': str(time.time())}
-    _data = (data, feed)
-    agent._enqueue_incoming_data(_data)
+    data = generate_data_for_queue()
+    agent._enqueue_incoming_data(data)
 
     params = {'run_once': True}
     res = agent.record(session, params)
@@ -59,18 +47,8 @@ def test_aggregator_agent_record_data(agent, tmpdir):
 def test_aggregator_agent_enqueue_data_no_aggregate(agent):
     agent.aggregate = False
 
-    data = {'temps': {'block_name': 'test',
-                      'data': {'field_0': [1, 2],
-                               'field_01': [3, 4]},
-                      'timestamps': [time.time(), time.time()+1]}}
-    feed = {'agent_address': 'observatory.test-agent1',
-            'agg_params': {'frame_length': 60},
-            'feed_name': 'test_feed',
-            'address': 'observatory.test-agent1.feeds.test_feed',
-            'record': True,
-            'session_id': str(time.time())}
-    _data = (data, feed)
-    agent._enqueue_incoming_data(_data)
+    data = generate_data_for_queue()
+    agent._enqueue_incoming_data(data)
 
     assert agent.incoming_data.empty()
 

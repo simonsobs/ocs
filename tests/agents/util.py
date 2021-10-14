@@ -1,3 +1,4 @@
+import time
 import pytest
 from unittest import mock
 
@@ -30,3 +31,23 @@ def create_session(op_name):
     session = OpSession(1, op_name, app=mock_app)
 
     return session
+
+
+def generate_data_for_queue():
+    """Just a simple example of data that'll get passed over a feed to the
+    aggregator/influxdb publisher.
+
+    """
+    data = {'temps': {'block_name': 'test',
+                      'data': {'field_0': [1, 2],
+                               'field_01': [3, 4]},
+                      'timestamps': [time.time(), time.time()+1]}}
+    feed = {'agent_address': 'observatory.test-agent1',
+            'agg_params': {'frame_length': 60},
+            'feed_name': 'test_feed',
+            'address': 'observatory.test-agent1.feeds.test_feed',
+            'record': True,
+            'session_id': str(time.time())}
+    _data = (data, feed)
+
+    return _data

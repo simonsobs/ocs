@@ -49,10 +49,6 @@ jobs:
         coverage report
         coveralls --service=github
 
-    - name: Test documentation build
-      run: |
-        docker run --rm ocs sh -c "make -C docs/ html"
-
     # Dockerize
     - name: Build and push development docker image
       env:

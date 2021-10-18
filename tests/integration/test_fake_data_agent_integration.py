@@ -1,12 +1,5 @@
 import os
-import time
 import pytest
-import signal
-import subprocess
-import coverage.data
-import urllib.request
-
-from urllib.error import URLError
 
 from ocs.matched_client import MatchedClient
 
@@ -22,40 +15,17 @@ from ocs.matched_client import MatchedClient
 
 # so we need a unique util name, or to put them all in the same place, probably
 # a directory up, or perhaps in the package itself
-from util2 import create_agent_runner_fixture
+from util2 import create_agent_runner_fixture, create_crossbar_fixture
 
 import ocs
 from ocs.base import OpCode
 
 pytest_plugins = ("docker_compose")
 
+wait_for_crossbar = create_crossbar_fixture()
+run_fake_data_agent = create_agent_runner_fixture(
+    '../agents/fake_data/fake_data_agent.py', 'fake_data')
 
-# Fixture to wait for crossbar server to be available.
-# Speeds up tests a bit to have this session scoped
-# If tests start interfering with one another this should be changed to
-# "function" scoped and session_scoped_container_getter should be changed to
-# function_scoped_container_getter
-@pytest.fixture(scope="session")
-def wait_for_crossbar(session_scoped_container_getter):
-    """Wait for the crossbar server from docker-compose to become
-    responsive.
-
-    """
-    attempts = 0
-
-    while attempts < 6:
-        try:
-            code = urllib.request.urlopen("http://localhost:8001/info").getcode()
-        except (URLError, ConnectionResetError):
-            print("Crossbar server not online yet, waiting 5 seconds.")
-            time.sleep(5)
-
-        attempts += 1
-
-    assert code == 200
-    print("Crossbar server online.")
-
-run_fake_data_agent = create_agent_runner_fixture('../agents/fake_data/fake_data_agent.py', 'fake_data')
 
 @pytest.fixture()
 def client():

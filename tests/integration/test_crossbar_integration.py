@@ -15,9 +15,6 @@ try:
 except ModuleNotFoundError as e:
     print(f"Unable to import so3g: {e}")
 
-# Set OCS_CONFIG_DIR environment variable
-os.environ['OCS_CONFIG_DIR'] = os.getcwd()
-
 pytest_plugins = ("docker_compose",)
 
 
@@ -89,6 +86,10 @@ def test_fake_data_after_crossbar_restart(wait_for_crossbar):
     time.sleep(5) # give a few seconds for things to make first connection
     restart_crossbar()
     now = time.time()
+
+    # Set OCS_CONFIG_DIR environment variable
+    os.environ['OCS_CONFIG_DIR'] = os.getcwd()
+
     # Check fake data Agent is accessible and producing new data.
     therm_client = MatchedClient('fake-data1', args=[])
 
@@ -114,6 +115,9 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     data from after the reconnection makes it into the latest .g3 file.
 
     """
+    # Set OCS_CONFIG_DIR environment variable
+    os.environ['OCS_CONFIG_DIR'] = os.getcwd()
+
     # record first file being written by aggregator
     time.sleep(5) # give a few seconds for things to collect some data
     agg_client = MatchedClient('aggregator', args=[])

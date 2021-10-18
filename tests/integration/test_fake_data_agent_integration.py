@@ -29,9 +29,6 @@ from ocs.base import OpCode
 
 pytest_plugins = ("docker_compose")
 
-# Set the OCS_CONFIG_DIR so we read the local default.yaml file always
-os.environ['OCS_CONFIG_DIR'] = os.getcwd()
-
 
 # Fixture to wait for crossbar server to be available.
 # Speeds up tests a bit to have this session scoped
@@ -62,6 +59,8 @@ run_fake_data_agent = create_agent_runner_fixture('../agents/fake_data/fake_data
 
 @pytest.fixture()
 def client():
+    # Set the OCS_CONFIG_DIR so we read the local default.yaml file always
+    os.environ['OCS_CONFIG_DIR'] = os.getcwd()
     client = MatchedClient('fake-data2')
     return client
 

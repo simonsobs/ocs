@@ -62,23 +62,39 @@ run_fake_data_agent = create_agent_runner_fixture('../agents/fake_data/fake_data
 
 @pytest.fixture()
 def client():
-    client = MatchedClient('fake-data1')
+    client = MatchedClient('fake-data2')
     return client
 
 
 @pytest.mark.integtest
-def test_fake_data_delay_task_int(wait_for_crossbar, run_fake_data_agent, client):
+def test_fake_data_agent_delay_task(wait_for_crossbar, run_fake_data_agent, client):
     resp = client.delay_task(delay=0.01)
-    print(resp)
+    # print(resp)
     assert resp.status == ocs.OK
-    print(resp.session)
+    # print(resp.session)
     assert resp.session['op_code'] == OpCode.SUCCEEDED.value
 
 
 @pytest.mark.integtest
-def test_fake_data_set_heartbeat_int(wait_for_crossbar, run_fake_data_agent, client):
+def test_fake_data_agent_set_heartbeat(wait_for_crossbar, run_fake_data_agent, client):
     resp = client.set_heartbeat(heartbeat=True)
+    assert resp.status == ocs.OK
+    assert resp.session['op_code'] == OpCode.SUCCEEDED.value
+
+
+@pytest.mark.integtest
+def test_fake_data_agent_acq(wait_for_crossbar, run_fake_data_agent, client):
+    resp = client.acq.start(run_once=True)
     print(resp)
     assert resp.status == ocs.OK
-    print(resp.session)
-    assert resp.session['op_code'] == OpCode.SUCCEEDED.value
+    assert resp.session['op_code'] == OpCode.STARTING.value
+
+    # We stopped the process with run_once=True, but that will leave us in the
+    # RUNNING state
+    resp = client.acq.status()
+    assert resp.session['op_code'] == OpCode.RUNNING.value
+
+    # Now we request a formal stop, which should put us in STOPPING
+    client.acq.stop()
+    resp = client.acq.status()
+    assert resp.session['op_code'] == OpCode.STOPPING.value

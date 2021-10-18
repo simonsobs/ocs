@@ -26,6 +26,12 @@ hosts:
        'arguments': [['--initial-state', 'idle'],
                      ['--time-per-file', '30'],
                      ['--data-dir', '/tmp/data/']]},
+      {'agent-class': 'InfluxDBAgent',
+       'instance-id': 'influxagent-local',
+       'arguments': [['--initial-state', 'idle'],
+                     ['--host', 'localhost'],
+                     ['--port', 8086],
+                     ['--database', 'ocs_feeds']]},
     ]
   }
 

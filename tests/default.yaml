@@ -21,6 +21,11 @@ hosts:
       {'agent-class': 'RegistryAgent',
         'instance-id': 'registry',
         'arguments': []},
+      {'agent-class': 'AggregatorAgent',
+       'instance-id': 'aggregator-local',
+       'arguments': [['--initial-state', 'idle'],
+                     ['--time-per-file', '30'],
+                     ['--data-dir', '/tmp/data/']]},
     ]
   }
 

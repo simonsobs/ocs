@@ -18,6 +18,9 @@ hosts:
                      ['--num-channels', '16'],
                      ['--sample-rate', '5'],
                      ['--frame-length', '10']]},
+      {'agent-class': 'RegistryAgent',
+        'instance-id': 'registry',
+        'arguments': []},
     ]
   }
 

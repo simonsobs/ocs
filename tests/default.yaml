@@ -10,11 +10,13 @@ hub:
 hosts:
 
   localhost: {
-  'crossbar': {'config-dir': './dot_crossbar/'},
     'agent-instances': [
-      {'agent-class': 'HostMaster',
-       'instance-id': 'master-host-1',
-       'arguments': []},
+      {'agent-class': 'FakeDataAgent',
+       'instance-id': 'fake-data1',
+       'arguments': [['--mode', 'idle'],
+                     ['--num-channels', '16'],
+                     ['--sample-rate', '5'],
+                     ['--frame-length', '10']]},
     ]
   }
 

@@ -158,6 +158,7 @@ class FakeDataAgent:
         ok = False
         with self.lock:
             if self.job =='acq':
+                session.set_status('stopping')
                 self.job = '!acq'
                 ok = True
         return (ok, {True: 'Requested process stop.',

@@ -5,9 +5,6 @@ import signal
 import subprocess
 import coverage.data
 
-# Set the OCS_CONFIG_DIR so we read the local default.yaml file always
-os.environ['OCS_CONFIG_DIR'] = os.getcwd()
-
 
 def create_agent_runner_fixture(agent_path, agent_name):
     """Create a pytest fixture for running a given OCS Agent.

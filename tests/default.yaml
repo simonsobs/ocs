@@ -10,9 +10,10 @@ hub:
 hosts:
 
   localhost: {
+    'log-dir': './log/',
     'agent-instances': [
       {'agent-class': 'FakeDataAgent',
-       'instance-id': 'fake-data1',
+       'instance-id': 'fake-data2',
        'arguments': [['--mode', 'idle'],
                      ['--num-channels', '16'],
                      ['--sample-rate', '5'],

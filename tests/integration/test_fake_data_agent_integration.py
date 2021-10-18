@@ -70,7 +70,7 @@ def test_fake_data_agent_acq(wait_for_crossbar, run_fake_data_agent, client):
 
 
 # Test autostartup
-run_fake_data_agent_acq = create_agent_runner_fixture('../agents/fake_data/fake_data_agent.py', 'fake_data', ['--mode', 'acq'])
+run_fake_data_agent_acq = create_agent_runner_fixture('../agents/fake_data/fake_data_agent.py', 'fake_data', args=['--mode', 'acq'])
 
 
 @pytest.mark.integtest

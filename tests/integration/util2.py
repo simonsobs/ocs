@@ -6,13 +6,14 @@ import subprocess
 import coverage.data
 
 
-def create_agent_runner_fixture(agent_path, agent_name):
+def create_agent_runner_fixture(agent_path, agent_name, args=None):
     """Create a pytest fixture for running a given OCS Agent.
 
     Parameters:
         agent_path (str): Relative path to Agent,
             i.e. '../agents/fake_data/fake_data_agent.py'
         agent_name (str): Short, unique name for the agent
+        args (list): Additional CLI arguments to add when starting the Agent
 
     """
     @pytest.fixture()
@@ -20,11 +21,14 @@ def create_agent_runner_fixture(agent_path, agent_name):
         env = os.environ.copy()
         env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
         env['OCS_CONFIG_DIR'] = os.getcwd()
-        agentproc = subprocess.Popen(['coverage', 'run',
-                                      '--rcfile=./.coveragerc',
-                                      agent_path,
-                                      '--site-file',
-                                      './default.yaml'],
+        cmd = ['coverage', 'run',
+            '--rcfile=./.coveragerc',
+            agent_path,
+            '--site-file',
+            './default.yaml']
+        if args is not None:
+            cmd.extend(args)
+        agentproc = subprocess.Popen(cmd,
                                      env=env,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,

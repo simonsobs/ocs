@@ -98,3 +98,14 @@ def test_fake_data_agent_acq(wait_for_crossbar, run_fake_data_agent, client):
     client.acq.stop()
     resp = client.acq.status()
     assert resp.session['op_code'] == OpCode.STOPPING.value
+
+
+# Test autostartup
+run_fake_data_agent_acq = create_agent_runner_fixture('../agents/fake_data/fake_data_agent.py', 'fake_data', ['--mode', 'acq'])
+
+
+@pytest.mark.integtest
+def test_fake_data_agent_delay_task_autostartup(wait_for_crossbar, run_fake_data_agent_acq, client):
+    resp = client.delay_task(delay=0.01)
+    assert resp.status == ocs.OK
+    assert resp.session['op_code'] == OpCode.SUCCEEDED.value

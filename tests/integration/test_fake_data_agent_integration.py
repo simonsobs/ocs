@@ -1,4 +1,5 @@
 import os
+import time
 import pytest
 
 from ocs.matched_client import MatchedClient
@@ -22,7 +23,19 @@ run_fake_data_agent = create_agent_runner_fixture(
 def client():
     # Set the OCS_CONFIG_DIR so we read the local default.yaml file always
     os.environ['OCS_CONFIG_DIR'] = os.getcwd()
-    client = MatchedClient('fake-data2')
+    attempts = 0
+
+    while attempts < 60:
+        try:
+            client = MatchedClient('fake-data2')
+            break
+        except RuntimeError as e:
+            print(f"Caught error: {e}")
+            print("Attempting to reconnect.")
+
+        time.sleep(1)
+        attempts += 1
+
     return client
 
 

@@ -57,9 +57,10 @@ jobs:
       working-directory: ./tests
       run: |
         pwd
+        mkdir log
         ls -la
         echo "running tests"
-        COVERAGE_FILE=.coverage.int python3 -m pytest --cov -m 'integtest' -q ./integration/test_aggregator_agent_integration.py
+        COVERAGE_FILE=.coverage.int python3 -m pytest --cov -m 'integtest'
         echo "tests complete"
         ls -la
         pwd

@@ -42,21 +42,7 @@ hosts:
   }
 
   ocs-docker: {
-
-    # Quick start example Agents
-
     'agent-instances': [
-      {'agent-class': 'InfluxDBAgent',
-       'instance-id': 'influxagent',
-       'arguments': [['--initial-state', 'record'],
-                     ['--host', 'influxdb'],
-                     ['--port', 8086],
-                     ['--database', 'ocs_feeds']]},
-      {'agent-class': 'Lakeshore240Agent',
-       'instance-id': 'LSSIM',
-       'arguments': [['--serial-number', 'LSSIM'],
-                     ['--port', 'tcp://ls240-sim:1094'],
-                     ['--mode', 'acq']]},
       {'agent-class': 'FakeDataAgent',
        'instance-id': 'fake-data1',
        'arguments': [['--mode', 'acq'],

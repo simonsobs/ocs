@@ -42,6 +42,7 @@ def client():
     return client
 
 
+@pytest.mark.dependency(depends=["so3g"])
 @pytest.mark.integtest
 def test_aggregator_agent_record(wait_for_crossbar, run_agent, client):
     resp = client.record.start(run_once=True)

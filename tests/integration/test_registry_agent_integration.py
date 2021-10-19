@@ -35,6 +35,7 @@ def client():
     return client
 
 
+@pytest.mark.dependency(depends=["so3g"])
 @pytest.mark.integtest
 def test_registry_agent_main(wait_for_crossbar, run_agent, client):
     # Startup is always true, so let's check it's running

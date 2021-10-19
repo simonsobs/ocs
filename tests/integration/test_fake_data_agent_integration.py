@@ -3,19 +3,10 @@ import pytest
 
 from ocs.matched_client import MatchedClient
 
-# trying to figure out good organization for helper functions/etc.
-# this can be imported when pytest is run for all tests in the above directory
-# but can't be imported if you do something like:
-# $ python3 -m pytest --cov --cov-report=html -k 'test_fake_data_delay' integration/test_fake_data_agent_integration.py
-# which makes sense to me
-# it doesn't quite make sense to me why this is importable otherwise
-# that also causes a conflict, say if we had a util.py in each test directory,
-# they will be in the same namespace when going to import, which isn't good
-# from util import create_session
-
-# so we need a unique util name, or to put them all in the same place, probably
-# a directory up, or perhaps in the package itself
-from util2 import create_agent_runner_fixture, create_crossbar_fixture
+from integration.util import (
+    create_agent_runner_fixture,
+    create_crossbar_fixture
+)
 
 import ocs
 from ocs.base import OpCode

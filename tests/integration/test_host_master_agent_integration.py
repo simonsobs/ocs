@@ -1,12 +1,12 @@
 import os
-import time
 import pytest
 
 from ocs.matched_client import MatchedClient
 
-# so we need a unique util name, or to put them all in the same place, probably
-# a directory up, or perhaps in the package itself
-from util2 import create_agent_runner_fixture, create_crossbar_fixture
+from integration.util import (
+    create_agent_runner_fixture,
+    create_crossbar_fixture
+)
 
 from ocs.base import OpCode
 

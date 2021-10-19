@@ -4,7 +4,11 @@ from influxdb_publisher import InfluxDBAgent
 
 from unittest import mock
 
-from util import create_session, create_agent_fixture, generate_data_for_queue
+from agents.util import (
+    create_agent_fixture,
+    create_session,
+    generate_data_for_queue
+)
 
 
 # fixtures

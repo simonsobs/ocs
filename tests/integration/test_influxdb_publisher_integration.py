@@ -37,8 +37,8 @@ def test_influxdb_publisher_agent_record(wait_for_crossbar, run_agent, client):
     assert resp.status == ocs.OK
     assert resp.session['op_code'] == OpCode.STARTING.value
 
-    # allow time for connection to DB
-    time.sleep(1)
+    # allow time for record to connect to DB and run
+    time.sleep(5)
 
     # We stopped the process with run_once=True, but that will leave us in the
     # RUNNING state

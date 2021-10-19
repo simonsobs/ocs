@@ -5,7 +5,7 @@ import time
 import pytest
 import pytest_twisted
 
-from util import create_session, create_agent_fixture
+from agents.util import create_session, create_agent_fixture
 
 
 try:

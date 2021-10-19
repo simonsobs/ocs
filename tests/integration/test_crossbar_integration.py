@@ -6,7 +6,7 @@ import docker
 
 from ocs.matched_client import MatchedClient
 
-from util2 import create_crossbar_fixture, restart_crossbar
+from integration.util import create_crossbar_fixture, restart_crossbar
 
 try:
     from so3g import hk

@@ -11,7 +11,13 @@ hosts:
 
   localhost: {
     'log-dir': './log/',
+    'agent-paths': [
+      '../agents/',
+    ],
     'agent-instances': [
+      {'agent-class': 'HostMaster',
+       'instance-id': 'master-host-1',
+       'arguments': []},
       {'agent-class': 'FakeDataAgent',
        'instance-id': 'fake-data2',
        'arguments': [['--mode', 'idle'],

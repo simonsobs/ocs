@@ -50,4 +50,4 @@ def test_influxdb_publisher_agent_record(wait_for_crossbar, run_agent, client):
     # unnoticed related to Issue #214
     client.record.stop()
     resp = client.record.status()
-    assert resp.session['op_code'] == OpCode.SUCCEEDED.value
+    assert resp.session['op_code'] in [OpCode.SUCCEEDED.value, OpCode.STOPPING.value]

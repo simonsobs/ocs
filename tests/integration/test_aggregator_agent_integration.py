@@ -1,4 +1,5 @@
 import os
+import time
 import pytest
 
 from ocs.matched_client import MatchedClient
@@ -17,7 +18,7 @@ wait_for_crossbar = create_crossbar_fixture()
 run_agent = create_agent_runner_fixture(
     '../agents/aggregator/aggregator_agent.py',
     'aggregator-local',
-    startup_sleep=2)
+    startup_sleep=10)
 
 
 @pytest.fixture()
@@ -25,7 +26,19 @@ def client():
     # Set the OCS_CONFIG_DIR so we read the local default.yaml file always
     os.environ['OCS_CONFIG_DIR'] = os.getcwd()
     print(os.environ['OCS_CONFIG_DIR'])
-    client = MatchedClient('aggregator-local')
+    attempts = 0
+
+    while attempts < 60:
+        try:
+            client = MatchedClient('aggregator-local')
+            break
+        except RuntimeError as e:
+            print(f"Caught error: {e}")
+            print("Attempting to reconnect.")
+
+        time.sleep(1)
+        attempts += 1
+
     return client
 
 
@@ -44,4 +57,4 @@ def test_aggregator_agent_record(wait_for_crossbar, run_agent, client):
     # Startup is always true, so let's stop record first
     client.record.stop()
     resp = client.record.status()
-    assert resp.session['op_code'] == OpCode.STOPPING.value
+    assert resp.session['op_code'] in [OpCode.STOPPING.value, OpCode.SUCCEEDED.value]

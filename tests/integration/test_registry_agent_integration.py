@@ -13,10 +13,15 @@ from ocs.base import OpCode
 pytest_plugins = ("docker_compose")
 
 
+if os.environ.get('GITHUB_ACTIONS'):
+    SLEEP = 10
+else:
+    SLEEP = 2
+
 wait_for_crossbar = create_crossbar_fixture()
 run_agent = create_agent_runner_fixture('../agents/registry/registry.py',
                                         'registry',
-                                        startup_sleep=2,
+                                        startup_sleep=SLEEP,
                                         args=['--log-dir',
                                               os.path.join(os.getcwd(),
                                                            'log/')])

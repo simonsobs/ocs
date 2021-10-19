@@ -5,6 +5,7 @@ import signal
 import subprocess
 import coverage.data
 import urllib.request
+import docker
 
 from urllib.error import URLError
 
@@ -28,10 +29,10 @@ def create_agent_runner_fixture(agent_path, agent_name, startup_sleep=1, args=No
         env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
         env['OCS_CONFIG_DIR'] = os.getcwd()
         cmd = ['coverage', 'run',
-            '--rcfile=./.coveragerc',
-            agent_path,
-            '--site-file',
-            './default.yaml']
+               '--rcfile=./.coveragerc',
+               agent_path,
+               '--site-file',
+               './default.yaml']
         if args is not None:
             cmd.extend(args)
         agentproc = subprocess.Popen(cmd,
@@ -57,30 +58,45 @@ def create_agent_runner_fixture(agent_path, agent_name, startup_sleep=1, args=No
 
     return run_agent
 
+
+def _check_crossbar_connection():
+    attempts = 0
+
+    while attempts < 6:
+        try:
+            code = urllib.request.urlopen("http://localhost:8001/info").getcode()
+        except (URLError, ConnectionResetError):
+            print("Crossbar server not online yet, waiting 5 seconds.")
+            time.sleep(5)
+
+        attempts += 1
+
+    assert code == 200
+    print("Crossbar server online.")
+
+
 def create_crossbar_fixture():
     # Fixture to wait for crossbar server to be available.
     # Speeds up tests a bit to have this session scoped
     # If tests start interfering with one another this should be changed to
     # "function" scoped and session_scoped_container_getter should be changed to
     # function_scoped_container_getter
-    @pytest.fixture(scope="session")
-    def wait_for_crossbar(session_scoped_container_getter):
+    # @pytest.fixture(scope="session")
+    # def wait_for_crossbar(session_scoped_container_getter):
+    @pytest.fixture(scope="function")
+    def wait_for_crossbar(function_scoped_container_getter):
         """Wait for the crossbar server from docker-compose to become
         responsive.
 
         """
-        attempts = 0
-
-        while attempts < 6:
-            try:
-                code = urllib.request.urlopen("http://localhost:8001/info").getcode()
-            except (URLError, ConnectionResetError):
-                print("Crossbar server not online yet, waiting 5 seconds.")
-                time.sleep(5)
-
-            attempts += 1
-
-        assert code == 200
-        print("Crossbar server online.")
+        _check_crossbar_connection()
 
     return wait_for_crossbar
+
+
+def restart_crossbar():
+    """Restart the crossbar server and wait for it to come back online."""
+    client = docker.from_env()
+    crossbar_container = client.containers.get('crossbar')
+    crossbar_container.restart()
+    _check_crossbar_connection()

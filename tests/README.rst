@@ -9,11 +9,25 @@ This will run every test, which includes both unit and integration tests. The
 unit tests will run quickly, however the integration test will take some time,
 and might require some first time setup.
 
+Test Organization
+`````````````````
+Tests that test the functionality of the core ocs library are kept in the root
+of the ``tests/`` directory. They are named identically to the core library
+module filenames with a ``test_`` prefix.
+
+Agent unit tests, which import and directly run the Agents during testing, are
+kept in ``tests/agents/``. Since the ``ocs/agents/`` directory is not within
+the core ocs package, these tests insert their respective Agent paths into the
+system path for import.
+
+Finally, integration tests that test the Agents and interaction with them
+through Clients are kept in ``tests/integration``.
+
 Unit Tests
 ``````````
 The unit tests are built to run quickly and test functionality of individual
 parts of the OCS library. These are run automatically on every commit to a
-branch/PR on github, using Github Actions. However, you might want to run them
+branch/PR on GitHub, using GitHub Actions. However, you might want to run them
 locally when updating or adding to OCS for faster feedback. To run only the
 unit tests run::
 
@@ -26,7 +40,7 @@ tests, leaving just the unit tests.
     spt3g/so3g dependencies on the host system. Ensure the ocs Docker image is
     built with your changes, then run::
 
-        $ docker run --rm ocs sh -c "python3 -m pytest -m 'not integtest' ./tests/"
+        $ docker run --rm -w="/app/ocs/tests/" ocs sh -c "python3 -m pytest -m 'not integtest'"
 
 Integration Tests
 `````````````````

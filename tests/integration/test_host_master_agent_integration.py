@@ -1,14 +1,13 @@
 import os
 import pytest
 
-from ocs.matched_client import MatchedClient
+from ocs.base import OpCode
 
 from integration.util import (
     create_agent_runner_fixture,
+    create_client_fixture,
     create_crossbar_fixture
 )
-
-from ocs.base import OpCode
 
 pytest_plugins = ("docker_compose")
 
@@ -20,14 +19,7 @@ run_agent = create_agent_runner_fixture('../agents/host_master/host_master.py',
                                         args=['--log-dir',
                                               os.path.join(os.getcwd(),
                                                            'log/')])
-
-
-@pytest.fixture()
-def client():
-    # Set the OCS_CONFIG_DIR so we read the local default.yaml file always
-    os.environ['OCS_CONFIG_DIR'] = os.getcwd()
-    client = MatchedClient('master-host-1')
-    return client
+client = create_client_fixture('master-host-1')
 
 
 @pytest.mark.integtest

@@ -9,6 +9,8 @@ import docker
 
 from urllib.error import URLError
 
+from ocs.matched_client import MatchedClient
+
 
 def create_agent_runner_fixture(agent_path, agent_name, startup_sleep=1, args=None):
     """Create a pytest fixture for running a given OCS Agent.
@@ -100,3 +102,38 @@ def restart_crossbar():
     crossbar_container = client.containers.get('crossbar')
     crossbar_container.restart()
     _check_crossbar_connection()
+
+
+def create_client_fixture(instance_id, timeout=30):
+    """Create the fixture that provides tests a Client object.
+
+    Parameters:
+        instance_id (str): Agent instance-id to connect the Client to
+        timeout (int): Approximate timeout in seconds for the connection.
+            Connection attempts will be made X times, with a 1 second pause
+            between attempts. This is useful if it takes some time for the
+            Agent to start accepting connections, which varies depending on the
+            Agent.
+
+    """
+    @pytest.fixture()
+    def client_fixture():
+        # Set the OCS_CONFIG_DIR so we read the local default.yaml file
+        os.environ['OCS_CONFIG_DIR'] = os.getcwd()
+        print(os.environ['OCS_CONFIG_DIR'])
+        attempts = 0
+
+        while attempts < timeout:
+            try:
+                client = MatchedClient(instance_id)
+                break
+            except RuntimeError as e:
+                print(f"Caught error: {e}")
+                print("Attempting to reconnect.")
+
+            time.sleep(1)
+            attempts += 1
+
+        return client
+
+    return client_fixture

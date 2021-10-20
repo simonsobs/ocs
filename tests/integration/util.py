@@ -12,16 +12,13 @@ from urllib.error import URLError
 from ocs.matched_client import MatchedClient
 
 
-def create_agent_runner_fixture(agent_path, agent_name, startup_sleep=1, args=None):
+def create_agent_runner_fixture(agent_path, agent_name, args=None):
     """Create a pytest fixture for running a given OCS Agent.
 
     Parameters:
         agent_path (str): Relative path to Agent,
             i.e. '../agents/fake_data/fake_data_agent.py'
         agent_name (str): Short, unique name for the agent
-        startup_sleep (int): Seconds to wait after Agent startup before
-            commands can be sent. If the Client can't find the registered
-            Agent, try increasing this gradually.
         args (list): Additional CLI arguments to add when starting the Agent
 
     """
@@ -43,8 +40,8 @@ def create_agent_runner_fixture(agent_path, agent_name, startup_sleep=1, args=No
                                      stderr=subprocess.PIPE,
                                      preexec_fn=os.setsid)
 
-        # wait for Agent to connect
-        time.sleep(startup_sleep)
+        # wait for Agent to startup 
+        time.sleep(1)
 
         yield
 

@@ -10,13 +10,12 @@ services:
   # Crossbar Server
   # --------------------------------------------------------------------------
   crossbar:
-    #image: ocs-crossbar:latest
-    image: simonsobs/ocs-crossbar:v0.7.0-9-g1d136a3-dev
+    image: ocs-crossbar
     container_name: "crossbar"
     ports:
       - "8001:8001" # expose for OCS
     volumes:
-      - ./config.json:/app/crossbar/config.json
+      - ./config.json:/ocs/.crossbar/config.json
     environment:
          - PYTHONUNBUFFERED=1
 

@@ -53,7 +53,9 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
         agentcov = coverage.data.CoverageData(
             basename=f'.coverage.agent.{agent_name}')
         agentcov.read()
-        cov.get_data().update(agentcov)
+        # protect against missing --cov flag
+        if cov is not None:
+            cov.get_data().update(agentcov)
 
     return run_agent
 

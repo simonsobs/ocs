@@ -14,8 +14,7 @@ pytest_plugins = ("docker_compose")
 wait_for_crossbar = create_crossbar_fixture()
 run_agent = create_agent_runner_fixture(
     '../agents/aggregator/aggregator_agent.py',
-    'aggregator-local',
-    startup_sleep=2)
+    'aggregator-local')
 client = create_client_fixture('aggregator-local')
 
 

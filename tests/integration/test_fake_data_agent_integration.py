@@ -58,19 +58,11 @@ def test_fake_data_agent_set_heartbeat(wait_for_crossbar, run_fake_data_agent, c
 @pytest.mark.integtest
 def test_fake_data_agent_acq(wait_for_crossbar, run_fake_data_agent, client):
     resp = client.acq.start(run_once=True)
-    print(resp)
     assert resp.status == ocs.OK
-    assert resp.session['op_code'] == OpCode.STARTING.value
 
-    # We stopped the process with run_once=True, but that will leave us in the
-    # RUNNING state
-    resp = client.acq.status()
-    assert resp.session['op_code'] == OpCode.RUNNING.value
-
-    # Now we request a formal stop, which should put us in STOPPING
-    client.acq.stop()
-    resp = client.acq.status()
-    assert resp.session['op_code'] == OpCode.STOPPING.value
+    resp = client.acq.wait(timeout=20)
+    assert resp.status == ocs.OK
+    assert resp.session['op_code'] == OpCode.SUCCEEDED.value
 
 
 # Test autostartup

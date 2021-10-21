@@ -5,7 +5,7 @@ import ocs
 from ocs import site_config
 
 
-def get_op(op_type, name, session, encoded, client):
+def _get_op(op_type, name, session, encoded, client):
     """
     Factory for generating matched operations.
     This will make sure op.start's docstring is the docstring of the operation.
@@ -50,7 +50,7 @@ def get_op(op_type, name, session, encoded, client):
         raise ValueError("op_type must be either 'task' or 'process'")
 
 
-def opname_to_attr(name):
+def _opname_to_attr(name):
     for c in ['-', ' ']:
         name = name.replace(c, '_')
     return name
@@ -99,15 +99,15 @@ class MatchedClient:
         self.instance_id = instance_id
 
         for name, session, encoded in self._client.get_tasks():
-            setattr(self, opname_to_attr(name),
-                    get_op('task', name, session, encoded, self._client))
+            setattr(self, _opname_to_attr(name),
+                    _get_op('task', name, session, encoded, self._client))
 
         for name, session, encoded in self._client.get_processes():
-            setattr(self, opname_to_attr(name),
-                    get_op('process', name, session, encoded, self._client))
+            setattr(self, _opname_to_attr(name),
+                    _get_op('process', name, session, encoded, self._client))
 
 
-def humanized_time(t):
+def _humanized_time(t):
     if abs(t) < 1.:
         return '%.6f s' % t
     if abs(t) < 120:
@@ -139,7 +139,7 @@ class OCSReply(collections.namedtuple('_OCSReply',
             s = self.session
             run_str = 'status={status}'.format(**s)
             if s['status'] in ['starting', 'running']:
-                run_str += ' for %s' % humanized_time(
+                run_str += ' for %s' % _humanized_time(
                     time.time() - s['start_time'])
             elif s['status'] == 'done':
                 if s['success']:
@@ -147,8 +147,8 @@ class OCSReply(collections.namedtuple('_OCSReply',
                 else:
                     run_str += ' with ERROR'
                 run_str += ' %s ago, took %s' % (
-                    humanized_time(time.time() - s['end_time']),
-                    humanized_time(s['end_time'] - s['start_time']))
+                    _humanized_time(time.time() - s['end_time']),
+                    _humanized_time(s['end_time'] - s['start_time']))
             text += ('  {op_name}[session={session_id}]; '
                      '{run_str}\n'.format(run_str=run_str, **s))
             messages = s.get('messages', [])

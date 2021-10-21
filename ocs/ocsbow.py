@@ -309,7 +309,7 @@ class HostMasterManager:
                     result['message'] = (
                         'Master Process has been running for %i seconds.' %
                         (time.time()  - session['start_time']))
-                    result['child_states'] = session['data']
+                    result['child_states'] = session['data']['child_states']
                 else:
                     result['message'] = 'Master Process is in state: %s' % status_text
             else:

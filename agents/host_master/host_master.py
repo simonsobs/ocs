@@ -334,7 +334,7 @@ class HostMaster:
                                       'target_state',
                                       'class_name',
                                       'instance_id']})
-            session.data = child_states
+            session.data = {'child_states': child_states}
 
             yield dsleep(max(sleep_time, .001))
         return True, 'Exited.'

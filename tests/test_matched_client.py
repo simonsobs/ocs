@@ -60,42 +60,40 @@ def test_opname_to_attr(input_, expected):
     assert _opname_to_attr(input_) == expected
 
 
-def mock_client(session_name, response_code):
-    """Mock a ControlClient object that has a predefined request response for
-    an OpSession with the given name.
-
-    Parameters:
-        session_name (str): Name to give to the OpSession being called by
-            ControlClient.request.
-        response_code (int): Value of ResponseCode for the client.request call
-            to return.
-
-    """
-    session = create_session(session_name)
-    encoded_session = session.encoded()
-
-    client = MagicMock()
-    client.request = MagicMock(return_value=(response_code,
-                                             'msg',
-                                             encoded_session))
-
-    return client
-
-
 class TestGetOp:
     def test_invalid_op_type(self):
         with pytest.raises(ValueError):
             _get_op('not_valid', 'name', MagicMock(), MagicMock(), MagicMock())
+
+    def mock_client(self, session_name, response_code):
+        """Mock a ControlClient object that has a predefined request response for
+        an OpSession with the given name.
+
+        Parameters:
+            session_name (str): Name to give to the OpSession being called by
+                ControlClient.request.
+            response_code (int): Value of ResponseCode for the client.request
+                call to return.
+
+        """
+        session = create_session(session_name)
+        encoded_session = session.encoded()
+
+        client = MagicMock()
+        client.request = MagicMock(return_value=(response_code,
+                                                 'msg',
+                                                 encoded_session))
+
+        return client
 
     def _client_operation(self, op_type, op_name, response_code=ocs.OK):
         """Build a mocked client, and get an Operation for it, returning
         both.
 
         """
-        client = mock_client(op_name, response_code)
-        encoded_task = \
-            MagicMock(return_value={'blocking': True,
-                                    'docstring': 'Example docstring'})
+        client = self.mock_client(op_name, response_code)
+        encoded_task = {'blocking': True,
+                        'docstring': 'Example docstring'}
         task = _get_op(op_type, op_name, None, encoded_task, client)
 
         return (client, task)
@@ -116,6 +114,7 @@ class TestGetOp:
     def test_task_start(self, client_task):
         client, task = client_task
         print(task.start())
+        assert task.start.__doc__ == 'Example docstring'
         client.request.assert_called_with('start', 'task_name', params={})
 
     def test_task_wait(self, client_task):
@@ -149,3 +148,31 @@ class TestGetOp:
         client, process = client_process
         print(process())
         client.request.assert_called_with('status', 'process_name')
+
+
+def _fake_get_control_client(instance_id, **kwargs):
+    """Quick function to return a Client like you'd expect from
+    site_config.get_control_client, except it's mocked to have simple get_tasks
+    and get_processes fixed values.
+
+    """
+    encoded_op = {'blocking': True,
+                  'docstring': 'Example docstring'}
+    client = MagicMock()
+    client.get_tasks = MagicMock(return_value=([('task_name',
+                                               None,
+                                               encoded_op)]))
+    client.get_processes = MagicMock(return_value=([('process_name',
+                                                     None,
+                                                     encoded_op)]))
+
+    return client
+
+class TestMatchedClient:
+    @patch('ocs.site_config.get_control_client', _fake_get_control_client)
+    def test_matched_client_object(self):
+        client = MatchedClient('agent-id')
+        assert client.instance_id == 'agent-id'
+        print(dir(client))
+        assert hasattr(client, 'process_name')
+        assert hasattr(client, 'task_name')

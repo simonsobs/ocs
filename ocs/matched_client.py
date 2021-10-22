@@ -5,12 +5,19 @@ import ocs
 from ocs import site_config
 
 
-def _get_op(op_type, name, session, encoded, client):
-    """
-    Factory for generating matched operations.
-    This will make sure op.start's docstring is the docstring of the operation.
-    """
+def _get_op(op_type, name, encoded, client):
+    """Factory for generating matched operations. This will make sure
+    op.start's docstring is the docstring of the operation.
 
+    Parameters:
+        op_type (str): Operation type, either 'task' or 'process'.
+        name (str): Operation name
+        encoded (dict): Encoded :class:`ocs.ocs_agent.AgentTask` or
+            :class:`ocs.ocs_agent.AgentProcess` dictionary.
+        client (ControlClient): Client object, which will be used to issue the
+            requests for operation actions.
+
+    """
     class MatchedOp:
         def start(self, **kwargs):
             return OCSReply(*client.request('start', name, params=kwargs))
@@ -98,13 +105,13 @@ class MatchedClient:
         self._client = site_config.get_control_client(instance_id, **kwargs)
         self.instance_id = instance_id
 
-        for name, session, encoded in self._client.get_tasks():
+        for name, _, encoded in self._client.get_tasks():
             setattr(self, _opname_to_attr(name),
-                    _get_op('task', name, session, encoded, self._client))
+                    _get_op('task', name, encoded, self._client))
 
-        for name, session, encoded in self._client.get_processes():
+        for name, _, encoded in self._client.get_processes():
             setattr(self, _opname_to_attr(name),
-                    _get_op('process', name, session, encoded, self._client))
+                    _get_op('process', name, encoded, self._client))
 
 
 def _humanized_time(t):

@@ -64,7 +64,7 @@ def test_opname_to_attr(input_, expected):
 class TestGetOp:
     def test_invalid_op_type(self):
         with pytest.raises(ValueError):
-            _get_op('not_valid', 'name', MagicMock(), MagicMock(), MagicMock())
+            _get_op('not_valid', 'name', MagicMock(), MagicMock())
 
     def mock_client(self, session_name, response_code):
         """Mock a ControlClient object that has a predefined request response for
@@ -95,7 +95,7 @@ class TestGetOp:
         client = self.mock_client(op_name, response_code)
         encoded_task = {'blocking': True,
                         'docstring': 'Example docstring'}
-        task = _get_op(op_type, op_name, None, encoded_task, client)
+        task = _get_op(op_type, op_name, encoded_task, client)
 
         return (client, task)
 

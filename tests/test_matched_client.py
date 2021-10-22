@@ -10,6 +10,7 @@ from ocs.matched_client import (
     _get_op,
     _opname_to_attr,
     MatchedClient,
+    OCSReply,
 )
 
 from agents.util import create_session
@@ -168,6 +169,7 @@ def _fake_get_control_client(instance_id, **kwargs):
 
     return client
 
+
 class TestMatchedClient:
     @patch('ocs.site_config.get_control_client', _fake_get_control_client)
     def test_matched_client_object(self):
@@ -176,3 +178,50 @@ class TestMatchedClient:
         print(dir(client))
         assert hasattr(client, 'process_name')
         assert hasattr(client, 'task_name')
+
+
+class TestOCSReply:
+    """Test various scenarios in OCSReply decoding. Since the representation
+    here is for reading by humans we don't actually test any text output, just
+    run through each scenario.
+
+    """
+    @pytest.fixture
+    def encoded_session(self):
+        session = create_session('test')
+        encoded_session = session.encoded()
+
+        return encoded_session
+
+    def test_ok_response_code(self, encoded_session):
+        text = OCSReply(ocs.OK, 'msg', encoded_session)
+        print(text)
+
+    def test_invalid_response_code(self, encoded_session):
+        text = OCSReply(8, 'msg', encoded_session)
+        print(text)
+
+    def test_no_session(self):
+        text = OCSReply(ocs.OK, 'msg', None)
+        print(text)
+
+    def test_session_done_no_error(self, encoded_session):
+        encoded_session['status'] = 'done'
+        encoded_session['success'] = True
+        encoded_session['end_time'] = encoded_session['start_time'] + 1
+        text = OCSReply(ocs.OK, 'msg', encoded_session)
+        print(text)
+
+    def test_session_done_w_error(self, encoded_session):
+        encoded_session['status'] = 'done'
+        encoded_session['success'] = False
+        encoded_session['end_time'] = encoded_session['start_time'] + 1
+        text = OCSReply(ocs.OK, 'msg', encoded_session)
+        print(text)
+
+    def test_session_decode_fail(self, encoded_session):
+        encoded_session['status'] = 'done'
+        encoded_session['success'] = False
+        encoded_session['end_time'] = None  # will cause exception
+        text = OCSReply(ocs.OK, 'msg', encoded_session)
+        print(text)

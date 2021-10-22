@@ -1,6 +1,15 @@
 import os
+import pytest
+
 from unittest.mock import MagicMock, patch
-from ocs.matched_client import MatchedClient
+
+from ocs.ocs_agent import OpSession
+from ocs.matched_client import (
+    _humanized_time,
+    _get_op,
+    _opname_to_attr,
+    MatchedClient,
+)
 
 mocked_client = MagicMock()
 mock_from_yaml = MagicMock()
@@ -26,3 +35,56 @@ def test_extra_argv():
     # Set for get_config to pick up on
     os.environ["OCS_CONFIG_DIR"] = '/tmp/'
     MatchedClient("test")
+
+
+@pytest.mark.parametrize('input_, expected',
+                         [(0.1, '0.100000 s'),
+                          (2, '2.0 s'),
+                          (120*60-1, '120.0 mins'),
+                          (48*3600-1, '48.0 hrs'),
+                          (48*3600+1, '2.0 days'),
+                          ])
+def test_humanized_time(input_, expected):
+    assert _humanized_time(input_) == expected
+
+
+@pytest.mark.parametrize('input_, expected',
+                         [('test_name', 'test_name'),
+                          ('test-name', 'test_name'),
+                          ('test name', 'test_name'),
+                          ])
+def test_opname_to_attr(input_, expected):
+    assert _opname_to_attr(input_) == expected
+
+
+from agents.util import create_session
+
+def mock_client(session_name):
+    """Mock a ControlClient object that has a predefined request response for
+    an OpSession with the given name.
+
+    Parameters:
+        session_name (str): Name to give to the OpSession being called by
+            ControlClient.request.
+
+    """
+    session = create_session(session_name)
+    encoded_session = session.encoded()
+
+    client = MagicMock()
+    client.request = MagicMock(return_value=(0, 'msg', encoded_session))
+
+    return client
+
+class TestGetOp:
+    def test_invalid_op_type(self):
+        with pytest.raises(ValueError):
+            _get_op('not_valid', 'name', MagicMock(), MagicMock(), MagicMock())
+
+    def test_task_abort(self):
+        client = mock_client('op_name')
+        encoded_task = MagicMock(return_value = {'blocking': True, 'docstring': 'Example docstring'})
+
+        task = _get_op('task', 'op_name', None, encoded_task, client)
+        print(task.abort())
+        client.request.assert_called_with('abort', 'op_name')

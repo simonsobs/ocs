@@ -148,10 +148,11 @@ class HostMaster:
             session.add_message('Loaded %i agent instance configs.' %
                                 len(agent_keys))
             downers = 0
-            for k,item in self.database.items():
-                if not k in agent_keys:
+            for k, item in self.database.items():
+                # Any new keys?
+                if k not in agent_keys:
                     item['retired'] = True
-                    item['target_state']: 'down'
+                    item['target_state'] = 'down'
                     downers += 1
             if downers > 0:
                 session.add_message('Retiring %i instances that disappeared '

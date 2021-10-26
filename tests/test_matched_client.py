@@ -5,11 +5,13 @@ from unittest.mock import MagicMock, patch
 
 import ocs
 
-from ocs.matched_client import (
+from ocs.matched_client import MatchedClient
+
+
+from ocs.ocs_client import (
     _humanized_time,
     _get_op,
     _opname_to_attr,
-    MatchedClient,
     OCSReply,
 )
 

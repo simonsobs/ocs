@@ -226,7 +226,7 @@ class HostMaster:
         any_jobs = False
         while self.running or any_jobs:
 
-            sleep_time = 1.
+            sleep_times = [1.]
             any_jobs = False
 
             for key, db in self.database.items():
@@ -245,7 +245,8 @@ class HostMaster:
                     reactor.callFromThread(
                         self._launch_instance, key, db['agent_script'],
                         db['instance_id'])
-                sleep_time = min(sleep_time, actions['sleep'])
+                if actions['sleep']:
+                    sleep_times.append(actions['sleep'])
                 any_jobs = (any_jobs or (db['next_action'] != 'down'))
 
             # Clean up retired items.
@@ -262,7 +263,7 @@ class HostMaster:
                                       'instance_id']})
             session.data = {'child_states': child_states}
 
-            yield dsleep(max(sleep_time, .001))
+            yield dsleep(max(min(sleep_times), .001))
         return True, 'Exited.'
 
     def _stop_master(self, session, params):

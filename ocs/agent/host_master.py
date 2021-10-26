@@ -13,20 +13,18 @@ def resolve_child_state(db):
       - 'messages' (list of str): messages for the session.
       - 'launch' (bool): whether to launch a new instance.
       - 'terminate' (bool): whether to terminate the instance.
-      - 'sleep' (float): maximum delay before checking back.
+      - 'sleep' (float): maximum delay before checking back, or None
+        if this machine doesn't care.
 
     """
     actions = {
-        'messages': [],
         'launch': False,
         'terminate': False,
+        'sleep': None,
     }
 
-    class _S:
-        def add_message(self, msg):
-            actions['messages'].append(msg)
-    session = _S()
-    sleep_time = 1.
+    messages = []
+    sleeps = []
 
     # State machine.
     prot = db['prot']
@@ -37,12 +35,12 @@ def resolve_child_state(db):
     # Transitional: wait_start, which bridges from start -> up.
     if db['next_action'] == 'wait_start':
         if prot is not None:
-            session.add_message('Launched {full_name}'.format(**db))
+            messages.append('Launched {full_name}'.format(**db))
             db['next_action'] = 'up'
         else:
             if time.time() >= db['at']:
-                session.add_message('Launch not detected for '
-                                    '{full_name}!  Will retry.'.format(**db))
+                messages.append('Launch not detected for '
+                                '{full_name}!  Will retry.'.format(**db))
                 db['next_action'] = 'start_at'
                 db['at'] = time.time() + 5.
 
@@ -56,11 +54,11 @@ def resolve_child_state(db):
             db['next_action'] = 'down'
         elif time.time() >= db['at']:
             if stat is None:
-                session.add_message('Agent instance {full_name} '
-                                    'refused to die.'.format(**db))
+                messages.append('Agent instance {full_name} '
+                                'refused to die.'.format(**db))
                 db['next_action'] = 'down'
         else:
-            sleep_time = min(sleep_time, db['at'] - time.time())
+            sleeps.append(db['at'] - time.time())
 
     # State handling when target is to be 'up'.
     elif db['target_state'] == 'up':
@@ -68,15 +66,15 @@ def resolve_child_state(db):
             if time.time() >= db['at']:
                 db['next_action'] = 'start'
             else:
-                sleep_time = min(sleep_time, db['at'] - time.time())
+                sleeps.append(db['at'] - time.time())
         elif db['next_action'] == 'start':
             # Launch.
             if db['agent_script'] is None:
-                session.add_message('No Agent script registered for '
-                                    'class: {class_name}'.format(**db))
+                messages.append('No Agent script registered for '
+                                'class: {class_name}'.format(**db))
                 db['next_action'] = 'down'
             else:
-                session.add_message(
+                messages.append(
                     'Requested launch for {full_name}'.format(**db))
                 db['prot'] = None
                 actions['launch'] = True
@@ -87,8 +85,8 @@ def resolve_child_state(db):
             if stat is not None:
                 # Right here would be a great place to check
                 # the stat return code, and include a traceback from stderr 
-                session.add_message('Detected exit of {full_name} '
-                                    'with code {stat}.'.format(stat=stat, **db))
+                messages.append('Detected exit of {full_name} '
+                                'with code {stat}.'.format(stat=stat, **db))
                 db['next_action'] = 'start_at'
                 db['at'] = time.time() + 3
         else:  # 'down'
@@ -99,21 +97,23 @@ def resolve_child_state(db):
         if db['next_action'] == 'down':
             pass
         elif db['next_action'] == 'up':
-            session.add_message('Requesting termination of '
-                                '{full_name}'.format(**db))
+            messages.append('Requesting termination of '
+                            '{full_name}'.format(**db))
             actions['terminate'] = True
             db['next_action'] = 'wait_dead'
             db['at'] = time.time() + 5
         else: # 'start_at', 'start'
-            session.add_message('Modifying state of {full_name} from '
-                                '{next_action} to idle'.format(**db))
+            messages.append('Modifying state of {full_name} from '
+                            '{next_action} to idle'.format(**db))
             db['next_action'] = 'down'
 
     # Should not get here.
     else:
-        session.add_message(
+        messages.append(
             'State machine failure: state={next_action}, target_state'
             '={target_state}'.format(**db))
 
-    actions['sleep'] = sleep_time
+    actions['messages'] = messages
+    if len(sleeps):
+        actions['sleep'] = min(sleeps)
     return actions

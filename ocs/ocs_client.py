@@ -63,25 +63,23 @@ def _opname_to_attr(name):
     return name
 
 
-class MatchedClient:
-    """A convenient form of an OCS client, facilitating task/process calls.
+class OCSClient:
+    """The simple OCS Client, facilitating task/process calls.
 
-    A MatchedClient is a general OCS Client that 'matches' an agent's
-    tasks/processes to class attributes, making it easy to setup a client
-    and call associated tasks and processes.
+    OCSClient makes an Agent's tasks/processes available as class attributes,
+    making it easy to setup a client instance and call the associated Agent's
+    tasks and processes.
 
     Example:
-        This example sets up a MatchedClient and calls a 'matched' task
-        (init_lakeshore) and process (acq)::
+        This example sets up an OCSClient object and calls a FakeDataAgent's
+        Task (delay_task) and process (acq)::
 
-            >>> client = MatchedClient('thermo1', client_type='http',
-            ...                        args=[])
-            >>> client.init_lakeshore.start()
-            >>> client.init_lakeshore.wait()
-            >>> client.acq.start(sampling_frequency=2.5)
+            >>> client = OCSClient('fake-data-1')
+            >>> client.delay_task(delay=5)
+            >>> client.acq.start()
 
     Attributes:
-        instance_id (str): Instance id for agent to run
+        instance_id (str): instance-id for agent to run
 
     """
 

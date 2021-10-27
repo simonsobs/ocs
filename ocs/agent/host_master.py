@@ -2,7 +2,7 @@ import os
 import time
 import yaml
 
-from twisted.internet import utils
+from twisted.internet import utils, protocol
 from twisted.internet.defer import inlineCallbacks
 
 def resolve_child_state(db):
@@ -126,6 +126,79 @@ def resolve_child_state(db):
         actions['sleep'] = min(sleeps)
     return actions
 
+
+class AgentProcessProtocol(protocol.ProcessProtocol):
+    # See https://twistedmatrix.com/documents/current/core/howto/process.html
+    #
+    # These notes, and the useless prototypes below them, are to get
+    # us started when we come back here later to feed the process
+    # output to high level loggin somehow.
+    #
+    # In a successful launch, we see:
+    # - connectionMade (at which point we closeStdin)
+    # - inConnectionLost (which is then expected)
+    # - childDataReceived(counter, message), output from the script.
+    # - later, when process exits: processExited(status).  Status is some
+    #   kind of object that knows the return code...
+    # In a failed launch, it's the same except note that:
+    # - The childDataReceived message contains the python traceback, on,
+    #   e.g. realm error.  +1 - Informative.
+    # - The processExited(status) knows the return code was not 0.
+    #
+    # Note that you implement childDataReceived instead of
+    # "outReceived" and "errReceived".
+    status = None, None
+    killed = False
+    instance_id = '(none)'
+    def connectionMade(self):
+        self.transport.closeStdin()
+    def inConnectionLost(self):
+        pass
+    def processExited(self, status):
+        print('%s.status:' % self.instance_id, status)
+        self.status = status, time.time()
+    def outReceived(self, data):
+        print('%s.stdin:' % self.instance_id, data)
+    def errReceived(self, data):
+        print('%s.stderr:' % self.instance_id, data)
+
+
+class DockerPseudoProtocol:
+    """Class for managing the docker container associated with some
+    service.  Provides some of the same interface as
+    AgentProcessProtocol in HostMaster agent.
+
+    """
+
+    def __init__(self, service):
+        self.service = {}
+        self.status = -1, time.time()
+        self.killed = False
+        self.instance_id = service['service']
+        self.d = None
+        self.update(service)
+    def update(self, info):
+        """Update self.status based on the latest "info", for this service,
+        from parse_docker_state.
+
+        """
+        self.service.update(info)
+        if info['running']:
+            self.status = None, time.time()
+        else:
+            self.status = info['exit_code'], time.time()
+    def up(self):
+        self.d = utils.getProcessOutputAndValue(
+            'docker-compose', ['-f', self.service['compose_file'],
+                               'up', '-d', self.service['service']])
+        self.status = None, time.time()
+    def down(self):
+        self.d = utils.getProcessOutputAndValue(
+            'docker-compose', ['-f', self.service['compose_file'],
+                               'rm', '--stop', '--force', self.service['service']])
+        self.killed = True
+
+
 @inlineCallbacks
 def parse_docker_state(docker_compose_file):
     """Analyze a docker-compose.yaml file to get a list of services.
@@ -194,38 +267,3 @@ def parse_docker_state(docker_compose_file):
             'container_found': True,
         })
     return summary
-
-class DockerProt:
-    """Class for managing the docker container associated with some
-    service.  Provides some of the same interface as
-    AgentProcessProtocol in HostMaster agent.
-
-    """
-
-    def __init__(self, service):
-        self.service = {}
-        self.status = -1, time.time()
-        self.killed = False
-        self.instance_id = service['service']
-        self.d = None
-        self.update(service)
-    def update(self, info):
-        """Update self.status based on the latest "info", for this service,
-        from parse_docker_state.
-
-        """
-        self.service.update(info)
-        if info['running']:
-            self.status = None, time.time()
-        else:
-            self.status = info['exit_code'], time.time()
-    def up(self):
-        self.d = utils.getProcessOutputAndValue(
-            'docker-compose', ['-f', self.service['compose_file'],
-                               'up', '-d', self.service['service']])
-        self.status = None, time.time()
-    def down(self):
-        self.d = utils.getProcessOutputAndValue(
-            'docker-compose', ['-f', self.service['compose_file'],
-                               'rm', '--stop', '--force', self.service['service']])
-        self.killed = True

@@ -80,7 +80,7 @@ class HostMaster:
             for k, info in services.items():
                 db = self.database[('docker', k)]
                 if db['prot'] is None:
-                    db['prot'] = hm_utils.DockerProt(info)
+                    db['prot'] = hm_utils.DockerPseudoProtocol(info)
                 db['prot'].update(info)
 
     def _launch_instance(self, key, script_file, instance_id):
@@ -98,7 +98,7 @@ class HostMaster:
 
         """
         if key[0] == 'docker':
-            prot = hm_utils.DockerProt(self.docker_services[instance_id])
+            prot = hm_utils.DockerPseudoProtocol(self.docker_services[instance_id])
             prot.up()
         else:
             pyth = sys.executable
@@ -107,7 +107,7 @@ class HostMaster:
                    '--site-file', self.site_config_file,
                    '--site-host', self.host_name,  # why does host prop?
                    '--working-dir', self.working_dir]
-            prot = AgentProcessProtocol()
+            prot = hm_utils.AgentProcessProtocol()
             prot.instance_id = instance_id # probably only used for logging.
             reactor.spawnProcess(prot, cmd[0], cmd[:], env=os.environ)
         self.database[key]['prot'] = prot
@@ -197,7 +197,7 @@ class HostMaster:
                     state = 'down'
                     if k[0] == 'docker':
                         agent_script = 'docker'
-                        prot = hm_utils.DockerProt(self.docker_services[k[1]])
+                        prot = hm_utils.DockerPseudoProtocol(self.docker_services[k[1]])
                         if prot.status[0] == None:
                             session.add_message(
                                 'On startup, detected active container for %s' % k[1])
@@ -360,42 +360,6 @@ class HostMaster:
         reactor.callLater(1., reactor.stop)
 
         return True, 'This HostMaster should terminate in about 1 second.'
-
-
-class AgentProcessProtocol(protocol.ProcessProtocol):
-    # See https://twistedmatrix.com/documents/current/core/howto/process.html
-    #
-    # These notes, and the useless prototypes below them, are to get
-    # us started when we come back here later to feed the process
-    # output to high level loggin somehow.
-    #
-    # In a successful launch, we see:
-    # - connectionMade (at which point we closeStdin)
-    # - inConnectionLost (which is then expected)
-    # - childDataReceived(counter, message), output from the script.
-    # - later, when process exits: processExited(status).  Status is some
-    #   kind of object that knows the return code...
-    # In a failed launch, it's the same except note that:
-    # - The childDataReceived message contains the python traceback, on,
-    #   e.g. realm error.  +1 - Informative.
-    # - The processExited(status) knows the return code was not 0.
-    #
-    # Note that you implement childDataReceived instead of
-    # "outReceived" and "errReceived".
-    status = None, None
-    killed = False
-    instance_id = '(none)'
-    def connectionMade(self):
-        self.transport.closeStdin()
-    def inConnectionLost(self):
-        pass
-    def processExited(self, status):
-        print('%s.status:' % self.instance_id, status)
-        self.status = status, time.time()
-    def outReceived(self, data):
-        print('%s.stdin:' % self.instance_id, data)
-    def errReceived(self, data):
-        print('%s.stderr:' % self.instance_id, data)
 
 
 if __name__ == '__main__':

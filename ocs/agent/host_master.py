@@ -1,4 +1,9 @@
+import os
 import time
+import yaml
+
+from twisted.internet import utils
+from twisted.internet.defer import inlineCallbacks
 
 def resolve_child_state(db):
     """Args:
@@ -95,7 +100,10 @@ def resolve_child_state(db):
     # State handling when target is to be 'down'.
     elif db['target_state'] == 'down':
         if db['next_action'] == 'down':
-            pass
+            if prot is not None and prot.status[0] is None:
+                messages.append('Detected unexpected session for {full_name} '
+                                '(probably docker); changing target state to "up".'.format(**db))
+                db['target_state'] = 'up'
         elif db['next_action'] == 'up':
             messages.append('Requesting termination of '
                             '{full_name}'.format(**db))
@@ -117,3 +125,107 @@ def resolve_child_state(db):
     if len(sleeps):
         actions['sleep'] = min(sleeps)
     return actions
+
+@inlineCallbacks
+def parse_docker_state(docker_compose_file):
+    """Analyze a docker-compose.yaml file to get a list of services.
+    Using docker-compose ps and docker inspect, determine whether each
+    service is running or not.
+
+    Returns:
+      A dict where the key is the service name and each value is a
+      dict with the following entries:
+
+      - 'compose_file': the path to the docker-compose file
+      - 'service': service name
+      - 'container_found': bool, indicates whether a container for
+        this service was found (whether or not it was running).
+      - 'running': bool, indicating that a container for this service
+        is currently in state "Running".
+      - 'exit_code': int, which is either extracted from the docker
+        inspect output or is set to 127.  (This should never be None.)
+
+    """
+
+    summary = {}
+
+    compose = yaml.safe_load(open(docker_compose_file, 'r'))
+    for key, cfg in compose.get('services', []).items():
+        summary[key] = {
+            'service': key,
+            'running': False,
+            'exit_code': 127,
+            'container_found': False,
+            'compose_file': docker_compose_file,
+        }
+
+    # Query docker-compose for container ids...
+    out, err, code = yield utils.getProcessOutputAndValue(
+        'docker-compose', ['-f', docker_compose_file, 'ps', '-q'])
+    if code != 0:
+        raise RuntimeError("Could not run docker-compose or could not parse "
+                           "docker-compose file; exit code %i, error text: %s" %
+                           (code, err))
+
+    # Run docker inspect.
+    for line in out.decode('utf8').split('\n'):
+        if line.strip() == '':
+            continue
+        out, err, code = yield utils.getProcessOutputAndValue(
+            'docker', ['inspect', line])
+        if code != 0:
+            raise RuntimeError('Trouble running "docker inspect %s".' % line)
+        # Reconcile config against docker-compose ...
+        info = yaml.safe_load(out)[0]
+        config = info['Config']['Labels']
+        _dc_file = os.path.join(config['com.docker.compose.project.working_dir'],
+                                config['com.docker.compose.project.config_files'])
+        if not os.path.samefile(docker_compose_file, _dc_file):
+            raise RuntimeError("Consistency problem: container started from "
+                               "some other compose file?\n%s\n%s" % (docker_compose_file, _dc_file))
+        service = config['com.docker.compose.service']
+        assert(service in summary)
+        if service not in summary:
+            raise RuntimeError("Consistency problem: image does not self-report "
+                               "as a listed service? (%s)" % (service))
+        summary[service].update({
+            'running': info['State']['Running'],
+            'exit_code': info['State'].get('ExitCode', 127),
+            'container_found': True,
+        })
+    return summary
+
+class DockerProt:
+    """Class for managing the docker container associated with some
+    service.  Provides some of the same interface as
+    AgentProcessProtocol in HostMaster agent.
+
+    """
+
+    def __init__(self, service):
+        self.service = {}
+        self.status = -1, time.time()
+        self.killed = False
+        self.instance_id = service['service']
+        self.d = None
+        self.update(service)
+    def update(self, info):
+        """Update self.status based on the latest "info", for this service,
+        from parse_docker_state.
+
+        """
+        self.service.update(info)
+        if info['running']:
+            self.status = None, time.time()
+        else:
+            self.status = info['exit_code'], time.time()
+    def up(self):
+        self.d = utils.getProcessOutputAndValue(
+            'docker-compose', ['-f', self.service['compose_file'],
+                               'up', '-d', self.service['service']])
+        self.status = None, time.time()
+    def down(self):
+        self.d = utils.getProcessOutputAndValue(
+            'docker-compose', ['-f', self.service['compose_file'],
+                               'rm', '--stop', '--force', self.service['service']])
+        self.killed = True

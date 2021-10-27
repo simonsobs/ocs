@@ -23,12 +23,14 @@ class HostMaster:
     a system boots, it can then be used to start up the rest of OCS on
     that host (either automatically or on request).
     """
-    def __init__(self, agent):
+    def __init__(self, agent, docker_composes=[]):
         self.agent = agent
         self.running = False
         self.database = {} # key is (class_name, instance_id)
         self.site_file = None
+        self.docker_composes = docker_composes
 
+    @inlineCallbacks
     def _get_instance_list(self):
         """Parse the site config and return a list of this host's Agent
         instances.
@@ -56,7 +58,30 @@ class HostMaster:
             if class_name == 'HostMaster':
                 continue
             keys.append((class_name, instance_id))
+
+        # Add in services from specified docker-compose files.
+        self.docker_services = {}
+        for compose in self.docker_composes:
+            services = yield hm_utils.parse_docker_state(compose)
+            self.docker_services.update(services)
+            for k in services.keys():
+                keys.append(('docker', k))
         return keys
+
+    @inlineCallbacks
+    def _update_docker_states(self):
+        """Scan the docker-compose files, again, and update the database
+        information ('running' state, most importantly) for all
+        services.
+
+        """
+        for compose in self.docker_composes:
+            services = yield hm_utils.parse_docker_state(compose)
+            for k, info in services.items():
+                db = self.database[('docker', k)]
+                if db['prot'] is None:
+                    db['prot'] = hm_utils.DockerProt(info)
+                db['prot'].update(info)
 
     def _launch_instance(self, key, script_file, instance_id):
         """
@@ -72,15 +97,19 @@ class HostMaster:
         the reactor thread.
 
         """
-        pyth = sys.executable
-        cmd = [pyth, script_file,
-               '--instance-id', instance_id,
-               '--site-file', self.site_config_file,
-               '--site-host', self.host_name,  # why does host prop?
-               '--working-dir', self.working_dir]
-        prot = AgentProcessProtocol()
-        prot.instance_id = instance_id # probably only used for logging.
-        reactor.spawnProcess(prot, cmd[0], cmd[:], env=os.environ)
+        if key[0] == 'docker':
+            prot = hm_utils.DockerProt(self.docker_services[instance_id])
+            prot.up()
+        else:
+            pyth = sys.executable
+            cmd = [pyth, script_file,
+                   '--instance-id', instance_id,
+                   '--site-file', self.site_config_file,
+                   '--site-host', self.host_name,  # why does host prop?
+                   '--working-dir', self.working_dir]
+            prot = AgentProcessProtocol()
+            prot.instance_id = instance_id # probably only used for logging.
+            reactor.spawnProcess(prot, cmd[0], cmd[:], env=os.environ)
         self.database[key]['prot'] = prot
 
     def _terminate_instance(self, key):
@@ -92,12 +121,16 @@ class HostMaster:
             return True, 'Instance was not running.'
         if prot.killed:
             return True, 'Instance already has kill set.'
-        prot.killed = True
-        # race condition, but it could be worse.
-        if prot.status[0] is None:
-            reactor.callFromThread(prot.transport.signalProcess, 'INT')
+        if key[0] == 'docker':
+            prot.down()
+        else:
+            prot.killed = True
+            # race condition, but it could be worse.
+            if prot.status[0] is None:
+                reactor.callFromThread(prot.transport.signalProcess, 'INT')
         return True, 'Kill requested.'
 
+    @inlineCallbacks
     def _update_target_states(self, session, params):
         """_update_target_states(params)
 
@@ -146,7 +179,7 @@ class HostMaster:
 
         if params.get('reload_site_config', True):
             # Update the list of Agent instances.
-            agent_keys = self._get_instance_list()
+            agent_keys = yield self._get_instance_list()
             session.add_message('Loaded %i agent instance configs.' %
                                 len(agent_keys))
             downers = 0
@@ -161,14 +194,25 @@ class HostMaster:
                                     'from config.' % downers)
             for k in agent_keys:
                 if not k in self.database:
+                    state = 'down'
+                    if k[0] == 'docker':
+                        agent_script = 'docker'
+                        prot = hm_utils.DockerProt(self.docker_services[k[1]])
+                        if prot.status[0] == None:
+                            session.add_message(
+                                'On startup, detected active container for %s' % k[1])
+                            state = 'up'
+                    else:
+                        agent_script = site_config.agent_script_reg.get(k[0])
+                        prot = None
                     self.database[k] = {
-                        'next_action': 'down',
-                        'target_state': 'down',
+                        'next_action': state,
+                        'target_state': state,
                         'class_name': k[0],
                         'instance_id': k[1],
-                        'prot': None,
+                        'prot': prot,
                         'full_name': ('%s:%s' % tuple(k)),
-                        'agent_script': site_config.agent_script_reg.get(k[0]),
+                        'agent_script': agent_script,
                     }
 
         # Special requests will target specific instance_id; make a map for that.
@@ -223,8 +267,14 @@ class HostMaster:
 
         dying_words = ['down', 'kill', 'wait_dead']  #allowed during shutdown
 
+        next_docker_update = time.time()
+
         any_jobs = False
         while self.running or any_jobs:
+
+            if time.time() >= next_docker_update:
+                yield self._update_docker_states()
+                next_docker_update = time.time() + 2
 
             sleep_times = [1.]
             any_jobs = False
@@ -351,8 +401,10 @@ class AgentProcessProtocol(protocol.ProcessProtocol):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     pgroup = parser.add_argument_group('Agent Options')
-    pgroup.add_argument('--initial-state', default='down',
+    pgroup.add_argument('--initial-state', default=None,
                         choices=['up', 'down'])
+    pgroup.add_argument('--docker-compose', default=None,
+                        help="Comma-separated list of docker-compose files to parse and manage.")
     pgroup.add_argument('--quiet', action='store_true')
     args = site_config.parse_args(agent_class='HostMaster',
                                   parser=parser)
@@ -368,9 +420,17 @@ if __name__ == '__main__':
     args.registry_address = 'none'
 
     agent, runner = ocs_agent.init_site_agent(args)
-    host_master = HostMaster(agent)
 
-    startup_params = {'requests': [('all', args.initial_state)]}
+    docker_composes = []
+    if args.docker_compose:
+        docker_composes = args.docker_compose.split(',')
+
+    host_master = HostMaster(agent, docker_composes=docker_composes)
+
+    startup_params = {}
+    if args.initial_state:
+        startup_params = {'requests': [('all', args.initial_state)]}
+
     agent.register_process('master',
                            host_master.master,
                            host_master._stop_master,

@@ -88,10 +88,12 @@ be considered unstable.
 
 Documentation
 -------------
-The OCS documentation can be built using sphinx once you have performed the
-installation::
+The OCS documentation can be built using Sphinx. There is a separate
+``requirements.txt`` file in the ``docs/`` directory to install Sphinx and any
+additional documentation dependencies::
 
   $ cd docs/
+  $ pip3 install -r requirements.txt
   $ make html
 
 You can then open ``docs/_build/html/index.html`` in your preferred web

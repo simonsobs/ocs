@@ -12,9 +12,7 @@ numpy
 pyserial
 
 # Documentation generation
-sphinx
-sphinx-argparse
-sphinx_rtd_theme
+# see docs/requirements.txt
 
 # checkdata
 progress

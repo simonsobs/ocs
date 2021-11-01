@@ -14,6 +14,8 @@ arbitrary RPC and Pub/Sub events, the OCS imposes a very limited set
 of allowed interactions between the devices on the system.  The OCS
 requires a WAMP router, such as crossbar.io.
 
+.. _agent_ops:
+
 Agent Operations: Tasks and Processes
 -------------------------------------
 

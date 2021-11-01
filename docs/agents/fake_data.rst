@@ -1,3 +1,5 @@
+.. _fake_data_agent:
+
 ===============
 Fake Data Agent
 ===============

@@ -2,27 +2,225 @@
 
 .. _clients:
 
-Clients
-=======
-Multi-Agent interactions are orchestrated by OCS Clients. Clients can be
-written in any language supported by crossbar, however most commonly these will
-be written in Python or Javascript. This page focuses on writing an OCS Client
-in Python.
+Clients and Control Programs
+============================
 
-There are two ways to write a Python OCS Client, one (we'll call it a Basic
-Client) uses `ocs.client_t`, the other (called a Matched Client) uses
-`ocs.matched_client`. Generally, a Matched Client is going to be easier to
-write (and is the newer of the two methods), but for completeness we document
-both methods.
+The OCS Client ("Client") is used to command and control a corresponding OCS
+Agent ("Agent"). Conceptually, this is the piece of OCS that connects to the
+crossbar server and makes the "remote procedure call" to an Agent. Multiple
+Clients can be used to orchestrate an observatory within a Control Program
+("program" or "script").
 
-The clients differ in how they communicate with the crossbar server. Writers of
-Basic Clients need to consider their asynchronous paradigm.
+While there are other options for how a Client could be implemented, the focus
+of this documentation will be on using the OCSClient object. Other options are
+discussed below.
 
-Basic Clients
--------------
-We write a basic Client with the `ocs.client_t` module. Typically we will
-define a function and then run it using `ocs.client_t.run_control_script2`. The
-general form of our Client will be something like::
+.. _ocs_client:
+
+OCSClient
+---------
+The OCSClient (the object, not the concept of "Client") is the primary method
+for interaction with an Agent. An OCSClient object provides the Agent's
+Operation methods as attributes (replacing spaces and hyphens in Operation
+names if they exist). The OCSClient requires the Agent's instance-id as an
+argument.
+
+Basic Usage
+```````````
+To instantiate an OCSClient run (replacing
+'agent-instance-id' with your Agent's unique instance-id):
+
+.. code-block:: python
+
+    from ocs.ocs_client import OCSClient
+    client = OCSClient('agent-instance-id')
+
+The returned object, ``client``, is populated with attributes for each Task and
+Process (generally "Operation") exposed by the OCS Agent with the specified
+``agent-instance-id``. Each of these attributes has a set of methods associated
+with them for controlling the Operation. The methods for running an Agent's
+Tasks or Processes are described in :ref:`agent_ops`. They are "start",
+"status", "wait", and "stop" ("abort" is not implemented at the time of this
+writing.)
+
+Once the client is instantiated, Operations can be commanded, for example, to
+start a Process called 'acq' (a common Process name for beginning data
+acquisition)::
+
+    >>> response = client.acq.start()
+    >>> print(response)
+    OCSReply: OK : Started process "acq".
+      acq[session=1]; status=starting for 1.8 s
+      messages (1 of 1):
+        1635783855.304 Status is now "starting".
+      other keys in .session: op_code, data
+
+Once a Process is started, it will run until stopped. To stop the 'acq' Process
+run::
+
+    >>> response = client.acq.stop()
+    >>> print(response)
+    OCSReply: OK : Requested stop on process "acq".
+      acq[session=1]; status=running for 2.4 mins
+      messages (2 of 2):
+        1635783855.304 Status is now "starting".
+        1635783855.306 Status is now "running".
+      other keys in .session: op_code, data
+
+Once a Task is started, it will run within the Agent, however the start call
+returns immediately. If, in your program, you would like to wait for a Task to
+complete before moving on you should call "wait"::
+
+    >>> client.delay_task.start(delay=1)
+    OCSReply: OK : Started task "delay_task".
+      delay_task[session=6]; status=starting for 0.007555 s
+      messages (1 of 1):
+        1635791278.562 Status is now "starting".
+      other keys in .session: op_code, data
+    >>> client.delay_task.wait()
+    OCSReply: OK : Operation "delay_task" is currently not running (SUCCEEDED).
+      delay_task[session=6]; status=done without error 0.007504 s ago, took 1.0 s
+      messages (4 of 4):
+        1635791278.562 Status is now "starting".
+        1635791278.563 Status is now "running".
+        1635791279.566 Exited after 1.0 seconds
+        1635791279.567 Status is now "done".
+      other keys in .session: op_code, data
+
+A shortcut for this "start" and then "wait" is to call the Task directly::
+
+    >>> client.delay_task(delay=1)
+
+This starts the Task and then immediately waits for it to complete (assuming
+the task starts successfully), equivalent to::
+
+    response = client.delay_task.start(delay=1)
+    if response[0] == ocs.OK:
+        client.delay_task.wait()
+
+Direct calls to a Process behave a bit differently, acting as an alias to
+"status", these two calls are identical::
+
+    >>> client.acq.status()
+    >>> client.acq()
+
+The response given by any of these Operation method calls is an
+:class:`ocs.ocs_client.OCSReply` object.  For more details see
+:ref:`op_replies`.
+
+Passing Arguments to an Operation
+`````````````````````````````````
+
+If an Operation has any arguments to provide at start, they can be passed as
+you would typically pass keyword arguments in Python. For example, to pass a
+delay of 1 second to the :ref:`fake_data_agent` Task "delay_task"::
+
+    >>> response = client.delay_task.start(delay=1)
+    OCSReply: OK : Started task "delay_task".
+      delay_task[session=4]; status=starting for 0.008681 s
+      messages (1 of 1):
+        1635790951.261 Status is now "starting".
+      other keys in .session: op_code, data
+
+Arguments can also be passed to a direct call of the Task::
+
+    >>> response = client.delay_task(delay=1)
+
+You can of course use ``**`` to unpack a dict containing the required keyword
+arguments. For example::
+
+    >>> arguments = {'arg1': 1, 'arg2': 2, 'arg3': 3}
+    >>> response = client.task(**arguments)
+
+This is equivalent to::
+
+    >>> response = client.task(arg1=1, arg2=2, arg3=3)
+
+.. _op_replies:
+
+Replies from Operation methods
+``````````````````````````````
+
+Responses obtained from OCSClient calls are lightly wrapped by
+class :class:`ocs.ocs_client.OCSReply` so that ``__repr__``
+produces a nicely formatted description of the result.  For example::
+
+    >>> client.delay_task.status()
+    OCSReply: OK : Session active.
+      delay_task[session=6]; status=done without error 76.4 mins ago, took 1.0 s
+      messages (4 of 4):
+        1635791278.562 Status is now "starting".
+        1635791278.563 Status is now "running".
+        1635791279.566 Exited after 1.0 seconds
+        1635791279.567 Status is now "done".
+      other keys in .session: op_code, data
+
+OCSReply is a namedtuple. The elements of the tuple are:
+
+  ``status``
+    An integer value equal to ocs.OK, ocs.ERROR, or ocs.TIMEOUT (see
+    :class:`ocs.base.ResponseCode`).
+
+  ``msg``
+    Short for "message", a string providing a brief description of the result
+    (this is normally pretty boring for successful calls, but might contain a
+    helpful tip in the case of errors).
+
+  ``session``
+    The ``session`` portion of the reply is dictionary containing useful
+    information, such as timestamps for the Operation's start and end, a
+    success code, and a custom data structure populated by the Agent.
+
+    The information can be accessed through the OCSReply, for example::
+
+      >>> response = client.acq.status()
+      >>> response.session['start_time']
+      1585667844.423
+
+    For more information on the contents of ``.session``, see the
+    docstring for :func:`ocs.ocs_agent.OpSession.encoded`, and the Data
+    Access section on :ref:`session_data`.
+
+Examples
+````````
+..
+    Examples to cover:
+    - checking the success state of a task in a control program before continuing
+    - checking session.data (point to session.data page?)la
+    - interacting with 2 or more agents
+
+Alternative Clients/Programs
+----------------------------
+Multi-Agent interactions are orchestrated by Control Programs containing
+multiple OCS Clients. ``OCSClient`` is not the only form a "Client" could take.
+Clients can be written in any language supported by crossbar, however most
+commonly these will be written in Python or Javascript. In this section we
+cover some of these alternative Client implementations.
+
+OCSWeb Client
+`````````````
+
+A Client can be written in Javascript. This is what is done in OCS Web. For
+more details about how to implement this, see :ref:`creating_web_panel`.
+
+
+Control Programs using Twisted
+``````````````````````````````
+
+.. note::
+
+    Unless you are familar with Twisted, and know you need an asynchronous
+    control program, you probably are looking for :ref:`OCSClient<ocs_client>`.
+
+If an asynchronous program containing one or more Clients is required, one can
+be implemented using Twisted and :func:`ocs.client_t.run_control_script`.
+
+While OCSClient connects to the crossbar server using HTTP, control programs
+using Twisted connect via websockets. When writing a program using Clients that
+support Twisted, authors will need to consider their asynchronous paradigm.
+When writing a script with the ``ocs.client_t`` module, typically we will define
+a function and then run it using :func:`ocs.client_t.run_control_script`. The general
+form of our program will be something like::
 
     import ocs 
     from ocs import client_t, site_config
@@ -34,7 +232,7 @@ general form of our Client will be something like::
     if __name__ == '__main__':
         parser = site_config.add_arguments()
         parser.add_argument('--target', default="thermo1")
-        client_t.run_control_script2(my_client_function, parser=parser)
+        client_t.run_control_script(my_client_function, parser=parser)
 
 The part we need to write is the body of ``my_client_function``.
 
@@ -65,7 +263,7 @@ Process names registered by the Agent. In this case "init_lakeshore" sets up
 the communication with the Lakeshore device, and "acq" begins data acquisition.
 
 To interact with a task we use the keywords "start", "wait", "status", "abort",
-and "stop". And since basic Clients run asynchronously we need to use the
+and "stop". And since this program runs asynchronously we need to use the
 Python keyword "yield"::
 
     yield therm_ops['init'].start()
@@ -86,8 +284,8 @@ When calling a Process, we just use "start"::
     print("Starting Data Acquisition")
     yield therm_ops['acq'].start()
 
-This will continue running until we command it to stop. We will do so in the
-Matched Client example. So our full Basic Client looks like::
+This will continue running until we command it to stop. Our full Basic Client
+looks like::
 
     import ocs 
     from ocs import client_t, site_config
@@ -114,123 +312,5 @@ Matched Client example. So our full Basic Client looks like::
     if __name__ == '__main__':
         parser = site_config.add_arguments()
         parser.add_argument('--target', default="thermo1")
-        client_t.run_control_script2(my_client_function, parser=parser)
+        client_t.run_control_script(my_client_function, parser=parser)
 
-
-Matched Clients
----------------
-A Matched Client performs the definition of Agent tasks and processes within
-the Client for us, a great convenience when our Agents have many Tasks and
-Processes registered. The Matched Client also makes its calls over http and
-avoids some of the potentially unfamiliar use of ``yield``.
-
-An example MatchedClient would look like this::
-
-    from ocs.matched_client import MatchedClient
-    
-    therm_client = MatchedClient('thermo1')
-
-The returned object, ``therm_client``, is populated with attributes
-for each Task and Process exposed by the OCS Agent with the specified
-``instance-id`` (in this case ``thermo1``).  We then can call
-different Task and Process methods, using the syntax
-*client-name.op-name.method(kwargs...)*. For example, to stop a data
-acquisition Process called ``acq``::
-
-    therm_client.acq.stop()
-
-So our full MatchedClient to stop a running acquisition process on "thermo1" is
-just three lines::
-
-    from ocs.matched_client import MatchedClient
-    
-    therm_client = MatchedClient('thermo1')
-    therm_client.acq.stop()
-
-Each attribute of therm_client is an instance of either
-``MatchedProcess`` or ``MatchedTask``.  These objects expose the
-methods appropriate for their Operation type; they both support
-``start(**kwargs)`` and ``status()`` but only ``MatchedProcess``
-supports ``stop()`` and only ``MatchedTask`` supports ``abort()``.
-
-The ``MatchedProcess`` and ``MatchedTask`` instances are also,
-themselves, callable.  If a ``MatchedProcess`` is called directly, it
-is equivalent to running the ``.status()`` method::
-
-    # Because ``acq`` is a Process, these two are equivalent:
-    result = therm_client.acq()
-    result = therm_client.acq.status()
-
-If a ``MatchedTask`` is called directly it is equivalent to running
-``.start()`` followed by ``.wait()``::
-
-    # Because ``init`` is a Task, this line:
-    result = therm_client.init(auto_acquire=True)
-
-    # ... is equivalent to these lines:
-    result = therm_client.init.start(auto_acquire=True)
-    if result[0] == ocs.OK:
-        result = therm_client.init.wait()
-
-
-For comparison to the Basic Client, an equivalent Matched Client to the Basic
-Client example would be::
-
-    import time
-    from ocs.matched_client import MatchedClient
-    
-    therm_client = MatchedClient('thermo1')
-    therm_client.init()
-    time.sleep(.05)
-
-    therm_client.acq.start()
-
-.. _op_replies:
-
-Replies from Operation methods
-------------------------------
-
-The response from Operation methods is a tuple, ``(status, message,
-session)``.  The elements of the tuple are:
-
-  ``status``
-    An integer value equal to ocs.OK, ocs.ERROR, or ocs.TIMEOUT (see
-    :class:`ocs.base.ResponseCode`).
-
-  ``message``
-    A string providing a brief description of the result (this is
-    normally pretty boring for successful calls, but might contain a
-    helpful tip in the case of errors).
-
-  ``session``
-    The session information... see below.
-
-Responses obtained from MatchedClient calls are lightly wrapped by
-class :class:`ocs.matched_client.OCSReply` so that ``__repr__``
-produces a nicely formatted description of the result.  For example::
-
-  >>> c.set_autoscan.wait()
-  OCSReply: OK : Operation "set_autoscan" just exited.
-    set_autoscan[session=7]; status=done without error 30.6 s ago, took 0.113400 s
-    messages (4 of 4):
-      1585667844.423 Status is now "starting".
-      1585667844.424 Status is now "running".
-      1585667844.535 Set autoscan to True
-      1585667844.536 Status is now "done".
-    other keys in .status: data
-
-
-The ``session`` portion of the reply is dictionary containing a bunch
-of potentially useful information, such as timestamps for the
-Operation run's start and end, a success code, and a custom data
-structure populated by the Agent.
-
-The information can be accessed through the OCSReply, for example::
-
-  >>> reply = c.set_autoscan.status()
-  >>> reply.session['start_time']
-  1585667844.423
-
-For more information on the contents of ``.session``, see the
-docstring for :func:`ocs.ocs_agent.OpSession.encoded`, and the Data
-Access section on :ref:`session_data`.

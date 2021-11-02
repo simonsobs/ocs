@@ -183,11 +183,88 @@ OCSReply is a namedtuple. The elements of the tuple are:
 
 Examples
 ````````
-..
-    Examples to cover:
-    - checking the success state of a task in a control program before continuing
-    - checking session.data (point to session.data page?)la
-    - interacting with 2 or more agents
+
+This section contains some examples for what you might want to accomplish with
+a control program. Examples here do not show use of actual OCS Agents, but
+should demonstrate proper use of the Client interface.
+
+Check Whether a Task Completed Successfully or Not
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The OCSReply session dictionary can be used to check for successful completion
+of a Task::
+
+    from ocs.ocs_client import OCSClient
+
+    client = OCSClient('agent-instance-id')
+    response = client.random_task()
+
+    # Will be True or False depending on successful completion
+    if response.session['success']:
+        print('Task completed successfully')
+    else:
+        print('Task did not complete successfully')
+
+Check Latest Data in an Operation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If an Operation makes use of ``session.data`` a control program can check this
+through the Client and react accordingly::
+
+    from ocs.ocs_client import OCSClient
+
+    client = OCSClient('agent-instance-id')
+    response = client.random_task()
+
+    print(response.session['data'])
+
+.. note::
+    The format of ``response.session['data']`` is left to the Agent author. For
+    details on the format for a given Operation, see the Agent's reference page.
+
+For more details about ``session.data`` see :ref:`session_data`.
+
+Interacting with Multiple Agents
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A control program can interact with multiple Agents by settings up multiple
+OCSClients::
+
+    from ocs.ocs_client import OCSClient
+
+    client1 = OCSClient('agent-instance-id-1')
+    client2 = OCSClient('agent-instance-id-2')
+
+    # Start acquisition on client 1 and start a task on client 2
+    client1.acq.start()
+    client2.random_task()
+
+A more useful example might be a program that interacts with a temperature
+controller and detector readout::
+
+    from ocs.ocs_client import OCSClient
+
+    temperature_client = OCSClient('temperature-controller-agent')
+    detector_client = OCSClient('detector-agent')
+
+    temperatures = [100e-3, 110e-3, 120e-3, 130e-3, 140e-3, 150e-3, 160e-3]
+
+    for t in temperatures:
+        # Set servo
+        temperature_client.servo(temperature=t)
+
+        # Start data acquisition
+        response = temperature_client.acq.start()
+
+        current_temperature = response.session['data']['Channel 01']
+
+        # insert check of temperature stability with repeated checks of
+        # response.session['data'] here, proceeding once stable
+
+        detector_client.run_measurement()
+
+    # Reset servo to lowest temperature once done
+    temperature_client.servo(temperature=temperatures[0])
 
 Alternative Clients/Programs
 ----------------------------

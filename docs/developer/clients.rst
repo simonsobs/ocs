@@ -12,8 +12,8 @@ Clients can be used to orchestrate an observatory within a Control Program
 ("program" or "script").
 
 While there are other options for how a Client could be implemented, the focus
-of this documentation will be on using the OCSClient object. Other options are
-discussed below.
+of this documentation will be on using the OCSClient object within a script.
+Other options are discussed below.
 
 .. _ocs_client:
 
@@ -36,40 +36,51 @@ To instantiate an OCSClient run (replacing
     client = OCSClient('agent-instance-id')
 
 The returned object, ``client``, is populated with attributes for each Task and
-Process (generally "Operation") exposed by the OCS Agent with the specified
-``agent-instance-id``. Each of these attributes has a set of methods associated
-with them for controlling the Operation. The methods for running an Agent's
-Tasks or Processes are described in :ref:`agent_ops`. They are "start",
+Process (referred to generally "Operation") exposed by the OCS Agent with the
+specified ``agent-instance-id``. Each of these attributes has a set of methods
+associated with them for controlling the Operation. The methods for running an
+Agent's Operations are described in :ref:`agent_ops`. They are "start",
 "status", "wait", and "stop" ("abort" is not implemented at the time of this
 writing.)
 
-Once the client is instantiated, Operations can be commanded, for example, to
+Once the Client is instantiated, Operations can be commanded, for example, to
 start a Process called 'acq' (a common Process name for beginning data
 acquisition)::
 
-    >>> response = client.acq.start()
-    >>> print(response)
+    >>> client.acq.start()
     OCSReply: OK : Started process "acq".
-      acq[session=1]; status=starting for 1.8 s
+      acq[session=7]; status=starting for 0.007544 s
       messages (1 of 1):
-        1635783855.304 Status is now "starting".
+        1635817216.260 Status is now "starting".
       other keys in .session: op_code, data
 
 Once a Process is started, it will run until stopped. To stop the 'acq' Process
 run::
 
-    >>> response = client.acq.stop()
-    >>> print(response)
+    >>> client.acq.stop()
     OCSReply: OK : Requested stop on process "acq".
-      acq[session=1]; status=running for 2.4 mins
+      acq[session=7]; status=running for 3.5 s
       messages (2 of 2):
-        1635783855.304 Status is now "starting".
-        1635783855.306 Status is now "running".
+        1635817216.260 Status is now "starting".
+        1635817216.262 Status is now "running".
       other keys in .session: op_code, data
 
-Once a Task is started, it will run within the Agent, however the start call
-returns immediately. If, in your program, you would like to wait for a Task to
-complete before moving on you should call "wait"::
+We can check that the Process has stopped by then calling "status"::
+
+    >>> client.acq.status()
+    OCSReply: OK : Session active.
+      acq[session=7]; status=done without error 3.5 s ago, took 4.0 s
+      messages (5 of 5):
+        1635817216.260 Status is now "starting".
+        1635817216.262 Status is now "running".
+        1635817219.756 Status is now "stopping".
+        1635817220.264 Acquisition exited cleanly.
+        1635817220.265 Status is now "done".
+      other keys in .session: op_code, data
+
+When an Operation method is called in a Client the call returns immediately.
+However, you might want to wait for a Task to complete before proceeding. This
+can be accomplished with the "wait" method::
 
     >>> client.delay_task.start(delay=1)
     OCSReply: OK : Started task "delay_task".
@@ -99,7 +110,7 @@ the task starts successfully), equivalent to::
         client.delay_task.wait()
 
 Direct calls to a Process behave a bit differently, acting as an alias to
-"status", these two calls are identical::
+"status", making these two calls are identical::
 
     >>> client.acq.status()
     >>> client.acq()
@@ -115,7 +126,7 @@ If an Operation has any arguments to provide at start, they can be passed as
 you would typically pass keyword arguments in Python. For example, to pass a
 delay of 1 second to the :ref:`fake_data_agent` Task "delay_task"::
 
-    >>> response = client.delay_task.start(delay=1)
+    >>> client.delay_task.start(delay=1)
     OCSReply: OK : Started task "delay_task".
       delay_task[session=4]; status=starting for 0.008681 s
       messages (1 of 1):
@@ -124,17 +135,17 @@ delay of 1 second to the :ref:`fake_data_agent` Task "delay_task"::
 
 Arguments can also be passed to a direct call of the Task::
 
-    >>> response = client.delay_task(delay=1)
+    >>> client.delay_task(delay=1)
 
 You can of course use ``**`` to unpack a dict containing the required keyword
 arguments. For example::
 
     >>> arguments = {'arg1': 1, 'arg2': 2, 'arg3': 3}
-    >>> response = client.task(**arguments)
+    >>> client.task(**arguments)
 
 This is equivalent to::
 
-    >>> response = client.task(arg1=1, arg2=2, arg3=3)
+    >>> client.task(arg1=1, arg2=2, arg3=3)
 
 .. _op_replies:
 
@@ -145,7 +156,8 @@ Responses obtained from OCSClient calls are lightly wrapped by
 class :class:`ocs.ocs_client.OCSReply` so that ``__repr__``
 produces a nicely formatted description of the result.  For example::
 
-    >>> client.delay_task.status()
+    >>> response = client.delay_task.status()
+    >>> print(response)
     OCSReply: OK : Session active.
       delay_task[session=6]; status=done without error 76.4 mins ago, took 1.0 s
       messages (4 of 4):
@@ -164,7 +176,7 @@ OCSReply is a namedtuple. The elements of the tuple are:
   ``msg``
     Short for "message", a string providing a brief description of the result
     (this is normally pretty boring for successful calls, but might contain a
-    helpful tip in the case of errors).
+    helpful tip in the case of errors.)
 
   ``session``
     The ``session`` portion of the reply is dictionary containing useful
@@ -178,7 +190,7 @@ OCSReply is a namedtuple. The elements of the tuple are:
       1585667844.423
 
     For more information on the contents of ``.session``, see the
-    docstring for :func:`ocs.ocs_agent.OpSession.encoded`, and the Data
+    docstring for :func:`ocs.ocs_agent.OpSession.encoded` and the Data
     Access section on :ref:`session_data`.
 
 Examples
@@ -186,7 +198,7 @@ Examples
 
 This section contains some examples for what you might want to accomplish with
 a control program. Examples here do not show use of actual OCS Agents, but
-should demonstrate proper use of the Client interface.
+should demonstrate proper use of the OCSClient API.
 
 Check Whether a Task Completed Successfully or Not
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -208,7 +220,7 @@ of a Task::
 Check Latest Data in an Operation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If an Operation makes use of ``session.data`` a control program can check this
+If an Operation makes use of ``session.data``, a control program can check this
 through the Client and react accordingly::
 
     from ocs.ocs_client import OCSClient
@@ -250,17 +262,24 @@ controller and detector readout::
     temperatures = [100e-3, 110e-3, 120e-3, 130e-3, 140e-3, 150e-3, 160e-3]
 
     for t in temperatures:
+        # Stop data acquisition if it is running
+        temperature_client.acq.stop()
+
         # Set servo
         temperature_client.servo(temperature=t)
 
         # Start data acquisition
-        response = temperature_client.acq.start()
+        temperature_client.acq.start()
+
+        # Check temperature in session.data
+        response = temperature_client.acq()
 
         current_temperature = response.session['data']['Channel 01']
 
         # insert check of temperature stability with repeated checks of
         # response.session['data'] here, proceeding once stable
 
+        # Run detector measurement
         detector_client.run_measurement()
 
     # Reset servo to lowest temperature once done
@@ -268,17 +287,17 @@ controller and detector readout::
 
 Alternative Clients/Programs
 ----------------------------
-Multi-Agent interactions are orchestrated by Control Programs containing
-multiple OCS Clients. ``OCSClient`` is not the only form a "Client" could take.
-Clients can be written in any language supported by crossbar, however most
-commonly these will be written in Python or JavaScript. In this section we
-cover some of these alternative Client implementations.
+``OCSClient`` is not the only form a "Client" could take.  Clients can be
+written in any language supported by crossbar, however most commonly these will
+be written in Python or JavaScript. In this section we cover some of these
+alternative Client implementations.
 
 OCSWeb Client
 `````````````
 
 A Client can be written in JavaScript. This is what is done in OCS Web. For
-more details about how to implement this, see :ref:`creating_web_panel`.
+more details about how to implement a JavaScript Client, see
+:ref:`creating_web_panel`.
 
 
 Control Programs using Twisted

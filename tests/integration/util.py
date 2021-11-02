@@ -9,7 +9,7 @@ import docker
 
 from urllib.error import URLError
 
-from ocs.matched_client import MatchedClient
+from ocs.ocs_client import OCSClient
 
 
 def create_agent_runner_fixture(agent_path, agent_name, args=None):
@@ -124,7 +124,7 @@ def create_client_fixture(instance_id, timeout=30):
 
         while attempts < timeout:
             try:
-                client = MatchedClient(instance_id)
+                client = OCSClient(instance_id)
                 break
             except RuntimeError as e:
                 print(f"Caught error: {e}")

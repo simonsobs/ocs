@@ -271,13 +271,13 @@ Alternative Clients/Programs
 Multi-Agent interactions are orchestrated by Control Programs containing
 multiple OCS Clients. ``OCSClient`` is not the only form a "Client" could take.
 Clients can be written in any language supported by crossbar, however most
-commonly these will be written in Python or Javascript. In this section we
+commonly these will be written in Python or JavaScript. In this section we
 cover some of these alternative Client implementations.
 
 OCSWeb Client
 `````````````
 
-A Client can be written in Javascript. This is what is done in OCS Web. For
+A Client can be written in JavaScript. This is what is done in OCS Web. For
 more details about how to implement this, see :ref:`creating_web_panel`.
 
 
@@ -286,7 +286,7 @@ Control Programs using Twisted
 
 .. note::
 
-    Unless you are familar with Twisted, and know you need an asynchronous
+    Unless you are familiar with Twisted, and know you need an asynchronous
     control program, you probably are looking for :ref:`OCSClient<ocs_client>`.
 
 If an asynchronous program containing one or more Clients is required, one can
@@ -327,14 +327,14 @@ To do so we need to know what address to reach our Agent at::
             'acq': client_t.ProcessClient(app, therm_address, 'acq')
         }   
 
-In this codeblock we define the root of our address space, which by default is
+In this code block we define the root of our address space, which by default is
 'observatory'. We combine this along with the target defined in
 ``pargs.target`` to form our address. This target will be the Agent's
 "instance-id". We're considering a thermometry control system (either the
 Lakeshore 240 or Lakeshore 372) in this example, hence the prefix 'therm'.
 
 We define a dictionary, ``therm_ops``, with each of our Agent Tasks and
-Processes, in this case, just one of each. The final arguement in both
+Processes, in this case, just one of each. The final argument in both
 ``client_t.TaskClient`` and ``client_t.ProcessClient`` must match the Task and
 Process names registered by the Agent. In this case "init_lakeshore" sets up
 the communication with the Lakeshore device, and "acq" begins data acquisition.
@@ -351,8 +351,8 @@ This will start the "init_lakeshore" task, then wait 0.05 seconds.
 
 .. warning::
     Note the use of ``client_t.dsleep()``, not the common ``time.sleep()``.
-    ``time.sleep()`` will "block", disrupting our asynchronus paradigm. For
-    more information on this and other subtleties to asynchronus programming, see
+    ``time.sleep()`` will "block", disrupting our asynchronous paradigm. For
+    more information on this and other subtleties to asynchronous programming, see
     the `autobahn Documentation
     <https://autobahn.readthedocs.io/en/latest/asynchronous-programming.html>`_.
 

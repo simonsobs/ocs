@@ -26,20 +26,20 @@ def test_fake_data_acq(agent):
     assert res[0] is True
 
 
-def test_fake_data_stop_acq(agent):
-    session = create_session('acq')
-    res = agent._stop_acq(session, params=None)
-    assert res[0] is False
+class TestStopAcq:
+    def test_fake_data_stop_acq_not_running(self, agent):
+        session = create_session('acq')
+        res = agent._stop_acq(session, params=None)
+        assert res[0] is False
 
+    def test_fake_data_stop_acq_while_running(self, agent):
+        session = create_session('acq')
 
-def test_fake_data_stop_acq_while_running(agent):
-    session = create_session('acq')
+        # set running job to 'acq'
+        agent.job = 'acq'
 
-    # set running job to 'acq'
-    agent.job = 'acq'
-
-    res = agent._stop_acq(session, params=None)
-    assert res[0] is True
+        res = agent._stop_acq(session, params=None)
+        assert res[0] is True
 
 
 @pytest_twisted.inlineCallbacks

@@ -71,7 +71,7 @@ class InfluxDBAgent:
 
         self.incoming_data.put((data, feed))
 
-    @ocs_agent.param('run_once', default=False, type=bool)
+    @ocs_agent.param('test_mode', default=False, type=bool)
     def record(self, session: ocs_agent.OpSession, params):
         """record()
 
@@ -80,8 +80,8 @@ class InfluxDBAgent:
         running.
 
         Parameters:
-            run_once (bool, optional): Run the record Process loop only once.
-                Default is False
+            test_mode (bool, optional): Run the record Process loop only once.
+                This is meant only for testing. Default is False.
 
         """
         session.set_status('starting')
@@ -102,7 +102,7 @@ class InfluxDBAgent:
             self.log.debug(f"Approx. queue size: {self.incoming_data.qsize()}")
             publisher.run()
 
-            if params['run_once']:
+            if params['test_mode']:
                 break
 
         publisher.close()

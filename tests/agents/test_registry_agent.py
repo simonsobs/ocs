@@ -35,7 +35,7 @@ def test_registry_main(agent):
                           "session_id": str(time.time())}]
     agent._register_heartbeat(heartbeat_example)
 
-    params = {'run_once': True}
+    params = {'test_mode': True}
     res = yield agent.main(session, params)
 
     assert res[0] is True
@@ -63,7 +63,7 @@ def test_registry_main_expire_agent(agent):
     agent.registered_agents['observatory.test_agent'].last_updated = \
         time.time() - 6.0
 
-    params = {'run_once': True}
+    params = {'test_mode': True}
     res = yield agent.main(session, params)
 
     assert agent.registered_agents['observatory.test_agent'].expired is True

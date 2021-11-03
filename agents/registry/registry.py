@@ -108,10 +108,10 @@ class Registry:
         op_codes, feed = _data
         self.registered_agents[feed['agent_address']].refresh(op_codes=op_codes)
 
-    @ocs_agent.param('run_once', default=False, type=bool)
+    @ocs_agent.param('test_mode', default=False, type=bool)
     @inlineCallbacks
     def main(self, session: ocs_agent.OpSession, params):
-        """main(run_once=False)
+        """main(test_mode=False)
 
         **Process** - Main run process for the Registry agent. This will loop
         and keep track of which agents have expired. It will keep track of
@@ -119,8 +119,8 @@ class Registry:
         clients.
 
         Parameters:
-            run_once (bool, optional): Run the main Process loop only once.
-                Default is False
+            test_mode (bool, optional): Run the main Process loop only once.
+                This is meant only for testing. Default is False.
 
         Notes:
             The session data object for this process will be a dictionary containing
@@ -176,7 +176,7 @@ class Registry:
                 if msg['data']:
                     self.agent.publish_to_feed('agent_operations', msg)
 
-            if params['run_once']:
+            if params['test_mode']:
                 break
 
         return True, "Stopped registry main process"

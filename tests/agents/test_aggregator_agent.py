@@ -29,7 +29,7 @@ def test_aggregator_agent_record(agent, tmpdir):
 
     session = create_session('record')
 
-    params = {'run_once': True}
+    params = {'test_mode': True}
     res = agent.record(session, params)
 
     assert res[0] is True
@@ -48,7 +48,7 @@ def test_aggregator_agent_record_data(agent, tmpdir):
     data = generate_data_for_queue()
     agent._enqueue_incoming_data(data)
 
-    params = {'run_once': True}
+    params = {'test_mode': True}
     res = agent.record(session, params)
 
     assert res[0] is True

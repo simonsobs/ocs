@@ -23,7 +23,7 @@ agent = create_agent_fixture(InfluxDBAgent, {'args': args})
 def test_influxdb_publisher_record(agent):
     session = create_session('record')
 
-    params = {'run_once': True}
+    params = {'test_mode': True}
     res = agent.record(session, params)
 
     assert res[0] is True
@@ -41,7 +41,7 @@ def test_influxdb_publisher_record_data(agent, tmpdir):
     data = generate_data_for_queue()
     agent._enqueue_incoming_data(data)
 
-    params = {'run_once': True}
+    params = {'test_mode': True}
     res = agent.record(session, params)
 
     assert res[0] is True

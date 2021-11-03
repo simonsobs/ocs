@@ -76,17 +76,17 @@ class AggregatorAgent:
         self.incoming_data.put((data, feed))
         self.log.debug("Enqueued {d} from Feed {f}", d=data, f=feed)
 
-    @ocs_agent.param('run_once', default=False, type=bool)
+    @ocs_agent.param('test_mode', default=False, type=bool)
     def record(self, session: ocs_agent.OpSession, params):
-        """record(run_once=False)
+        """record(test_mode=False)
 
         **Process** - This process will create an Aggregator instance, which
         will collect and write provider data to disk as long as this process is
         running.
 
         Parameters:
-            run_once (bool, optional): Run the record Process loop only once.
-                Default is False
+            test_mode (bool, optional): Run the record Process loop only once.
+                This is meant only for testing. Default is False.
 
         Notes:
             The most recent file and active providers will be returned in the
@@ -128,7 +128,7 @@ class AggregatorAgent:
             time.sleep(self.loop_time)
             aggregator.run()
 
-            if params['run_once']:
+            if params['test_mode']:
                 break
 
         aggregator.close()

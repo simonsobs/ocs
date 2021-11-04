@@ -51,6 +51,12 @@ class TestRecord:
 
         assert res[0] is True
 
+        assert 'current_file' in session.data
+        assert 'providers' in session.data
+        assert 'observatory.test-agent1.feeds.test_feed' in session.data['providers']
+        assert session.data['providers']['observatory.test-agent1.feeds.test_feed']['stale'] is False
+        assert session.data['providers']['observatory.test-agent1.feeds.test_feed']['last_block_received'] == 'temps'
+
 
 @pytest.mark.spt3g
 @pytest.mark.dependency(depends=['so3g'], scope='session')

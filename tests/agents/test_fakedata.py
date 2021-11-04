@@ -25,6 +25,11 @@ def test_fake_data_acq(agent):
     res = agent.acq(session, params=params)
     assert res[0] is True
 
+    assert 'fields' in session.data
+    assert 'timestamp' in session.data
+    channels = ['channel_00', 'channel_01']
+    assert all([ch in channels for ch in session.data['fields']])
+
 
 class TestStopAcq:
     def test_fake_data_stop_acq_not_running(self, agent):

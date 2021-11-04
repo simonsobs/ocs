@@ -26,8 +26,8 @@ class TestMain:
 
         # Fake a heartbeat by directly registering an Agent
         # op_codes, feed
-        heartbeat_example = [{"operation1": 5,
-                              "operation2": 1},
+        op_codes = {'operation1': 5, 'operation2': 1}
+        heartbeat_example = [op_codes,
                              {"agent_address": "observatory.test_agent",
                               "agg_params": {},
                               "feed_name": "heartbeat",
@@ -41,14 +41,19 @@ class TestMain:
 
         assert res[0] is True
 
+        assert 'observatory.test_agent' in session.data
+        assert session.data['observatory.test_agent']['expired'] is False
+        assert session.data['observatory.test_agent']['time_expired'] is None
+        assert session.data['observatory.test_agent']['op_codes'] == op_codes
+
     @pytest_twisted.inlineCallbacks
     def test_registry_main_expire_agent(self, agent):
         session = create_session('main')
 
         # Fake a heartbeat by directly registering an Agent
         # op_codes, feed
-        heartbeat_example = [{"operation1": 5,
-                              "operation2": 1},
+        op_codes = {'operation1': 5, 'operation2': 1}
+        heartbeat_example = [op_codes,
                              {"agent_address": "observatory.test_agent",
                               "agg_params": {},
                               "feed_name": "heartbeat",
@@ -66,6 +71,12 @@ class TestMain:
 
         assert agent.registered_agents['observatory.test_agent'].expired is True
         assert res[0] is True
+
+        assert 'observatory.test_agent' in session.data
+        assert session.data['observatory.test_agent']['expired'] is True
+        assert session.data['observatory.test_agent']['time_expired'] is not None
+        expected_op_codes = {'operation1': 7, 'operation2': 7}
+        assert session.data['observatory.test_agent']['op_codes'] == expected_op_codes
 
 
 @pytest.mark.spt3g

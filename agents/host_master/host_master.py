@@ -80,7 +80,7 @@ class HostMaster:
             for k, info in services.items():
                 db = self.database[('docker', k)]
                 if db['prot'] is None:
-                    db['prot'] = hm_utils.DockerPseudoProtocol(info)
+                    db['prot'] = hm_utils.DockerContainerHelper(info)
                 db['prot'].update(info)
 
     def _launch_instance(self, key, script_file, instance_id):
@@ -98,18 +98,16 @@ class HostMaster:
 
         """
         if key[0] == 'docker':
-            prot = hm_utils.DockerPseudoProtocol(self.docker_services[instance_id])
-            prot.up()
+            prot = hm_utils.DockerContainerHelper(self.docker_services[instance_id])
         else:
             pyth = sys.executable
             cmd = [pyth, script_file,
                    '--instance-id', instance_id,
                    '--site-file', self.site_config_file,
-                   '--site-host', self.host_name,  # why does host prop?
+                   '--site-host', self.host_name,
                    '--working-dir', self.working_dir]
-            prot = hm_utils.AgentProcessProtocol()
-            prot.instance_id = instance_id # probably only used for logging.
-            reactor.spawnProcess(prot, cmd[0], cmd[:], env=os.environ)
+            prot = hm_utils.AgentProcessHelper(instance_id, cmd)
+        prot.up()
         self.database[key]['prot'] = prot
 
     def _terminate_instance(self, key):
@@ -121,13 +119,7 @@ class HostMaster:
             return True, 'Instance was not running.'
         if prot.killed:
             return True, 'Instance already has kill set.'
-        if key[0] == 'docker':
-            prot.down()
-        else:
-            prot.killed = True
-            # race condition, but it could be worse.
-            if prot.status[0] is None:
-                reactor.callFromThread(prot.transport.signalProcess, 'INT')
+        prot.down()
         return True, 'Kill requested.'
 
     @inlineCallbacks
@@ -197,7 +189,7 @@ class HostMaster:
                     state = 'down'
                     if k[0] == 'docker':
                         agent_script = 'docker'
-                        prot = hm_utils.DockerPseudoProtocol(self.docker_services[k[1]])
+                        prot = hm_utils.DockerContainerHelper(self.docker_services[k[1]])
                         if prot.status[0] == None:
                             session.add_message(
                                 'On startup, detected active container for %s' % k[1])
@@ -263,7 +255,10 @@ class HostMaster:
         session.set_status('running')
         self._update_target_states(session, params)
 
-        session.data = {}
+        session.data = {
+            'child_states': [],
+            'last_error': None,
+        }
 
         dying_words = ['down', 'kill', 'wait_dead']  #allowed during shutdown
 
@@ -311,7 +306,7 @@ class HostMaster:
                                       'target_state',
                                       'class_name',
                                       'instance_id']})
-            session.data = {'child_states': child_states}
+            session.data['child_states'] = child_states
 
             yield dsleep(max(min(sleep_times), .001))
         return True, 'Exited.'

@@ -135,10 +135,6 @@ class CrossbarConfig:
         self = cls()
         self.parent = parent
         self.binary = data.get('bin', shutil.which('crossbar'))
-        if self.binary is None:
-            raise RuntimeError("Unable to locate crossbar binary")
-        if not os.path.exists(self.binary):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.binary)
         self.cbdir = data.get('config-dir')
         if self.cbdir is None:
             self.cbdir_args = []
@@ -147,6 +143,13 @@ class CrossbarConfig:
         return self
 
     def get_cmd(self, cmd):
+        if self.binary is None:
+            raise RuntimeError("Crossbar binary could not be found in PATH; "
+                               "specify the binary in site_config?")
+        if not os.path.exists(self.binary):
+            raise RuntimeError("The crossbar binary specified in site_config "
+                               "does not seem to exist: %s" % self.binary)
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.binary)
         return [self.binary, cmd] + self.cbdir_args
 
     def summary(self):

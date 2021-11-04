@@ -6,6 +6,7 @@ import txaio
 from os import environ
 
 from ocs import ocs_agent, site_config
+from ocs.base import OpCode
 from ocs.agent.influxdb_publisher import Publisher
 
 # For logging
@@ -71,12 +72,17 @@ class InfluxDBAgent:
 
         self.incoming_data.put((data, feed))
 
+    @ocs_agent.param('test_mode', default=False, type=bool)
     def record(self, session: ocs_agent.OpSession, params):
         """record()
 
         **Process** - This process will create an Publisher instance, which
         will collect and write provider data to disk as long as this process is
         running.
+
+        Parameters:
+            test_mode (bool, optional): Run the record Process loop only once.
+                This is meant only for testing. Default is False.
 
         """
         session.set_status('starting')
@@ -97,14 +103,22 @@ class InfluxDBAgent:
             self.log.debug(f"Approx. queue size: {self.incoming_data.qsize()}")
             publisher.run()
 
+            if params['test_mode']:
+                break
+
         publisher.close()
 
         return True, "Aggregation has ended"
 
     def _stop_record(self, session, params):
-        session.set_status('stopping')
-        self.aggregate = False
-        return True, "Stopping aggregation"
+        if OpCode(session.op_code) in [OpCode.STARTING, OpCode.RUNNING]:
+            session.set_status('stopping')
+            self.aggregate = False
+            return True, "Stopping aggregation"
+        elif OpCode(session.op_code) == OpCode.STOPPING:
+            return True, "record process status is already 'stopping'"
+        else:
+            return False, "record process not currently running"
 
 
 def make_parser(parser=None):

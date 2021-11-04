@@ -6,31 +6,44 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-      # Fetch all history for all tags and branches
-      with:
-        fetch-depth: 0
     - name: Set up Python 3.8 
       uses: actions/setup-python@v2
       with:
         python-version: 3.8 
 
+    - name: clone ocs
+      uses: actions/checkout@v2
+      # Fetch all history for all tags and branches
+      with:
+        fetch-depth: 0
+
+    - name: Install ocs
+      run: |
+        pip3 install -r requirements.txt
+        pip3 install -e .
+
     # Test (steps from pytest workflow)
+    - name: Run unit tests
+      working-directory: ./tests
+      run: |
+        COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not (integtest or spt3g)'
+
     - name: Build docker images
       run: |
         docker-compose build
 
     - name: Test with pytest within a docker container
       run: |
-        docker run -v $PWD:/coverage --rm ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest -m 'not integtest' --cov /app/ocs/ocs/ ./tests/"
+        docker run -v $PWD:/coverage --rm -w="/app/ocs/tests/" ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov -m 'spt3g'"
 
     - name: Report test coverage
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        mv ./tests/.coverage.* ./
         pip install coveralls
         coverage combine
         coverage report

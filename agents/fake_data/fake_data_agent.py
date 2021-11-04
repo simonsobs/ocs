@@ -50,11 +50,15 @@ class FakeDataAgent:
 
     # Process functions.
 
-    @ocs_agent.param('_')  # Reject all params.
+    @ocs_agent.param('test_mode', default=False, type=bool)
     def acq(self, session, params):
-        """acq()
+        """acq(test_mode=False)
 
         **Process** - Acquire data and write to the feed.
+
+        Parameters:
+            test_mode (bool, optional): Run the acq Process loop only once.
+                This is meant only for testing. Default is False.
 
         Notes:
             The most recent fake values are stored in the session data object in
@@ -142,6 +146,9 @@ class FakeDataAgent:
                 data_cache['fields'][channel] = samples[-1]
             data_cache['timestamp'] = block.timestamps[-1]
             session.data.update(data_cache)
+
+            if params['test_mode']:
+                break
 
         self.agent.feeds['false_temperatures'].flush_buffer()
         self.set_job_done()

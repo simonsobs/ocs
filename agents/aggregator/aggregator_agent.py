@@ -7,6 +7,7 @@ from twisted.internet import reactor
 
 from os import environ
 from ocs import ocs_agent, site_config
+from ocs.base import OpCode
 from ocs.agent.aggregator import Aggregator
 
 # For logging
@@ -76,12 +77,17 @@ class AggregatorAgent:
         self.incoming_data.put((data, feed))
         self.log.debug("Enqueued {d} from Feed {f}", d=data, f=feed)
 
+    @ocs_agent.param('test_mode', default=False, type=bool)
     def record(self, session: ocs_agent.OpSession, params):
-        """record()
+        """record(test_mode=False)
 
         **Process** - This process will create an Aggregator instance, which
         will collect and write provider data to disk as long as this process is
         running.
+
+        Parameters:
+            test_mode (bool, optional): Run the record Process loop only once.
+                This is meant only for testing. Default is False.
 
         Notes:
             The most recent file and active providers will be returned in the
@@ -123,14 +129,22 @@ class AggregatorAgent:
             time.sleep(self.loop_time)
             aggregator.run()
 
+            if params['test_mode']:
+                break
+
         aggregator.close()
 
         return True, "Aggregation has ended"
 
     def _stop_record(self, session, params):
-        session.set_status('stopping')
-        self.aggregate = False
-        return True, "Stopping aggregation"
+        if OpCode(session.op_code) in [OpCode.STARTING, OpCode.RUNNING]:
+            session.set_status('stopping')
+            self.aggregate = False
+            return True, "Stopping aggregation"
+        elif OpCode(session.op_code) == OpCode.STOPPING:
+            return True, "record process status is already 'stopping'"
+        else:
+            return False, "record process not currently running"
 
 
 def make_parser(parser=None):

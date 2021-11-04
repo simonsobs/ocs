@@ -65,7 +65,16 @@ class TestStopRecord:
         res = agent._stop_record(session, params=None)
         assert res[0] is True
 
+    def test_influxdb_publisher_stop_record_while_stopping(self, agent):
+        session = create_session('record')
+        # force session status to be 'stopping'
+        session.set_status('stopping')
+        res = agent._stop_record(session, params=None)
+        assert res[0] is True
+
     def test_influxdb_publisher_stop_record_not_running(self, agent):
         session = create_session('record')
+        # force session status to be 'done'
+        session.set_status('done')
         res = agent._stop_record(session, params=None)
         assert res[0] is False

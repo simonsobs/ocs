@@ -6,6 +6,7 @@ import txaio
 from os import environ
 
 from ocs import ocs_agent, site_config
+from ocs.base import OpCode
 from ocs.agent.influxdb_publisher import Publisher
 
 # For logging
@@ -110,10 +111,12 @@ class InfluxDBAgent:
         return True, "Aggregation has ended"
 
     def _stop_record(self, session, params):
-        if self.aggregate:
+        if OpCode(session.op_code) in [OpCode.STARTING, OpCode.RUNNING]:
             session.set_status('stopping')
             self.aggregate = False
             return True, "Stopping aggregation"
+        elif OpCode(session.op_code) == OpCode.STOPPING:
+            return True, "record process status is already 'stopping'"
         else:
             return False, "record process not currently running"
 

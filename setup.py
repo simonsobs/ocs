@@ -6,7 +6,7 @@ setup (name = 'ocs',
        description='Observatory Control System',
        package_dir={'ocs': 'ocs'},
        packages=find_packages(include=['ocs', 'ocs.*']),
-       scripts=['bin/ocsbow'],
+       scripts=['bin/ocsbow', 'bin/ocs-install-systemd'],
        entry_points={
            'console_scripts': [
                'ocs-client-cli=ocs.client_cli:main',

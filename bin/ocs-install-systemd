@@ -82,6 +82,7 @@ def main(args):
     args = site_config.parse_args(agent_class='*host*',
                                   parser=parser)
     site, host, _ = site_config.get_config(args, agent_class='*host*')
+    assert(host.name is not None)  # It won't be, right?
 
     # The "hostname" is potentially used for a few things:
     # - to name the service
@@ -101,7 +102,7 @@ def main(args):
         if args.service_host is None:
             args.service_name = 'ocs-hostmaster.service'
         else:
-            args.service_name = 'ocs-hostmaster-{args.service_host}.service'
+            args.service_name = f'ocs-hostmaster-{args.service_host}.service'
     if args.instance_id is None:
         args.instance_id = f'hostmaster-{host.name}'
     if args.shell is None:
@@ -134,14 +135,13 @@ def main(args):
 
     host_master_args = [
         f'--instance-id={args.instance_id}',
+        f'--site-host={host.name}',
     ]
     if len(args.docker_compose):
         args.docker_compose = [os.path.abspath(f) for f in args.docker_compose]
         host_master_args.append('--docker-compose=' + ','.join(args.docker_compose))
 
-    host_detail = ''
-    if host.name:
-        host_detail = ' for %s' % host.name
+    host_detail = ' for %s' % host.name
     systemd_script = SYSTEMD_TEMPLATE.format(
         cmd=args.launcher_script,
         host_detail=host_detail,

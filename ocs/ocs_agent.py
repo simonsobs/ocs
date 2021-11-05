@@ -475,15 +475,34 @@ class OCSAgent(ApplicationSession):
         self.feeds[feed_name] = ocs_feed.Feed(self, feed_name, **kwargs)
         return self.feeds[feed_name]
 
-    def publish_to_feed(self, feed_name, message, from_reactor=False):
-        if feed_name not in self.feeds.keys():
+    def publish_to_feed(self, feed_name, message, from_reactor=None):
+        """Publish data to named feed.
+
+        Args:
+          feed_name (str): should match the name of a registered feed.
+          message (serializable): data to publish.  Acceptable format
+            depends on feed configuration; see Feed.publish_message.
+          from_reactor (bool or None): This is deprecated; the code
+            will check whether you're in a thread or not.
+
+        Notes:
+          If an unknown feed_name is passed in, an error is printed to
+          the log and that's all.
+
+          If you are running a "blocking" operation, in a thread, then
+          it is best if the message is not a persistent data structure
+          from your thread (especially something you might modify soon
+          after this call).  The code will take a copy of your
+          structure and pass that to the reactor thread, but the copy
+          may not be deep enough!
+
+        """
+        if feed_name not in self.feeds:
             self.log.error("Feed {} is not registered.".format(feed_name))
             return
-
-        if from_reactor:
-            self.feeds[feed_name].publish_message(message)
-        else:
-            reactor.callFromThread(self.feeds[feed_name].publish_message, message)
+        # We expect that publish_message will check threading context
+        # and do the right thing (as of this writing, it does).
+        self.feeds[feed_name].publish_message(message)
 
     def subscribe(self, handler, topic, options=None, force_subscribe=False):
         """

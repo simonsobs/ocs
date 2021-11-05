@@ -35,10 +35,10 @@ def test_so3g_spt3g_import():
     print(so3g.__file__)
 
 
-@pytest.mark.integtest
-def test_testing(wait_for_crossbar):
-    "Just testing if the docker-compose/crossbar wait fixture is working."
-    assert True
+# @pytest.mark.integtest
+# def test_testing(wait_for_crossbar):
+#     "Just testing if the docker-compose/crossbar wait fixture is working."
+#     assert True
 
 @pytest.mark.integtest
 def test_fake_data_after_crossbar_restart(wait_for_crossbar):
@@ -68,13 +68,13 @@ def test_fake_data_after_crossbar_restart(wait_for_crossbar):
     response = therm_client.acq.status()
     assert response.session.get('data').get('timestamp') > now
 
-@pytest.mark.integtest
-def test_influxdb_publisher_after_crossbar_restart(wait_for_crossbar):
-    """Test that the InfluxDB publisher reconnects after a crossbar restart and
-    continues to publish data to the InfluxDB.
-
-    """
-    pass
+# @pytest.mark.integtest
+# def test_influxdb_publisher_after_crossbar_restart(wait_for_crossbar):
+#     """Test that the InfluxDB publisher reconnects after a crossbar restart and
+#     continues to publish data to the InfluxDB.
+#
+#     """
+#     pass
 
 @pytest.mark.dependency(depends=["so3g"])
 @pytest.mark.integtest

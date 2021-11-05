@@ -231,16 +231,17 @@ class InstanceConfig:
 
         ``arguments`` (list, optional):
             A list of arguments that should be passed back to the
-            agent.  Each element of the list should be a pair of
-            strings, like ``['--option-name', 'value']``.  This is not
-            as general as one might like, but is required in the
-            current scheme.
+            agent.  Historically the arguments have been grouped into
+            into key value pairs, e.g. [['--key1', 'value'],
+            ['--key2', 'value']] but these days whatever you passed in
+            gets flattened to a single list (i.e. that is equivalent
+            to ['--key1', 'value', '--key2', 'value'].
 
         """
         self = cls()
         self.parent = parent
         self.data = data
-        self.arguments = self.data['arguments']
+        self.arguments = self.data.get('arguments', [])
         return self
 
 

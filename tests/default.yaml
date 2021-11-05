@@ -1,8 +1,8 @@
 # Site configuration for a fake observatory.
 hub:
 
-  wamp_server: ws://127.0.0.1:8001/ws
-  wamp_http: http://127.0.0.1:8001/call
+  wamp_server: ws://127.0.0.1:18001/ws
+  wamp_http: http://127.0.0.1:18001/call
   wamp_realm: test_realm
   address_root: observatory
   registry_address: observatory.registry
@@ -36,7 +36,7 @@ hosts:
        'instance-id': 'influxagent-local',
        'arguments': [['--initial-state', 'idle'],
                      ['--host', 'localhost'],
-                     ['--port', 8086],
+                     ['--port', 18086],
                      ['--database', 'ocs_feeds']]},
     ]
   }

@@ -23,13 +23,11 @@ system path for import.
 Finally, integration tests that test the Agents and interaction with them
 through Clients are kept in ``tests/integration``.
 
-Unit Tests
-``````````
-The unit tests are built to run quickly and test functionality of individual
-parts of the OCS library. These are run automatically on every commit to a
-branch/PR on GitHub, using GitHub Actions. However, you might want to run them
-locally when updating or adding to OCS for faster feedback. To run only the
-unit tests run::
+Unit Tests `````````` The unit tests are built to run quickly and test
+functionality of individual parts of the OCS library. These are run
+automatically on every commit to a branch/PR on GitHub, using GitHub Actions.
+However, you might want to run them locally when updating or adding to OCS for
+faster feedback. To run only the unit tests run::
 
   python3 -m pytest -m 'not integtest'
 
@@ -37,18 +35,17 @@ This ``-m 'not integtest'`` argument skips all tests marked as integration
 tests, leaving just the unit tests.
 
     *Note:* Unit tests can be run within a Docker container to avoid the
-    spt3g/so3g dependencies on the host system. Ensure the ocs Docker image is
-    built with your changes, then run::
+spt3g/so3g dependencies on the host system. Ensure the ocs Docker image is
+built with your changes, then run::
 
-        $ docker run --rm -w="/app/ocs/tests/" ocs sh -c "python3 -m pytest -m 'not integtest'"
+        $ docker run --rm -w="/app/ocs/tests/" ocs sh -c "python3 -m pytest -m
+'not integtest'"
 
-Integration Tests
-`````````````````
-These tests are built to test the running OCS system, and as such need several
-running components. This includes a crossbar server and each core OCS
-Agent. In order to run these in an isolated environment we make use of Docker
-and Docker Compose. This includes use of the pytest plugin,
-pytest-docker-compose.
+Integration Tests ````````````````` These tests are built to test the running
+OCS system, and as such need several running components. This includes a
+crossbar server and each core OCS Agent. In order to run these in an isolated
+environment we make use of Docker and Docker Compose. This includes use of the
+pytest plugin, pytest-docker-compose.
 
 For each integration test, a set of Docker containers is started and interacted
 with. Startup and shutdown of these containers can increase the testing time.
@@ -63,6 +60,12 @@ This should deselect all other tests and run the test of interest. You can run
 all integration tests with::
 
   python3 -m pytest -m integtest
+
+.. note::
+    To avoid conflicts with testing on a system already running OCS, containers
+    used in testing are named to avoid generic names like 'crossbar' or
+    'influxdb'. Also ports have been moved to 'port number + 10000' (i.e.
+    crossbar on port 18001 instead of port 8001.)
 
 Reducing Turnaround Time in Testing
 ...................................
@@ -90,8 +93,8 @@ Agent/container you are working on. For example, in the fake-data-agent::
       - /home/user/git/ocs/:/app/ocs/
     command:
       - "--instance-id=fake-data1"
-      - "--site-hub=ws://crossbar:8001/ws"
-      - "--site-http=http://crossbar:8001/call"
+      - "--site-hub=ws://crossbar:18001/ws"
+      - "--site-http=http://crossbar:18001/call"
 
 Code Coverage
 `````````````

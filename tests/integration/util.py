@@ -65,7 +65,7 @@ def _check_crossbar_connection():
 
     while attempts < 6:
         try:
-            code = urllib.request.urlopen("http://localhost:8001/info").getcode()
+            code = urllib.request.urlopen("http://localhost:18001/info").getcode()
         except (URLError, ConnectionResetError):
             print("Crossbar server not online yet, waiting 5 seconds.")
             time.sleep(5)
@@ -98,7 +98,7 @@ def create_crossbar_fixture():
 def restart_crossbar():
     """Restart the crossbar server and wait for it to come back online."""
     client = docker.from_env()
-    crossbar_container = client.containers.get('crossbar')
+    crossbar_container = client.containers.get('ocs-tests-crossbar')
     crossbar_container.restart()
     _check_crossbar_connection()
 

@@ -173,17 +173,17 @@ def test_proper_agent_shutdown_on_lost_transport(wait_for_crossbar):
     time.sleep(5) # give a few seconds for things to make first connection
 
     # shutdown crossbar
-    crossbar_container = client.containers.get('crossbar')
+    crossbar_container = client.containers.get('ocs-tests-crossbar')
     crossbar_container.stop()
 
     # 15 seconds should be enough with default 10 second timeout
     timeout = 15
     while timeout > 0:
         time.sleep(1) # give time for the fake-data-agent to timeout, then shutdown
-        fake_data_container = client.containers.get('fake-data-agent')
+        fake_data_container = client.containers.get('ocs-tests-fake-data-agent')
         if fake_data_container.status == "exited":
             break
         timeout -= 1
 
-    fake_data_container = client.containers.get('fake-data-agent')
+    fake_data_container = client.containers.get('ocs-tests-fake-data-agent')
     assert fake_data_container.status == "exited"

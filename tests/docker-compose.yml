@@ -2,18 +2,17 @@ version: '2'
 services:
   influxdb:
     image: influxdb:1.7
-    container_name: "influxdb"
     ports:
-      - "8086:8086"
+      - "18086:8086"
 
   # --------------------------------------------------------------------------
   # Crossbar Server
   # --------------------------------------------------------------------------
   crossbar:
     image: ocs-crossbar
-    container_name: "crossbar"
+    container_name: "ocs-tests-crossbar"
     ports:
-      - "8001:8001" # expose for OCS
+      - "18001:18001" # expose for OCS
     volumes:
       - ./config.json:/ocs/.crossbar/config.json
     environment:
@@ -24,14 +23,14 @@ services:
   # --------------------------------------------------------------------------
   fake-data1:
     image: ocs-fake-data-agent
-    container_name: "fake-data-agent"
+    container_name: "ocs-tests-fake-data-agent"
     hostname: ocs-docker
     volumes:
       - ./default.yaml:/config/default.yaml:ro
     command:
       - "--instance-id=fake-data1"
-      - "--site-hub=ws://crossbar:8001/ws"
-      - "--site-http=http://crossbar:8001/call"
+      - "--site-hub=ws://ocs-tests-crossbar:18001/ws"
+      - "--site-http=http://ocs-tests-crossbar:18001/call"
 
   ocs-aggregator:
     image: ocs-aggregator-agent
@@ -41,3 +40,6 @@ services:
       - "./data/:/data"
     environment:
       - LOGLEVEL=debug
+    command:
+      - "--site-hub=ws://ocs-tests-crossbar:18001/ws"
+      - "--site-http=http://ocs-tests-crossbar:18001/call"

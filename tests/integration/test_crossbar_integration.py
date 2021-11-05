@@ -19,6 +19,9 @@ pytest_plugins = ("docker_compose",)
 wait_for_crossbar = create_crossbar_fixture()
 
 
+CROSSBAR_SLEEP = 5  # time to wait before trying to make first connection
+
+
 @pytest.mark.spt3g
 @pytest.mark.dependency(name="so3g")
 def test_so3g_spt3g_import():
@@ -47,7 +50,8 @@ def test_fake_data_after_crossbar_restart(wait_for_crossbar):
     and the acq process should still be running.
 
     """
-    time.sleep(5) # give a few seconds for things to make first connection
+    # give a few seconds for things to make first connection
+    time.sleep(CROSSBAR_SLEEP)
     restart_crossbar()
     now = time.time()
 
@@ -83,7 +87,8 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     os.environ['OCS_CONFIG_DIR'] = os.getcwd()
 
     # record first file being written by aggregator
-    time.sleep(5) # give a few seconds for things to collect some data
+    # give a few seconds for things to make first connection
+    time.sleep(CROSSBAR_SLEEP)
     agg_client = MatchedClient('aggregator', args=[])
     status = agg_client.record.status()
     file00 = status.session.get('data').get('current_file')
@@ -170,7 +175,8 @@ def test_proper_agent_shutdown_on_lost_transport(wait_for_crossbar):
     """
     client = docker.from_env()
 
-    time.sleep(5) # give a few seconds for things to make first connection
+    # give a few seconds for things to make first connection
+    time.sleep(CROSSBAR_SLEEP)
 
     # shutdown crossbar
     crossbar_container = client.containers.get('ocs-tests-crossbar')

@@ -54,8 +54,8 @@ function HostMaster_populate(p, base_id, args) {
         next_action: {name: "current", center: true},
         target_state: {name: "target", center: true}
     };
-    var child_data = new TableMan(base_id + '-table', props, ["up", "down"],
-                                  function(button, instance_id) {
+    var child_data = new KidsTable(base_id + '-table', props, ["up", "down"],
+                                   function(button, instance_id) {
                                       this.data[instance_id].target_state = `(${button})`;
                                       this.updates[instance_id] = true;
                                       this.populate();
@@ -72,10 +72,8 @@ function HostMaster_populate(p, base_id, args) {
             ui2.get('v', 'children').val('');
             return;
         }
-        $.each(session.data.child_states, function(idx, info) {
-            child_data.update(info.instance_id, info);
-        });
-        child_data.populate(true);
+        child_data.update(session.data.child_states);
+        child_data.populate(false);
     });
 
     // Keep an eye on agent presence.
@@ -91,7 +89,11 @@ function HostMaster_populate(p, base_id, args) {
     });
 }
 
-function TableMan(base_id, prop_list, but_list, handler) {
+//
+// KidsTable -- manager for the table of child agents.
+//
+
+function KidsTable(base_id, prop_list, but_list, handler) {
     this.base_id = base_id;
     this.prop_list = prop_list;
     this.but_list = but_list;
@@ -100,10 +102,11 @@ function TableMan(base_id, prop_list, but_list, handler) {
     this.count = 0;
     this.updates = {};
     this.new_rows = {};
+    this.del_rows = [];
     this.base = null;
 }
 
-TableMan.prototype = {
+KidsTable.prototype = {
     get_form: function() {
         //Create a form tag and return it; sets up the grid layout with
         //the right number of columns.
@@ -115,26 +118,30 @@ TableMan.prototype = {
         el.css("grid-template-columns", layout);// "3fr 3fr 1fr 1fr 1fr 1fr");
         return el
     },
-    new_row: function(ident, data) {
-        this.data[ident] = data;
-        this.data[ident]._rowid = this.base_id + '-r' + this.count;
-        this.count++;
-        this.updates[ident] = true;
-        this.new_rows[ident] = true;
-    },
-    update: function(ident, data) {
+    update: function(child_states) {
         var self = this;
-        if (!self.data[ident])
-            return self.new_row(ident, data);
-        var same = true;
-        $.each(self.prop_list, (p, pn) => {
-            if (data[p] != self.data[ident][p]) {
-                self.data[ident][p] = data[p];
-                same = false;
+        var missing = Object.getOwnPropertyNames(self.data);
+        $.each(child_states, function(idx, data) {
+            ident = data.instance_id;
+            var idx = missing.indexOf(ident);
+            if (idx < 0) {
+                self.data[ident] = data;
+                self.data[ident]._rowid = self.base_id + '-r' + self.count;
+                self.count++;
+                self.new_rows[ident] = true;
+            } else {
+                missing.splice(idx, 1);
+                var same = true;
+                $.each(self.prop_list, (p, pn) => {
+                    if (data[p] != self.data[ident][p]) {
+                        self.data[ident][p] = data[p];
+                        same = false;
+                    }
+                });
+                self.updates[ident] = !same;
             }
         });
-        if (!same)
-            self.updates[ident] = true;
+        self.del_rows = missing;
     },
     populate: function(do_all) {
         // If first time, write the header.
@@ -150,6 +157,13 @@ TableMan.prototype = {
                 this.base.append($('<div>'));
             });
         }
+        // Remove stale rows
+        while (this.del_rows.length) {
+            var inst = this.del_rows.pop();
+            $('.' + this.data[inst]._rowid).remove();
+            delete this.data[inst];
+        }
+
         // Create any new data rows
         $.each(this.new_rows, (inst, is_new_row) => {
             if (!is_new_row)
@@ -157,12 +171,14 @@ TableMan.prototype = {
             var data = this.data[inst];
             $.each(this.prop_list, (prop, pp) => {
                 var div = $('<div>').html(data[prop]).attr('id', data._rowid + '-' + prop);
+                div.addClass(data._rowid);
                 if (pp.center)
                     div.addClass('hm_center');
                 this.base.append(div);
             });
             $.each(this.but_list, (i, but_text) => {
                 var but = $(`<input type="button" value="${but_text}" class="obviously_clickable">`)
+                    .addClass(data._rowid)
                     .on('click', () => {
                         this.handler(but_text, inst);
                         this.populate();

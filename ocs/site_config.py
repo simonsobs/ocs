@@ -236,11 +236,19 @@ class InstanceConfig:
             gets flattened to a single list (i.e. that is equivalent
             to ['--key1', 'value', '--key2', 'value'].
 
+        ``manage`` (str, optional):
+            A string to help HostMaster decide how to manage this
+            agent.  Value should be one of ["yes", "no", "docker"]
+            (default is "yes").
+
         """
         self = cls()
         self.parent = parent
         self.data = data
         self.arguments = self.data.get('arguments', [])
+        self.manage = self.data.get('manage')
+        if self.manage is None:
+            self.manage = "yes"
         return self
 
 

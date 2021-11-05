@@ -55,9 +55,11 @@ class HostMaster:
         keys = []
         for inst in hc.instances:
             class_name, instance_id = inst['agent-class'], inst['instance-id']
+            manage = inst.get('manage', 'yes')
             if class_name == 'HostMaster':
-                continue
-            keys.append((class_name, instance_id))
+                manage = 'no'
+            if manage == 'yes':
+                keys.append((class_name, instance_id))
 
         # Add in services from specified docker-compose files.
         self.docker_services = {}

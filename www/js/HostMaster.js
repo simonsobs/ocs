@@ -52,19 +52,19 @@ function HostMaster_populate(p, base_id, args) {
         instance_id: {name: "instance-id"},
         class_name: {name: "class-name"},
         next_action: {name: "current", center: true},
-        target_state: {name: "target", center: true},
-        req: ""
+        target_state: {name: "target", center: true}
     };
     var child_data = new TableMan(base_id + '-table', props, ["up", "down"],
                                   function(button, instance_id) {
-                                      console.log('click', button, instance_id);
+                                      this.data[instance_id].target_state = `(${button})`;
+                                      this.updates[instance_id] = true;
+                                      this.populate();
                                       client.start_task('update', {
                                           requests:  [[instance_id, button]]
                                       });
                                   });
-
     ui2.get('v', 'children').append(
-        $('<form class="hm_ui">').attr('id', child_data.base_id));
+        child_data.get_form());
 
     client.add_watcher('master', 5., function(op_name, method, stat, msg, session) {
         ui1.set_status('master', session);
@@ -104,10 +104,20 @@ function TableMan(base_id, prop_list, but_list, handler) {
 }
 
 TableMan.prototype = {
+    get_form: function() {
+        //Create a form tag and return it; sets up the grid layout with
+        //the right number of columns.
+        var el = $('<form class="hm_ui">').attr('id', this.base_id);
+        var layout = "3fr 3fr";
+        $.each(this.prop_list, function () {
+            layout = layout + " 1fr";
+        });
+        el.css("grid-template-columns", layout);// "3fr 3fr 1fr 1fr 1fr 1fr");
+        return el
+    },
     new_row: function(ident, data) {
         this.data[ident] = data;
         this.data[ident]._rowid = this.base_id + '-r' + this.count;
-        this.data[ident].req = '*';
         this.count++;
         this.updates[ident] = true;
         this.new_rows[ident] = true;
@@ -117,12 +127,10 @@ TableMan.prototype = {
         if (!self.data[ident])
             return self.new_row(ident, data);
         var same = true;
-        data.req = '';
         $.each(self.prop_list, (p, pn) => {
             if (data[p] != self.data[ident][p]) {
                 self.data[ident][p] = data[p];
                 same = false;
-                self.data[ident].req = '*';
             }
         });
         if (!same)
@@ -156,7 +164,6 @@ TableMan.prototype = {
             $.each(this.but_list, (i, but_text) => {
                 var but = $(`<input type="button" value="${but_text}" class="obviously_clickable">`)
                     .on('click', () => {
-                        data.req = '*';
                         this.handler(but_text, inst);
                         this.populate();
                     });

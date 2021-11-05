@@ -40,14 +40,27 @@ jobs:
       run: |
         COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not (integtest or spt3g)'
 
-    - name: Build docker images
+    - name: Build docker image for containerized tests
       run: |
-        docker-compose build
+        docker-compose build ocs
 
     - name: Test with pytest within a docker container
       run: |
         docker run -v $PWD:/coverage --rm -w="/app/ocs/tests/" ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov -m 'spt3g'"
 
+    # Integration Tests
+    - name: Build images for integration tests
+      run: |
+        docker-compose build ocs-fake-data-agent ocs-aggregator-agent ocs-crossbar
+
+    - name: Run integration tests
+      working-directory: ./tests
+      run: |
+        mkdir log
+        COVERAGE_FILE=.coverage.int python3 -m pytest --cov -m 'integtest'
+        ls -la ./log/
+
+    # Coverage
     - name: Report test coverage
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

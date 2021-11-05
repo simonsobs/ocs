@@ -60,7 +60,7 @@
 		    "type": "web",
                     "endpoint": {
                         "type": "tcp",
-                        "port": 8001
+                        "port": 18001
                     },
 		    "paths": {
 			"ws": {

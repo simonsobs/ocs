@@ -20,7 +20,7 @@ client = create_client_fixture('influxagent-local')
 
 @pytest.mark.integtest
 def test_influxdb_publisher_agent_record(wait_for_crossbar, run_agent, client):
-    resp = client.record.start(run_once=True)
+    resp = client.record.start(test_mode=True)
     print(resp)
     assert resp.status == ocs.OK
 

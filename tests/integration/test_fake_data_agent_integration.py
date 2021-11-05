@@ -35,7 +35,7 @@ def test_fake_data_agent_set_heartbeat(wait_for_crossbar, run_agent, client):
 
 @pytest.mark.integtest
 def test_fake_data_agent_acq(wait_for_crossbar, run_agent, client):
-    resp = client.acq.start(run_once=True)
+    resp = client.acq.start(test_mode=True)
     assert resp.status == ocs.OK
 
     resp = client.acq.wait(timeout=20)

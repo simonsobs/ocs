@@ -110,16 +110,24 @@ def decode_exception(args):
     return True, text, str(data)
 
 def print_config(args):
-    site, host, _ = ocs.site_config.get_config(args, '*host*')
+    try:
+        site, host, _ = ocs.site_config.get_config(args, '*host*')
+    except KeyError:
+        site, host, _ = ocs.site_config.get_config(args, '*control*')
+
     if args.cfg_request == 'summary':
         print('ocs configuration summary')
         print('-------------------------')
         print()
-        print('ocs import led to: %s' % (ocs.__file__))
+        print('ocs import led to:\n  %s' % (ocs.__file__))
         print()
-        print('Site file was determined to be: %s' % site.source_file)
+        print('Site file was determined to be:\n  %s' % site.source_file)
         print()
-        print('Logging directory is: %s' % host.log_dir)
+        if host is None:
+            print('No configuration block was found for the specified host.')
+        else:
+            print('Specified host is:  %s\n' % host)
+        print()
         print('The site file describes %i hosts:' % len(site.hosts))
         for k,v in site.hosts.items():
             print('  Host %s includes %i agent instances:' % (k, len(v.instances)))
@@ -128,6 +136,9 @@ def print_config(args):
             print()
 
     if args.cfg_request == 'plugins':
+        if host is None:
+            print('Specified site-host is not found in site config.')
+            return False
         print('ocs plugin detection')
         print('--------------------')
         print('Scanning.')
@@ -147,11 +158,11 @@ def print_config(args):
         print('Configuration for the OCS hub:')
         print(site.hub.summary())
         print()
-        print('Configuration for crossbar service on this host (%s):' % host.name)
-        if host.crossbar is None:
-            print('  Not configured.')
+        if host is None or host.crossbar is None:
+            print('This host is not known to the site config.')
         else:
-             print(host.crossbar.summary())
+            print('Configuration for crossbar service on this host (%s):' % host.name)
+            print(host.crossbar.summary())
         print()
 
 
@@ -224,6 +235,10 @@ class HostMasterManager:
 
     def crossbar_action(self, cb_cmd, foreground=False):
         # Start / stop / check the crossbar server.
+        if self.crossbar is None:
+            print('There is no crossbar entry in this host config.\n')
+            sys.exit(10)
+
         cmd = self.crossbar.get_cmd(cb_cmd)
         if cb_cmd == 'start' and not foreground:
             # Unless user specifically requests foreground (blocking),
@@ -475,9 +490,17 @@ def print_status(stat):
 
 def main():
     parser = get_parser()
-    args = ocs.site_config.parse_args(agent_class='*host*', parser=parser)
+    try:
+        args = ocs.site_config.parse_args(agent_class='*host*', parser=parser)
+    except KeyError:
+        parser = get_parser()
+        args = ocs.site_config.parse_args(agent_class='*control*', parser=parser)
+
     if args.working_dir is None:
         args.working_dir = os.getcwd()
+
+    if args.command is None:
+        args.command = 'status'
 
     if args.command == 'config':
         return print_config(args)

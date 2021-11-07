@@ -494,7 +494,8 @@ def get_config(args, agent_class=None):
                     dev, parent=host_config)
     if instance_config is None and not no_dev_match:
         raise RuntimeError("Could not find matching device description.")
-    return (site_config, host_config, instance_config)
+    return collections.namedtuple('SiteConfig', ['site', 'host', 'instance'])\
+        (site_config, host_config, instance_config)
 
 
 def add_site_attributes(args, site, host=None):

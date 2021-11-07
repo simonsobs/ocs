@@ -17,6 +17,9 @@ DESCRIPTION="""This is the high level control script for ocs.  Its principal use
 are to inspect the local host's site configuration file, and to start
 and communicate with the HostMaster Agent for the local host."""
 
+# agent_class of the HostMaster.
+HOSTMASTER_CLASS = 'HostMaster'
+
 class OcsbowError(Exception):
     pass
 
@@ -75,6 +78,37 @@ def get_parser():
 
     return parser
 
+def get_args_and_site_config(args=None):
+    # The proper parsing of args in all the various cases is pretty
+    # arcane, so do it once, here.  So this will decode the args, and
+    # also return a site_config (site, host, instance) such that:
+    #
+    # - If ocsbow finds a config file but the active host is not in
+    #   the config file, only "site" is not None.
+    # - If the active host is in the config file, host will be populated.
+    # - If this active host has a HostManager configured, instance
+    #   will also be set up.
+    #
+    if args is None:
+        args = sys.argv[1:]
+    for agent_class in ['*host*', '*control*']:
+        try:
+            parser = get_parser()
+            args_ = ocs.site_config.parse_args(agent_class=agent_class, parser=parser)
+            site_config = ocs.site_config.get_config(args_, agent_class=agent_class)
+            break
+        except KeyError:
+            pass
+    if agent_class == '*host*':
+        # Promote to HM instance?
+        try:
+            site_config = ocs.site_config.get_config(
+                args_, agent_class=HOSTMASTER_CLASS)
+        except RuntimeError:
+            pass
+
+    return args_, site_config
+
 def render_crossbar_config_example(pars):
     """Returns the text of a basic crossbar config file, suitable for OCS
     use.
@@ -109,11 +143,8 @@ def decode_exception(args):
         return False, args, str(args)
     return True, text, str(data)
 
-def print_config(args):
-    try:
-        site, host, _ = ocs.site_config.get_config(args, '*host*')
-    except KeyError:
-        site, host, _ = ocs.site_config.get_config(args, '*control*')
+def print_config(args, site_config):
+    site, host, instance = site_config
 
     if args.cfg_request == 'summary':
         print('ocs configuration summary')
@@ -201,39 +232,13 @@ def generate_crossbar_config(hm):
         open(cb_filename, 'w').write(config_text)
         print('Wrote %s' % cb_filename)
 
-class HostMasterManager:
-    def __init__(self, args):
-        """Note we save and use a reference to args... if it's modified,
-        reinstantiate me..
-
-        """
-        # site, host, instance configs.
-        self.args = args
-        self.SHI = ocs.site_config.get_config(args, 'HostMaster')
-        site, host, instance = self.SHI
+class CrossbarManager:
+    def __init__(self, args, host):
+        if host.crossbar is None:
+            raise RuntimeError('There is no crossbar entry in this host config.')
         self.crossbar = host.crossbar
 
-        self.master_addr = '%s.%s' % (site.hub.data['address_root'],
-                                 instance.data['instance-id'])
-        self.working_dir = args.working_dir
-        try:
-            self.client = ocs.site_config.get_control_client(
-                instance.data['instance-id'], args=args)
-        except ConnectionError:
-            self.client = None
-
-    def generate_crossbar_config(self):
-        site, host, instance = self.SHI
-        import urllib
-        urld = urllib.parse.urlparse(site.hub.data['wamp_server'])
-        pars = {
-            'realm': site.hub.data['wamp_realm'],
-            'address_root': site.hub.data['address_root'],
-            'port': urld.port,
-        }
-        return render_crossbar_config_example(pars)
-
-    def crossbar_action(self, cb_cmd, foreground=False):
+    def action(self, cb_cmd, foreground=False):
         # Start / stop / check the crossbar server.
         if self.crossbar is None:
             print('There is no crossbar entry in this host config.\n')
@@ -264,6 +269,38 @@ class HostMasterManager:
             except OSError:
                 print('New crossbar instance exited within %.1f seconds.' % monitor_time)
                 sys.exit(10)
+
+
+class HostMasterManager:
+    def __init__(self, args, site_config):
+        """Note we save and use a reference to args... if it's modified,
+        reinstantiate me..
+
+        """
+        # site, host, instance configs.
+        self.args = args
+        self.site_config = site_config
+        site, host, instance = self.site_config
+
+        self.master_addr = '%s.%s' % (site.hub.data['address_root'],
+                                 instance.data['instance-id'])
+        self.working_dir = args.working_dir
+        try:
+            self.client = ocs.site_config.get_control_client(
+                instance.data['instance-id'], args=args)
+        except ConnectionError:
+            self.client = None
+
+    def generate_crossbar_config(self):
+        site = self.site_config.site
+        import urllib
+        urld = urllib.parse.urlparse(site.hub.data['wamp_server'])
+        pars = {
+            'realm': site.hub.data['wamp_realm'],
+            'address_root': site.hub.data['address_root'],
+            'port': urld.port,
+        }
+        return render_crossbar_config_example(pars)
 
     def status(self):
         """Try to get the status of the master Process.  This will indirectly
@@ -364,7 +401,7 @@ class HostMasterManager:
         return False, 'Agent did not die within %.1f seconds.' % timeout
 
     def start(self, check=True, timeout=5., up=False):
-        site, host, instance = self.SHI
+        host = self.site_config.host
         log_dir = host.log_dir
         if log_dir is not None and not log_dir.startswith('/'):
             log_dir = os.path.join(host.working_dir, log_dir)
@@ -405,7 +442,7 @@ class HostMasterManager:
 
     def agent_control(self, request, targets):
         # Parse the config to find this host's HostMaster instance info.
-        site, host, instance = ocs.site_config.get_config(self.args, 'HostMaster')
+        site, host, instance = ocs.site_config.get_config(self.args, HOSTMASTER_CLASS)
 
         client = ocs.site_config.get_control_client(
                 instance.data['instance-id'], args=self.args)
@@ -488,13 +525,9 @@ def print_status(stat):
         print()
 
 
-def main():
-    parser = get_parser()
-    try:
-        args = ocs.site_config.parse_args(agent_class='*host*', parser=parser)
-    except KeyError:
-        parser = get_parser()
-        args = ocs.site_config.parse_args(agent_class='*control*', parser=parser)
+def main(args=None):
+    args, site_config = get_args_and_site_config(args)
+    site, host, instance = site_config
 
     if args.working_dir is None:
         args.working_dir = os.getcwd()
@@ -505,14 +538,21 @@ def main():
     if args.command == 'config':
         return print_config(args)
 
-    # Other actions will need some form of...
-    hm = HostMasterManager(args)
+    hm, cm = None, None
+    if host is not None:
+        hm = HostMasterManager(args, site_config)
+        if host.crossbar is not None:
+            cm = CrossbarManager(args, host)
 
     if args.command == 'crossbar':
         if args.cb_request == 'generate_config':
             generate_crossbar_config(hm)
+        elif cm is not None:
+            cm.action(args.cb_request, args.fg)
         else:
-            hm.crossbar_action(args.cb_request, args.fg)
+            raise OcsbowError(
+                'The site config does not describe a managed '
+                'crossbar instance for this host.')
 
     elif args.command == 'hostmaster':
         status_info = hm.status()
@@ -541,7 +581,7 @@ def main():
         stat = hm.status()
         if not stat['crossbar_running']:
             print('Trying to start crossbar...')
-            hm.crossbar_action('start')
+            cm.action('start')
             # Re-instantiate.
             hm = HostMasterManager(args)
             stat = hm.status()
@@ -568,10 +608,10 @@ def main():
         if stat['agent_running']:
             print('Requesting HostMaster termination.')
             hm.stop()
-        if hm.crossbar is not None:
+        if cm is not None:
             if stat['crossbar_running']:
                 print('Stopping crossbar.')
-                hm.crossbar_action('stop')
+                cm.action('stop')
             else:
                 print('No running crossbar detected, system is already "down".')
         hm = HostMasterManager(args)

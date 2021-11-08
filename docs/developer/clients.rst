@@ -23,7 +23,7 @@ The OCSClient (the object, not the concept of "Client") is the primary method
 for interaction with an Agent. An OCSClient object provides the Agent's
 Operation methods as attributes (replacing spaces and hyphens in Operation
 names if they exist). The OCSClient requires the Agent's instance-id as an
-argument.
+argument. An OCSClient can be quickly setup using :ref:`client_cli`.
 
 Basic Usage
 ```````````
@@ -110,7 +110,7 @@ the task starts successfully), equivalent to::
         client.delay_task.wait()
 
 Direct calls to a Process behave a bit differently, acting as an alias to
-"status", making these two calls are identical::
+"status", making these two calls identical::
 
     >>> client.acq.status()
     >>> client.acq()
@@ -309,7 +309,9 @@ Control Programs using Twisted
     control program, you probably are looking for :ref:`OCSClient<ocs_client>`.
 
 If an asynchronous program containing one or more Clients is required, one can
-be implemented using Twisted and :func:`ocs.client_t.run_control_script`.
+be implemented using Twisted and :func:`ocs.client_t.run_control_script`. This
+is the case if you want to command one Agent from another Agent, since Agents
+are written using Twisted.
 
 While OCSClient connects to the crossbar server using HTTP, control programs
 using Twisted connect via websockets. When writing a program using Clients that
@@ -380,7 +382,7 @@ When calling a Process, we just use "start"::
     print("Starting Data Acquisition")
     yield therm_ops['acq'].start()
 
-This will continue running until we command it to stop. Our full Basic Client
+This will continue running until we command it to stop. Our full Control Program
 looks like::
 
     import ocs 

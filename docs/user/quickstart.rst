@@ -190,7 +190,7 @@ all containers, even stopped ones with::
 
 Commanding
 ----------
-The Agents can now to commanded using an OCS Client. To do so, we will enter
+The Agents can now be commanded using an OCS Client. To do so, we will enter
 the ocs-client container::
 
     $ sudo docker exec -it self-contained-quickstart_ocs-client_1 /bin/bash

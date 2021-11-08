@@ -154,6 +154,7 @@ For information on how to run::
     if you need to restart a large upload job. This will be ``.g32influx.db`` in
     the directory you run the script from.
 
+.. _client_cli:
 
 ocs-client-cli
 ==============
@@ -165,6 +166,10 @@ ocs-client-cli
     "Site Config Options" that Agents usually support, such as
     ``--site-file=...``.  If there are some stray instances of
     ``%(prog)s``, imagine ``ocs-client-cli`` in their place.)
+
+.. note::
+    To learn about using an OCS Client and writing control programs, please see
+    :ref:`clients`.
 
 .. argparse::
    :module: ocs.client_cli

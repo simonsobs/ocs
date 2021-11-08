@@ -176,9 +176,9 @@ Once your Agent is storing information in the ``session.data`` object you
 likely want to access it via an OCS client. The ``session`` object is returned
 by all :ref:`Operation Methods<op_replies>`, for instance the ``status`` method, as shown in this small example::
 
-    from ocs.matched_client import MatchedClient
+    from ocs.ocs_client import OCSClient
     
-    therm_client = MatchedClient('fake-data1')
+    therm_client = OCSClient('fake-data1')
     therm_client.acq.start()
     
     response = therm_client.acq.status()

@@ -4,7 +4,7 @@ import pytest
 
 import docker
 
-from ocs.matched_client import MatchedClient
+from ocs.ocs_client import OCSClient
 
 from integration.util import create_crossbar_fixture, restart_crossbar
 
@@ -59,7 +59,7 @@ def test_fake_data_after_crossbar_restart(wait_for_crossbar):
     os.environ['OCS_CONFIG_DIR'] = os.getcwd()
 
     # Check fake data Agent is accessible and producing new data.
-    therm_client = MatchedClient('fake-data1', args=[])
+    therm_client = OCSClient('fake-data1', args=[])
 
     # Make sure we can call a task.
     therm_client.delay_task()
@@ -89,7 +89,7 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     # record first file being written by aggregator
     # give a few seconds for things to make first connection
     time.sleep(CROSSBAR_SLEEP)
-    agg_client = MatchedClient('aggregator', args=[])
+    agg_client = OCSClient('aggregator', args=[])
     status = agg_client.record.status()
     file00 = status.session.get('data').get('current_file')
     assert file00 is not None

@@ -55,9 +55,9 @@ viewed by checking the session variable of the main process.
 For instance, the following code will print agent's that have been on the system
 since the registry started running::
 
-    from ocs.matched_client import MatchedClient
+    from ocs.ocs_client import OCSClient
 
-    registry_client = MatchedClient('registry')
+    registry_client = OCSClient('registry')
     status, msg, session = registry_client.main.status()
 
     print(session['data'])

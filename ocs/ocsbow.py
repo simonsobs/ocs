@@ -12,6 +12,7 @@ import difflib
 import os
 import sys
 import time
+import urllib
 
 DESCRIPTION="""This is the high level control script for ocs.  Its principal uses
 are to inspect the local host's site configuration file, and to start
@@ -197,23 +198,30 @@ def print_config(args, site_config):
         print()
 
 
-def generate_crossbar_config(hm):
+def generate_crossbar_config(cm, site_config):
     cb_filename = './config.json'
-    if hm.crossbar is None:
+    if cm is None:
         print('There is no crossbar entry in this host config.\n\n'
               'A crossbar configuration cannot be generated without this info.')
         return False
-    if hm.crossbar.cbdir is None:
+    if cm.crossbar.cbdir is None:
         print('The crossbar config-dir is not set in this host config.\n\n'
               'Using %s as the target output file.\n' % cb_filename)
     else:
-        cb_filename = os.path.join(hm.crossbar.cbdir, 'config.json')
+        cb_filename = os.path.join(cm.crossbar.cbdir, 'config.json')
         print('The crossbar config-dir is set to:\n  %s\n'
               'Using\n  %s\nas the target output file.\n' % 
-              (hm.crossbar.cbdir, cb_filename))
+              (cm.crossbar.cbdir, cb_filename))
 
     print('Generating crossbar config text.')
-    config_text = hm.generate_crossbar_config()
+    site = site_config.site
+    urld = urllib.parse.urlparse(site.hub.data['wamp_server'])
+    pars = {
+        'realm': site.hub.data['wamp_realm'],
+        'address_root': site.hub.data['address_root'],
+        'port': urld.port,
+    }
+    config_text = render_crossbar_config_example(pars)
 
     if os.path.exists(cb_filename):
         lines0 = open(cb_filename).readlines()
@@ -290,17 +298,6 @@ class HostMasterManager:
                 instance.data['instance-id'], args=args)
         except ConnectionError:
             self.client = None
-
-    def generate_crossbar_config(self):
-        site = self.site_config.site
-        import urllib
-        urld = urllib.parse.urlparse(site.hub.data['wamp_server'])
-        pars = {
-            'realm': site.hub.data['wamp_realm'],
-            'address_root': site.hub.data['address_root'],
-            'port': urld.port,
-        }
-        return render_crossbar_config_example(pars)
 
     def status(self):
         """Try to get the status of the master Process.  This will indirectly
@@ -539,14 +536,14 @@ def main(args=None):
         return print_config(args)
 
     hm, cm = None, None
-    if host is not None:
+    if instance is not None:
         hm = HostMasterManager(args, site_config)
-        if host.crossbar is not None:
-            cm = CrossbarManager(args, host)
+    if host is not None and host.crossbar is not None:
+        cm = CrossbarManager(args, host)
 
     if args.command == 'crossbar':
         if args.cb_request == 'generate_config':
-            generate_crossbar_config(hm)
+            generate_crossbar_config(cm, site_config)
         elif cm is not None:
             cm.action(args.cb_request, args.fg)
         else:

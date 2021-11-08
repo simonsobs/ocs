@@ -2,6 +2,9 @@
 import json
 import requests
 
+class ControlClientError(RuntimeError):
+    pass
+
 class ControlClient():
     def __init__(self, agent_addr, **kwargs):
         self.agent_addr = agent_addr
@@ -25,15 +28,15 @@ class ControlClient():
         try:
             r = requests.post(self.call_url, data=params)
         except requests.exceptions.ConnectionError as e:
-            raise RuntimeError([0,0,0,0,'client_http.error.connection_error',
-                                ['Failed to connect to %s' % self.call_url], {}])
+            raise ControlClientError([0,0,0,0,'client_http.error.connection_error',
+                                      ['Failed to connect to %s' % self.call_url], {}])
         if r.status_code != 200:
-            raise RuntimeError([0,0,0,0,'client_http.error.request_error',
-                                ['Server replied with code %i' % r.status_code], {}])
+            raise ControlClientError([0,0,0,0,'client_http.error.request_error',
+                                      ['Server replied with code %i' % r.status_code], {}])
         decoded = r.json()
         if 'error' in decoded:
             # Return errors in the same way wampy does, roughly.
-            raise RuntimeError([0,0,0,0,decoded['error'],decoded['args'],decoded['kwargs']])
+            raise ControlClientError([0,0,0,0,decoded['error'],decoded['args'],decoded['kwargs']])
         return decoded['args'][0]
 
     def get_api(self, simple=False):

@@ -73,8 +73,8 @@ Example Clients
 
 # If an example client makes use of the Agent more clear, include here in a code block::
 
-    from ocs import matched_client
-    client = matched_client.MatchedClient('template')
+    from ocs.ocs_client import OCSClient
+    client = OCSClient('template')
     client.task()
 
 Supporting APIs

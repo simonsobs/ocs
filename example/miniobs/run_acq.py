@@ -1,7 +1,7 @@
-from ocs.matched_client import MatchedClient
+from ocs.ocs_client import OCSClient
 import time
 
-faker = MatchedClient('data1')
+faker = OCSClient('data1')
 
 print('Data Faker -- start 30 second acq.')
 print(faker.acq.start())

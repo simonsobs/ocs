@@ -18,7 +18,7 @@ try:
 except ModuleNotFoundError:
     use_twisted = False
 
-from ocs.matched_client import MatchedClient
+from ocs.ocs_client import OCSClient
 from ocs import site_config, base
 
 DESCRIPTION = """
@@ -54,7 +54,7 @@ def get_parser():
     # shell
     p = client_sp.add_parser('shell', help=
                              "Start an interactive python session with "
-                             "a MatchedClient instantiated.")
+                             "an OCSClient instantiated.")
     p.add_argument('instance_id', nargs='*', help=
                    "E.g. aggregator or fakedata-1.  Pass more than one to "
                    "get multiple clients.")
@@ -129,7 +129,7 @@ def scan(parser, args):
         if reg_addr is None:
             reg_addr = 'registry'
         try:
-            c = MatchedClient(get_instance_id(reg_addr, args), args=args)
+            c = OCSClient(get_instance_id(reg_addr, args), args=args)
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':
@@ -200,7 +200,7 @@ def shell(parser, args):
     if len(args.instance_id) == 0:
         parser.error('No instance_id provided.')
 
-    cs = [MatchedClient(iid, args=args) for iid in args.instance_id]
+    cs = [OCSClient(iid, args=args) for iid in args.instance_id]
     vars = {'clients': cs}
 
     if len(cs) > 1:

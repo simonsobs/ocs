@@ -89,7 +89,7 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     # record first file being written by aggregator
     # give a few seconds for things to make first connection
     time.sleep(CROSSBAR_SLEEP)
-    agg_client = MatchedClient('aggregator', args=[])
+    agg_client = OCSClient('aggregator', args=[])
     status = agg_client.record.status()
     file00 = status.session.get('data').get('current_file')
     assert file00 is not None

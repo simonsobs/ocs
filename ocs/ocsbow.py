@@ -10,6 +10,7 @@ from ocs import matched_client, client_http
 import argparse
 import difflib
 import os
+import subprocess as sp
 import sys
 import time
 import urllib
@@ -44,29 +45,15 @@ def get_parser():
     p.add_argument('cfg_request', nargs='?', choices=['summary', 'plugins', 'crossbar'],
                    default='summary')
 
-    # crossbar
-    p = cmdsubp.add_parser('crossbar', help=
-                           'Manipulate the local crossbar router.')
-    p.add_argument('cb_request', choices=['start', 'stop', 'status',
-                                          'generate_config'], help=
-                   'Use these commands to start, stop, or request status '
-                   'from the local crossbar server, if such configuration '
-                   'is described in the host config.  The generate_config '
-                   'sub-command can be used to produce a crossbar JSON '
-                   'configuration file consistent with the parameters in '
-                   'the host config.')
-    p.add_argument('--fg', action='store_true', default=False,
-                   help='If request is "start", run in foreground rather '
-                   'than spawning to background.')
-
-    # hostmaster agent instance
-    p = cmdsubp.add_parser('hostmaster', help=
-                           'Manipulate the local HostMaster agent instance.')
-
-    p.add_argument('hm_request', choices=['start', 'stop', 'restart', 'status'],
-                   help=
-                   'Use these commands to start, stop, restart, or request '
-                   'status from the HostMaster Agent instance.')
+    p = cmdsubp.add_parser('here', help=
+                           'Control crossbar and hostmaster on this host.')
+    p.add_argument('here_cmd', choices=['status', 'start', 'stop',
+                                        'generate_crossbar_config'],
+                   nargs='?', default='status', help=
+                   "Note that if neither --agent nor --crossbar is passed, it "
+                   "is as if both have been passed.")
+    p.add_argument('target', nargs='?', default=None, choices=['crossbar', 'agent', 'process'],
+                   help='Operate on the specific subsystem only.')
 
     # agent-set
     p = cmdsubp.add_parser('agent', help=
@@ -342,16 +329,22 @@ def generate_crossbar_config(cm, site_config):
         print('Wrote %s' % cb_filename)
 
 class CrossbarManager:
-    def __init__(self, args, host):
+    def __init__(self, host):
         if host.crossbar is None:
             raise RuntimeError('There is no crossbar entry in this host config.')
         self.crossbar = host.crossbar
 
+    def is_running(self):
+        if self.crossbar is None:
+            raise OcsbowError('There is no crossbar entry in this host config.')
+        cmd = self.crossbar.get_cmd('status') + ['--assert=running']
+        retcode = sp.call(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        return retcode == 0
+
     def action(self, cb_cmd, foreground=False):
         # Start / stop / check the crossbar server.
         if self.crossbar is None:
-            print('There is no crossbar entry in this host config.\n')
-            sys.exit(10)
+            raise OcsbowError('There is no crossbar entry in this host config.')
 
         cmd = self.crossbar.get_cmd(cb_cmd)
         if cb_cmd == 'start' and not foreground:
@@ -398,8 +391,11 @@ class HostMasterManager:
             self.master_addr = '%s.%s' % (site.hub.data['address_root'],
                                           instance.data['instance-id'])
         self.working_dir = args.working_dir
+        self._reconnect()
+
+    def _reconnect(self):
         try:
-            self.client = ocs.matched_client.MatchedClient(instance_id, args=args)
+            self.client = ocs.matched_client.MatchedClient(self.instance_id, args=self.args)
         except (ConnectionError, client_http.ControlClientError):
             self.client = None
 
@@ -493,6 +489,7 @@ class HostMasterManager:
             if not ok:
                 return False, 'Agent "die" Task reported an error: %s' % msg
             while time.time() < stop_time:
+                self._reconnect()
                 status = self.status()
                 if not status['agent_running']:
                     return True, 'Agent has exited and relinquished registrations.'
@@ -525,7 +522,7 @@ class HostMasterManager:
         print('Log dir is: %s' % log_dir)
         cmd = [sys.executable, hm_script,
                '--quiet',
-               '--site-file', site.source_file,
+               '--site-file', self.site_config.site.source_file,
                '--site-host', host.name,
                '--working-dir', self.working_dir]
         if up:
@@ -537,6 +534,7 @@ class HostMasterManager:
         if check:
             stop_time = time.time() + timeout
             while time.time() < stop_time:
+                self._reconnect()
                 status = self.status()
                 if status['agent_running']:
                     return True, 'Agent is running and registered.'
@@ -545,31 +543,9 @@ class HostMasterManager:
         return True, 'Agent launched.'
 
     def agent_control(self, request, targets):
-        # Parse the config to find this host's HostMaster instance info.
-        site, host, instance = ocs.site_config.get_config(self.args, HOSTMASTER_CLASS)
-
-        client = ocs.site_config.get_control_client(
-                instance.data['instance-id'], args=self.args)
-
-        if 0:
-            # Subscriptions?
-            # Keeping this, disabled, as a place-holder.  It can be used
-            # to subscribe to log feeds from arbitrary agents.
-            #
-            def monitor_func(*args, **kwargs):
-                # This is a general monitoring function that just prints
-                # whatever was sent.  Most pubsub sources output
-                # structured information (such as Operation Session
-                # blocks) so we can eventually tailor the output to the
-                # topic.
-                topic = kwargs.get('meta', {}).get('topic', '(unknown)')
-                print('==%s== : ' % topic, args)
-            feed_addr = self.master_addr + '.feed'
-            client.subscribe(feed_addr, monitor_func)
-
         try:
             # In all cases, make sure process is running.
-            stat = client.request('status', 'master')
+            stat = self.client.master.status()
             err, msg, session = stat
             master_proc_running = (session.get('status') == 'running')
 
@@ -595,10 +571,10 @@ class HostMasterManager:
                 # to 'down'.
                 params['requests'].insert(0, ('all', 'down'))
                 err, msg, session = \
-                    client.request('start', 'master', params)
+                    self.client.master.start(**params)
             else:
                 err, msg, session = \
-                    client.request('start', 'update', params)
+                    self.client.update.start(**params)
 
             if err != ocs.OK:
                 print('Error when requesting master Process "%s":\n  %s' %
@@ -611,6 +587,123 @@ class HostMasterManager:
                 sys.exit(1)
             print('Unexpected error getting master process status:')
             raise
+
+def _term_format(text, indent='', right_margin=1):
+    # Slowly reformat text to fit in the terminal ...
+    output = ''
+    line = indent
+    limit = os.get_terminal_size()[0] - right_margin
+    while len(text):
+        # Always pop at least one word.
+        try:
+            idx = text.index(' ')
+        except:
+            idx = len(text)
+        while idx < len(text) and text[idx] == ' ':
+            idx += 1
+        word = text[:idx]
+        text = text[idx:]
+        if len(line) + len(word.rstrip()) >= limit:
+            output += line.rstrip() + '\n'
+            line = indent + word
+        elif len(line) + len(word) >= limit:
+            output += line + word.rstrip() + '\n'
+            line = indent
+        else:
+            line += word
+
+    return output + line + '\n'
+
+
+class LocalSupports:
+    """This class helps with controlling crossbar and HostMaster on the
+    current host.  This is convenient in small setups in the absence
+    of docker.
+
+    """
+    def __init__(self, args, site_config, update=True, target=None):
+        self.args = args
+        self.site_config = site_config
+        self.target = target
+        self.crossbar = {
+            'manage': False,
+        }
+        self.host_master = {
+            'manage': False,
+            'configured': False,
+        }
+
+        if site_config.host.crossbar is not None:
+            self.crossbar['manage'] = True
+            self.crossbar['ctrl'] = CrossbarManager(site_config.host)
+        if site_config.instance is not None:
+            self.host_master['configured'] = True
+            self.host_master['manage'] = (site_config.instance.manage == 'yes')
+        if update:
+            self.update()
+
+    def update(self):
+        if self.crossbar['manage']:
+            self.crossbar['running'] = self.crossbar['ctrl'].is_running()
+        else:
+            self.crossbar['running'] = 'n/a'
+        self.crossbar['connection'] = crossbar_test(self.args, self.site_config)[0]
+
+        if self.host_master['configured']:
+            hm = HostMasterManager(self.args, self.site_config)
+            stat = hm.status()
+            self.host_master['ctrl'] = hm
+            self.host_master['instance-id'] = hm.instance_id
+            self.host_master['alive'] = stat['agent_running']
+            self.host_master['process'] = stat['master_process_running']
+        else:
+            self.host_master['instance-id'] = 'n/a'
+            self.host_master['alive'] = 'n/a'
+            self.host_master['process'] = 'n/a'
+
+        # Possible solutions to each outage?
+        if self.target is not None:
+            self.analysis = [
+                (self.target, 'Action requested for %s only.' % self.target)]
+            return
+
+        solutions = []
+        if self.crossbar['connection']:
+            # We seem to be connected ...
+            if self.crossbar['manage'] and not self.crossbar['running']:
+                solutions.append(('fatal', 'configuration problem! A connection '
+                                  'to crossbar exists, but it does not appear to '
+                                  'be the managed crossbar configured for this host.'))
+        else:
+            # We do not have a connection ...
+            if self.crossbar['manage'] and not self.crossbar['running']:
+                solutions.append(('crossbar', 'Crossbar is down, but should start if you '
+                                  ' run "ocsbow here start".'))
+            else:
+                solutions.append(('fatal', 'Cannot connect to crossbar. This host '
+                                  'is not configured to manage crossbar, so start '
+                                  'it up on the correct system.'))
+
+        if self.host_master['configured']:
+            if not self.host_master['alive']:
+                if not self.crossbar['connection']:
+                    solutions.append(('warning',
+                                      'The HostMaster might be running, but '
+                                      'this could not be confirmed because no '
+                                      'crossbar connection could be made.'))
+                    solutions.append(('agent', 'Running "ocsbow here start" might '
+                                      'start the Agent too.'))
+                elif self.host_master['manage']:
+                    solutions.append(('agent', 'The HostMaster is not running, but '
+                                      'should start if you run "ocsbow here start".'))
+                else:
+                    solutions.append(('fatal', 'The HostMaster is not running, and '
+                                      'is not managed by this systems.  Start '
+                                      'it manually, or using systemd, or something.'))
+            elif not self.host_master['process']:
+                solutions.append(('process', 'The HostMaster master process is not '
+                                  'running, but should start if you run "ocsbow here start".'))
+        self.analysis = solutions
 
 
 def main(args=None):
@@ -625,15 +718,14 @@ def main(args=None):
         args.host = None
 
     if args.command == 'config':
-        return print_config(args, site_config)
+        print_config(args, site_config)
 
-    hm, cm = None, None
-    if instance is not None:
-        hm = HostMasterManager(args, site_config)
-    if host is not None and host.crossbar is not None:
-        cm = CrossbarManager(args, host)
+    elif args.command == 'crossbar':
+        if host is not None and host.crossbar is not None:
+            cm = CrossbarManager(host)
+        else:
+            raise OcsbowError('Managed crossbar is not configured for this host.')
 
-    if args.command == 'crossbar':
         if args.cb_request == 'generate_config':
             generate_crossbar_config(cm, site_config)
         elif cm is not None:
@@ -643,66 +735,98 @@ def main(args=None):
                 'The site config does not describe a managed '
                 'crossbar instance for this host.')
 
-    elif args.command == 'hostmaster':
-        status_info = hm.status()
-
-        is_running = status_info['agent_running']
-        do_stop = is_running and args.hm_request in ['stop', 'restart']
-        do_start = ((not is_running and args.hm_request == 'start') or
-                    (args.hm_request == 'restart'))
-        ok, msg = True, ''
-        if do_stop:
-            ok, msg = hm.stop()
-
-        if ok and do_start:
-            ok, msg = hm.start()
-
-        if not ok:
-            raise OcsbowError(msg)
-
-    elif args.command == 'agent':
-        hm.agent_control(args.agent_request, args.target)
-
     elif args.command == 'status':
         print_status(args, site_config)
 
-    elif args.command == 'up':
-        stat = hm.status()
-        if not stat['crossbar_running']:
-            print('Trying to start crossbar...')
-            cm.action('start')
-            # Re-instantiate.
-            hm = HostMasterManager(args)
-            stat = hm.status()
-        if not stat['crossbar_running']:
-            raise OcsbowError('Failed to start crossbar!')
-        # And the agent...
-        if not stat['agent_running']:
-            print('Trying to launch hostmaster agent...')
-            ok, message = hm.start(up=True)
-            if not ok:
-                raise OcsbowError('Failed to start master process: %s' % message)
-        # Reinforce that we want all child agents up, now.
-        stat = hm.status()
-        if not all([c['target_state']=='up' for c in stat.get('child_states', [])]):
-            hm.agent_control('start', ['all'])
-            time.sleep(2) # Master Process has a 1 second sleep, so we
-                          # need to wait even longer here.
-        stat = hm.status()
-        print_status(stat)
+    elif args.command == 'here':
+        if args.here_cmd is None:
+            args.here_cmd = 'status'
+            args.crossbar = True
+            args.agent = True
+            args.target = None
 
-    elif args.command == 'down':
-        # Stop the agent.
-        stat = hm.status()
-        if stat['agent_running']:
-            print('Requesting HostMaster termination.')
-            hm.stop()
-        if cm is not None:
-            if stat['crossbar_running']:
-                print('Stopping crossbar.')
-                cm.action('stop')
-            else:
-                print('No running crossbar detected, system is already "down".')
-        hm = HostMasterManager(args)
-        stat = hm.status()
-        print_status(stat)
+        if args.here_cmd == 'restart':
+            actions = ['stop', 'start', 'status']
+        else:
+            actions = [args.here_cmd]
+
+        # Targeting with args.target is handled through
+        # supports.analysis for start, and by eligible() for stop.
+        supports = LocalSupports(args, site_config, update=False,
+                                 target=args.target)
+        def eligible(subsys):
+            return (args.target is None) or (args.target == subsys)
+
+        for action in actions:
+            if action == 'status':
+                supports.update()
+                C, H = supports.crossbar, supports.host_master
+                print('Status of local supports:')
+                print(f'  crossbar managed on this host:       {C["manage"]}')
+                print(f'    crossbar running?:                 {C["running"]}')
+                print(f'    connection to server?:             {C["connection"]}')
+                print()
+                print(f'  hostmaster configured on this host:  {H["configured"]}')
+                print(f'    manageable by ocsbow?:             {H["manage"]}')
+                print(f'    agent running?                     {H["alive"]}')
+                print(f'    master process running?:           {H["process"]}')
+                print(f'    instance-id:                       {H["instance-id"]}')
+                print()
+                if len(supports.analysis):
+                    print('Advice:')
+                    for soln, text in supports.analysis:
+                        print(_term_format(text, '    ', 4))
+
+            elif action == 'start':
+                supports.update()
+                fatals = [text for soln, text in supports.analysis
+                          if soln == 'fatal']
+                if len(fatals):
+                    print('Trouble!')
+                    for text in fatals:
+                        print(_term_format(text, '    ', 4))
+
+                if any([soln == 'crossbar' for soln, text in supports.analysis]):
+                    print('Trying to start crossbar...')
+                    supports.crossbar['ctrl'].action('start')
+                    supports.update()  # refresh .analysis
+
+                if any([soln == 'agent' for soln, text in supports.analysis]):
+                    print('Trying to launch hostmaster agent...')
+                    hm = supports.host_master['ctrl']
+                    ok, message = hm.start(up=True)
+                    if not ok:
+                        raise OcsbowError('Failed to start master process: %s' % message)
+                    supports.update()  # refresh .analysis
+
+                if any([soln == 'process' for soln, text in supports.analysis]):
+                    hm = supports.host_master['ctrl']
+                    hm.agent_control('start', ['all'])
+                    time.sleep(2)
+
+            elif action == 'stop':
+                supports.update()
+                # Stop the process.
+                if supports.host_master['configured']:
+                    hm = supports.host_master['ctrl']
+                    if hm.client is None:
+                        print('No connection to HostMaster.')
+                    else:
+                        if eligible('process'):
+                            print('Stopping master process ...')
+                            hm.client.master.stop()
+                            hm.client.master.wait(timeout=1)
+                        if eligible('agent') and supports.host_master['manage']:
+                            print('Requesting HostMaster termination.')
+                            hm.stop()
+                if eligible('crossbar') and supports.crossbar['manage']:
+                    if supports.crossbar['running']:
+                        print('Stopping crossbar.')
+                        supports.crossbar['ctrl'].action('stop')
+                    else:
+                        print('No running crossbar detected, system is already "down".')
+
+            elif action == 'generate_crossbar_config':
+                cm = supports.crossbar['ctrl']
+                generate_crossbar_config(cm, site_config)
+                    

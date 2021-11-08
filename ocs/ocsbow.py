@@ -5,7 +5,7 @@ ocsbow is used to launch and communicate with the HostMaster agent.
 """
 
 import ocs
-from ocs import client_http
+from ocs import matched_client, client_http
 
 import argparse
 import difflib
@@ -31,6 +31,8 @@ def get_parser():
     # basic catch-alls
     p = cmdsubp.add_parser('status', help=
                            'Show status of the HostMaster.')
+    p.add_argument('--host', '-H', default=None, action='append',
+                   help='Limit hosts that are displayed.')
     p = cmdsubp.add_parser('up', help=
                            'Start everything on the target host.')
     p = cmdsubp.add_parser('down', help=
@@ -143,6 +145,105 @@ def decode_exception(args):
     except Exception as e:
         return False, args, str(args)
     return True, text, str(data)
+
+def crossbar_test(args, site_config):
+    """Test connection to the crossbar bridge.  Returns (ok, msg)."""
+    site, host, instance = site_config
+    client = client_http.ControlClient(
+        '%s._crossbar_check_' % site.hub.data['address_root'],
+        url=site.hub.data['wamp_http'], realm=site.hub.data['wamp_realm'])
+    try:
+        client.call(client.agent_addr)
+    except client_http.ControlClientError as ccex:
+        suberr = ccex.args[0][4]
+        if suberr == 'client_http.error.connection_error':
+            ok, msg = False, 'http bridge not found at {wamp_http}.'
+        elif suberr == 'wamp.error.no_such_procedure':
+            ok, msg = True, 'http bridge reached at {wamp_http}.'
+        else:
+            ok, msg = True, 'unexpected bridge connection problem; raised %s' % (str(ccex))
+    return ok, msg.format(**site.hub.data)
+
+def print_status(args, site_config):
+    site, host, instance = site_config
+
+    cb_ok, msg = crossbar_test(args, site_config)
+
+    print('ocs status')
+    print('----------')
+    print()
+    print('The site config file is :\n  %s' % site.source_file)
+    print()
+    print('The crossbar base url is :\n  %s' % site.hub.data['wamp_http'])
+    if not cb_ok:
+        print('  ****Warning**** %s' % msg)
+    print()
+
+    for host_name, host_data in site.hosts.items():
+        if args.host is not None and host_name not in args.host:
+            continue
+        hms = []
+        rows = []
+        blank_state = {'current': '?',
+                       'target': '?'}
+        for idx, inst in enumerate(host_data.instances):
+            inst = inst.copy()
+            inst.update(blank_state)
+            if inst['agent-class'] == HOSTMASTER_CLASS:
+                sort_order = 0
+                hms.append(HostMasterManager(
+                    args, site_config, instance_id=inst['instance-id']))
+            else:
+                sort_order = ['x', 'yes', 'no', 'docker'].index(
+                    inst.get('manage', 'yes'))
+            rows.append((sort_order, idx, inst))
+        rows.sort()
+        agent_info = {k['instance-id']: k for _, _, k in rows}
+        for hm in hms:
+            info = hm.status()
+            cinfo = {
+                'target': 'n/a',
+            }
+            if info['master_process_running']:
+                cinfo['current'] = 'up'
+            elif info['agent_running']:
+                cinfo['current'] = 'sleeping'
+            elif info['crossbar_running']:
+                cinfo['current'] = 'down'
+            else:
+                cinfo['current'] = '?'
+            agent_info[hm.instance_id].update(cinfo)
+
+            for cinfo in info['child_states']:
+                this_id = cinfo['instance_id']
+                if this_id not in agent_info:
+                    agent_info[this_id] = {
+                        'instance-id': this_id,
+                        'agent-class': 'docker',
+                    }
+                    agent_info[this_id].update(blank_state)
+                agent_info[this_id].update({
+                    'current': cinfo['next_action'],
+                    'target': cinfo['target_state']
+                })
+        header = {'instance-id': '[instance-id]',
+                  'agent-class': '[agent-class]',
+                  'current': '[state]',
+                  'target': '[target]'}
+        field_widths = {'instance-id': 30,
+                        'agent-class': 20}
+        if len(agent_info):
+            field_widths = {k: max(v0, max([len(v[k]) for v in agent_info.values()]))
+                            for k, v0 in field_widths.items()}
+        fmt = '  {instance-id:%i} {agent-class:%i} {current:>10} {target:>10}' % (
+            field_widths['instance-id'], field_widths['agent-class'])
+        header = fmt.format(**header)
+        print('-' * len(header))
+        print(f'Host: {host_name}\n')
+        print(header)
+        for v in agent_info.values():
+            print(fmt.format(**v))
+        print()
 
 def print_config(args, site_config):
     site, host, instance = site_config
@@ -280,7 +381,7 @@ class CrossbarManager:
 
 
 class HostMasterManager:
-    def __init__(self, args, site_config):
+    def __init__(self, args, site_config, instance_id=None):
         """Note we save and use a reference to args... if it's modified,
         reinstantiate me..
 
@@ -289,14 +390,17 @@ class HostMasterManager:
         self.args = args
         self.site_config = site_config
         site, host, instance = self.site_config
+        if instance_id is None:
+            instance_id = instance.data['instance-id']
+        self.instance_id = instance_id
 
-        self.master_addr = '%s.%s' % (site.hub.data['address_root'],
-                                 instance.data['instance-id'])
+        if instance is not None:
+            self.master_addr = '%s.%s' % (site.hub.data['address_root'],
+                                          instance.data['instance-id'])
         self.working_dir = args.working_dir
         try:
-            self.client = ocs.site_config.get_control_client(
-                instance.data['instance-id'], args=args)
-        except ConnectionError:
+            self.client = ocs.matched_client.MatchedClient(instance_id, args=args)
+        except (ConnectionError, client_http.ControlClientError):
             self.client = None
 
     def status(self):
@@ -308,8 +412,10 @@ class HostMasterManager:
         - 'success' (bool): indicates only that the requests completed
           without error, and that the other reported results can be
           trusted.
+        - 'crossbar_running' (bool)
         - 'agent_running' (bool)
         - 'master_process_running' (bool)
+        - 'child_states' (list)
         - 'message' (string): Text you can report to "the user".
 
         """
@@ -318,6 +424,7 @@ class HostMasterManager:
             'crossbar_running': False,
             'agent_running': False,
             'master_process_running': False,
+            'child_states': [],
             'message': ''}
         if self.client is None:
             result['message'] = 'Could not connect to crossbar.'
@@ -326,7 +433,7 @@ class HostMasterManager:
             result['crossbar_running'] = True
 
         try:
-            stat = self.client.request('status', 'master')
+            stat = self.client.master.status()
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':
@@ -369,7 +476,7 @@ class HostMasterManager:
     def stop(self, check=True, timeout=5.):
         print('Trying to stop HostMaster agent...')
         try:
-            stat = self.client.request('start', 'die')
+            stat = self.client.die.start()
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':
@@ -382,7 +489,7 @@ class HostMasterManager:
             return True, 'Agent exit requested.'
         stop_time = time.time() + timeout
         try:
-            ok, msg, session = self.client.request('wait', 'die', timeout=timeout)
+            ok, msg, session = self.client.die.wait(timeout=timeout)
             if not ok:
                 return False, 'Agent "die" Task reported an error: %s' % msg
             while time.time() < stop_time:
@@ -506,22 +613,6 @@ class HostMasterManager:
             raise
 
 
-def print_status(stat):
-    print('Status:\n'
-          '  crossbar connection ok: {0[crossbar_running]}\n'
-          '  HostMaster agent found: {0[agent_running]}\n'
-          '  Master Process running: {0[master_process_running]}\n'
-          .format(stat))
-    if 'child_states' in stat:
-        fmt = '  {child_id:30} {next_action:>20} {target_state:>20}'
-        print(fmt.format(child_id='[child-identifier]',
-                         next_action='[current_state]',
-                         target_state='[target_state]'))
-        for d in stat['child_states']:
-            print(fmt.format(child_id=d['class_name']+'::'+d['instance_id'], **d))
-        print()
-
-
 def main(args=None):
     args, site_config = get_args_and_site_config(args)
     site, host, instance = site_config
@@ -531,9 +622,10 @@ def main(args=None):
 
     if args.command is None:
         args.command = 'status'
+        args.host = None
 
     if args.command == 'config':
-        return print_config(args)
+        return print_config(args, site_config)
 
     hm, cm = None, None
     if instance is not None:
@@ -553,6 +645,7 @@ def main(args=None):
 
     elif args.command == 'hostmaster':
         status_info = hm.status()
+
         is_running = status_info['agent_running']
         do_stop = is_running and args.hm_request in ['stop', 'restart']
         do_start = ((not is_running and args.hm_request == 'start') or
@@ -571,8 +664,7 @@ def main(args=None):
         hm.agent_control(args.agent_request, args.target)
 
     elif args.command == 'status':
-        stat = hm.status()
-        print_status(stat)
+        print_status(args, site_config)
 
     elif args.command == 'up':
         stat = hm.status()

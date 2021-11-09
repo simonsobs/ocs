@@ -34,10 +34,28 @@ def get_parser():
                            'Show status of the HostMaster.')
     p.add_argument('--host', '-H', default=None, action='append',
                    help='Limit hosts that are displayed.')
-    p = cmdsubp.add_parser('up', help=
-                           'Start everything on the target host.')
-    p = cmdsubp.add_parser('down', help=
-                           'Stop everything on the target host.')
+
+    # common args for up and down
+    target_parser = argparse.ArgumentParser(add_help=False)
+    target_parser.add_argument(
+        '--all', '-a', action='store_true', help=
+        "Yes, really, everything.")
+    target_parser.add_argument(
+        '--dry-run', action='store_true', help=
+        "If set, HostMasters will be queried for info but no state "
+        "change requests will be issued.")
+    target_parser.add_argument(
+        'instance', nargs='*', help=
+        "instance-id to target.  If this is the id of a HostMaster "
+        "agent, it will be requested to start all its managed "
+        "agents.")
+
+    p = cmdsubp.add_parser('up', parents=[target_parser], help=
+                           "Mark targets as 'up' (so HostMasters will "
+                           "launch them).")
+    p = cmdsubp.add_parser('down', parents=[target_parser], help=
+                           "Mark targets as 'down' (so HostMasters will "
+                           "shut them down).")
 
     # config
     p = cmdsubp.add_parser('config', help=
@@ -154,23 +172,27 @@ def crossbar_test(args, site_config):
             ok, msg = True, 'unexpected bridge connection problem; raised %s' % (str(ccex))
     return ok, msg.format(**site.hub.data)
 
-def print_status(args, site_config):
+def get_status(args, site_config, restrict_hosts=None):
+    """Assemble a detailed description of the site configuration, that
+    goes somewhat beyond what's in the site config by querying each
+    HostMaster it finds to identify docker-based or other secret
+    Agents.  Return an absurd but informative structure that we dare
+    not describe here.
+
+    """
     site, host, instance = site_config
-
     cb_ok, msg = crossbar_test(args, site_config)
+    output = {
+        'crossbar': {
+            'ok': cb_ok,
+            'msg': msg,
+        },
+        'hosts': [],
+    }
 
-    print('ocs status')
-    print('----------')
-    print()
-    print('The site config file is :\n  %s' % site.source_file)
-    print()
-    print('The crossbar base url is :\n  %s' % site.hub.data['wamp_http'])
-    if not cb_ok:
-        print('  ****Warning**** %s' % msg)
-    print()
-
+    # Loop over hosts ...
     for host_name, host_data in site.hosts.items():
-        if args.host is not None and host_name not in args.host:
+        if restrict_hosts is not None and host_name not in restrict_hosts:
             continue
         hms = []
         rows = []
@@ -178,14 +200,15 @@ def print_status(args, site_config):
                        'target': '?'}
         for idx, inst in enumerate(host_data.instances):
             inst = inst.copy()
+            if inst.get('manage') is None:
+                inst['manage'] = 'yes'
             inst.update(blank_state)
             if inst['agent-class'] == HOSTMASTER_CLASS:
                 sort_order = 0
                 hms.append(HostMasterManager(
                     args, site_config, instance_id=inst['instance-id']))
             else:
-                sort_order = ['x', 'yes', 'no', 'docker'].index(
-                    inst.get('manage', 'yes'))
+                sort_order = ['x', 'yes', 'no', 'docker'].index(inst['manage'])
             rows.append((sort_order, idx, inst))
         rows.sort()
         agent_info = {k['instance-id']: k for _, _, k in rows}
@@ -207,31 +230,56 @@ def print_status(args, site_config):
             for cinfo in info['child_states']:
                 this_id = cinfo['instance_id']
                 if this_id not in agent_info:
+                    # Secret agent!
                     agent_info[this_id] = {
                         'instance-id': this_id,
                         'agent-class': 'docker',
+                        'manage': 'yes',
                     }
                     agent_info[this_id].update(blank_state)
                 agent_info[this_id].update({
                     'current': cinfo['next_action'],
                     'target': cinfo['target_state']
                 })
+        output['hosts'].append({
+            'host_name': host_name,
+            'hostmaster_count': len(hms),
+            'agent_info': agent_info})
+    return output
+
+def print_status(args, site_config):
+    site, host, instance = site_config
+
+    status = get_status(args, site_config, restrict_hosts=args.host)
+
+    print('ocs status')
+    print('----------')
+    print()
+    print('The site config file is :\n  %s' % site.source_file)
+    print()
+    print('The crossbar base url is :\n  %s' % site.hub.data['wamp_http'])
+    if not status['crossbar']['ok']:
+        print('  ****Warning**** %s' % status['crossbar']['msg'])
+    print()
+
+    for hstat in status['hosts']:
         header = {'instance-id': '[instance-id]',
                   'agent-class': '[agent-class]',
                   'current': '[state]',
                   'target': '[target]'}
         field_widths = {'instance-id': 30,
                         'agent-class': 20}
-        if len(agent_info):
-            field_widths = {k: max(v0, max([len(v[k]) for v in agent_info.values()]))
+        if len(hstat['agent_info']):
+            field_widths = {k: max(v0, max([len(v[k])
+                                            for v in hstat['agent_info'].values()]))
                             for k, v0 in field_widths.items()}
         fmt = '  {instance-id:%i} {agent-class:%i} {current:>10} {target:>10}' % (
             field_widths['instance-id'], field_widths['agent-class'])
         header = fmt.format(**header)
         print('-' * len(header))
-        print(f'Host: {host_name}\n')
+        print(f'Host: {hstat["host_name"]}\n')
         print(header)
-        for v in agent_info.values():
+        for v in hstat['agent_info'].values():
             print(fmt.format(**v))
         print()
 
@@ -565,12 +613,10 @@ class HostMasterManager:
                           'Agents are detected / active.')
                 return
 
-            if request == 'start':
+            if request == 'up':
                 params = {'requests': [(t, 'up') for t in targets]}
-            elif request == 'stop':
+            elif request == 'down':
                 params = {'requests': [(t, 'down') for t in targets]}
-            elif request == 'restart':
-                params = {'requests': [(t, 'cycle') for t in targets]}
 
             if not master_proc_running:
                 print('Starting master process.')
@@ -729,6 +775,53 @@ def main(args=None):
 
     elif args.command == 'status':
         print_status(args, site_config)
+
+    elif args.command in ['up', 'down']:
+        # Common target processing ...
+        hms = []
+        agents = []
+        status = get_status(args, site_config)
+        for host_data in status['hosts']:
+            active_hms = [v for v in host_data['agent_info'].values()
+                          if v['agent-class'] == HOSTMASTER_CLASS]
+            others = [v for v in host_data['agent_info'].values()
+                      if v['agent-class'] != HOSTMASTER_CLASS]
+            for inst in active_hms:
+                if args.all or inst['instance-id'] in args.instance:
+                    hms.append(inst)
+            for inst in others:
+                if inst['instance-id'] not in args.instance:
+                    continue
+                if inst['manage'] != 'yes':
+                    raise OcsbowError(
+                        "Cannot perform action on '%s', as it is not "
+                        "configured as a managed Agent." % inst['instance-id'])
+                if len(active_hms) != 1:
+                    raise OcsbowError(
+                        "Cannot perform action on '%s', as there are "
+                        "%i HostMasters configured on host '%s'." % (
+                            inst['instance-id'], len(active_hms), host_name))
+                agents.append((inst, active_hms[0]))
+        if args.dry_run:
+            print('[dry-run, no requests will be issued]')
+
+        clients = {}
+        def client(hm):
+            iid = hm['instance-id']
+            if iid not in clients:
+                clients[iid] = HostMasterManager(args, site_config, iid)
+            return clients[iid]
+
+        for hm in hms:
+            print(f'  {args.command} hostmaster {hm["instance-id"]} all')
+            if args.dry_run:
+                continue
+            client(hm).agent_control(args.command, ['all'])
+        for ag, hm in agents:
+            print(f'  {args.command} agent {ag["instance-id"]} via {hm["instance-id"]}')
+            if args.dry_run:
+                continue
+            client(hm).agent_control(args.command, [ag['instance-id']])
 
     elif args.command == 'here':
         if args.here_cmd is None:

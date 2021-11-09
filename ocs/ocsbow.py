@@ -54,6 +54,9 @@ def get_parser():
                    "is as if both have been passed.")
     p.add_argument('target', nargs='?', default=None, choices=['crossbar', 'agent', 'process'],
                    help='Operate on the specific subsystem only.')
+    p.add_argument('--foreground', action='store_true', help=
+                   "For targeted 'start', run the command in the foreground and "
+                   "copy stdout/stderr to the terminal.")
 
     # agent-set
     p = cmdsubp.add_parser('agent', help=
@@ -501,7 +504,7 @@ class HostMasterManager:
                 return True, 'Agent has exited and relinquished registrations.'
         return False, 'Agent did not die within %.1f seconds.' % timeout
 
-    def start(self, check=True, timeout=5., up=False):
+    def start(self, check=True, timeout=5., up=False, foreground=False):
         host = self.site_config.host
         log_dir = host.log_dir
         if log_dir is not None and not log_dir.startswith('/'):
@@ -521,14 +524,18 @@ class HostMasterManager:
         print('Launching HostMaster through %s' % hm_script)
         print('Log dir is: %s' % log_dir)
         cmd = [sys.executable, hm_script,
-               '--quiet',
                '--site-file', self.site_config.site.source_file,
                '--site-host', host.name,
                '--working-dir', self.working_dir]
         if up:
             cmd.extend(['--initial-state', 'up'])
+        if not foreground:
+            cmd.extend(['--quiet'])
 
         print('Launching host_master (%s)...' % cmd[1])
+        if foreground:
+            ret_val = sp.call(cmd)
+            return True, "Agent exited with code %i" % ret_val
         pid = os.spawnv(os.P_NOWAIT, cmd[0], cmd)
         print('... pid is %i' % pid)
         if check:
@@ -720,21 +727,6 @@ def main(args=None):
     if args.command == 'config':
         print_config(args, site_config)
 
-    elif args.command == 'crossbar':
-        if host is not None and host.crossbar is not None:
-            cm = CrossbarManager(host)
-        else:
-            raise OcsbowError('Managed crossbar is not configured for this host.')
-
-        if args.cb_request == 'generate_config':
-            generate_crossbar_config(cm, site_config)
-        elif cm is not None:
-            cm.action(args.cb_request, args.fg)
-        else:
-            raise OcsbowError(
-                'The site config does not describe a managed '
-                'crossbar instance for this host.')
-
     elif args.command == 'status':
         print_status(args, site_config)
 
@@ -788,13 +780,13 @@ def main(args=None):
 
                 if any([soln == 'crossbar' for soln, text in supports.analysis]):
                     print('Trying to start crossbar...')
-                    supports.crossbar['ctrl'].action('start')
+                    supports.crossbar['ctrl'].action('start', foreground=args.foreground)
                     supports.update()  # refresh .analysis
 
                 if any([soln == 'agent' for soln, text in supports.analysis]):
                     print('Trying to launch hostmaster agent...')
                     hm = supports.host_master['ctrl']
-                    ok, message = hm.start(up=True)
+                    ok, message = hm.start(up=True, foreground=args.foreground)
                     if not ok:
                         raise OcsbowError('Failed to start master process: %s' % message)
                     supports.update()  # refresh .analysis

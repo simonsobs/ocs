@@ -43,7 +43,7 @@ historical look back of the housekeeping data.
 Dependencies
 ------------
 
-This code targets Python 3.5+.
+This code targets Python 3.6+.
 
 There are also several Python package dependencies, which are listed in the
 `requirements.txt`_ file.

@@ -102,13 +102,13 @@ class OCSClient:
 
         self._client = site_config.get_control_client(instance_id, **kwargs)
         self.instance_id = instance_id
-        api = self._client.get_api()
+        self._api = self._client.get_api()
 
-        for name, session, encoded in api['tasks']:
+        for name, session, encoded in self._api['tasks']:
             setattr(self, _opname_to_attr(name),
                     _get_op('task', name, encoded, self._client))
 
-        for name, session, encoded in api['processes']:
+        for name, session, encoded in self._api['processes']:
             setattr(self, _opname_to_attr(name),
                     _get_op('process', name, encoded, self._client))
 

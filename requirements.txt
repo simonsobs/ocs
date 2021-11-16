@@ -4,6 +4,7 @@ deprecation
 msgpack
 influxdb
 PyYAML
+versioneer
 
 # FakeDataAgent
 numpy

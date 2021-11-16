@@ -232,6 +232,9 @@ def get_status(args, site_config, restrict_hosts=None):
                         'manage': 'yes',
                     }
                     agent_info[this_id].update(blank_state)
+                if cinfo['next_action'] != 'down' and \
+                   cinfo['stability'] <= 0.5:
+                    cinfo['next_action'] = 'unstable'
                 agent_info[this_id].update({
                     'current': cinfo['next_action'],
                     'target': cinfo['target_state']

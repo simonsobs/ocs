@@ -51,8 +51,14 @@ function HostManager_populate(p, base_id, args) {
     var props = {
         instance_id: {name: "instance-id"},
         class_name: {name: "class-name"},
-        next_action: {name: "current", center: true},
-        target_state: {name: "target", center: true}
+        next_action: {name: "current", center: true,
+                      recoder: function (info) {
+                          if (info.next_action != 'down' &&
+                              info.stability <= 0.5)
+                              return 'unstable';
+                          return info.next_action;
+                      }},
+        target_state: {name: "target", center: true},
     };
     var child_data = new KidsTable(base_id + '-table', props, ["up", "down"],
                                    function(button, instance_id) {
@@ -133,8 +139,11 @@ KidsTable.prototype = {
                 missing.splice(idx, 1);
                 var same = true;
                 $.each(self.prop_list, (p, pn) => {
-                    if (data[p] != self.data[ident][p]) {
-                        self.data[ident][p] = data[p];
+                    var d = data[p];
+                    if (pn.recoder)
+                        d = pn.recoder(data);
+                    if (p != self.data[ident][p]) {
+                        self.data[ident][p] = d;
                         same = false;
                     }
                 });

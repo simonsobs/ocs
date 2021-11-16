@@ -207,6 +207,7 @@ class HostManager:
                         'prot': prot,
                         'full_name': ('%s:%s' % tuple(k)),
                         'agent_script': agent_script,
+                        'start_times': [],
                     }
 
         # Special requests will target specific instance_id; make a map for that.
@@ -296,6 +297,10 @@ class HostManager:
                     sleep_times.append(actions['sleep'])
                 any_jobs = (any_jobs or (db['next_action'] != 'down'))
 
+                # Criteria for stability:
+                db['start_times'], db['stability'] = hm_utils.stability_factor(
+                    db['start_times'])
+
             # Clean up retired items.
             self.database = {k:v for k,v in self.database.items()
                              if not v.get('retired') or v['next_action'] != 'down'}
@@ -306,6 +311,7 @@ class HostManager:
                 child_states.append({_k: v[_k] for _k in
                                      ['next_action' ,
                                       'target_state',
+                                      'stability',
                                       'class_name',
                                       'instance_id']})
             session.data['child_states'] = child_states

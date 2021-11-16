@@ -84,7 +84,9 @@ def resolve_child_state(db):
                 db['prot'] = None
                 actions['launch'] = True
                 db['next_action'] = 'wait_start'
-                db['at'] = time.time() + 1.
+                now = time.time()
+                db['at'] = now + 1.
+                db['start_times'].append(now)
         elif db['next_action'] == 'up':
             stat, t = prot.status
             if stat is not None:
@@ -131,6 +133,25 @@ def resolve_child_state(db):
     if len(sleeps):
         actions['sleep'] = min(sleeps)
     return actions
+
+
+def stability_factor(times, window=120):
+    """Given an increasing list of start times, the last one corresponding
+    to the present run, decide whether the process the activity is
+    running stably or not.
+
+    Returns a culled list of start times and a stability factor (0 -
+    1).  A stable agent will settle to stability factor of 1 within
+    window seconds.  An unstable agent will have stability factor of
+    0.5 or less.
+
+    """
+    now = time.time()
+    if len(times) == 0:
+        return times, -1.
+    times = [t for t in times[-200:-1]
+             if t >= now - window] + times[-1:]
+    return times, 1./len(times)
 
 
 class AgentProcessHelper(protocol.ProcessProtocol):
@@ -188,6 +209,7 @@ class AgentProcessHelper(protocol.ProcessProtocol):
             self.lines['stderr'] = self.lines['stderr'][-100:]
 
 class DockerContainerHelper:
+
     """Class for managing the docker container associated with some
     service.  Provides some of the same interface as
     AgentProcessHelper in HostManager agent.

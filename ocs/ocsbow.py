@@ -1,4 +1,5 @@
-"""This module supports the command-line script "ocsbow".
+"""This module supports the command-line scripts "ocsbow" and
+"ocsbow-local-support".
 
 """
 
@@ -17,8 +18,6 @@ DESCRIPTION="""ocsbow is used to talk to HostManager agents across an OCS
 installation.  In a distributed OCS, you can request that Agents
 across the observatory be started or stopped.
 
-A secondary use of ocsbow is for starting up crossbar and a HostManager
-agent on the present host ("here" mode).
 """
 EPILOG="""
 More info for each command is available by adding --help, e.g. "ocsbow up --help".
@@ -81,34 +80,9 @@ def get_parser():
     p.add_argument('cfg_request', nargs='?', choices=['summary', 'plugins', 'crossbar'],
                    default='summary')
 
-    # here
-    p = cmdsubp.add_parser(
-        'here',
-        help="Special mode for launching local crossbar and HostManager.",
-        description="""
-        Control crossbar and HostManager, if they are configured for this
-        host.  'start' will cause *crossbar* to be launched, followed by
-        the HostManager *agent*, for which the manager *process* will be
-        started. Specifying a "target" will restrict operations to only
-        that system.  'stop' is similar but will try to stop those
-        things, in reverse order. 'status' shows a summary of configuration
-        and current status.  'generate_crossbar_config' may be used to
-        used to create a crossbar config file that works for small OCS
-        installations.""")
-
-    p.add_argument('here_cmd', choices=['status', 'start', 'stop',
-                                        'generate_crossbar_config'],
-                   nargs='?', default='status', help=
-                   "Command to apply to the targets.")
-    p.add_argument('target', nargs='?', default=None, choices=['crossbar', 'agent', 'process'],
-                   help='Operate on the specific subsystem only.')
-    p.add_argument('--foreground', action='store_true', help=
-                   "For targeted 'start', run the command in the foreground and "
-                   "copy stdout/stderr to the terminal.")
-
     return parser
 
-def get_args_and_site_config(args=None):
+def get_args_and_site_config(args=None, parser_func=None):
     # The proper parsing of args in all the various cases is pretty
     # arcane, so do it once, here.  So this will decode the args, and
     # also return a site_config (site, host, instance) such that:
@@ -119,11 +93,13 @@ def get_args_and_site_config(args=None):
     # - If this active host has a HostManager configured, instance
     #   will also be set up.
     #
+    if parser_func is None:
+        parser_func = get_parser
     if args is None:
         args = sys.argv[1:]
     for agent_class in ['*host*', '*control*']:
         try:
-            parser = get_parser()
+            parser = parser_func()
             args_ = ocs.site_config.parse_args(agent_class=agent_class, parser=parser)
             site_config = ocs.site_config.get_config(args_, agent_class=agent_class)
             break
@@ -750,7 +726,7 @@ class LocalSupports:
             # We do not have a connection ...
             if self.crossbar['manage'] and not self.crossbar['running']:
                 solutions.append(('crossbar', 'Crossbar is down, but should start if you '
-                                  ' run "ocsbow here start".'))
+                                  ' run "ocs-local-support start".'))
             else:
                 solutions.append(('fatal', 'Cannot connect to crossbar. This host '
                                   'is not configured to manage crossbar, so start '
@@ -767,14 +743,14 @@ class LocalSupports:
                                       'start the Agent too.'))
                 elif self.host_manager['manage']:
                     solutions.append(('agent', 'The HostManager is not running, but '
-                                      'should start if you run "ocsbow here start".'))
+                                      'should start if you run "ocs-local-support start".'))
                 else:
                     solutions.append(('fatal', 'The HostManager is not running, and '
                                       'is not managed by this systems.  Start '
                                       'it manually, or using systemd, or something.'))
             elif not self.host_manager['process']:
                 solutions.append(('process', 'The HostManager manager process is not '
-                                  'running, but should start if you run "ocsbow here start".'))
+                                  'running, but should start if you run "ocs-local-support start".'))
         self.analysis = solutions
 
 
@@ -842,95 +818,144 @@ def main(args=None):
                 continue
             client(hm).agent_control(args.command, [ag['instance-id']])
 
-    elif args.command == 'here':
-        if args.here_cmd is None:
-            args.here_cmd = 'status'
-            args.crossbar = True
-            args.agent = True
-            args.target = None
 
-        if args.here_cmd == 'restart':
-            actions = ['stop', 'start', 'status']
-        else:
-            actions = [args.here_cmd]
+#
+# ocs-local-support
+#
+LOCAL_DESCRIPTION = """ocs-local-support is used use to control a crossbar router and
+HostManager agent on this host.
 
-        # Targeting with args.target is handled through
-        # supports.analysis for start, and by eligible() for stop.
-        supports = LocalSupports(args, site_config, update=False,
-                                 target=args.target)
-        def eligible(subsys):
-            return (args.target is None) or (args.target == subsys)
+Examples::
 
-        for action in actions:
-            if action == 'status':
-                supports.update()
-                C, H = supports.crossbar, supports.host_manager
-                print('Status of local supports:')
-                print(f'  crossbar managed on this host:       {C["manage"]}')
-                print(f'    crossbar running?:                 {C["running"]}')
-                print(f'    connection to server?:             {C["connection"]}')
-                print()
-                print(f'  hostmanager configured on this host: {H["configured"]}')
-                print(f'    manageable by ocsbow?:             {H["manage"]}')
-                print(f'    agent running?                     {H["alive"]}')
-                print(f'    manager process running?:          {H["process"]}')
-                print(f'    instance-id:                       {H["instance-id"]}')
-                print()
-                if len(supports.analysis):
-                    print('Advice:')
-                    for soln, text in supports.analysis:
-                        print(_term_format(text, '    ', 4))
+  ocs-local-support status
+  ocs-local-support start
+  ocs-local-support stop
 
-            elif action == 'start':
-                supports.update()
-                fatals = [text for soln, text in supports.analysis
-                          if soln == 'fatal']
-                if len(fatals):
-                    print('Trouble!')
-                    for text in fatals:
-                        print(_term_format(text, '    ', 4))
+Or with a target subsystem::
 
-                if any([soln == 'crossbar' for soln, text in supports.analysis]):
-                    print('Trying to start crossbar...')
-                    supports.crossbar['ctrl'].action('start', foreground=args.foreground)
-                    supports.update()  # refresh .analysis
+  ocs-local-support stop crossbar
+  ocs-local-support status agent
+  ocs-local-support start process
+"""
 
-                if any([soln == 'agent' for soln, text in supports.analysis]):
-                    print('Trying to launch hostmanager agent...')
-                    hm = supports.host_manager['ctrl']
-                    ok, message = hm.start(up=True, foreground=args.foreground)
-                    if not ok:
-                        raise OcsbowError('Failed to start manager process: %s' % message)
-                    supports.update()  # refresh .analysis
+LOCAL_EPILOG = """For more details, see
+https://ocs.readthedocs.io/en/develop/user/cli_tools.html#ocs-local-support."""
 
-                if any([soln == 'process' for soln, text in supports.analysis]):
-                    hm = supports.host_manager['ctrl']
-                    hm.agent_control('start', ['all'])
-                    time.sleep(2)
+def get_parser_local():
+    p = argparse.ArgumentParser(description=LOCAL_DESCRIPTION,
+                                epilog=LOCAL_EPILOG,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument('here_cmd', choices=['status', 'start', 'stop',
+                                        'generate_crossbar_config'],
+                   help="Command to apply to the targets.")
+    p.add_argument('target', nargs='?', default=None, choices=['crossbar', 'agent', 'process'],
+                   help='Operate on the specific subsystem only.')
+    p.add_argument('--foreground', action='store_true', help=
+                   "For targeted 'start', run the command in the foreground and "
+                   "copy stdout/stderr to the terminal.")
+    return p
 
-            elif action == 'stop':
-                supports.update()
-                # Stop the process.
-                if supports.host_manager['configured']:
-                    hm = supports.host_manager['ctrl']
-                    if hm.client is None:
-                        print('No connection to HostManager.')
-                    else:
-                        if eligible('process'):
-                            print('Stopping manager process ...')
-                            hm.client.manager.stop()
-                            hm.client.manager.wait(timeout=1)
-                        if eligible('agent') and supports.host_manager['manage']:
-                            print('Requesting HostManager termination.')
-                            hm.stop()
-                if eligible('crossbar') and supports.crossbar['manage']:
-                    if supports.crossbar['running']:
-                        print('Stopping crossbar.')
-                        supports.crossbar['ctrl'].action('stop')
-                    else:
-                        print('No running crossbar detected, system is already "down".')
+def main_local(args=None):
+    args, site_config = get_args_and_site_config(
+        args, parser_func=get_parser_local)
+    site, host, instance = site_config
 
-            elif action == 'generate_crossbar_config':
-                cm = supports.crossbar['ctrl']
-                generate_crossbar_config(cm, site_config)
-                    
+    if host is None:
+        print('The ocs site_config system could not find a host '
+              'block for this host. Do you need to pass --site-host?')
+        sys.exit(1)
+
+    if args.working_dir is None:
+        args.working_dir = os.getcwd()
+
+    if args.here_cmd is None:
+        args.here_cmd = 'status'
+        args.crossbar = True
+        args.agent = True
+        args.target = None
+
+    if args.here_cmd == 'restart':
+        actions = ['stop', 'start', 'status']
+    else:
+        actions = [args.here_cmd]
+
+    # Targeting with args.target is handled through
+    # supports.analysis for start, and by eligible() for stop.
+    supports = LocalSupports(args, site_config, update=False,
+                             target=args.target)
+    def eligible(subsys):
+        return (args.target is None) or (args.target == subsys)
+
+    for action in actions:
+        if action == 'status':
+            supports.update()
+            C, H = supports.crossbar, supports.host_manager
+            print('Status of local supports:')
+            print(f'  crossbar managed on this host:       {C["manage"]}')
+            print(f'    crossbar running?:                 {C["running"]}')
+            print(f'    connection to server?:             {C["connection"]}')
+            print()
+            print(f'  hostmanager configured on this host: {H["configured"]}')
+            print(f'    manageable by ocsbow?:             {H["manage"]}')
+            print(f'    agent running?                     {H["alive"]}')
+            print(f'    manager process running?:          {H["process"]}')
+            print(f'    instance-id:                       {H["instance-id"]}')
+            print()
+            if len(supports.analysis):
+                print('Advice:')
+                for soln, text in supports.analysis:
+                    print(_term_format(text, '    ', 4))
+
+        elif action == 'start':
+            supports.update()
+            fatals = [text for soln, text in supports.analysis
+                      if soln == 'fatal']
+            if len(fatals):
+                print('Trouble!')
+                for text in fatals:
+                    print(_term_format(text, '    ', 4))
+
+            if any([soln == 'crossbar' for soln, text in supports.analysis]):
+                print('Trying to start crossbar...')
+                supports.crossbar['ctrl'].action('start', foreground=args.foreground)
+                supports.update()  # refresh .analysis
+
+            if any([soln == 'agent' for soln, text in supports.analysis]):
+                print('Trying to launch hostmanager agent...')
+                hm = supports.host_manager['ctrl']
+                ok, message = hm.start(up=True, foreground=args.foreground)
+                if not ok:
+                    raise OcsbowError('Failed to start manager process: %s' % message)
+                supports.update()  # refresh .analysis
+
+            if any([soln == 'process' for soln, text in supports.analysis]):
+                hm = supports.host_manager['ctrl']
+                hm.agent_control('start', ['all'])
+                time.sleep(2)
+
+        elif action == 'stop':
+            supports.update()
+            # Stop the process.
+            if supports.host_manager['configured']:
+                hm = supports.host_manager['ctrl']
+                if hm.client is None:
+                    print('No connection to HostManager.')
+                else:
+                    if eligible('process'):
+                        print('Stopping manager process ...')
+                        hm.client.manager.stop()
+                        hm.client.manager.wait(timeout=1)
+                    if eligible('agent') and supports.host_manager['manage']:
+                        print('Requesting HostManager termination.')
+                        hm.stop()
+            if eligible('crossbar') and supports.crossbar['manage']:
+                if supports.crossbar['running']:
+                    print('Stopping crossbar.')
+                    supports.crossbar['ctrl'].action('stop')
+                else:
+                    print('No running crossbar detected, system is already "down".')
+
+        elif action == 'generate_crossbar_config':
+            cm = supports.crossbar['ctrl']
+            generate_crossbar_config(cm, site_config)
+

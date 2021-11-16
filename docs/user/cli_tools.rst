@@ -19,9 +19,6 @@ should be able to function in any environment where you can
 instantiate an OCSClient; it needs to know how to find the site config
 file, and it needs access to the crossbar router.
 
-To use the ``here`` functionality of ``ocsbow``, you might also want
-to add a crossbar definition to the host block in your site config.
-
 
 Command-line arguments
 ----------------------
@@ -32,6 +29,24 @@ Command-line arguments
    :module: ocs.ocsbow
    :func: get_parser
    :prog: ocsbow
+   :noepilog:
+
+
+ocs-local-support
+=================
+
+This script helps with launching crossbar and/or a local HostManager
+instance.  It is useful in small (e.g. single host systems) or as an
+alternative to managing crossbar at the system level or with Docker.
+
+(The output from ``ocs-local-support --help`` should be rendered here.)
+
+.. argparse::
+   :module: ocs.ocsbow
+   :func: get_parser_local
+   :prog: ocs-local-support
+   :noepilog:
+
 
 checkdata
 =========

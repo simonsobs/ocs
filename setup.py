@@ -33,4 +33,12 @@ setup (name = 'ocs',
            "Topic :: Scientific/Engineering :: Astronomy",
        ],
        python_requires=">=3.6",
+       install_requires=[
+           'autobahn',
+           'twisted',
+           'deprecation',
+           'PyYAML',
+           'influxdb',
+           'numpy',
+       ],
 )

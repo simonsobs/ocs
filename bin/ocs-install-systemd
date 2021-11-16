@@ -12,7 +12,7 @@ make use of a non-system Python.  If we accept the usefulness/
 necessity of the launcher script, then there is not much reason to
 create other communication channels between the systemd service file
 and the agent.  (For example, one could imagine setting lots of
-environment variables in the service, and having host_master.py fully
+environment variables in the service, and having host_manager.py fully
 self-configure from those.)
 
 """
@@ -20,7 +20,7 @@ self-configure from those.)
 SERVICE_DEFAULT = '/etc/systemd/system/'
 
 SYSTEMD_TEMPLATE = """[Unit]
-Description=OCS HostMaster{host_detail}
+Description=OCS HostManager{host_detail}
 
 [Service]
 ExecStart={cmd}
@@ -45,9 +45,9 @@ PYTHON={python_bin}
 ###
 
 ${{PYTHON}} \\
-  {host_master_agent} \\
+  {host_manager_agent} \\
   --site-file=${{SITE_FILE}} \\
-  {host_master_args}
+  {host_manager_args}
 """
 
 def get_parser():
@@ -59,7 +59,7 @@ def get_parser():
     group.add_argument('--shell', help=
                        "Override the shell used for the launcher script.")
     group.add_argument('--python-bin', help=
-                       "Select the Python interpreter with which to launch HostMaster.")
+                       "Select the Python interpreter with which to launch HostManager.")
     group.add_argument('--launcher-dir', help=
                        "Override the directory of the launcher script.")
     group.add_argument('--launcher-script', help=
@@ -68,13 +68,13 @@ def get_parser():
                        "Directory to which the .service file will be written; "
                        f"default is {SERVICE_DEFAULT}.")
     group.add_argument('--service-user', help=
-                       "Override the user under which HostMaster agent will be run.")
+                       "Override the user under which HostManager agent will be run.")
     group.add_argument('--service-name', help=
                        "Override the name of the systemd service.")
     group.add_argument('--service-host', help=
                        "Set a hostname to use when generating the service name.")
-    group.add_argument('--host-master-agent', help=
-                       "Override the host_master.py agent script.")
+    group.add_argument('--host-manager-agent', help=
+                       "Override the host_manager.py agent script.")
     return parser
 
 def main(args):
@@ -87,24 +87,24 @@ def main(args):
     # The "hostname" is potentially used for a few things:
     # - to name the service
     # - to name the launcher script
-    # - to configure the host-master
+    # - to configure the host-manager
     #
-    # It's only sensible to have the launcher script name and host-master
+    # It's only sensible to have the launcher script name and host-manager
     # use the same value.  For naming the service, the sensible default is
     # to not include the host name, since a most natural configuration
-    # would have just one host-master on the host.
+    # would have just one host-manager on the host.
     #
     # So ... site_config host.name will be used for the
-    # launcher/host-master.  And the service name will default to a
+    # launcher/host-manager.  And the service name will default to a
     # hostless version unless args.service_host is passed.
 
     if args.service_name is None:
         if args.service_host is None:
-            args.service_name = 'ocs-hostmaster.service'
+            args.service_name = 'ocs-hostmanager.service'
         else:
-            args.service_name = f'ocs-hostmaster-{args.service_host}.service'
+            args.service_name = f'ocs-hostmanager-{args.service_host}.service'
     if args.instance_id is None:
-        args.instance_id = f'hostmaster-{host.name}'
+        args.instance_id = f'hm-{host.name}'
     if args.shell is None:
         args.shell = os.environ['SHELL']
     if args.launcher_dir is None:
@@ -125,21 +125,21 @@ def main(args):
     if args.site_file is None:
         args.site_file = site.source_file
 
-    if args.host_master_agent is None:
-        # Determine path to host_master agent.
+    if args.host_manager_agent is None:
+        # Determine path to host_manager agent.
         for p in host.agent_paths:
             if not p in sys.path:
                 sys.path.append(p)
         site_config.scan_for_agents()
-        args.host_master_agent = site_config.agent_script_reg['HostMaster']
+        args.host_manager_agent = site_config.agent_script_reg['HostManager']
 
-    host_master_args = [
+    host_manager_args = [
         f'--instance-id={args.instance_id}',
         f'--site-host={host.name}',
     ]
     if len(args.docker_compose):
         args.docker_compose = [os.path.abspath(f) for f in args.docker_compose]
-        host_master_args.append('--docker-compose=' + ','.join(args.docker_compose))
+        host_manager_args.append('--docker-compose=' + ','.join(args.docker_compose))
 
     host_detail = ' for %s' % host.name
     systemd_script = SYSTEMD_TEMPLATE.format(
@@ -149,7 +149,7 @@ def main(args):
         **vars(args))
 
     launcher_code = LAUNCHER_TEMPLATE.format(
-        host_master_args='  \\\n  '.join(host_master_args),
+        host_manager_args='  \\\n  '.join(host_manager_args),
         **vars(args))
 
     print(f'Writing {args.launcher_script} ...')
@@ -164,7 +164,7 @@ def main(args):
         print()
         print(f' -- PermissionError trying to write to {args.systemd_dest}!')
         print()
-        print('Re-run the previous command, but with --systemd-dir=./ to create\n'
+        print('Re-run the previous command, but with --service-dir=./ to create\n'
               'the service file in the current directory.  Then install it with:')
         print()
         print(f'   sudo cp ./{args.service_name} {args.service_dir}')

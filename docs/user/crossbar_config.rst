@@ -67,9 +67,10 @@ You should now see a crossbar config file in ``./dot_crossbar/``. Make any
 modifications needed for your deployment.
 
 .. note::
+
     The crossbar 'config-dir' block and the 'agent-instance' block defining the
-    'HostMaster' Agent are both required for the system you are running ocsbow on.
-    Be sure to add these to your SCF if they do not exist.
+    'HostManager' Agent are both required for the system you are running ocsbow
+    on. Be sure to add these to your SCF if they do not exist.
 
 Running with Docker
 ===================

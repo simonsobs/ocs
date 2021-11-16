@@ -1,12 +1,12 @@
 .. highlight:: rst
 
-.. _host_master:
+.. _host_manager:
 
-=================
-Host Master Agent
-=================
+==================
+Host Manager Agent
+==================
 
-The Host Master Agent (HMA) helps to manage the many Agent instances
+The Host Manager Agent (HMA) helps to manage the many Agent instances
 that need to run on a single host machine.  The HMA is [will be] able
 to:
 
@@ -24,7 +24,7 @@ Direct user interaction with an HMA can be achieved through the
 Configuration File Examples
 ---------------------------
 
-The Host Master Agent is an optional component.  In order to function
+The Host Manager Agent is an optional component.  In order to function
 properly, it requires that site_config be in use.  It should be listed
 in the SCF like other agents.  There should only be a single HMA per
 host definition block.
@@ -43,8 +43,8 @@ Here's an abbreviated SCF showing the correct configuration:
       ...
       'agent-instances': [
         ...
-        {'agent-class': 'HostMaster',
-         'instance-id': 'master-host-1',
+        {'agent-class': 'HostManager',
+         'instance-id': 'hm-1',
          'arguments': []}
         ...
       ]
@@ -53,16 +53,16 @@ Here's an abbreviated SCF showing the correct configuration:
     ...
   ...
 
-The ``agent-class`` should be ``HostMaster``.  The ``instance-id`` in
-this example is based on a (recommended) convention that HostMaster
-live at ``master-{host}``.
+The ``agent-class`` should be ``HostManager``.  The ``instance-id`` in
+this example is based on a (recommended) convention that HostManager
+live at ``hm-{host}``.
 
 Agent API
 ---------
 
-.. autoclass:: agents.host_master.host_master.HostMaster
+.. autoclass:: agents.host_manager.host_manager.HostManager
     :members:
 
 Supporting APIs
 ---------------
-.. automethod:: agents.host_master.host_master.HostMaster._update_target_states
+.. automethod:: agents.host_manager.host_manager.HostManager._update_target_states

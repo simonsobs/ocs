@@ -230,7 +230,7 @@ works like this:
   should be included in the ``agent-paths`` variable in the SCF for
   this host.  For example, we might put the file in ``/simonsobs/agents``
   and call it ``ocs_plugin_simonsobs.py``.
-- When the site_config system (specifically the HostMaster agent)
+- When the site_config system (specifically the HostManager agent)
   needs to find a particular agent script, it:
 
   - Adds any directories in ``agent-paths`` to the Python import path.

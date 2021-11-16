@@ -38,8 +38,8 @@ file, use this file, unchanged.
       localhost: {
       'crossbar': {'config-dir': './dot_crossbar/'},
         'agent-instances': [
-          {'agent-class': 'HostMaster',
-           'instance-id': 'master-host-1',
+          {'agent-class': 'HostManager',
+           'instance-id': 'hm-1',
            'arguments': []},
         ]   
       }

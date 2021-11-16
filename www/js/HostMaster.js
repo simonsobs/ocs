@@ -1,6 +1,6 @@
-/* HostMaster UI */
+/* HostManager UI */
 
-function HostMaster_populate(p, base_id, args) {
+function HostManager_populate(p, base_id, args) {
     /* See interface definition in monitor_ui.js preamble.
      *
      * The following fields in args are required:
@@ -24,7 +24,7 @@ function HostMaster_populate(p, base_id, args) {
     //
     var ui1 = new OcsUiHelper(base_id, client);
     ui1.dest($('#' + base_id + '-controls'))
-        .process('master')
+        .process('manager')
         .op_header()
         .status_indicator()
         .task('die')
@@ -39,7 +39,7 @@ function HostMaster_populate(p, base_id, args) {
     ui2.dest($('#' + base_id + '-viewport'))
         .set_boxes(false)
         .set_context('v')
-        .banner('HostMaster Monitor')
+        .banner('HostManager Monitor')
         .text_indicator('heartbeat', 'Connection', {center: true})
         .banner('Managed Agents')
         .indicator('children')
@@ -66,8 +66,8 @@ function HostMaster_populate(p, base_id, args) {
     ui2.get('v', 'children').append(
         child_data.get_form());
 
-    client.add_watcher('master', 5., function(op_name, method, stat, msg, session) {
-        ui1.set_status('master', session);
+    client.add_watcher('manager', 5., function(op_name, method, stat, msg, session) {
+        ui1.set_status('manager', session);
         if (!session.data || session.status != 'running') {
             ui2.get('v', 'children').val('');
             return;
@@ -201,4 +201,4 @@ KidsTable.prototype = {
 };
 
 // Register the constructor in the main tab manager.
-tabman.constructors['HostMaster'] = HostMaster_populate;
+tabman.constructors['HostManager'] = HostManager_populate;

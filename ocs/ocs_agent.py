@@ -18,6 +18,7 @@ from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
 
 import time, datetime
+import socket
 import os
 from deprecation import deprecated
 from ocs import client_t
@@ -344,7 +345,9 @@ class OCSAgent(ApplicationSession):
                 'tasks': self._gather_sessions(self.tasks),
                 'processes': self._gather_sessions(self.processes),
                 'feeds': [(k, v.encoded()) for k, v in self.feeds.items()],
-                'agent_class': self.class_name
+                'agent_class': self.class_name,
+                'instance_hostname': socket.gethostname(),
+                'instance_pid': os.getpid(),
             }
         if q == 'get_tasks':
             return self._gather_sessions(self.tasks)

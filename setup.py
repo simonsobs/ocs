@@ -34,4 +34,12 @@ setup (name = 'ocs',
            "Framework :: Twisted",
        ],
        python_requires=">=3.6",
+       install_requires=[
+           'autobahn',
+           'twisted',
+           'deprecation',
+           'PyYAML',
+           'influxdb',
+           'numpy',
+       ],
 )

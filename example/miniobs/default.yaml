@@ -17,7 +17,7 @@ hosts:
         './',
         ],
     'agent-instances': [
-      {'agent-class': 'HostMaster',
+      {'agent-class': 'HostManager',
        'instance-id': 'hm1',
        'arguments': []},
       {'agent-class': 'RegistryAgent',

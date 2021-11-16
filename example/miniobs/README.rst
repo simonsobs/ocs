@@ -2,7 +2,7 @@ Self-contained Test Mini-Observatory
 ====================================
 
 This example demonstrates operation of a single-host OCS.  The
-Observatory consists of the 2 core agents (HostMaster and
+Observatory consists of the 2 core agents (HostManager and
 RegistryAgent), a data aggregation agent (AggregatorAgent), and a
 producer of random data (FakeDataAgent).
 
@@ -66,9 +66,9 @@ To start up all components of the system, run:
 This will result in the following things starting up (in order):
 
 - the crossbar server.
-- the HostMaster Agent instance.
-- the HostMaster Agent's "master" Process.
-- the child agent instances that are managed by the HostMaster in this
+- the HostManager Agent instance.
+- the HostManager Agent's "manager" Process.
+- the child agent instances that are managed by the HostManager in this
   example:
 
   - Registry

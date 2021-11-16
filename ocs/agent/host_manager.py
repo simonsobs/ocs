@@ -108,10 +108,21 @@ def resolve_child_state(db):
     # State handling when target is to be 'down'.
     elif db['target_state'] == 'down':
         if db['next_action'] == 'down':
+            ## The lines below will prevent HostManager from killing
+            ## Agents that suddenly seem to be alive.  With these
+            ## lines commented out, someone running "up" on a managed
+            ## docker-compose.yaml will see their Agents immediately
+            ## be brought down by HostManager.
+            #if prot is not None and prot.status[0] is None:
+            #    messages.append('Detected unexpected session for {full_name} '
+            #                    '(probably docker); changing target state to "up".'.format(**db))
+            #    db['target_state'] = 'up'
+
+            ## In fully managed mode, force a termination.
             if prot is not None and prot.status[0] is None:
                 messages.append('Detected unexpected session for {full_name} '
-                                '(probably docker); changing target state to "up".'.format(**db))
-                db['target_state'] = 'up'
+                                '(probably docker); it will be shut down.'.format(**db))
+                db['next_action'] = 'up'
         elif db['next_action'] == 'up':
             messages.append('Requesting termination of '
                             '{full_name}'.format(**db))

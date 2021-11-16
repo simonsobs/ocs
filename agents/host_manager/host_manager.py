@@ -195,7 +195,8 @@ class HostManager:
                         if prot.status[0] == None:
                             session.add_message(
                                 'On startup, detected active container for %s' % k[1])
-                            state = 'up'
+                            ## Leave it up?  No.
+                            #state = 'up'
                     else:
                         agent_script = site_config.agent_script_reg.get(k[0])
                         prot = None
@@ -405,5 +406,7 @@ if __name__ == '__main__':
                            startup=startup_params)
     agent.register_task('update', host_manager.update, blocking=False)
     agent.register_task('die', host_manager.die, blocking=False)
+
+    reactor.addSystemEventTrigger('before', 'shutdown', agent._stop_all_running_sessions)
     runner.run(agent, auto_reconnect=True)
 

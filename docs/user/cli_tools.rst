@@ -9,8 +9,22 @@ CLI Tools
 Several CLI tools are provided with OCS. This page describes these tools, what
 they are used for, and how to use them.
 
-ocsbow 
+ocsbow
 ======
+
+In order to use ``ocsbow`` to start and stop Agents in a distributed
+(multi-host) system, you must first have set up a :ref:`HostManager
+Agent<host_master>` on each host you want to manage.  ``ocsbow``
+should be able to function in any environment where you can
+instantiate an OCSClient; it needs to know how to find the site config
+file, and it needs access to the crossbar router.
+
+To use the ``here`` functionality of ``ocsbow``, you might also want
+to add a crossbar definition to the host block in your site config.
+
+
+Command-line arguments
+----------------------
 
 (The output from ``ocsbow --help`` should be rendered here.)
 

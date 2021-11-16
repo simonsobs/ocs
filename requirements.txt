@@ -1,15 +1,13 @@
 autobahn
 twisted
 deprecation
-msgpack
-influxdb
 PyYAML
+
+# InfluxDB Publisher
+influxdb
 
 # FakeDataAgent
 numpy
-
-# Lakeshore240
-pyserial
 
 # Documentation generation
 # see docs/requirements.txt

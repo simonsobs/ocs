@@ -190,7 +190,7 @@ class AgentProcessHelper(protocol.ProcessProtocol):
 class DockerContainerHelper:
     """Class for managing the docker container associated with some
     service.  Provides some of the same interface as
-    AgentProcessHelper in HostMaster agent.
+    AgentProcessHelper in HostManager agent.
 
     """
     def __init__(self, service):

@@ -237,7 +237,7 @@ class InstanceConfig:
             to ['--key1', 'value', '--key2', 'value'].
 
         ``manage`` (str, optional):
-            A string to help HostMaster decide how to manage this
+            A string to help HostManager decide how to manage this
             agent.  Value should be one of ["yes", "no", "docker"]
             (default is "yes").
 
@@ -607,7 +607,7 @@ def get_control_client(instance_id, site=None, args=None, start=True,
             args = ocs.site_config.parse_args(agent_class='*control*',
                                               args=args)
         site, _, _ = ocs.site_config.get_config(args, '*control*')
-    master_addr = '%s.%s' % (site.hub.data['address_root'], instance_id)
+    full_addr = '%s.%s' % (site.hub.data['address_root'], instance_id)
     if client_type is None:
         if site.hub.data.get('wamp_http'):
             client_type = 'http'
@@ -618,7 +618,7 @@ def get_control_client(instance_id, site=None, args=None, start=True,
     elif client_type == 'http':
         from ocs import client_http
         client = client_http.ControlClient(
-            master_addr,
+            full_addr,
             url=site.hub.data['wamp_http'],
             realm=site.hub.data['wamp_realm'])
     else:

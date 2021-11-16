@@ -13,11 +13,11 @@ import sys
 import time
 import urllib
 
-DESCRIPTION="""ocsbow is used to talk to HostMaster agents across an OCS
+DESCRIPTION="""ocsbow is used to talk to HostManager agents across an OCS
 installation.  In a distributed OCS, you can request that Agents
 across the observatory be started or stopped.
 
-A secondary use of ocsbow is for starting up crossbar and a HostMaster
+A secondary use of ocsbow is for starting up crossbar and a HostManager
 agent on the present host ("here" mode).
 """
 EPILOG="""
@@ -26,8 +26,8 @@ More info for each command is available by adding --help, e.g. "ocsbow up --help
 For more details, see https://ocs.readthedocs.io/en/develop/user/cli_tools.html#ocsbow.
 """
 
-# agent_class of the HostMaster.
-HOSTMASTER_CLASS = 'HostMaster'
+# agent_class of the HostManager.
+HOSTMANAGER_CLASS = 'HostManager'
 
 class OcsbowError(Exception):
     pass
@@ -45,10 +45,10 @@ def get_parser():
         'status', help='Display OCS status.',
         description="""
 
-        Status information is obtained by querying all HostMasters
+        Status information is obtained by querying all HostManagers
         described in the local version of the site config file.  The
         output is tabulated by host, and lists each agent reported as
-        being managed by the HostMaster (which may include agents not
+        being managed by the HostManager (which may include agents not
         listed in the local copy of the site config).""")
     p.add_argument('--host', '-H', default=None, action='append',
                    help='Limit hosts that are displayed.')
@@ -57,22 +57,22 @@ def get_parser():
     target_parser = argparse.ArgumentParser(add_help=False)
     target_parser.add_argument(
         '--all', '-a', action='store_true', help=
-        "Apply the command to all HostMasters in the OCS.")
+        "Apply the command to all HostManagers in the OCS.")
     target_parser.add_argument(
         '--dry-run', action='store_true', help=
-        "If set, HostMasters will be queried for info but no state "
+        "If set, HostManagers will be queried for info but no state "
         "change requests will be issued.")
     target_parser.add_argument(
         'instance', nargs='*', help=
-        "instance-id to target.  If this is the id of a HostMaster "
+        "instance-id to target.  If this is the id of a HostManager "
         "agent, it will be asked to start all of its managed agents.")
 
     # up and down
     p = cmdsubp.add_parser('up', parents=[target_parser], help=
-                           "Mark targets as 'up' (so HostMasters will "
+                           "Mark targets as 'up' (so HostManagers will "
                            "launch them).")
     p = cmdsubp.add_parser('down', parents=[target_parser], help=
-                           "Mark targets as 'down' (so HostMasters will "
+                           "Mark targets as 'down' (so HostManagers will "
                            "shut them down).")
 
     # config
@@ -84,11 +84,11 @@ def get_parser():
     # here
     p = cmdsubp.add_parser(
         'here',
-        help="Special mode for launching local crossbar and HostMaster.",
+        help="Special mode for launching local crossbar and HostManager.",
         description="""
-        Control crossbar and HostMaster, if they are configured for this
+        Control crossbar and HostManager, if they are configured for this
         host.  'start' will cause *crossbar* to be launched, followed by
-        the HostMaster *agent*, for which the master *process* will be
+        the HostManager *agent*, for which the manager *process* will be
         started. Specifying a "target" will restrict operations to only
         that system.  'stop' is similar but will try to stop those
         things, in reverse order. 'status' shows a summary of configuration
@@ -133,7 +133,7 @@ def get_args_and_site_config(args=None):
         # Promote to HM instance?
         try:
             site_config = ocs.site_config.get_config(
-                args_, agent_class=HOSTMASTER_CLASS)
+                args_, agent_class=HOSTMANAGER_CLASS)
         except RuntimeError:
             pass
 
@@ -194,7 +194,7 @@ def crossbar_test(args, site_config):
 def get_status(args, site_config, restrict_hosts=None):
     """Assemble a detailed description of the site configuration, that
     goes somewhat beyond what's in the site config by querying each
-    HostMaster it finds to identify docker-based or other secret
+    HostManager it finds to identify docker-based or other secret
     Agents.  Return an absurd but informative structure that we dare
     not describe here.
 
@@ -222,9 +222,9 @@ def get_status(args, site_config, restrict_hosts=None):
             if inst.get('manage') is None:
                 inst['manage'] = 'yes'
             inst.update(blank_state)
-            if inst['agent-class'] == HOSTMASTER_CLASS:
+            if inst['agent-class'] == HOSTMANAGER_CLASS:
                 sort_order = 0
-                hms.append(HostMasterManager(
+                hms.append(HostManagerManager(
                     args, site_config, instance_id=inst['instance-id']))
             else:
                 sort_order = ['x', 'yes', 'no', 'docker'].index(inst['manage'])
@@ -236,7 +236,7 @@ def get_status(args, site_config, restrict_hosts=None):
             cinfo = {
                 'target': 'n/a',
             }
-            if info['master_process_running']:
+            if info['manager_process_running']:
                 cinfo['current'] = 'up'
             elif info['agent_running']:
                 cinfo['current'] = 'sleeping'
@@ -262,7 +262,7 @@ def get_status(args, site_config, restrict_hosts=None):
                 })
         output['hosts'].append({
             'host_name': host_name,
-            'hostmaster_count': len(hms),
+            'hostmanager_count': len(hms),
             'agent_info': agent_info})
     return output
 
@@ -443,7 +443,7 @@ class CrossbarManager:
                 sys.exit(10)
 
 
-class HostMasterManager:
+class HostManagerManager:
     def __init__(self, args, site_config, instance_id=None):
         """Note we save and use a reference to args... if it's modified,
         reinstantiate me..
@@ -458,7 +458,7 @@ class HostMasterManager:
         self.instance_id = instance_id
 
         if instance is not None:
-            self.master_addr = '%s.%s' % (site.hub.data['address_root'],
+            self.manager_addr = '%s.%s' % (site.hub.data['address_root'],
                                           instance.data['instance-id'])
         self.working_dir = args.working_dir
         self._reconnect()
@@ -470,8 +470,8 @@ class HostMasterManager:
             self.client = None
 
     def status(self):
-        """Try to get the status of the master Process.  This will indirectly
-        tell us whether the HostMaster agent is running, too.
+        """Try to get the status of the manager Process.  This will indirectly
+        tell us whether the HostManager agent is running, too.
 
         Returns a dictionary with elements:
 
@@ -480,7 +480,7 @@ class HostMasterManager:
           trusted.
         - 'crossbar_running' (bool)
         - 'agent_running' (bool)
-        - 'master_process_running' (bool)
+        - 'manager_process_running' (bool)
         - 'child_states' (list)
         - 'message' (string): Text you can report to "the user".
 
@@ -489,7 +489,7 @@ class HostMasterManager:
             'success': True,
             'crossbar_running': False,
             'agent_running': False,
-            'master_process_running': False,
+            'manager_process_running': False,
             'child_states': [],
             'message': ''}
         if self.client is None:
@@ -499,13 +499,13 @@ class HostMasterManager:
             result['crossbar_running'] = True
 
         try:
-            stat = self.client.master.status()
+            stat = self.client.manager.status()
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':
                 result['message'] = (
-                    'Failed to contact host master at %s; that probably means '
-                    'that the HostMaster Agent is not running.' % self.master_addr)
+                    'Failed to contact host manager at %s; that probably means '
+                    'that the HostManager Agent is not running.' % self.manager_addr)
             elif parsed and err_name == 'client_http.error.connection_error':
                 result['message'] = (
                     'Connection error: %s; probably crossbar is down.' % text)
@@ -526,30 +526,30 @@ class HostMasterManager:
             if ok == ocs.OK:
                 status_text = session.get('status', '<unknown>')
                 is_running = (status_text == 'running')
-                result['master_process_running'] = is_running
+                result['manager_process_running'] = is_running
                 if is_running:
                     result['message'] = (
-                        'Master Process has been running for %i seconds.' %
+                        'Manager Process has been running for %i seconds.' %
                         (time.time()  - session['start_time']))
                     result['child_states'] = session['data']['child_states']
                 else:
-                    result['message'] = 'Master Process is in state: %s' % status_text
+                    result['message'] = 'Manager Process is in state: %s' % status_text
             else:
-                result['Unexpected error querying master Process status: %s' % msg]
+                result['Unexpected error querying manager Process status: %s' % msg]
                 result['ok'] = False
         return result
 
     def stop(self, check=True, timeout=5.):
-        print('Trying to stop HostMaster agent...')
+        print('Trying to stop HostManager agent...')
         try:
             stat = self.client.die.start()
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':
-                print('Failed to contact host master at %s' % self.master_addr)
+                print('Failed to contact host manager at %s' % self.manager_addr)
                 print('That probably means the Agent is not running.')
             else:
-                print('Unexpected error getting master process status:')
+                print('Unexpected error getting manager process status:')
                 raise
         if not check:
             return True, 'Agent exit requested.'
@@ -582,13 +582,13 @@ class HostMasterManager:
                       log_dir)
         # Most important is the site filename and host alias.
         for agent_path in host.agent_paths:
-            hm_script = os.path.join(agent_path, 'host_master/host_master.py')
+            hm_script = os.path.join(agent_path, 'host_manager/host_manager.py')
             if os.path.exists(hm_script):
                 break
         else:
-            return False, "Could not find host_master.py in the agent_paths!"
+            return False, "Could not find host_manager.py in the agent_paths!"
 
-        print('Launching HostMaster through %s' % hm_script)
+        print('Launching HostManager through %s' % hm_script)
         print('Log dir is: %s' % log_dir)
         cmd = [sys.executable, hm_script,
                '--site-file', self.site_config.site.source_file,
@@ -599,7 +599,7 @@ class HostMasterManager:
         if not foreground:
             cmd.extend(['--quiet'])
 
-        print('Launching host_master (%s)...' % cmd[1])
+        print('Launching host_manager (%s)...' % cmd[1])
         if foreground:
             ret_val = sp.call(cmd)
             return True, "Agent exited with code %i" % ret_val
@@ -619,15 +619,15 @@ class HostMasterManager:
     def agent_control(self, request, targets):
         try:
             # In all cases, make sure process is running.
-            stat = self.client.master.status()
+            stat = self.client.manager.status()
             err, msg, session = stat
-            master_proc_running = (session.get('status') == 'running')
+            manager_proc_running = (session.get('status') == 'running')
 
             if request == 'status':
-                if not master_proc_running:
-                    print('The master Process is not running.')
+                if not manager_proc_running:
+                    print('The manager Process is not running.')
                 else:
-                    print('The master Process is running.')
+                    print('The manager Process is running.')
                     print('In the future, I will tell you about what child '
                           'Agents are detected / active.')
                 return
@@ -637,27 +637,27 @@ class HostMasterManager:
             elif request == 'down':
                 params = {'requests': [(t, 'down') for t in targets]}
 
-            if not master_proc_running:
-                print('Starting master process.')
+            if not manager_proc_running:
+                print('Starting manager process.')
                 # If starting process for the first time, set all agents
                 # to 'down'.
                 params['requests'].insert(0, ('all', 'down'))
                 err, msg, session = \
-                    self.client.master.start(**params)
+                    self.client.manager.start(**params)
             else:
                 err, msg, session = \
                     self.client.update.start(**params)
 
             if err != ocs.OK:
-                print('Error when requesting master Process "%s":\n  %s' %
+                print('Error when requesting manager Process "%s":\n  %s' %
                       (request, msg))
 
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':
-                print('Failed to contact host master at %s' % self.master_addr)
+                print('Failed to contact host manager at %s' % self.manager_addr)
                 sys.exit(1)
-            print('Unexpected error getting master process status:')
+            print('Unexpected error getting manager process status:')
             raise
 
 def _term_format(text, indent='', right_margin=1):
@@ -688,7 +688,7 @@ def _term_format(text, indent='', right_margin=1):
 
 
 class LocalSupports:
-    """This class helps with controlling crossbar and HostMaster on the
+    """This class helps with controlling crossbar and HostManager on the
     current host.  This is convenient in small setups in the absence
     of docker.
 
@@ -700,7 +700,7 @@ class LocalSupports:
         self.crossbar = {
             'manage': False,
         }
-        self.host_master = {
+        self.host_manager = {
             'manage': False,
             'configured': False,
         }
@@ -709,8 +709,8 @@ class LocalSupports:
             self.crossbar['manage'] = True
             self.crossbar['ctrl'] = CrossbarManager(site_config.host)
         if site_config.instance is not None:
-            self.host_master['configured'] = True
-            self.host_master['manage'] = (site_config.instance.manage == 'yes')
+            self.host_manager['configured'] = True
+            self.host_manager['manage'] = (site_config.instance.manage == 'yes')
         if update:
             self.update()
 
@@ -721,17 +721,17 @@ class LocalSupports:
             self.crossbar['running'] = 'n/a'
         self.crossbar['connection'] = crossbar_test(self.args, self.site_config)[0]
 
-        if self.host_master['configured']:
-            hm = HostMasterManager(self.args, self.site_config)
+        if self.host_manager['configured']:
+            hm = HostManagerManager(self.args, self.site_config)
             stat = hm.status()
-            self.host_master['ctrl'] = hm
-            self.host_master['instance-id'] = hm.instance_id
-            self.host_master['alive'] = stat['agent_running']
-            self.host_master['process'] = stat['master_process_running']
+            self.host_manager['ctrl'] = hm
+            self.host_manager['instance-id'] = hm.instance_id
+            self.host_manager['alive'] = stat['agent_running']
+            self.host_manager['process'] = stat['manager_process_running']
         else:
-            self.host_master['instance-id'] = 'n/a'
-            self.host_master['alive'] = 'n/a'
-            self.host_master['process'] = 'n/a'
+            self.host_manager['instance-id'] = 'n/a'
+            self.host_manager['alive'] = 'n/a'
+            self.host_manager['process'] = 'n/a'
 
         # Possible solutions to each outage?
         if self.target is not None:
@@ -756,24 +756,24 @@ class LocalSupports:
                                   'is not configured to manage crossbar, so start '
                                   'it up on the correct system.'))
 
-        if self.host_master['configured']:
-            if not self.host_master['alive']:
+        if self.host_manager['configured']:
+            if not self.host_manager['alive']:
                 if not self.crossbar['connection']:
                     solutions.append(('warning',
-                                      'The HostMaster might be running, but '
+                                      'The HostManager might be running, but '
                                       'this could not be confirmed because no '
                                       'crossbar connection could be made.'))
                     solutions.append(('agent', 'Running "ocsbow here start" might '
                                       'start the Agent too.'))
-                elif self.host_master['manage']:
-                    solutions.append(('agent', 'The HostMaster is not running, but '
+                elif self.host_manager['manage']:
+                    solutions.append(('agent', 'The HostManager is not running, but '
                                       'should start if you run "ocsbow here start".'))
                 else:
-                    solutions.append(('fatal', 'The HostMaster is not running, and '
+                    solutions.append(('fatal', 'The HostManager is not running, and '
                                       'is not managed by this systems.  Start '
                                       'it manually, or using systemd, or something.'))
-            elif not self.host_master['process']:
-                solutions.append(('process', 'The HostMaster master process is not '
+            elif not self.host_manager['process']:
+                solutions.append(('process', 'The HostManager manager process is not '
                                   'running, but should start if you run "ocsbow here start".'))
         self.analysis = solutions
 
@@ -802,9 +802,9 @@ def main(args=None):
         status = get_status(args, site_config)
         for host_data in status['hosts']:
             active_hms = [v for v in host_data['agent_info'].values()
-                          if v['agent-class'] == HOSTMASTER_CLASS]
+                          if v['agent-class'] == HOSTMANAGER_CLASS]
             others = [v for v in host_data['agent_info'].values()
-                      if v['agent-class'] != HOSTMASTER_CLASS]
+                      if v['agent-class'] != HOSTMANAGER_CLASS]
             for inst in active_hms:
                 if args.all or inst['instance-id'] in args.instance:
                     hms.append(inst)
@@ -818,7 +818,7 @@ def main(args=None):
                 if len(active_hms) != 1:
                     raise OcsbowError(
                         "Cannot perform action on '%s', as there are "
-                        "%i HostMasters configured on host '%s'." % (
+                        "%i HostManagers configured on host '%s'." % (
                             inst['instance-id'], len(active_hms), host_name))
                 agents.append((inst, active_hms[0]))
         if args.dry_run:
@@ -828,11 +828,11 @@ def main(args=None):
         def client(hm):
             iid = hm['instance-id']
             if iid not in clients:
-                clients[iid] = HostMasterManager(args, site_config, iid)
+                clients[iid] = HostManagerManager(args, site_config, iid)
             return clients[iid]
 
         for hm in hms:
-            print(f'  {args.command} hostmaster {hm["instance-id"]} all')
+            print(f'  {args.command} hostmanager {hm["instance-id"]} all')
             if args.dry_run:
                 continue
             client(hm).agent_control(args.command, ['all'])
@@ -864,16 +864,16 @@ def main(args=None):
         for action in actions:
             if action == 'status':
                 supports.update()
-                C, H = supports.crossbar, supports.host_master
+                C, H = supports.crossbar, supports.host_manager
                 print('Status of local supports:')
                 print(f'  crossbar managed on this host:       {C["manage"]}')
                 print(f'    crossbar running?:                 {C["running"]}')
                 print(f'    connection to server?:             {C["connection"]}')
                 print()
-                print(f'  hostmaster configured on this host:  {H["configured"]}')
+                print(f'  hostmanager configured on this host: {H["configured"]}')
                 print(f'    manageable by ocsbow?:             {H["manage"]}')
                 print(f'    agent running?                     {H["alive"]}')
-                print(f'    master process running?:           {H["process"]}')
+                print(f'    manager process running?:          {H["process"]}')
                 print(f'    instance-id:                       {H["instance-id"]}')
                 print()
                 if len(supports.analysis):
@@ -896,32 +896,32 @@ def main(args=None):
                     supports.update()  # refresh .analysis
 
                 if any([soln == 'agent' for soln, text in supports.analysis]):
-                    print('Trying to launch hostmaster agent...')
-                    hm = supports.host_master['ctrl']
+                    print('Trying to launch hostmanager agent...')
+                    hm = supports.host_manager['ctrl']
                     ok, message = hm.start(up=True, foreground=args.foreground)
                     if not ok:
-                        raise OcsbowError('Failed to start master process: %s' % message)
+                        raise OcsbowError('Failed to start manager process: %s' % message)
                     supports.update()  # refresh .analysis
 
                 if any([soln == 'process' for soln, text in supports.analysis]):
-                    hm = supports.host_master['ctrl']
+                    hm = supports.host_manager['ctrl']
                     hm.agent_control('start', ['all'])
                     time.sleep(2)
 
             elif action == 'stop':
                 supports.update()
                 # Stop the process.
-                if supports.host_master['configured']:
-                    hm = supports.host_master['ctrl']
+                if supports.host_manager['configured']:
+                    hm = supports.host_manager['ctrl']
                     if hm.client is None:
-                        print('No connection to HostMaster.')
+                        print('No connection to HostManager.')
                     else:
                         if eligible('process'):
-                            print('Stopping master process ...')
-                            hm.client.master.stop()
-                            hm.client.master.wait(timeout=1)
-                        if eligible('agent') and supports.host_master['manage']:
-                            print('Requesting HostMaster termination.')
+                            print('Stopping manager process ...')
+                            hm.client.manager.stop()
+                            hm.client.manager.wait(timeout=1)
+                        if eligible('agent') and supports.host_manager['manage']:
+                            print('Requesting HostManager termination.')
                             hm.stop()
                 if eligible('crossbar') and supports.crossbar['manage']:
                     if supports.crossbar['running']:

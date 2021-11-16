@@ -1,6 +1,6 @@
 import ocs
 from ocs import ocs_agent, site_config
-from ocs.agent import host_master as hm_utils
+from ocs.agent import host_manager as hm_utils
 
 import time
 import argparse
@@ -16,10 +16,10 @@ import os, sys
 
 VALID_TARGETS = ['up', 'down']
 
-class HostMaster:
+class HostManager:
     """
     This Agent is used to start and stop OCS-relevant services on a
-    particular host.  If the HostMaster is launched automatically when
+    particular host.  If the HostManager is launched automatically when
     a system boots, it can then be used to start up the rest of OCS on
     that host (either automatically or on request).
     """
@@ -51,12 +51,12 @@ class HostMaster:
                 sys.path.append(p)
         site_config.scan_for_agents()
         
-        # Construct the list; exclude HostMaster class.
+        # Construct the list; exclude HostManager class.
         keys = []
         for inst in hc.instances:
             class_name, instance_id = inst['agent-class'], inst['instance-id']
             manage = inst.get('manage', 'yes')
-            if class_name == 'HostMaster':
+            if class_name == 'HostManager':
                 manage = 'no'
             if manage == 'yes':
                 keys.append((class_name, instance_id))
@@ -91,7 +91,7 @@ class HostMaster:
         ProcessProtocol, which holds communication pathways to the
         process, will be registered in self.database.  The site_file
         and instance_id are passed on the command line; this means
-        that any weird config overrides passed to this HostMaster are
+        that any weird config overrides passed to this HostManager are
         not propagated.  One exception is working_dir, which is
         propagated in order that relative paths can make any sense.
 
@@ -128,10 +128,10 @@ class HostMaster:
     def _update_target_states(self, session, params):
         """_update_target_states(params)
 
-        Update the child Agent management parameters of the master process.
-        This function is used both for first-time init of the master
+        Update the child Agent management parameters of the manager process.
+        This function is used both for first-time init of the manager
         Process, but also for subsequent parameter updates while
-        master Process is running.
+        manager Process is running.
 
         The argument ``params`` is a dict with the following
         keys:
@@ -234,23 +234,23 @@ class HostMaster:
                     addressable[key]['target_state'] = state
 
     @inlineCallbacks
-    def master(self, session, params):
-        """master(**kwargs)
+    def manager(self, session, params):
+        """manager(**kwargs)
 
-        **Process** - The "master" Process maintains a list of child Agents for
+        **Process** - The "manager" Process maintains a list of child Agents for
         which it is responsible.  In response to requests from a client, the
         Process will launch or terminate child Agents.
 
         If an Agent process exits unexpectedly, it will be relaunched
         within a few seconds.
 
-        When the master Process receives a stop request, it will terminate all
+        When the manager Process receives a stop request, it will terminate all
         child agents before moving to the 'done' state.
 
         Parameters:
             **kwargs: Passed directly to
                 ``_update_target_states(params=kwargs)``; see
-                :func:`HostMaster._update_target_states`.
+                :func:`HostManager._update_target_states`.
 
         """
         self.running = True
@@ -313,7 +313,7 @@ class HostMaster:
             yield dsleep(max(min(sleep_times), .001))
         return True, 'Exited.'
 
-    def _stop_master(self, session, params):
+    def _stop_manager(self, session, params):
         if session.status == 'done':
             return
         session.set_status('stopping')
@@ -323,18 +323,18 @@ class HostMaster:
     def update(self, session, params):
         """update(**kwargs)
 
-        **Task** - Update the master process' child Agent parameters.
+        **Task** - Update the manager process' child Agent parameters.
 
-        This Task will fail if the master Process is not running.
+        This Task will fail if the manager Process is not running.
 
         Parameters:
             **kwargs: Passed directly to
                 ``_update_target_states(params=kwargs)``; see
-                :func:`HostMaster._update_target_states`.
+                :func:`HostManager._update_target_states`.
 
         """
         if not self.running:
-            return False, 'Master process is not running; params not updated.'
+            return False, 'Manager process is not running; params not updated.'
 
         self._update_target_states(session, params)
         return True, 'Update requested.'
@@ -343,20 +343,20 @@ class HostMaster:
     def die(self, session, params):
         session.set_status('running')
         if not self.running:
-            session.add_message('Master process is not running.')
+            session.add_message('Manager process is not running.')
         else:
-            session.add_message('Requesting exit of master process.')
-            ok, msg, mp_session = self.agent.stop('master')
-            ok, msg, mp_session = yield self.agent.wait('master', timeout=10.)
+            session.add_message('Requesting exit of manager process.')
+            ok, msg, mp_session = self.agent.stop('manager')
+            ok, msg, mp_session = yield self.agent.wait('manager', timeout=10.)
             if ok == ocs.OK:
-                session.add_message('... master Process has exited.')
+                session.add_message('... manager Process has exited.')
             else:
-                session.add_message('... timed-out waiting for master Process exit!')
+                session.add_message('... timed-out waiting for manager Process exit!')
 
         # Schedule program exit.
         reactor.callLater(1., reactor.stop)
 
-        return True, 'This HostMaster should terminate in about 1 second.'
+        return True, 'This HostManager should terminate in about 1 second.'
 
 
 if __name__ == '__main__':
@@ -367,7 +367,7 @@ if __name__ == '__main__':
     pgroup.add_argument('--docker-compose', default=None,
                         help="Comma-separated list of docker-compose files to parse and manage.")
     pgroup.add_argument('--quiet', action='store_true')
-    args = site_config.parse_args(agent_class='HostMaster',
+    args = site_config.parse_args(agent_class='HostManager',
                                   parser=parser)
 
     if args.quiet:
@@ -377,7 +377,7 @@ if __name__ == '__main__':
             os.dup2(null, stream.fileno())
         os.close(null)
 
-    # To reduce "try again" noise, don't tell Registry about HostMaster.
+    # To reduce "try again" noise, don't tell Registry about HostManager.
     args.registry_address = 'none'
 
     agent, runner = ocs_agent.init_site_agent(args)
@@ -386,18 +386,18 @@ if __name__ == '__main__':
     if args.docker_compose:
         docker_composes = args.docker_compose.split(',')
 
-    host_master = HostMaster(agent, docker_composes=docker_composes)
+    host_manager = HostManager(agent, docker_composes=docker_composes)
 
     startup_params = {}
     if args.initial_state:
         startup_params = {'requests': [('all', args.initial_state)]}
 
-    agent.register_process('master',
-                           host_master.master,
-                           host_master._stop_master,
+    agent.register_process('manager',
+                           host_manager.manager,
+                           host_manager._stop_manager,
                            blocking=False,
                            startup=startup_params)
-    agent.register_task('update', host_master.update, blocking=False)
-    agent.register_task('die', host_master.die, blocking=False)
+    agent.register_task('update', host_manager.update, blocking=False)
+    agent.register_task('die', host_manager.die, blocking=False)
     runner.run(agent, auto_reconnect=True)
 

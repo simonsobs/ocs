@@ -1,5 +1,5 @@
 SITE_ARGS = --site-file default.yaml
-OCSBOW = ocsbow $(SITE_ARGS)
+OCSLOCAL = ocs-local-support $(SITE_ARGS)
 PYTHON ?= python
 
 default:
@@ -9,16 +9,16 @@ prepare:
 	-mkdir dot_crossbar
 	-mkdir logs
 	-mkdir data
-	$(OCSBOW) here generate_crossbar_config
+	$(OCSLOCAL) generate_crossbar_config
 
 up:
-	$(OCSBOW) here start
+	$(OCSLOCAL) start
 
 run:
 	$(PYTHON) run_acq.py $(SITE_ARGS)
 
 down:
-	-$(OCSBOW) here stop
+	-$(OCSLOCAL) stop
 
 cleanup:
 	-rm -r dot_crossbar logs data __pycache__

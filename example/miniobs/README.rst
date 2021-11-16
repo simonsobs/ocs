@@ -52,7 +52,7 @@ configuration file for crossbar.
    mkdir logs
    mkdir data
 
-   ocsbow here generate_crossbar_config
+   ocs-local-support generate_crossbar_config
 
 
 **2. Bringing up the system**
@@ -61,7 +61,7 @@ To start up all components of the system, run:
 
 .. code-block:: shell
 
-   ocsbow here start
+   ocs-local-support start
 
 This will result in the following things starting up (in order):
 
@@ -87,8 +87,8 @@ the data production Process is explicitly told to do so.  The script
 run_acq.py commands the start of a data production operation, and then
 stops it 30 seconds later.  Note that if you interrupt the run_acq.py
 script, the agent will keep generating data in the background, and it
-will keep being written to disk.  If that happens, run "ocsbow here
-stop" to terminate all agents.
+will keep being written to disk.  If that happens, run
+"ocs-local-support stop" to terminate all agents.
 
 .. code-block:: shell
 
@@ -101,4 +101,4 @@ reverse order.
 
 .. code-block:: shell
 
-   ocsbow here stop
+   ocs-local-support stop

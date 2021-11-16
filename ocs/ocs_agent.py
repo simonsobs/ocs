@@ -329,25 +329,29 @@ class OCSAgent(ApplicationSession):
           entries is returned:
 
           - 'agent_class': The class name of this agent.
+          - 'instance_hostname': The host name where the Agent is
+            running, as returned by socket.gethostname().
+          - 'instance_pid': The PID of the Agent interpreter session,
+            as returned by os.getpid().
           - 'feeds': The list of encoded feed information, tuples
             (feed_name, feed_info).
-          - 'tasks': The list of Task api description info, as
-            returned by :func:`_gather_sessions`.
           - 'processes': The list of Process api description info, as
             returned by :func:`_gather_sessions`.
+          - 'tasks': The list of Task api description info, as
+            returned by :func:`_gather_sessions`.
 
-          Passing get_X will return only that subset of the full API.
-          Maybe don't use those.
+          Passing get_X will, for some values of X, return only that
+          subset of the full API; treat that as deprecated.
 
         """
         if q == 'get_api':
             return {
-                'tasks': self._gather_sessions(self.tasks),
-                'processes': self._gather_sessions(self.processes),
-                'feeds': [(k, v.encoded()) for k, v in self.feeds.items()],
                 'agent_class': self.class_name,
                 'instance_hostname': socket.gethostname(),
                 'instance_pid': os.getpid(),
+                'feeds': [(k, v.encoded()) for k, v in self.feeds.items()],
+                'processes': self._gather_sessions(self.processes),
+                'tasks': self._gather_sessions(self.tasks),
             }
         if q == 'get_tasks':
             return self._gather_sessions(self.tasks)

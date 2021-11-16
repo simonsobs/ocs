@@ -149,7 +149,6 @@ class CrossbarConfig:
         if not os.path.exists(self.binary):
             raise RuntimeError("The crossbar binary specified in site_config "
                                "does not seem to exist: %s" % self.binary)
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.binary)
         return [self.binary, cmd] + self.cbdir_args
 
     def summary(self):

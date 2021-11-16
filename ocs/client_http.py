@@ -40,14 +40,18 @@ class ControlClient():
         return decoded['args'][0]
 
     def get_api(self, simple=False):
-        """Query the API from the Agent; this includes lists of Processes,
-        Tasks, and Feeds exposed by the agent, and their current
-        session information.
+        """Query the API and other info from the Agent; this includes lists of
+        Processes, Tasks, and Feeds, docstrings, operation session
+        structures, and info about the Agent instance (class, PID,
+        host).
 
-        See :func:`ocs.ocs_agent.OCSAgent._management_handler`
+        Args:
+          simple (bool): If True, then return just the lists of the op
+            and feed names without accompanying detail.
 
-        If simple=True, then return just lists of the op & feed names
-        without accompanying detail.
+        Returns:
+          A dict, see :func:`ocs.ocs_agent.OCSAgent._management_handler`
+          for detail.
 
         """
         data = self.call(self.agent_addr, 'get_api')

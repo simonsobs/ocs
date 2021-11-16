@@ -104,11 +104,11 @@ class OCSClient:
         self.instance_id = instance_id
         self._api = self._client.get_api()
 
-        for name, session, encoded in self._api['tasks']:
+        for name, _, encoded in self._api['tasks']:
             setattr(self, _opname_to_attr(name),
                     _get_op('task', name, encoded, self._client))
 
-        for name, session, encoded in self._api['processes']:
+        for name, _, encoded in self._api['processes']:
             setattr(self, _opname_to_attr(name),
                     _get_op('process', name, encoded, self._client))
 

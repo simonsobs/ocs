@@ -1,7 +1,5 @@
 """This module supports the command-line script "ocsbow".
 
-ocsbow is used to launch and communicate with the HostMaster agent.
-
 """
 
 import ocs
@@ -15,9 +13,18 @@ import sys
 import time
 import urllib
 
-DESCRIPTION="""This is the high level control script for ocs.  Its principal uses
-are to inspect the local host's site configuration file, and to start
-and communicate with the HostMaster Agent for the local host."""
+DESCRIPTION="""ocsbow is used to talk to HostMaster agents across an OCS
+installation.  In a distributed OCS, you can request that Agents
+across the observatory be started or stopped.
+
+A secondary use of ocsbow is for starting up crossbar and a HostMaster
+agent on the present host ("here" mode).
+"""
+EPILOG="""
+More info for each command is available by adding --help, e.g. "ocsbow up --help".
+
+For more details, see https://ocs.readthedocs.io/en/develop/user/cli_tools.html#ocsbow.
+"""
 
 # agent_class of the HostMaster.
 HOSTMASTER_CLASS = 'HostMaster'
@@ -26,12 +33,23 @@ class OcsbowError(Exception):
     pass
 
 def get_parser():
-    parser = argparse.ArgumentParser(description=DESCRIPTION)
-    cmdsubp = parser.add_subparsers(dest='command')
+    parser = argparse.ArgumentParser(description=DESCRIPTION,
+                                     epilog=EPILOG)
+    cmdsubp = parser.add_subparsers(
+        dest='command', description="""
+        For more information and options pertinent to a subcommand,
+        add --help (e.g., "ocsbow up --help").""")
 
-    # basic catch-alls
-    p = cmdsubp.add_parser('status', help=
-                           'Show status of the HostMaster.')
+    # status
+    p = cmdsubp.add_parser(
+        'status', help='Display OCS status.',
+        description="""
+
+        Status information is obtained by querying all HostMasters
+        described in the local version of the site config file.  The
+        output is tabulated by host, and lists each agent reported as
+        being managed by the HostMaster (which may include agents not
+        listed in the local copy of the site config).""")
     p.add_argument('--host', '-H', default=None, action='append',
                    help='Limit hosts that are displayed.')
 
@@ -39,7 +57,7 @@ def get_parser():
     target_parser = argparse.ArgumentParser(add_help=False)
     target_parser.add_argument(
         '--all', '-a', action='store_true', help=
-        "Yes, really, everything.")
+        "Apply the command to all HostMasters in the OCS.")
     target_parser.add_argument(
         '--dry-run', action='store_true', help=
         "If set, HostMasters will be queried for info but no state "
@@ -47,9 +65,9 @@ def get_parser():
     target_parser.add_argument(
         'instance', nargs='*', help=
         "instance-id to target.  If this is the id of a HostMaster "
-        "agent, it will be requested to start all its managed "
-        "agents.")
+        "agent, it will be asked to start all of its managed agents.")
 
+    # up and down
     p = cmdsubp.add_parser('up', parents=[target_parser], help=
                            "Mark targets as 'up' (so HostMasters will "
                            "launch them).")
@@ -63,29 +81,30 @@ def get_parser():
     p.add_argument('cfg_request', nargs='?', choices=['summary', 'plugins', 'crossbar'],
                    default='summary')
 
-    p = cmdsubp.add_parser('here', help=
-                           'Control crossbar and hostmaster on this host.')
+    # here
+    p = cmdsubp.add_parser(
+        'here',
+        help="Special mode for launching local crossbar and HostMaster.",
+        description="""
+        Control crossbar and HostMaster, if they are configured for this
+        host.  'start' will cause *crossbar* to be launched, followed by
+        the HostMaster *agent*, for which the master *process* will be
+        started. Specifying a "target" will restrict operations to only
+        that system.  'stop' is similar but will try to stop those
+        things, in reverse order. 'status' shows a summary of configuration
+        and current status.  'generate_crossbar_config' may be used to
+        used to create a crossbar config file that works for small OCS
+        installations.""")
+
     p.add_argument('here_cmd', choices=['status', 'start', 'stop',
                                         'generate_crossbar_config'],
                    nargs='?', default='status', help=
-                   "Note that if neither --agent nor --crossbar is passed, it "
-                   "is as if both have been passed.")
+                   "Command to apply to the targets.")
     p.add_argument('target', nargs='?', default=None, choices=['crossbar', 'agent', 'process'],
                    help='Operate on the specific subsystem only.')
     p.add_argument('--foreground', action='store_true', help=
                    "For targeted 'start', run the command in the foreground and "
                    "copy stdout/stderr to the terminal.")
-
-    # agent-set
-    p = cmdsubp.add_parser('agent', help=
-                           'Manipulate child Agent instances controlled by the HostMaster.')
-
-    p.add_argument('agent_request', choices=['start','stop','restart','status'],
-                   help='Use these commands to start, stop, or request the '
-                   'status of individual Agents controlled by the HostMaster.')
-
-    p.add_argument('target', nargs='*', default=['all'], help=
-                   'Agent instance_id to which the command should be applied.')
 
     return parser
 
@@ -297,7 +316,7 @@ def print_config(args, site_config):
         if host is None:
             print('No configuration block was found for the specified host.')
         else:
-            print('Specified host is:  %s\n' % host)
+            print('Specified host is:  %s\n' % host.name)
         print()
         print('The site file describes %i hosts:' % len(site.hosts))
         for k,v in site.hosts.items():

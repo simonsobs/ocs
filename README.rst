@@ -48,7 +48,7 @@ This code targets Python 3.6+.
 There are also several Python package dependencies, which are listed in the
 `requirements.txt`_ file.
 
-.. _requirements.txt: requirements.txt
+.. _requirements.txt: https://github.com/simonsobs/ocs/blob/master/requirements.txt
 
 Additionally ``crossbar`` is a required dependency which is not automatically
 installed. It can be installed with pip or run via Docker.
@@ -118,7 +118,7 @@ then use docker run::
 
 For more details see `tests/README.rst <tests_>`_.
 
-.. _tests: tests/README.rst
+.. _tests: https://github.com/simonsobs/ocs/blob/master/tests/README.rst
 
 Example
 -------
@@ -127,18 +127,18 @@ A self contained example, demonstrating the operation of a small observatory
 with a single OCS Agent is contained in `example/miniobs/`_.  See the `readme`_
 in that directory for details.
 
-.. _example/miniobs/: example/miniobs/
-.. _readme: example/miniobs/README.rst
+.. _example/miniobs/: https://github.com/simonsobs/ocs/tree/master/example/miniobs
+.. _readme: https://github.com/simonsobs/ocs/blob/master/example/miniobs/README.rst
 
 Contributing
 ------------
 For guidelines on how to contribute to OCS see `CONTRIBUTING.rst`_.
 
-.. _CONTRIBUTING.rst: CONTRIBUTING.rst
+.. _CONTRIBUTING.rst: https://github.com/simonsobs/ocs/blob/master/CONTRIBUTING.rst
 
 License
 --------
 This project is licensed under the BSD 2-Clause License - see the
 `LICENSE.txt`_ file for details.
 
-.. _LICENSE.txt: LICENSE.txt
+.. _LICENSE.txt: https://github.com/simonsobs/ocs/blob/master/LICENSE.txt

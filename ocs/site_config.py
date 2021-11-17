@@ -135,10 +135,6 @@ class CrossbarConfig:
         self = cls()
         self.parent = parent
         self.binary = data.get('bin', shutil.which('crossbar'))
-        if self.binary is None:
-            raise RuntimeError("Unable to locate crossbar binary")
-        if not os.path.exists(self.binary):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.binary)
         self.cbdir = data.get('config-dir')
         if self.cbdir is None:
             self.cbdir_args = []
@@ -147,6 +143,12 @@ class CrossbarConfig:
         return self
 
     def get_cmd(self, cmd):
+        if self.binary is None:
+            raise RuntimeError("Crossbar binary could not be found in PATH; "
+                               "specify the binary in site_config?")
+        if not os.path.exists(self.binary):
+            raise RuntimeError("The crossbar binary specified in site_config "
+                               "does not seem to exist: %s" % self.binary)
         return [self.binary, cmd] + self.cbdir_args
 
     def summary(self):
@@ -228,16 +230,17 @@ class InstanceConfig:
 
         ``arguments`` (list, optional):
             A list of arguments that should be passed back to the
-            agent.  Each element of the list should be a pair of
-            strings, like ``['--option-name', 'value']``.  This is not
-            as general as one might like, but is required in the
-            current scheme.
+            agent.  Historically the arguments have been grouped into
+            into key value pairs, e.g. [['--key1', 'value'],
+            ['--key2', 'value']] but these days whatever you passed in
+            gets flattened to a single list (i.e. that is equivalent
+            to ['--key1', 'value', '--key2', 'value'].
 
         """
         self = cls()
         self.parent = parent
         self.data = data
-        self.arguments = self.data['arguments']
+        self.arguments = self.data.get('arguments', [])
         return self
 
 
@@ -490,7 +493,8 @@ def get_config(args, agent_class=None):
                     dev, parent=host_config)
     if instance_config is None and not no_dev_match:
         raise RuntimeError("Could not find matching device description.")
-    return (site_config, host_config, instance_config)
+    return collections.namedtuple('SiteConfig', ['site', 'host', 'instance'])\
+        (site_config, host_config, instance_config)
 
 
 def add_site_attributes(args, site, host=None):

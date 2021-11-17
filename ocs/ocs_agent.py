@@ -18,6 +18,7 @@ from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
 
 import time, datetime
+import socket
 import os
 from deprecation import deprecated
 from ocs import client_t
@@ -167,8 +168,8 @@ class OCSAgent(ApplicationSession):
         # Register our processes...
         # Register the device interface functions.
         try:
-            yield self.register(self.my_device_handler, self.agent_address + '.ops')
-            yield self.register(self.my_management_handler, self.agent_address)
+            yield self.register(self._ops_handler, self.agent_address + '.ops')
+            yield self.register(self._management_handler, self.agent_address)
         except ApplicationError:
             self.log.error('Failed to register basic handlers @ %s; '
                            'agent probably running already.' % self.agent_address)
@@ -267,7 +268,7 @@ class OCSAgent(ApplicationSession):
             'processes': list(self.processes.keys())
         }
 
-    def my_device_handler(self, action, op_name, params=None, timeout=None):
+    def _ops_handler(self, action, op_name, params=None, timeout=None):
         if action == 'start':
             return self.start(op_name, params=params)
         if action == 'stop':
@@ -288,30 +289,69 @@ class OCSAgent(ApplicationSession):
           parent: either self.tasks or self.processes.
 
         Returns:
-          A list of session data blocks.  Each session block contains
-          at least entries for 'op_name' and 'status'.  In the case
-          that the operation has ever run, it will contain all the
-          stuff from OpSession.encode; otherwise 'no_history' is
-          returned for the status.
+
+          A list of Operation description tuples, one per registered
+          Task or Process.  Each tuple consists of elements `(name,
+          session, op_info)`:
+
+          - `name`: The name of the operation.
+          - `session`: dict with OpSession.encode(() info for the
+            active or most recent session.  If no such session exists
+            the result will have member 'status' set to 'no_history'.
+          - `op_info`: information registered about the operation,
+            such as `op_type`, `docstring` and `blocking`.
 
         """
         result = []
-        for k, v in sorted(parent.items()):
-            session = self.sessions.get(k)
+        for name, op_info in sorted(parent.items()):
+            session = self.sessions.get(name)
             if session is None:
-                session = {'op_name': k, 'status': 'no_history'}
+                session = {'op_name': name, 'status': 'no_history'}
             else:
                 session = session.encoded()
-            result.append((k, session, v.encoded()))
+            result.append((name, session, op_info.encoded()))
         return result
 
-    def my_management_handler(self, q, **kwargs):
+    def _management_handler(self, q, **kwargs):
+        """Get a description of this Agent's API.  This is for adaptive
+        clients (such as MatchedClient) to construct their interfaces.
+
+        Params
+        ------
+        q : string
+          One of 'get_api', 'get_tasks', 'get_processes', 'get_feeds',
+          'get_agent_class'.
+
+        Returns
+        -------
+        api_description : dict
+          If the argument is 'get_api', then a dict with the following
+          entries is returned:
+
+          - 'agent_class': The class name of this agent.
+          - 'instance_hostname': The host name where the Agent is
+            running, as returned by socket.gethostname().
+          - 'instance_pid': The PID of the Agent interpreter session,
+            as returned by os.getpid().
+          - 'feeds': The list of encoded feed information, tuples
+            (feed_name, feed_info).
+          - 'processes': The list of Process api description info, as
+            returned by :func:`_gather_sessions`.
+          - 'tasks': The list of Task api description info, as
+            returned by :func:`_gather_sessions`.
+
+          Passing get_X will, for some values of X, return only that
+          subset of the full API; treat that as deprecated.
+
+        """
         if q == 'get_api':
             return {
-                'tasks': self._gather_sessions(self.tasks),
-                'processes': self._gather_sessions(self.processes),
+                'agent_class': self.class_name,
+                'instance_hostname': socket.gethostname(),
+                'instance_pid': os.getpid(),
                 'feeds': [(k, v.encoded()) for k, v in self.feeds.items()],
-                'agent_class': self.class_name
+                'processes': self._gather_sessions(self.processes),
+                'tasks': self._gather_sessions(self.tasks),
             }
         if q == 'get_tasks':
             return self._gather_sessions(self.tasks)
@@ -442,15 +482,34 @@ class OCSAgent(ApplicationSession):
         self.feeds[feed_name] = ocs_feed.Feed(self, feed_name, **kwargs)
         return self.feeds[feed_name]
 
-    def publish_to_feed(self, feed_name, message, from_reactor=False):
-        if feed_name not in self.feeds.keys():
+    def publish_to_feed(self, feed_name, message, from_reactor=None):
+        """Publish data to named feed.
+
+        Args:
+          feed_name (str): should match the name of a registered feed.
+          message (serializable): data to publish.  Acceptable format
+            depends on feed configuration; see Feed.publish_message.
+          from_reactor (bool or None): This is deprecated; the code
+            will check whether you're in a thread or not.
+
+        Notes:
+          If an unknown feed_name is passed in, an error is printed to
+          the log and that's all.
+
+          If you are running a "blocking" operation, in a thread, then
+          it is best if the message is not a persistent data structure
+          from your thread (especially something you might modify soon
+          after this call).  The code will take a copy of your
+          structure and pass that to the reactor thread, but the copy
+          may not be deep enough!
+
+        """
+        if feed_name not in self.feeds:
             self.log.error("Feed {} is not registered.".format(feed_name))
             return
-
-        if from_reactor:
-            self.feeds[feed_name].publish_message(message)
-        else:
-            reactor.callFromThread(self.feeds[feed_name].publish_message, message)
+        # We expect that publish_message will check threading context
+        # and do the right thing (as of this writing, it does).
+        self.feeds[feed_name].publish_message(message)
 
     def subscribe(self, handler, topic, options=None, force_subscribe=False):
         """
@@ -753,9 +812,11 @@ class AgentTask:
         self.docstring = launcher.__doc__
 
     def encoded(self):
+        """Dict of static info for API self-description."""
         return {
             'blocking': self.blocking,
             'docstring': self.docstring,
+            'op_type': 'task',
         }
 
 class AgentProcess:
@@ -766,9 +827,11 @@ class AgentProcess:
         self.docstring = launcher.__doc__
 
     def encoded(self):
+        """Dict of static info for API self-description."""
         return {
             'blocking': self.blocking,
             'docstring': self.docstring,
+            'op_type': 'process',
         }
 
 

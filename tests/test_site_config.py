@@ -52,9 +52,14 @@ class TestGetControlClient:
             config = CrossbarConfig.from_dict({})
             assert config.binary == "someplace/bin/crossbar"
 
+        # CrossbarConfig should only raise errors if someone tries to
+        # use the invalid config.
         crossbar_not_found = MagicMock(return_value=None)
-        with patch("shutil.which", crossbar_not_found), pytest.raises(RuntimeError):
+        with patch("shutil.which", crossbar_not_found):
             config = CrossbarConfig.from_dict({})
+        with pytest.raises(RuntimeError):
+            config.get_cmd('start')
 
-        with pytest.raises(FileNotFoundError):
-            config = CrossbarConfig.from_dict({"bin": "not/a/valid/path/to/crossbar"})
+        config = CrossbarConfig.from_dict({"bin": "not/a/valid/path/to/crossbar"})
+        with pytest.raises(RuntimeError):
+            config.get_cmd('start')

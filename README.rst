@@ -45,31 +45,35 @@ Dependencies
 
 This code targets Python 3.6+.
 
-There are also several Python package dependencies, which are listed in the
-`requirements.txt`_ file.
+* `so3g`_ - Required for using the HK Aggregator Agent.
+* `crossbar`_ (optional) - The supported WAMP router. Controllable via
+  `ocsbow`. Can be installed with pip
+  or run via Docker.
 
-.. _requirements.txt: https://github.com/simonsobs/ocs/blob/master/requirements.txt
-
-Additionally ``crossbar`` is a required dependency which is not automatically
-installed. It can be installed with pip or run via Docker.
+.. _so3g: https://github.com/simonsobs/so3g
+.. _crossbar: https://pypi.org/project/crossbar/
 
 Installation
 ------------
-Clone this repository and install using pip::
+
+Install and update with pip::
+
+    $ pip3 install -U ocs
+
+Installing from Source
+``````````````````````
+
+If you are considering contributing to OCS, or would like to use the
+development branch, you will want to install from source. To do so, clone this
+repository and install using pip::
 
   $ git clone https://github.com/simonsobs/ocs.git
   $ cd ocs/
   $ pip3 install -r requirements.txt
-  $ python3 setup.py install
+  $ pip3 install .
 
 **Note:** If you want to install locally, not globally, throw the `--user` flag
-on both the pip3 and setup.py commands.
-
-**Warning:** The master branch is not guaranteed to be stable, you might want
-to checkout a particular version tag before installation depending on which
-other software you are working with. See the latest `tags`_.
-
-.. _tags: https://github.com/simonsobs/ocs/tags
+on the pip3 commands.
 
 Docker Images
 -------------

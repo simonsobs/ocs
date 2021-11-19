@@ -31,7 +31,7 @@ jobs:
 
     - name: install wheel
       run: |
-        python3 -m pip install dist/ocs-`git describe --tags --always HEAD`-*.whl
+        python3 -m pip install dist/ocs*.whl
 
     - name: install testing requirements
       run: |

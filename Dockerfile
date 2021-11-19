@@ -25,6 +25,7 @@ RUN pip3 install dumb-init
 # Copy in and install requirements
 # This will leverage the cache for rebuilds when modifying OCS, avoiding
 # downloading all the requirements again
+COPY requirements/ /app/ocs/requirements
 COPY requirements.txt /app/ocs/requirements.txt
 WORKDIR /app/ocs/
 RUN pip3 install -r requirements.txt

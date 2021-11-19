@@ -1,15 +1,13 @@
 autobahn
 twisted
 deprecation
-msgpack
-influxdb
 PyYAML
+
+# InfluxDB Publisher
+influxdb
 
 # FakeDataAgent
 numpy
-
-# Lakeshore240
-pyserial
 
 # Documentation generation
 # see docs/requirements.txt
@@ -22,9 +20,4 @@ colorama
 tqdm
 
 # testing
-pytest
-pytest-cov
-docker
-pytest-docker-compose
-pytest-dependency
-pytest-twisted
+-r requirements/testing.txt

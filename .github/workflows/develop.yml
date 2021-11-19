@@ -5,7 +5,8 @@ on:
     branches: [ develop ]
 
 jobs:
-  build:
+  test:
+    name: pytest with coverage
     runs-on: ubuntu-latest
 
     steps:
@@ -62,6 +63,18 @@ jobs:
         coverage combine
         coverage report
         coveralls --service=github
+
+  build:
+    name: build and deploy dev images
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: clone ocs
+      uses: actions/checkout@v2
+      # Fetch all history for all tags and branches
+      with:
+        fetch-depth: 0
 
     # Dockerize
     - name: Build all docker images

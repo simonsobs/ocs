@@ -8,6 +8,7 @@ import yaml
 import argparse
 import collections
 import deprecation
+import errno
 
     
 class SiteConfig:
@@ -142,6 +143,12 @@ class CrossbarConfig:
         return self
 
     def get_cmd(self, cmd):
+        if self.binary is None:
+            raise RuntimeError("Crossbar binary could not be found in PATH; "
+                               "specify the binary in site_config?")
+        if not os.path.exists(self.binary):
+            raise RuntimeError("The crossbar binary specified in site_config "
+                               "does not seem to exist: %s" % self.binary)
         return [self.binary, cmd] + self.cbdir_args
 
     def summary(self):
@@ -223,16 +230,17 @@ class InstanceConfig:
 
         ``arguments`` (list, optional):
             A list of arguments that should be passed back to the
-            agent.  Each element of the list should be a pair of
-            strings, like ``['--option-name', 'value']``.  This is not
-            as general as one might like, but is required in the
-            current scheme.
+            agent.  Historically the arguments have been grouped into
+            into key value pairs, e.g. [['--key1', 'value'],
+            ['--key2', 'value']] but these days whatever you passed in
+            gets flattened to a single list (i.e. that is equivalent
+            to ['--key1', 'value', '--key2', 'value'].
 
         """
         self = cls()
         self.parent = parent
         self.data = data
-        self.arguments = self.data['arguments']
+        self.arguments = self.data.get('arguments', [])
         return self
 
 
@@ -350,7 +358,6 @@ def add_arguments(parser=None):
 
     """
     if parser is None:
-        import argparse
         parser = argparse.ArgumentParser()
     group = parser.add_argument_group('Site Config Options')
     group.add_argument('--site', help=
@@ -486,7 +493,8 @@ def get_config(args, agent_class=None):
                     dev, parent=host_config)
     if instance_config is None and not no_dev_match:
         raise RuntimeError("Could not find matching device description.")
-    return (site_config, host_config, instance_config)
+    return collections.namedtuple('SiteConfig', ['site', 'host', 'instance'])\
+        (site_config, host_config, instance_config)
 
 
 def add_site_attributes(args, site, host=None):
@@ -588,9 +596,8 @@ def get_control_client(instance_id, site=None, args=None, start=True,
         if not hasattr(args, 'instance_id'):
             # If it doesn't have .instance_id, it's not a parsed
             # Namespace so let's assume it's a list of strings.
-            parser = ocs.site_config.add_arguments()
-            args = parser.parse_args(args)
-            ocs.site_config.reparse_args(args, '*control*')
+            args = ocs.site_config.parse_args(agent_class='*control*',
+                                              args=args)
         site, _, _ = ocs.site_config.get_config(args, '*control*')
     master_addr = '%s.%s' % (site.hub.data['address_root'], instance_id)
     if client_type is None:
@@ -651,7 +658,7 @@ def scan_for_agents(do_registration=True):
     return items
 
 
-def parse_args(agent_class=None, parser=None):
+def parse_args(agent_class=None, parser=None, args=None):
     """
     Function to parse site-config and agent arguments. This function takes
     site, host, and instance arguments into account by making sure the instance
@@ -669,6 +676,8 @@ def parse_args(agent_class=None, parser=None):
         parser (argparse.ArgumentParser, optional):
             Argument parser containing agent-specific arguments.
             If None, an empty parser will be created.
+        args (list of str):
+            Arguments to parse; defaults to sys.argv[1:].
 
     Returns:
         An argparse.Namespace, as you would get from
@@ -685,12 +694,17 @@ def parse_args(agent_class=None, parser=None):
         parser = argparse.ArgumentParser()
     add_arguments(parser)
 
-    # Intercepts help commands to print full usage statement
-    if any(h in sys.argv for h in ['-h', '--help']):
-        parser.print_help()
-        parser.exit()
+    if args is None:
+        args = sys.argv[1:]
 
-    pre_args, _ = pre_parser.parse_known_args(args=sys.argv[1:])
+    # Intercepts help commands to print full usage statement
+    if any(h in args for h in ['-h', '--help']):
+        # Instead of print_help(), trust parse_args() to run resolve
+        # to any sub-parsers and print context-appropriate help.
+        parser.parse_args(args=args)
+        parser.exit()  # shouldn't get here.
+
+    pre_args, _ = pre_parser.parse_known_args(args=args)
 
     site, host, instance = get_config(pre_args, agent_class=agent_class)
 
@@ -703,7 +717,7 @@ def parse_args(agent_class=None, parser=None):
                                        instance.data['instance-id']])
 
     # Container from command line args
-    cl_container = ArgContainer(sys.argv[1:])
+    cl_container = ArgContainer(args)
 
     # Flattens instance arguments to single non-nested list
     def flatten(container):
@@ -715,9 +729,10 @@ def parse_args(agent_class=None, parser=None):
                 out.append(i)
         return out
 
-    arg_list = map(str, flatten(instance.arguments))
+    arg_container = ArgContainer([])
 
-    arg_container = ArgContainer(arg_list)
+    if instance is not None:
+        arg_container.update(ArgContainer(map(str, flatten(instance.arguments))))
 
     # Replace site values with command line values if they exist
     arg_container.update(cl_container)

@@ -1,11 +1,35 @@
+import os
 import time
 import pytest
 
-import so3g
-from spt3g import core
+from unittest.mock import patch
 
-from ocs.agent.aggregator import Provider, g3_cast
+try:
+    import so3g
+    from spt3g import core
 
+    from ocs.agent.aggregator import Provider, g3_cast, make_filename
+except ModuleNotFoundError as e:
+    print(f"Unable to import either so3g or spt3g: {e}")
+
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(name="so3g")
+def test_so3g_spt3g_import():
+    """Test that we can import spt3g/so3g. Used to skip tests dependent on
+    these imports.
+
+    """
+    import so3g
+    from spt3g import core
+
+    # Just to avoid flake8 complaining we aren't using these imports
+    print(so3g.__file__)
+    print(core.__file__)
+
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_passing_float_in_provider_to_frame():
     """Float is the expected type we should be passing.
 
@@ -28,6 +52,9 @@ def test_passing_float_in_provider_to_frame():
 
     provider.to_frame(hksess=sess)
 
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_passing_float_like_str_in_provider_to_frame():
     """Here we test passing a string amongst ints. This shouldn't make it to
     the aggregator, and instead the Aggregator logs should display an error
@@ -52,6 +79,9 @@ def test_passing_float_like_str_in_provider_to_frame():
 
     provider.to_frame(hksess=sess)
 
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_passing_non_float_like_str_in_provider_to_frame():
     """Similar to passing a float like str, here we test passing a non-float
     like str. We can't put this into an so3g.IrregBlockDouble(), so this'll fail.
@@ -77,6 +107,9 @@ def test_passing_non_float_like_str_in_provider_to_frame():
 
     provider.to_frame(hksess=sess)
 
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_sparsely_sampled_block():
     """If a block is sparsely sampled and published, the aggregator was
     including its block_name anyway, even when missing. This test publishes two
@@ -147,8 +180,11 @@ def test_sparsely_sampled_block():
     assert 'test' in c['block_names']
     assert 'test2' in c['block_names']
 
+
 # This is perhaps another problem, I'm passing irregular length data sets and
 # it's not raising any sort of alarm. How does this get handled?
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_data_type_in_provider_save_to_block():
     provider = Provider('test_provider', 'test_sessid', 3, 1)
     provider.frame_start_time = time.time()
@@ -160,7 +196,10 @@ def test_data_type_in_provider_save_to_block():
            }
     provider.save_to_block(data)
 
+
 # 'data' field names
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_passing_invalid_data_field_name1():
     """Invalid data field names should get caught by the Feed, however, we
     check for them in the Aggregator as well.
@@ -183,6 +222,9 @@ def test_passing_invalid_data_field_name1():
     assert 'invalidkey' in provider.blocks['test'].data.keys()
     assert 'invalid.key' not in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_passing_invalid_data_field_name2():
     """Invalid data field names should get caught by the Feed, however, we
     check for them in the Aggregator as well.
@@ -205,6 +247,9 @@ def test_passing_invalid_data_field_name2():
     assert '__invalidkey' in provider.blocks['test'].data.keys()
     assert '__123invalid.key' not in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_passing_too_long_data_field_name():
     """Invalid data field names should get caught by the Feed, however, we
     check for them in the Aggregator as well.
@@ -228,6 +273,9 @@ def test_passing_too_long_data_field_name():
 
     assert 'a'*255 in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_long_duplicate_name():
     """Invalid data field names should get caught by the Feed, however, we
     check for them in the Aggregator as well.
@@ -252,6 +300,9 @@ def test_long_duplicate_name():
     assert 'a'*255 in provider.blocks['test'].data.keys()
     assert 'a'*252 + '_01' in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_reducing_to_duplicate_field_names():
     """Invalid data field names get modified by the Aggregator to comply with
     the set rules. This can result in duplicate field names under certain
@@ -279,6 +330,9 @@ def test_reducing_to_duplicate_field_names():
     assert 'aninvalidkey' in provider.blocks['test'].data.keys()
     assert 'aninvalidkey_01' in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_space_replacement_in_field_names():
     """Invalid data field names should get caught by the Feed, however, we
     check for them in the Aggregator as well.
@@ -300,6 +354,9 @@ def test_space_replacement_in_field_names():
     assert '_an_invalid_key' in provider.blocks['test'].data.keys()
     assert 'key2' in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_empty_field_name():
     """Invalid data field names should get caught by the Feed, however, we
     check for them in the Aggregator as well.
@@ -320,6 +377,9 @@ def test_empty_field_name():
 
     assert '' not in provider.blocks['test'].data.keys()
 
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_enforced_field_which_becomes_empty():
     """Invalid data field names should get caught by the Feed, however, we
     check for them in the Aggregator as well.
@@ -343,6 +403,8 @@ def test_enforced_field_which_becomes_empty():
     assert 'invalid_field_123' in provider.blocks['test'].data.keys()
 
 
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
 def test_g3_cast():
     correct_tests = [
         ([1, 2, 3, 4], core.G3VectorInt),
@@ -363,3 +425,44 @@ def test_g3_cast():
     for x in incorrect_tests:
         with pytest.raises(TypeError) as e_info:
             g3_cast(x)
+
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
+def test_make_filename_directory_creation(tmpdir):
+    """make_filename() should be able to create directories to store the .g3
+    files in.
+
+    """
+    test_dir = os.path.join(tmpdir, 'data')
+    fname = make_filename(test_dir)
+    # Test we could make the subdir
+    os.path.isdir(os.path.basename(fname))
+
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
+def test_make_filename_directory_creation_no_subdirs(tmpdir):
+    """make_filename() should raise a FileNotFoundError if make_subdirs is
+    False.
+
+    """
+    test_dir = os.path.join(tmpdir, 'data')
+    with pytest.raises(FileNotFoundError):
+        make_filename(test_dir, make_subdirs=False)
+
+
+@pytest.mark.spt3g
+@pytest.mark.dependency(depends=["so3g"])
+@patch('os.makedirs', side_effect=PermissionError('mocked permission error'))
+def test_make_filename_directory_creation_permissions(tmpdir):
+    """make_filename() should raise a PermissionError if it runs into one when
+    making the directories.
+
+    Here we mock raising the PermissionError on the makedirs call.
+
+    """
+    test_dir = os.path.join(tmpdir, 'data')
+    with pytest.raises(PermissionError) as e_info:
+        make_filename(test_dir)
+    assert str(e_info.value) == 'mocked permission error'

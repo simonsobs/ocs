@@ -3,8 +3,11 @@ import queue
 import argparse
 import txaio
 
+from twisted.internet import reactor
+
 from os import environ
 from ocs import ocs_agent, site_config
+from ocs.base import OpCode
 from ocs.agent.aggregator import Aggregator
 
 # For logging
@@ -51,16 +54,16 @@ class AggregatorAgent:
         # SUBSCRIBES TO ALL FEEDS!!!!
         # If this ends up being too much data, we can add a tag '.record'
         # at the end of the address of recorded feeds, and filter by that.
-        self.agent.subscribe_on_start(self.enqueue_incoming_data,
+        self.agent.subscribe_on_start(self._enqueue_incoming_data,
                                       'observatory..feeds.',
                                       options={'match': 'wildcard'})
 
         record_on_start = (args.initial_state == 'record')
         self.agent.register_process('record',
-                                    self.start_aggregate, self.stop_aggregate,
+                                    self.record, self._stop_record,
                                     startup=record_on_start)
 
-    def enqueue_incoming_data(self, _data):
+    def _enqueue_incoming_data(self, _data):
         """
         Data handler for all feeds. This checks to see if the feeds should
         be recorded, and if they are it puts them into the incoming_data queue
@@ -74,52 +77,74 @@ class AggregatorAgent:
         self.incoming_data.put((data, feed))
         self.log.debug("Enqueued {d} from Feed {f}", d=data, f=feed)
 
-    def start_aggregate(self, session: ocs_agent.OpSession, params=None):
-        """
-        Process for starting data aggregation. This process will create an
-        Aggregator instance, which will collect and write provider data to disk
-        as long as this process is running.
+    @ocs_agent.param('test_mode', default=False, type=bool)
+    def record(self, session: ocs_agent.OpSession, params):
+        """record(test_mode=False)
 
-        The most recent file and active providers will be returned in
-        session.data::
+        **Process** - This process will create an Aggregator instance, which
+        will collect and write provider data to disk as long as this process is
+        running.
 
-            {"current_file": "/data/16020/1602089117.g3",
-             "providers": {
-                "observatory.fake-data1.feeds.false_temperatures": {
-                    "last_refresh": 1602089118.8225083,
-                    "sessid": "1602088928.8294137",
-                    "stale": false,
-                    "last_block_received": "temps"},
-                "observatory.LSSIM.feeds.temperatures": {
-                     "last_refresh": 1602089118.8223345,
-                     "sessid": "1602088932.335811",
-                     "stale": false,
-                     "last_block_received": "temps"}}}
+        Parameters:
+            test_mode (bool, optional): Run the record Process loop only once.
+                This is meant only for testing. Default is False.
+
+        Notes:
+            The most recent file and active providers will be returned in the
+            session data::
+
+                >>> response.session['data']
+                {"current_file": "/data/16020/1602089117.g3",
+                 "providers": {
+                    "observatory.fake-data1.feeds.false_temperatures": {
+                        "last_refresh": 1602089118.8225083,
+                        "sessid": "1602088928.8294137",
+                        "stale": false,
+                        "last_block_received": "temps"},
+                    "observatory.LSSIM.feeds.temperatures": {
+                         "last_refresh": 1602089118.8223345,
+                         "sessid": "1602088932.335811",
+                         "stale": false,
+                         "last_block_received": "temps"}}}
 
         """
         session.set_status('starting')
         self.aggregate = True
 
-        aggregator = Aggregator(
-            self.incoming_data,
-            self.time_per_file,
-            self.data_dir,
-            session=session
-        )
+        try:
+            aggregator = Aggregator(
+                self.incoming_data,
+                self.time_per_file,
+                self.data_dir,
+                session=session
+            )
+        except PermissionError:
+            self.log.error("Unable to intialize Aggregator due to permission "
+                           "error, stopping twisted reactor")
+            reactor.callFromThread(reactor.stop)
+            return False, "Aggregation not started"
 
         session.set_status('running')
         while self.aggregate:
             time.sleep(self.loop_time)
             aggregator.run()
 
+            if params['test_mode']:
+                break
+
         aggregator.close()
 
         return True, "Aggregation has ended"
 
-    def stop_aggregate(self, session, params=None):
-        session.set_status('stopping')
-        self.aggregate = False
-        return True, "Stopping aggregation"
+    def _stop_record(self, session, params):
+        if OpCode(session.op_code) in [OpCode.STARTING, OpCode.RUNNING]:
+            session.set_status('stopping')
+            self.aggregate = False
+            return True, "Stopping aggregation"
+        elif OpCode(session.op_code) == OpCode.STOPPING:
+            return True, "record process status is already 'stopping'"
+        else:
+            return False, "record process not currently running"
 
 
 def make_parser(parser=None):

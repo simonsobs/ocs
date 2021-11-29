@@ -2,6 +2,9 @@
 import json
 import requests
 
+class ControlClientError(RuntimeError):
+    pass
+
 class ControlClient():
     def __init__(self, agent_addr, **kwargs):
         self.agent_addr = agent_addr
@@ -25,18 +28,37 @@ class ControlClient():
         try:
             r = requests.post(self.call_url, data=params)
         except requests.exceptions.ConnectionError as e:
-            raise RuntimeError([0,0,0,0,'client_http.error.connection_error',
-                                ['Failed to connect to %s' % self.call_url], {}])
+            raise ControlClientError([0,0,0,0,'client_http.error.connection_error',
+                                      ['Failed to connect to %s' % self.call_url], {}])
         if r.status_code != 200:
-            raise RuntimeError([0,0,0,0,'client_http.error.request_error',
-                                ['Server replied with code %i' % r.status_code], {}])
+            raise ControlClientError([0,0,0,0,'client_http.error.request_error',
+                                      ['Server replied with code %i' % r.status_code], {}])
         decoded = r.json()
         if 'error' in decoded:
             # Return errors in the same way wampy does, roughly.
-            raise RuntimeError([0,0,0,0,decoded['error'],decoded['args'],decoded['kwargs']])
+            raise ControlClientError([0,0,0,0,decoded['error'],decoded['args'],decoded['kwargs']])
         return decoded['args'][0]
 
-    # These are API we want to add.
+    def get_api(self, simple=False):
+        """Query the API and other info from the Agent; this includes lists of
+        Processes, Tasks, and Feeds, docstrings, operation session
+        structures, and info about the Agent instance (class, PID,
+        host).
+
+        Args:
+          simple (bool): If True, then return just the lists of the op
+            and feed names without accompanying detail.
+
+        Returns:
+          A dict, see :func:`ocs.ocs_agent.OCSAgent._management_handler`
+          for detail.
+
+        """
+        data = self.call(self.agent_addr, 'get_api')
+        if not simple:
+            return data
+        return {k: [_v[0] for _v in v]
+                for k, v in data.items() if isinstance(v, dict)}
 
     def get_tasks(self):
         """

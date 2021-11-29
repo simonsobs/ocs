@@ -1,8 +1,8 @@
 # Site configuration for a fake observatory.
 hub:
 
-  wamp_server: ws://127.0.0.1:8001/ws
-  wamp_http: http://127.0.0.1:8001/call
+  wamp_server: ws://127.0.0.1:18001/ws
+  wamp_http: http://127.0.0.1:18001/call
   wamp_realm: test_realm
   address_root: observatory
   registry_address: observatory.registry
@@ -10,30 +10,39 @@ hub:
 hosts:
 
   localhost: {
-  'crossbar': {'config-dir': './dot_crossbar/'},
+    'log-dir': './log/',
+    'agent-paths': [
+      '../agents/',
+    ],
     'agent-instances': [
       {'agent-class': 'HostMaster',
        'instance-id': 'master-host-1',
        'arguments': []},
+      {'agent-class': 'FakeDataAgent',
+       'instance-id': 'fake-data-local',
+       'arguments': [['--mode', 'idle'],
+                     ['--num-channels', '16'],
+                     ['--sample-rate', '5'],
+                     ['--frame-length', '10']]},
+      {'agent-class': 'RegistryAgent',
+        'instance-id': 'registry',
+        'arguments': []},
+      {'agent-class': 'AggregatorAgent',
+       'instance-id': 'aggregator-local',
+       'arguments': [['--initial-state', 'idle'],
+                     ['--time-per-file', '30'],
+                     ['--data-dir', '/tmp/data/']]},
+      {'agent-class': 'InfluxDBAgent',
+       'instance-id': 'influxagent-local',
+       'arguments': [['--initial-state', 'idle'],
+                     ['--host', 'localhost'],
+                     ['--port', 18086],
+                     ['--database', 'ocs_feeds']]},
     ]
   }
 
   ocs-docker: {
-
-    # Quick start example Agents
-
     'agent-instances': [
-      {'agent-class': 'InfluxDBAgent',
-       'instance-id': 'influxagent',
-       'arguments': [['--initial-state', 'record'],
-                     ['--host', 'influxdb'],
-                     ['--port', 8086],
-                     ['--database', 'ocs_feeds']]},
-      {'agent-class': 'Lakeshore240Agent',
-       'instance-id': 'LSSIM',
-       'arguments': [['--serial-number', 'LSSIM'],
-                     ['--port', 'tcp://ls240-sim:1094'],
-                     ['--mode', 'acq']]},
       {'agent-class': 'FakeDataAgent',
        'instance-id': 'fake-data1',
        'arguments': [['--mode', 'acq'],

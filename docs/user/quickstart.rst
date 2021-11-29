@@ -188,6 +188,20 @@ all containers, even stopped ones with::
 
     $ sudo docker container ls -a
 
+Commanding
+----------
+The Agents can now be commanded using an OCS Client. To do so, we will enter
+the ocs-client container::
+
+    $ sudo docker exec -it self-contained-quickstart_ocs-client_1 /bin/bash
+    root@ocs-docker:/clients# python3
+    >>> from ocs.ocs_client import OCSClient
+    >>> client = OCSClient('LSSIM')
+    >>> client.acq.start()
+
+For more details on how to use OCSClient and how to write a control program see
+the Developer Guide section on :ref:`clients`.
+
 Viewing
 -------
 Now that all of the containers are running we have two ways to view what's

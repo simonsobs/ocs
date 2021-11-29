@@ -21,13 +21,16 @@ to:
 Direct user interaction with an HMA can be achieved through the 
 ``ocsbow`` command line script.
 
-Agent Configuration
--------------------
+Configuration File Examples
+---------------------------
 
 The Host Master Agent is an optional component.  In order to function
 properly, it requires that site_config be in use.  It should be listed
 in the SCF like other agents.  There should only be a single HMA per
 host definition block.
+
+OCS Site Config
+```````````````
 
 Here's an abbreviated SCF showing the correct configuration:
 
@@ -54,8 +57,12 @@ The ``agent-class`` should be ``HostMaster``.  The ``instance-id`` in
 this example is based on a (recommended) convention that HostMaster
 live at ``master-{host}``.
 
-API
----
+Agent API
+---------
 
 .. autoclass:: agents.host_master.host_master.HostMaster
-    :members: master_process, master_process_stop, update_task, die
+    :members:
+
+Supporting APIs
+---------------
+.. automethod:: agents.host_master.host_master.HostMaster._update_target_states

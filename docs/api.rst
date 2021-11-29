@@ -59,9 +59,20 @@ ocs.ocs_agent
 .. automodule:: ocs.ocs_agent
     :members:
     :undoc-members:
+    :private-members:
     :show-inheritance:
 
 .. _ocs_feed_api:
+
+ocs.ocs_client
+------------------
+
+.. automodule:: ocs.ocs_client
+    :members:
+    :exclude-members: _opname_to_attr, _humanized_time
+    :undoc-members:
+    :show-inheritance:
+    :private-members:
 
 ocs.ocs_feed
 ------------

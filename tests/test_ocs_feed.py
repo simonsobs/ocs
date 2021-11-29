@@ -64,6 +64,36 @@ class TestPublishMessage:
 
         test_feed.publish_message(test_message)
 
+    def test_bool_single_sample_input(self):
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamp': time.time(),
+            'data': {
+                'key1': True,
+            }
+        }
+
+        with pytest.raises(TypeError):
+            test_feed.publish_message(test_message)
+
+    def test_bool_multi_sample_input(self):
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamps': [time.time(), time.time()+1, time.time()+2],
+            'data': {
+                'key1': [True, False, True],
+            }
+        }
+
+        with pytest.raises(TypeError):
+            test_feed.publish_message(test_message)
+
     def test_str_multi_sample_input(self):
         """Passing multiple points, including invalid datatypes,
         should cause a TypeError upon publishing.

@@ -78,9 +78,7 @@ class MyHardwareDevice:
 
 
 if __name__ == '__main__':
-    parser = site_config.add_arguments()
-    args = parser.parse_args()
-    site_config.reparse_args(args, '*host*')
+    args = site_config.parse_args(agent_class='*host*')
 
     agent, runner = ocs_agent.init_site_agent(args)
 

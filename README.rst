@@ -2,6 +2,10 @@
 OCS - Observatory Control System
 ================================
 
+.. image:: https://img.shields.io/pypi/v/ocs
+   :target: https://pypi.org/project/ocs/
+   :alt: PyPI Package
+
 .. image:: https://img.shields.io/github/workflow/status/simonsobs/ocs/Build%20Develop%20Images
     :target: https://github.com/simonsobs/ocs/actions?query=workflow%3A%22Build+Develop+Images%22
     :alt: GitHub Workflow Status
@@ -9,6 +13,7 @@ OCS - Observatory Control System
 .. image:: https://readthedocs.org/projects/ocs/badge/?version=develop
     :target: https://ocs.readthedocs.io/en/develop/?badge=develop
     :alt: Documentation Status
+
 .. image:: https://coveralls.io/repos/github/simonsobs/ocs/badge.svg
     :target: https://coveralls.io/github/simonsobs/ocs
 
@@ -43,30 +48,37 @@ historical look back of the housekeeping data.
 Dependencies
 ------------
 
-This code targets Python 3.5+.
+This code targets Python 3.6+.
 
-There are also several Python package dependencies, which are listed in the
-`requirements.txt`_ file.
+* `so3g`_ - Required for using the HK Aggregator Agent.
+* `crossbar`_ (optional) - The supported WAMP router. Controllable via
+  `ocsbow`. Can be installed with pip
+  or run via Docker.
 
-.. _requirements.txt: requirements.txt
+.. _so3g: https://github.com/simonsobs/so3g
+.. _crossbar: https://pypi.org/project/crossbar/
 
 Installation
 ------------
-Clone this repository and install using pip::
+
+Install and update with pip::
+
+    $ pip3 install -U ocs
+
+Installing from Source
+``````````````````````
+
+If you are considering contributing to OCS, or would like to use the
+development branch, you will want to install from source. To do so, clone this
+repository and install using pip::
 
   $ git clone https://github.com/simonsobs/ocs.git
   $ cd ocs/
   $ pip3 install -r requirements.txt
-  $ python3 setup.py install
+  $ pip3 install .
 
 **Note:** If you want to install locally, not globally, throw the `--user` flag
-on both the pip3 and setup.py commands.
-
-**Warning:** The master branch is not guaranteed to be stable, you might want
-to checkout a particular version tag before installation depending on which
-other software you are working with. See the latest `tags`_.
-
-.. _tags: https://github.com/simonsobs/ocs/tags
+on the pip3 commands.
 
 Docker Images
 -------------
@@ -85,10 +97,12 @@ be considered unstable.
 
 Documentation
 -------------
-The OCS documentation can be built using sphinx once you have performed the
-installation::
+The OCS documentation can be built using Sphinx. There is a separate
+``requirements.txt`` file in the ``docs/`` directory to install Sphinx and any
+additional documentation dependencies::
 
   $ cd docs/
+  $ pip3 install -r requirements.txt
   $ make html
 
 You can then open ``docs/_build/html/index.html`` in your preferred web
@@ -109,11 +123,11 @@ missing some dependencies), first make sure you build the latest ocs image,
 then use docker run::
 
   $ docker build -t ocs .
-  $ docker run --rm ocs sh -c "python3 -m pytest -p no:wampy -m 'not integtest' ./tests/"
+  $ docker run --rm -w="/app/ocs/tests/" ocs sh -c "python3 -m pytest -m 'not integtest'"
 
 For more details see `tests/README.rst <tests_>`_.
 
-.. _tests: tests/README.rst
+.. _tests: https://github.com/simonsobs/ocs/blob/master/tests/README.rst
 
 Example
 -------
@@ -122,18 +136,18 @@ A self contained example, demonstrating the operation of a small observatory
 with a single OCS Agent is contained in `example/miniobs/`_.  See the `readme`_
 in that directory for details.
 
-.. _example/miniobs/: example/miniobs/
-.. _readme: example/miniobs/README.rst
+.. _example/miniobs/: https://github.com/simonsobs/ocs/tree/master/example/miniobs
+.. _readme: https://github.com/simonsobs/ocs/blob/master/example/miniobs/README.rst
 
 Contributing
 ------------
 For guidelines on how to contribute to OCS see `CONTRIBUTING.rst`_.
 
-.. _CONTRIBUTING.rst: CONTRIBUTING.rst
+.. _CONTRIBUTING.rst: https://github.com/simonsobs/ocs/blob/master/CONTRIBUTING.rst
 
 License
 --------
 This project is licensed under the BSD 2-Clause License - see the
 `LICENSE.txt`_ file for details.
 
-.. _LICENSE.txt: LICENSE.txt
+.. _LICENSE.txt: https://github.com/simonsobs/ocs/blob/master/LICENSE.txt

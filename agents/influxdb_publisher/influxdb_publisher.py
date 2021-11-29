@@ -6,6 +6,7 @@ import txaio
 from os import environ
 
 from ocs import ocs_agent, site_config
+from ocs.base import OpCode
 from ocs.agent.influxdb_publisher import Publisher
 
 # For logging
@@ -46,16 +47,16 @@ class InfluxDBAgent:
         self.incoming_data = queue.Queue()
         self.loop_time = 1
 
-        self.agent.subscribe_on_start(self.enqueue_incoming_data,
+        self.agent.subscribe_on_start(self._enqueue_incoming_data,
                                       'observatory..feeds.',
                                       options={'match': 'wildcard'})
 
         record_on_start = (args.initial_state == 'record')
         self.agent.register_process('record',
-                                    self.start_aggregate, self.stop_aggregate,
+                                    self.record, self._stop_record,
                                     startup=record_on_start)
 
-    def enqueue_incoming_data(self, _data):
+    def _enqueue_incoming_data(self, _data):
         """Data handler for all feeds. This checks to see if the feeds should
         be recorded, and if they are it puts them into the incoming_data queue
         to be processed by the Publisher during the next run iteration.
@@ -71,10 +72,17 @@ class InfluxDBAgent:
 
         self.incoming_data.put((data, feed))
 
-    def start_aggregate(self, session: ocs_agent.OpSession, params=None):
-        """Process for starting data aggregation. This process will create an
-        Publisher instance, which will collect and write provider data to disk
-        as long as this process is running.
+    @ocs_agent.param('test_mode', default=False, type=bool)
+    def record(self, session: ocs_agent.OpSession, params):
+        """record()
+
+        **Process** - This process will create an Publisher instance, which
+        will collect and write provider data to disk as long as this process is
+        running.
+
+        Parameters:
+            test_mode (bool, optional): Run the record Process loop only once.
+                This is meant only for testing. Default is False.
 
         """
         session.set_status('starting')
@@ -95,14 +103,22 @@ class InfluxDBAgent:
             self.log.debug(f"Approx. queue size: {self.incoming_data.qsize()}")
             publisher.run()
 
+            if params['test_mode']:
+                break
+
         publisher.close()
 
         return True, "Aggregation has ended"
 
-    def stop_aggregate(self, session, params=None):
-        session.set_status('stopping')
-        self.aggregate = False
-        return True, "Stopping aggregation"
+    def _stop_record(self, session, params):
+        if OpCode(session.op_code) in [OpCode.STARTING, OpCode.RUNNING]:
+            session.set_status('stopping')
+            self.aggregate = False
+            return True, "Stopping aggregation"
+        elif OpCode(session.op_code) == OpCode.STOPPING:
+            return True, "record process status is already 'stopping'"
+        else:
+            return False, "record process not currently running"
 
 
 def make_parser(parser=None):
@@ -140,13 +156,8 @@ if __name__ == '__main__':
     # Start logging
     txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
-    parser = site_config.add_arguments()
-
-    parser = make_parser(parser)
-
-    args = parser.parse_args()
-
-    site_config.reparse_args(args, 'InfluxDBAgent')
+    parser = make_parser()
+    args = site_config.parse_args(agent_class='InfluxDBAgent', parser=parser)
 
     agent, runner = ocs_agent.init_site_agent(args)
 

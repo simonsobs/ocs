@@ -1,7 +1,7 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-from ocs.site_config import get_control_client
+from ocs.site_config import get_control_client, CrossbarConfig
 
 
 class TestGetControlClient:
@@ -44,3 +44,22 @@ class TestGetControlClient:
 
         with pytest.raises(ValueError):
             get_control_client('test', site=mock_site, client_type=None)
+
+    def test_missing_crossbar(self):
+        crossbar_found = MagicMock(return_value="someplace/bin/crossbar")
+        with patch("shutil.which", crossbar_found), \
+                patch("os.path.exists", MagicMock(return_value=True)):
+            config = CrossbarConfig.from_dict({})
+            assert config.binary == "someplace/bin/crossbar"
+
+        # CrossbarConfig should only raise errors if someone tries to
+        # use the invalid config.
+        crossbar_not_found = MagicMock(return_value=None)
+        with patch("shutil.which", crossbar_not_found):
+            config = CrossbarConfig.from_dict({})
+        with pytest.raises(RuntimeError):
+            config.get_cmd('start')
+
+        config = CrossbarConfig.from_dict({"bin": "not/a/valid/path/to/crossbar"})
+        with pytest.raises(RuntimeError):
+            config.get_cmd('start')

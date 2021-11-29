@@ -20,17 +20,20 @@ Python Dependencies
 All python dependencies for OCS are listed in (and automatically installed via)
 the ``requirements.txt`` file. Some of the dependencies are:
 
-* `crossbar.io`_ - An implementation of a WAMP router.
 * `Autobahn`_ - Provides open-source implementations of WAMP.
 * `twisted`_ - Used with Autobahn for networking.
 
 Other Dependencies
 ``````````````````
 
+* `crossbar.io`_ - An implementation of a WAMP router.
 * Docker_ - Containerization software used for deploying several SO written
   packages.
 * `Docker Compose`_ - CLI tool for running multi-container Docker
   applications.
+
+Crossbar may be installed via pip if it will be used without Docker; if it
+will be used with Docker it does not need to be separately installed.
 
 Operating System
 ````````````````

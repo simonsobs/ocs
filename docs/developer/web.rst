@@ -109,6 +109,7 @@ Then restart the container.  Note that ``VacuumCleaner.js`` is a
 stand-in for your Agent Panel javscript filename, which you will be
 told the name of, later.
 
+.. _creating_web_panel:
 
 Creating a New Agent Panel
 --------------------------

@@ -5,42 +5,82 @@ on:
     branches: [ develop ]
 
 jobs:
-  build:
-    runs-on: ubuntu-18.04
+  test:
+    name: pytest with coverage
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-      # Fetch all history for all tags and branches
-      with:
-        fetch-depth: 0
     - name: Set up Python 3.8 
       uses: actions/setup-python@v2
       with:
         python-version: 3.8 
 
-    # Test (steps from pytest workflow)
-    - name: Build docker images
+    - name: clone ocs
+      uses: actions/checkout@v2
+      # Fetch all history for all tags and branches
+      with:
+        fetch-depth: 0
+
+    - name: Install ocs
       run: |
-        docker-compose build
+        pip3 install -r requirements.txt
+        pip3 install -e .
+
+    # Test (steps from pytest workflow)
+    # Unit Tests
+    - name: Run unit tests
+      working-directory: ./tests
+      run: |
+        COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not (integtest or spt3g)'
+
+    - name: Build docker image for containerized tests
+      run: |
+        docker-compose build ocs
 
     - name: Test with pytest within a docker container
       run: |
-        docker run -v $PWD:/coverage --rm ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest -m 'not integtest' --cov /app/ocs/ocs/ ./tests/"
+        docker run -v $PWD:/coverage --rm -w="/app/ocs/tests/" ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov -m 'spt3g'"
 
+    # Integration Tests
+    - name: Build images for integration tests
+      run: |
+        docker-compose build ocs-fake-data-agent ocs-aggregator-agent ocs-crossbar
+
+    - name: Run integration tests
+      working-directory: ./tests
+      run: |
+        mkdir log
+        COVERAGE_FILE=.coverage.int python3 -m pytest --cov -m 'integtest'
+        ls -la ./log/
+
+    # Coverage
     - name: Report test coverage
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        mv ./tests/.coverage.* ./
         pip install coveralls
         coverage combine
         coverage report
         coveralls --service=github
 
-    - name: Test documentation build
-      run: |
-        docker run --rm ocs sh -c "make -C docs/ html"
+  build:
+    name: build and deploy dev images
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: clone ocs
+      uses: actions/checkout@v2
+      # Fetch all history for all tags and branches
+      with:
+        fetch-depth: 0
 
     # Dockerize
+    - name: Build all docker images
+      run: |
+        docker-compose build
+
     - name: Build and push development docker image
       env:
         REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}

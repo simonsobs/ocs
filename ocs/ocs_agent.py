@@ -18,6 +18,7 @@ from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
 
 import time, datetime
+import socket
 import os
 from deprecation import deprecated
 from ocs import client_t
@@ -99,7 +100,7 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call = None
         self._heartbeat_on = True
         self.agent_session_id = str(time.time())
-        self.startup_ops = []  # list of (op_type, op_name)
+        self.startup_ops = []  # list of (op_type, op_name, op_params)
         self.startup_subs = []  # list of dicts with params for subscribe call
         self.subscribed_topics = set()
         self.realm_joined = False
@@ -138,10 +139,12 @@ class OCSAgent(ApplicationSession):
                 self.log.info("Stopping session {sess}", sess=session)
                 self.log.debug("session details: {sess}",
                                sess=self.sessions[session].encoded())
-                if session in self.tasks:
-                    yield self.abort(session)
-                elif session in self.processes:
-                    yield self.stop(session)
+                # Only try to stop starting or running sessions
+                if self.sessions[session].status not in ['stopping', 'done']:
+                    if session in self.tasks:
+                        yield self.abort(session)
+                    elif session in self.processes:
+                        yield self.stop(session)
         # Give a second for processes to stop cleanly
         yield dsleep(3)
 
@@ -165,8 +168,8 @@ class OCSAgent(ApplicationSession):
         # Register our processes...
         # Register the device interface functions.
         try:
-            yield self.register(self.my_device_handler, self.agent_address + '.ops')
-            yield self.register(self.my_management_handler, self.agent_address)
+            yield self.register(self._ops_handler, self.agent_address + '.ops')
+            yield self.register(self._management_handler, self.agent_address)
         except ApplicationError:
             self.log.error('Failed to register basic handlers @ %s; '
                            'agent probably running already.' % self.agent_address)
@@ -265,15 +268,18 @@ class OCSAgent(ApplicationSession):
             'processes': list(self.processes.keys())
         }
 
-    def my_device_handler(self, action, op_name, params=None, timeout=None):
+    def _ops_handler(self, action, op_name, params=None, timeout=None):
         if action == 'start':
             return self.start(op_name, params=params)
         if action == 'stop':
             return self.stop(op_name, params=params)
+        if action == 'abort':
+            return self.abort(op_name, params=params)
         if action == 'wait':
             return self.wait(op_name, timeout=timeout)
         if action == 'status':
             return self.status(op_name)
+        return (ocs.ERROR, 'No implementation for "%s"' % op_name, {})
 
     def _gather_sessions(self, parent):
         """Gather the session data for self.tasks or self.sessions, for return
@@ -283,30 +289,69 @@ class OCSAgent(ApplicationSession):
           parent: either self.tasks or self.processes.
 
         Returns:
-          A list of session data blocks.  Each session block contains
-          at least entries for 'op_name' and 'status'.  In the case
-          that the operation has ever run, it will contain all the
-          stuff from OpSession.encode; otherwise 'no_history' is
-          returned for the status.
+
+          A list of Operation description tuples, one per registered
+          Task or Process.  Each tuple consists of elements `(name,
+          session, op_info)`:
+
+          - `name`: The name of the operation.
+          - `session`: dict with OpSession.encode(() info for the
+            active or most recent session.  If no such session exists
+            the result will have member 'status' set to 'no_history'.
+          - `op_info`: information registered about the operation,
+            such as `op_type`, `docstring` and `blocking`.
 
         """
         result = []
-        for k, v in sorted(parent.items()):
-            session = self.sessions.get(k)
+        for name, op_info in sorted(parent.items()):
+            session = self.sessions.get(name)
             if session is None:
-                session = {'op_name': k, 'status': 'no_history'}
+                session = {'op_name': name, 'status': 'no_history'}
             else:
                 session = session.encoded()
-            result.append((k, session, v.encoded()))
+            result.append((name, session, op_info.encoded()))
         return result
 
-    def my_management_handler(self, q, **kwargs):
+    def _management_handler(self, q, **kwargs):
+        """Get a description of this Agent's API.  This is for adaptive
+        clients (such as MatchedClient) to construct their interfaces.
+
+        Params
+        ------
+        q : string
+          One of 'get_api', 'get_tasks', 'get_processes', 'get_feeds',
+          'get_agent_class'.
+
+        Returns
+        -------
+        api_description : dict
+          If the argument is 'get_api', then a dict with the following
+          entries is returned:
+
+          - 'agent_class': The class name of this agent.
+          - 'instance_hostname': The host name where the Agent is
+            running, as returned by socket.gethostname().
+          - 'instance_pid': The PID of the Agent interpreter session,
+            as returned by os.getpid().
+          - 'feeds': The list of encoded feed information, tuples
+            (feed_name, feed_info).
+          - 'processes': The list of Process api description info, as
+            returned by :func:`_gather_sessions`.
+          - 'tasks': The list of Task api description info, as
+            returned by :func:`_gather_sessions`.
+
+          Passing get_X will, for some values of X, return only that
+          subset of the full API; treat that as deprecated.
+
+        """
         if q == 'get_api':
             return {
-                'tasks': self._gather_sessions(self.tasks),
-                'processes': self._gather_sessions(self.processes),
+                'agent_class': self.class_name,
+                'instance_hostname': socket.gethostname(),
+                'instance_pid': os.getpid(),
                 'feeds': [(k, v.encoded()) for k, v in self.feeds.items()],
-                'agent_class': self.class_name
+                'processes': self._gather_sessions(self.processes),
+                'tasks': self._gather_sessions(self.tasks),
             }
         if q == 'get_tasks':
             return self._gather_sessions(self.tasks)
@@ -372,7 +417,7 @@ class OCSAgent(ApplicationSession):
                                             blocking=blocking)
         self.sessions[name] = None
         if startup is not False:
-            self.startup_ops.append(('task', name, startup))
+            self.startup_ops.append(('process', name, startup))
 
     @inlineCallbacks
     def call_op(self, agent_address, op_name, action, params=None, timeout=None):
@@ -437,15 +482,34 @@ class OCSAgent(ApplicationSession):
         self.feeds[feed_name] = ocs_feed.Feed(self, feed_name, **kwargs)
         return self.feeds[feed_name]
 
-    def publish_to_feed(self, feed_name, message, from_reactor=False):
-        if feed_name not in self.feeds.keys():
+    def publish_to_feed(self, feed_name, message, from_reactor=None):
+        """Publish data to named feed.
+
+        Args:
+          feed_name (str): should match the name of a registered feed.
+          message (serializable): data to publish.  Acceptable format
+            depends on feed configuration; see Feed.publish_message.
+          from_reactor (bool or None): This is deprecated; the code
+            will check whether you're in a thread or not.
+
+        Notes:
+          If an unknown feed_name is passed in, an error is printed to
+          the log and that's all.
+
+          If you are running a "blocking" operation, in a thread, then
+          it is best if the message is not a persistent data structure
+          from your thread (especially something you might modify soon
+          after this call).  The code will take a copy of your
+          structure and pass that to the reactor thread, but the copy
+          may not be deep enough!
+
+        """
+        if feed_name not in self.feeds:
             self.log.error("Feed {} is not registered.".format(feed_name))
             return
-
-        if from_reactor:
-            self.feeds[feed_name].publish_message(message)
-        else:
-            reactor.callFromThread(self.feeds[feed_name].publish_message, message)
+        # We expect that publish_message will check threading context
+        # and do the right thing (as of this writing, it does).
+        self.feeds[feed_name].publish_message(message)
 
     def subscribe(self, handler, topic, options=None, force_subscribe=False):
         """
@@ -527,8 +591,12 @@ class OCSAgent(ApplicationSession):
     def _handle_task_error(self, *args, **kw):
         try:
             ex, session = args
-            session.success = ocs.ERROR
-            session.add_message('Crash in thread: %s' % str(ex))
+            if ex.check(ParamError):
+                message = 'ERROR: {}'.format(ex.getErrorMessage())
+            else:
+                message = 'CRASH: %s' % str(ex)
+            session.add_message(message)
+            session.success = False
             session.set_status('done')
         except:
             print('Failure to decode _handle_task_error args:',
@@ -569,19 +637,29 @@ class OCSAgent(ApplicationSession):
                 else:
                     return (ocs.ERROR, 'Operation "%s" already in progress.' % op_name,
                             session.encoded())
-            # Mark as started.
-            session = OpSession(self.next_session_id, op_name, app=self)
-            self.next_session_id += 1
-            self.sessions[op_name] = session
 
-            # Get the task/process, prepare to launch.
+            # Get the task/process launch function
             if is_task:
                 op = self.tasks[op_name]
                 msg = 'Started task "%s".' % op_name
             else:
                 op = self.processes[op_name]
                 msg = 'Started process "%s".' % op_name
-                args = (op.launcher, session, params)
+
+            # Pre-process params?
+            if hasattr(op.launcher, '_ocs_prescreen'):
+                try:
+                    handler = ParamHandler(params)
+                    params = handler.batch(op.launcher._ocs_prescreen)
+                except ParamError as err:
+                    return (ocs.ERROR, err.msg, {})
+                except Exception as err:
+                    return (ocs.ERROR, f'CRASH: during param pre-processing: {str(err)}', {})
+
+            # Mark as started.
+            session = OpSession(self.next_session_id, op_name, app=self)
+            self.next_session_id += 1
+            self.sessions[op_name] = session
 
             # Launch differently depending on whether op intends to
             # block or not.
@@ -625,13 +703,25 @@ class OCSAgent(ApplicationSession):
         session = self.sessions[op_name]
         if session is None:
             return (ocs.OK, 'Idle.', {})
-        ready = True
-        if timeout is None:
-            results = yield session.d
-        elif timeout <= 0:
-            ready = bool(session.d.called)
+
+        # Note that you can't just trust session.d.called to see if
+        # the Op has ended.  For a "non-blocking" Operation
+        # implementation (launched with task.deferLater and runs in
+        # the reactor), the Deferred in session.d fires its first
+        # callback, and sets called=True, when the start() function is
+        # initiated, not when it completes.  Unfortunately this means
+        # we have to trust session.status ... but that should be fine.
+        done = False
+
+        if session.status == 'done' or timeout is None:
+            # Op is either done or we're happy to wait for it
+            yield session.d
+            done = True
+        elif timeout < 0:
+            # Op is running, but don't wait.
+            pass
         else:
-            # Make a timeout...
+            # Op is running, wait for a limited duration.
             td = Deferred()
             reactor.callLater(timeout, td.callback, None)
             dl = DeferredList([session.d, td], fireOnOneCallback=True,
@@ -643,10 +733,12 @@ class OCSAgent(ApplicationSession):
                 td.cancel()
                 e.subFailure.raiseException()
             else:
-                if td.called:
-                    ready = False
-        if ready:
-            return (ocs.OK, 'Operation "%s" just exited.' % op_name, session.encoded())
+                done = (session.status == 'done')
+
+        if done:
+            success_str = {True: 'SUCCEEDED'}.get(session.success, 'FAILED')
+            return (ocs.OK, f'Operation "{op_name}" is currently not running '
+                    + f'({success_str}).', session.encoded())
         else:
             return (ocs.TIMEOUT, 'Operation "%s" still running; wait timed out.' % op_name,
                     session.encoded())
@@ -688,7 +780,7 @@ class OCSAgent(ApplicationSession):
 
           ocs.ERROR: you called a function that does not do anything.
         """
-        return (ocs.ERROR, 'No implementation for operation "%s"' % op_name, {})
+        return (ocs.ERROR, 'No implementation of abort() for operation "%s"' % op_name, {})
 
     def status(self, op_name, params=None):
         """
@@ -720,9 +812,11 @@ class AgentTask:
         self.docstring = launcher.__doc__
 
     def encoded(self):
+        """Dict of static info for API self-description."""
         return {
             'blocking': self.blocking,
             'docstring': self.docstring,
+            'op_type': 'task',
         }
 
 class AgentProcess:
@@ -733,18 +827,31 @@ class AgentProcess:
         self.docstring = launcher.__doc__
 
     def encoded(self):
+        """Dict of static info for API self-description."""
         return {
             'blocking': self.blocking,
             'docstring': self.docstring,
+            'op_type': 'process',
         }
 
 
+#: These are the valid values for session.status.  Use like this:
+#:
+#: - None: uninitialized.
+#: - ``starting``: the Operation code has been launched and is
+#:   performing basic quick checks in anticipation of moving to the
+#:   (longer term) "running" state.
+#: - ``running``: the Operation code has performed basic quick checks
+#:   and has started to do the requested thing.
+#: - ``stopping``: the Operation code has acknowledged receipt of a
+#:   "stop" or "abort" request.
+#: - ``done``: the Operation has exited, either succesfully or not.
+#:
 SESSION_STATUS_CODES = [None, 'starting', 'running', 'stopping', 'done']
 
 
 class OpSession:
-    """
-    When a caller requests that an Operation (Process or Task) is
+    """When a caller requests that an Operation (Process or Task) is
     started, an OpSession object is created and is associated with
     that run of the Operation.  The Operation codes are given access
     to the OpSession object, and may update the status and post
@@ -756,7 +863,12 @@ class OpSession:
     OpSession must support both these contexts (see, for example,
     add_message).
 
+    Control Clients are given a copy of the latest session information
+    in each response from the Operation API.  The format of that
+    information is described in ``.encoded()``.
+
     The message buffer is purged periodically.
+
     """
     def __init__(self, session_id, op_name, status='starting', log_status=True,
                  app=None, purge_policy=None):
@@ -801,12 +913,66 @@ class OpSession:
         self.purger = task.deferLater(reactor, next_purge_time, self.purge_log)
 
     def encoded(self):
+        """Encode the session data in a dict.  This is the data structure that
+        is returned to Control Clients using the Operation API, as the
+        "session" information.  Note the returned object is a dict
+        with entries described below.
+
+        Returns
+        -------
+        session_id : int
+          A unique identifier for a single session (a single "run" of
+          the Operation).  When an Operation is initiated, a new
+          session object is created and can be distinguished from
+          other times the Operation has been run using this id.
+        op_name : str
+          The OCS Operation name.
+        op_code : int
+          The OpCode, which combines information from status and
+          success; see :class:`ocs.base.OpCode`.
+        status : str
+          The Operation run status (e.g. 'starting', 'done', ...).
+          See :data:`ocs.ocs_agent.SESSION_STATUS_CODES`.
+        success : bool or None
+          If the Operation Session has completed (`status == 'done'`),
+          this indicates that the Operation was deemed successful.
+          Prior to the completion of the operation, the value is None.
+          The value could be False if the Operation reported failure,
+          or if it crashed and failure was marked by the encapsulating
+          OCS code.
+        start_time : float
+          The time the Operation Session started, as a unix timestamp.
+        end_time : float or None
+          The time the Operation Session ended, as a unix timestamp.
+          While the Session is still on-going, this is None.
+        data : dict
+          This is an area for the Operation code to store custom
+          information for Control Clients to consume.  See notes
+          below.
+        messages : list
+          A buffer of messages posted by the Operation.  Each element
+          of the list is a tuple, (timestamp, message) where timestamp
+          is a unix timestamp and message is a string.
+
+        Notes
+        -----
+        The ``data`` field may be used by Agent code to provide data
+        that might be of interest to a user (whether human or
+        automated), such as the most recent readings from a device,
+        structured information about the configuration and progress of
+        the Operation, or diagnostics.
+
+        Please see developer documentation (:ref:`session_data`) for
+        advice on structuring your Agent session data.
+
+        """
         return {'session_id': self.session_id,
                 'op_name': self.op_name,
+                'op_code': self.op_code.value,
                 'status': self.status,
+                'success': self.success,
                 'start_time': self.start_time,
                 'end_time': self.end_time,
-                'success': self.success,
                 'data': self.data,
                 'messages': self.messages}
 
@@ -899,3 +1065,230 @@ class OpSession:
         self.app.log.info('%s:%i %s' % (self.op_name, self.session_id, message))
 
 
+class ParamError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+class ParamHandler:
+    """Helper for Agent Operation codes to extract params.  Supports type
+    checking, has casting, and will raise errors that are
+    automatically added to the session log and propagated to the
+    caller in a useful way.
+
+    There are two ways to use this.  The first and recommended way is
+    to use the @param decorator.  Example::
+
+        from ocs import ocs_agent
+
+        class MyAgent:
+            ...
+
+            @ocs_agent.param('voltage', type=float)
+            @ocs_agent.param('delay_time', default=1., type=float)
+            @ocs_agent.param('other_action', default=None, cast=str)
+            def my_task(self, session, params):
+                # (Type checking and default substitution have been done already)
+                voltage = params['voltage']
+                delay_time = params['delay_time']
+                other_action = params['other_action']
+                ...
+
+    When you use the @param decorator, the OCS code can check the
+    parameters immediately when they are received from the client, and
+    immediately return an error message to the client's start request
+    (without even calling the Op start function)::
+
+        OCSReply: ERROR : Param 'delay'=two_seconds is not of required type (<class 'float'>)
+           (no session -- op has never run)
+
+
+    A second possibility is to instantiate a ParamHandler at the start
+    of your Op start function, and use it to extract parameters.
+    Example::
+
+        from ocs import ocs_agent
+
+        class MyAgent:
+            ...
+            def my_task(self, session, params):
+                params = ocs_agent.ParamHandler(params)
+                # Mandatory, and cannot be None.
+                voltage = params.get('voltage', type=float)
+                # Optional, defaults to 1.
+                delay_time = params.get('delay_time', default=1., type=float)
+                # Optional, interpret as string, but defaults to None.
+                other_action = params.get('other_action', default=None, cast=str)
+                ...
+
+    In this case, errors will not be immediatley returned to the user,
+    but the Operation will quickly fail, and the error message will
+    show up in the message log::
+
+        OCSReply: OK : Operation "my_task" is currently not running (FAILED).
+          my_task[session=1]; status=done with ERROR 0.115665 s ago, took 0.000864 s
+          messages (4 of 4):
+            1629464204.780 Status is now "starting".
+            1629464204.780 Status is now "running".
+            1629464204.781 ERROR: Param 'delay'=two_seconds is not of required type (<class 'float'>)
+            1629464204.781 Status is now "done".
+          other keys in .session: op_code, data
+
+    """
+    def __init__(self, params):
+        self._params = params
+        self._checked = set()
+
+    def get(self, key, default=ParamError(''), check=None, cast=None, type=None,
+            choices=None, treat_none_as_missing=True):
+        """Retrieve a value from the wrapped params dict, with optional type
+        checking, casting, and validity checks.  If a parameter is
+        found to be missing, or its value not valid, then a ParamError
+        is raised.
+
+        In Agent Op implementations, the ParamError will be caught by
+        the API wrapper and automatically propagated to the caller.
+        The Operation session will be marked as "done", with
+        success=False.
+
+        This works best if the implementation validates all parameters
+        *before* beginning any Operation activities!
+
+        Args
+        ----
+        key : str
+          The name of the parameter to extract.
+        default : any
+          The value to use if the value is not set.  If this isn't
+          explicitly set, then a missing key causes an error to be
+          raised (see also the treat_none_as_missing arg).
+        check : callable
+          A function that will validate the argument; if the function
+          returns False then a ParamError will be raised.
+        cast : callable
+          A function to run on the value to convert it.  For example
+          ``cast=str.lower`` would help convert user argument
+          "Voltage" to value "voltage".
+        type : type
+          Class to which the result will be compared, unless it is
+          ``None``.  Note that if you pass ``type=float``, ``int``
+          values will automatically be cast to ``float`` and accepted
+          as valid.
+        choices : list
+          Acceptable values for the parameter.  This is checked after
+          casting.
+        treat_none_as_missing : bool
+          Determines whether a value of ``None`` for a parameter
+          should be treated in the same way as if the parameter were
+          not set at all.  See notes.
+
+        Returns
+        -------
+        The fully processed value.
+
+        Notes
+        -----
+
+        The default behavior is to treat ``{'param': None}`` as the
+        same as ``{}``; i.e. passing ``None`` as the value for a
+        parameter is the same as leaving the parameter unset.  In both
+        of these cases, unless a ``default=...`` is specified, a
+        ``ParamError`` will be raised.  Note this doesn't preclude you
+        from setting ``default=None``, which would effectively convert
+        ``{}`` to ``{'param': None}``.  If you really need to block
+        ``{}`` while allowing ``{'param': None}`` to be taken at face
+        value, then set ``treat_none_as_missing=False``.
+
+        The cast function, if specified, is applied before the type,
+        choices, and check arguments are processed.  If the value (or
+        the substituted default value) is ``None``, then any specified
+        cast and checks will not be performed.
+
+        """
+        self._checked.add(key)
+        value = self._params.get(key, None)
+        is_unset = value is None and \
+            (treat_none_as_missing or key not in self._params)
+        if is_unset:
+            if isinstance(default, ParamError):
+                raise ParamError(f"Param '{key}' is required and must not be None")
+            value = default
+        if value is not None:
+            if cast is not None:
+                try:
+                    value = cast(value)
+                except:
+                    raise ParamError(f"Param '{key}'={value} could not be cast to {cast}.")
+            if type is not None:
+                # Free cast from int to float.
+                if type is float and isinstance(value, int):
+                    value = float(value)
+                if not isinstance(value, type):
+                    raise ParamError(f"Param '{key}'={value} is not of required type ({type})")
+            if choices is not None:
+                if value not in choices:
+                    raise ParamError(f"Param '{key}'={value} is not in allowed set ({choices})")
+            if check is not None:
+                if not check(value):
+                    raise ParamError(f"Param '{key}' failed validity check (see docs?).")
+        return value
+
+    def batch(self, instructions, check_for_strays=True):
+        """
+        Supports the @params decorator ... see code.
+        """
+        params = {}
+        for key, kw in instructions:
+            if key == '_':
+                pass
+            elif key == '_no_check_strays':
+                check_for_strays = False
+            else:
+                params[key] = self.get(key, **kw)
+        if check_for_strays:
+            self.check_for_strays()
+        return params
+
+    def check_for_strays(self, ignore=[]):
+        """Raise a ParamError if there were arguments passed in that have not
+        yet been extracted with .get().  Keys passed in ignore (list)
+        will be ignored regardless.
+
+        """
+        weird_args = [k for k in self._params.keys()
+                      if k not in self._checked and k not in ignore]
+        if len(weird_args):
+            raise ParamError(f"params included unexpected values: {weird_args}")
+
+def param(key, **kwargs):
+    """Decorator for Agent operation functions to assist with checking
+    params prior to actually trying to execute the code.  Example::
+
+      class MyAgent:
+        ...
+        @param('voltage', type=float)
+        @param('delay', default=0., type=float)
+        @inlineCallbacks
+        def set_voltage(self, session, params):
+          ...
+
+    Note the ``@param`` decorators should be all together, and
+    outermost (listed first).  This is because the current
+    implementation caches data in the decorated function (or
+    generator) directly, and additional decorators will conceal that.
+
+    See :class:`ocs.ocs_agent.ParamHandler` for more details.  Note the
+    signature for @param is the same as for :func:`ParamHandler.get`.
+
+    """
+    # Validate the kwargs by passing them to "get" with trivial data.
+    if 'default' in kwargs:
+        ParamHandler({}).get(key, **kwargs)
+    else:
+        ParamHandler({}).get(key, default=None, **kwargs)
+    # Start a cache and append these args to it...
+    def deco(func):
+        if not hasattr(func, '_ocs_prescreen'):
+            setattr(func, '_ocs_prescreen', [])
+        func._ocs_prescreen.append((key, kwargs))
+        return func
+    return deco

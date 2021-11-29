@@ -10,8 +10,21 @@ The InfluxDB Publisher Agent acts like the OCS Aggregator, but instead of
 writing to file it will publish all recorded OCS data feeds to an InfluxDB
 instance running somewhere on the network.
 
-OCS Configuration
------------------
+.. argparse::
+   :module: agents.influxdb_publisher.influxdb_publisher
+   :func: make_parser
+   :prog: influxdb_publisher.py
+
+Configuration File Examples
+---------------------------
+
+Below are configuration examples for the ocs config file and for running the
+Agent in a docker container. Also included is an example for setting up
+Grafana to display data from InfluxDB.
+
+OCS Site Config
+```````````````
+
 Add an InfluxDBAgent to your OCS configuration file::
 
       {'agent-class': 'InfluxDBAgent',
@@ -23,12 +36,13 @@ Add an InfluxDBAgent to your OCS configuration file::
                      ['--gzip', True],
                      ['--database', 'ocs_feeds']]},
 
-docker-compose Configuration
-----------------------------
+Docker Compose
+``````````````
+
 Add the InfluxDB Publisher Agent container to your docker-compose file::
 
   ocs-influxdb-publisher:
-    image: simonsobs/ocs-influxdb-publisher-agent
+    image: simonsobs/ocs-influxdb-publisher-agent:latest
     hostname: ocs-docker
     volumes:
       - ${OCS_CONFIG_DIR}:/config:ro
@@ -70,8 +84,9 @@ file reference`_.
 
 .. _`Compose file reference`: https://docs.docker.com/compose/compose-file/
 
-Grafana Configuration
----------------------
+Grafana
+```````
+
 Once your InfluxDB container and publisher are configured and running you will
 need to create an InfluxDB data source in Grafana. To do so, we add an InfluxDB
 data source with the URL ``http://influxdb:8086``, and the Database
@@ -99,10 +114,15 @@ For more information about using InfluxDB in Grafana, see the `Grafana Documenta
 
 .. _`Grafana Documentation`: https://grafana.com/docs/features/datasources/influxdb/
 
-API
----
+Agent API
+---------
 
-Publisher
-`````````
+.. autoclass:: agents.influxdb_publisher.influxdb_publisher.InfluxDBAgent
+    :members:
+
+
+Supporting APIs
+---------------
+
 .. autoclass:: ocs.agent.influxdb_publisher.Publisher
     :members:

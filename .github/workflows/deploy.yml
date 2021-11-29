@@ -1,0 +1,142 @@
+name: Deploy Builds
+
+on:
+  release:
+    types: [ released ]
+
+jobs:
+  test:
+    name: pytest with coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Set up Python 3.8 
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8 
+
+    - name: clone ocs
+      uses: actions/checkout@v2
+      # Fetch all history for all tags and branches
+      with:
+        fetch-depth: 0
+
+    - name: Install ocs
+      run: |
+        pip3 install -r requirements.txt
+        pip3 install -e .
+
+    # Test (already been run by pytest workflow, but they don't take long...)
+    # Unit Tests
+    - name: Run unit tests
+      working-directory: ./tests
+      run: |
+        COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not (integtest or spt3g)'
+
+    - name: Build docker image for containerized tests
+      run: |
+        docker-compose build ocs
+
+    - name: Test with pytest within a docker container
+      run: |
+        docker run -v $PWD:/coverage --rm -w="/app/ocs/tests/" ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov -m 'spt3g'"
+
+    # Integration Tests
+    - name: Build images for integration tests
+      run: |
+        docker-compose build ocs-fake-data-agent ocs-aggregator-agent ocs-crossbar
+
+    - name: Run integration tests
+      working-directory: ./tests
+      run: |
+        mkdir log
+        COVERAGE_FILE=.coverage.int python3 -m pytest --cov -m 'integtest'
+        ls -la ./log/
+
+    # Coverage
+    - name: Report test coverage
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        mv ./tests/.coverage.* ./
+        pip install coveralls
+        coverage combine
+        coverage report
+        coveralls --service=github
+
+  docker:
+    name: build and deploy docker images
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: clone ocs
+      uses: actions/checkout@v2
+      # Fetch all history for all tags and branches
+      with:
+        fetch-depth: 0
+
+    # Dockerize
+    - name: Build all docker images
+      run: |
+        docker-compose build
+
+    - name: Build and push official docker image
+      env:
+        REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+        DOCKERHUB_ORG: "simonsobs"
+      run: |
+        export DOCKER_TAG=`git describe --tags --always`
+        echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USER}" --password-stdin;
+
+        # Tag all images for upload to the registry
+        docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${DOCKERHUB_ORG}/{}:latest
+        docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}
+
+        # Upload to docker registry
+        docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:latest
+        docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}
+        docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo ${DOCKERHUB_ORG}/{}:${DOCKER_TAG} pushed
+
+  wheel:
+    name: build and deploy to PyPI
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      TWINE_USERNAME: __token__
+      TWINE_PASSWORD: ${{ secrets.TWINE_TOKEN }}
+
+    steps:
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: clone ocs
+      uses: actions/checkout@v2
+
+    - name: install build dependencies
+      run: |
+        python3 -m pip install --upgrade build twine
+
+    - name: build wheel
+      run: |
+        python3 -m build
+
+    - name: install wheel
+      run: |
+        python3 -m pip install dist/ocs*.whl
+
+    - name: install testing requirements
+      run: |
+        pip3 install -r requirements/testing.txt
+
+    - name: Run unit tests
+      working-directory: ./tests
+      run: |
+        python3 -m pytest -m 'not (integtest or spt3g)'
+
+    - name: upload to test PyPI
+      run: |
+        python3 -m twine upload --repository testpypi dist/*

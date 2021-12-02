@@ -137,6 +137,6 @@ jobs:
       run: |
         python3 -m pytest -m 'not (integtest or spt3g)'
 
-    - name: upload to test PyPI
+    - name: upload to PyPI
       run: |
-        python3 -m twine upload --repository testpypi dist/*
+        python3 -m twine upload dist/*

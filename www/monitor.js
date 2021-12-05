@@ -9,6 +9,10 @@
  * preferred to the style you'll find here.
  */
 
+// List the full addresses of any agents to auto-load for debugging.
+// You can append to this from your panel code, e.g.:
+//   panel_auto_load.push('observatory.faker6');
+var panel_auto_load = [];
 
 /* Shared globals needed for all plugins */
 var ocs_connection;
@@ -90,16 +94,23 @@ function init() {
             ocs_connection.agent_list.update_agent_info();
         }, 1000);
 
-        // For debugging you can create and activate a tab, on load.
-        // The timeout is set to 1000 ms to allow the OCS connection
-        // to come up.
-        //
-        //setTimeout(function () {
-        //    console.log('Launch!')
-        //    tab_info = tabman.add('faker-1', 'FakeDataAgent',
-        //                          {address: 'observatory.faker-1'});
-        //    tabman.activate(tab_info.base_id);
-        //}, 1000);
+        // For development, launch some agent panels on startup.  The
+        // timeout should be a little longer than the agent_list
+        // update time, above.
+        if (panel_auto_load.length)
+            setTimeout(function () {
+                var tab_info;
+                $.each(panel_auto_load, function (idx, addr) {
+                    console.log('Auto-launching ' + addr);
+                    var info = ocs_connection.agent_list.agent_list[addr];
+                    if (info)
+                        tab_info = tabman.add(addr, info.agent_class,
+                                              {address: addr});
+                    else
+                        console.log(`Connection to {addr} not found.`);
+                });
+                tabman.activate(tab_info.base_id);
+            }, 1200);
     });
 }
 

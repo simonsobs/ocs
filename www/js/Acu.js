@@ -265,4 +265,4 @@ ValueTable.prototype = {
 
 
 // Register the constructor in the main tab manager.
-tabman.constructors['AcuAgent'] = Acu_populate;
+tabman.constructors['ACUAgent'] = Acu_populate;

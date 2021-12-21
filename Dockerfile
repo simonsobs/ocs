@@ -34,4 +34,4 @@ RUN pip3 install -r requirements.txt
 COPY . /app/ocs/
 
 # Install ocs
-RUN pip3 install -e .
+RUN pip3 install .

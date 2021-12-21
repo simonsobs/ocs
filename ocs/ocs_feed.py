@@ -325,3 +325,54 @@ class Feed:
                              "exceeds the valid length of 255 characters.")
 
         return True
+
+    @staticmethod
+    def enforce_field_name_rules(field_name):
+        """Enforce naming rules for field names.
+
+        A valid name:
+
+        * contains only letters (a-z, A-Z; case sensitive), decimal digits (0-9), and the
+          underscore (_).
+        * begins with a letter, or with any number of underscores followed by a letter.
+        * is at least one, but no more than 255, character(s) long.
+
+        Args:
+            field_name (str):
+                Field name string to check and modify if needed.
+
+        Returns:
+            str: New field name, meeting all above rules. Note this isn't
+                 guarenteed to not collide with other field names passed
+                 through this method, and that should be checked.
+
+        """
+        # check for empty string
+        if field_name == "":
+            new_field_name = "invalid_field"
+        else:
+            new_field_name = field_name
+
+        # replace spaces with underscores
+        new_field_name = new_field_name.replace(' ', '_')
+
+        # replace invalid characters
+        new_field_name = re.sub('[^a-zA-Z0-9_]', '', new_field_name)
+
+        # grab leading underscores
+        underscore_search = re.compile('^_*')
+        underscores = underscore_search.search(new_field_name).group()
+
+        # remove leading underscores
+        new_field_name = re.sub('^_*', '', new_field_name)
+
+        # remove leading non-letters
+        new_field_name = re.sub('^[^a-zA-Z]*', '', new_field_name)
+
+        # add underscores back
+        new_field_name = underscores + new_field_name
+
+        # limit to 255 characters
+        new_field_name = new_field_name[:255]
+
+        return new_field_name

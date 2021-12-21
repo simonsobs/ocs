@@ -20,7 +20,6 @@ run_agent = create_agent_runner_fixture('../agents/registry/registry.py',
 client = create_client_fixture('registry')
 
 
-@pytest.mark.dependency(depends=["so3g"], scope='session')
 @pytest.mark.integtest
 def test_registry_agent_main(wait_for_crossbar, run_agent, client):
     # Startup is always true, so let's check it's running

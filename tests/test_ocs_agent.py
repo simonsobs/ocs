@@ -1,5 +1,8 @@
 import ocs
-from ocs.ocs_agent import OCSAgent, AgentTask, AgentProcess
+from ocs.ocs_agent import (
+    OCSAgent, AgentTask, AgentProcess,
+    ParamError, ParamHandler, param,
+)
 from ocs.base import OpCode
 
 from unittest.mock import MagicMock
@@ -433,3 +436,110 @@ def test_status_no_session(mock_agent):
     assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2] == {}
+
+
+#
+# Tests for the @param decorator
+#
+
+def test_params_get():
+    """Test that defaults & casting work as expected."""
+    params = ParamHandler({
+        'int_param': 123,
+        'string_param': 'blech',
+        'float_param': 1e8,
+        'numerical_string_param': '145.12',
+        'none_param': None,
+        })
+
+    # Basic successes
+    params.get('int_param', type=int)
+    params.get('string_param', type=str)
+    params.get('float_param', type=float)
+
+    # Tricky successes
+    params.get('int_param', type=float)
+    params.get('numerical_string_param', type=float, cast=float)
+
+    # Defaults
+    assert params.get('missing', default=10) == 10
+
+    # None handling
+    assert params.get('none_param', default=None) is None
+    assert params.get('none_param', default=123) == 123
+    with pytest.raises(ParamError):
+        params.get('none_param')
+    assert params.get('none_param', default=123,
+                      treat_none_as_missing=False) is None
+
+    # Basic failures
+    with pytest.raises(ParamError):
+        params.get('string_param', type=float)
+    with pytest.raises(ParamError):
+        params.get('float_param', type=str)
+    with pytest.raises(ParamError):
+        params.get('numerical_string_param', type=float)
+    with pytest.raises(ParamError):
+        params.get('missing')
+
+    # Check functions
+    params.get('int_param', check=lambda i: i > 0)
+    with pytest.raises(ParamError):
+        params.get('int_param', check=lambda i: i < 0)
+
+    # Choices
+    params.get('string_param', choices=['blech', 'a', 'b'])
+    with pytest.raises(ParamError):
+        params.get('string_param', choices=['a', 'b'])
+
+def test_params_strays():
+    """Test for detection of stray parameters."""
+    params = ParamHandler({
+        'a': 123,
+        'b': 123,
+        })
+    params.get('a')
+    params.check_for_strays(ignore=['b'])
+    with pytest.raises(ParamError):
+        params.check_for_strays()
+    params.get('b')
+    params.check_for_strays()
+
+def test_params_decorator():
+    """Test that the decorator is usable."""
+    # this should work
+    @param('a', default=12)
+    def test_func(session, params):
+        pass
+    # these should not
+    with pytest.raises(TypeError):
+        @param('a', 12)
+        def test_func(session, params):
+            pass
+    with pytest.raises(TypeError):
+        @param('a', invalid_keyword='something')
+        def test_func(session, params):
+            pass
+
+def test_params_decorated():
+    """Test that the decorator actually decorates."""
+    @param('a', default=12)
+    def func_a(session, params):
+        pass
+
+    @param('_', default=12)
+    def func_nothing(session, params):
+        pass
+
+    @param('a', default=12)
+    @param('_no_check_strays')
+    def func_whatever(session, params):
+        pass
+
+    ParamHandler({}).batch(func_a._ocs_prescreen)
+    ParamHandler({'b': 12.}).batch(func_whatever._ocs_prescreen)
+
+    with pytest.raises(ParamError):
+        ParamHandler({'b': 12.}).batch(func_a._ocs_prescreen)
+    with pytest.raises(ParamError):
+        ParamHandler({'b': 12.}).batch(func_nothing._ocs_prescreen)

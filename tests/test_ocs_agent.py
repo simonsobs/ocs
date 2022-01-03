@@ -480,6 +480,8 @@ def test_params_get():
     with pytest.raises(ParamError):
         params.get('numerical_string_param', type=float)
     with pytest.raises(ParamError):
+        params.get('string_param', type=float, cast=float)
+    with pytest.raises(ParamError):
         params.get('missing')
 
     # Check functions

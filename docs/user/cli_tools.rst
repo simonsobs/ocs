@@ -204,3 +204,24 @@ ocs-client-cli
    :module: ocs.client_cli
    :func: get_parser
    :prog: ocs-client-cli
+
+
+.. _install_systemd:
+
+ocs-install-systemd
+===================
+
+This script assists with setting up Centralized Management, in concert
+with HostManager Agent instances.
+
+.. note::
+
+    The output from ``ocs-install-systemd --help`` should be rendered
+    here.  In addition to the options discussed, the script supports
+    the same "Site Config Options" that Agents usually support, such
+    as ``--site-file=...``.
+
+.. argparse::
+   :module: ocs.ocs_systemd
+   :func: get_parser
+   :prog: ocs-install-systemd

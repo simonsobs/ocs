@@ -77,7 +77,10 @@ def get_parser():
                        "Override the host_manager.py agent script.")
     return parser
 
-def main(args):
+def main(args=None):
+    if args is None:
+        args = sys.argv[1:]
+
     parser = get_parser()
     args = site_config.parse_args(agent_class='*host*',
                                   parser=parser)
@@ -169,6 +172,3 @@ def main(args):
         print()
         print(f'   sudo cp ./{args.service_name} {args.service_dir}')
         print(f'   sudo systemctl daemon-reload')
-
-if __name__ == '__main__':
-    main(sys.argv[1:])

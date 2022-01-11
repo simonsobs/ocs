@@ -825,7 +825,7 @@ def main(args=None):
 #
 # ocs-local-support
 #
-LOCAL_DESCRIPTION = """ocs-local-support is used use to control a crossbar router and
+LOCAL_DESCRIPTION = """ocs-local-support is used to control a crossbar router and
 HostManager agent on this host.
 
 Examples::

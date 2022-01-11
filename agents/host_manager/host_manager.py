@@ -125,47 +125,53 @@ class HostManager:
         return True, 'Kill requested.'
 
     @inlineCallbacks
-    def _update_target_states(
-            self, session, requests=[], reload_site_config=True):
-        """
-        Update the child Agent management parameters of the manager process.
-        This function is used both for first-time init of the manager
-        Process, but also for subsequent parameter updates while
-        manager Process is running.
+    def _update_target_states(self, session, requests=[],
+                              reload_site_config=True):
+        """Update the child Agent target states.  The manager Process will
+        then try to maintain those states.  This function is used both
+        for first-time init of the manager Process, but also for
+        setting new target states while the manager Process is
+        running.
 
-        The argument ``params`` is a dict with the following
-        keys:
+        Arguments:
+          session: The operation session object (for logging).
+          requests (list): Default is [].  Each entry must be a tuple
+            of the form (instance_id, target_state).  The instance_id
+            must be a string that matches an item in the current
+            database, or be the string 'all', which will match all
+            items in the current database.  The target_state must be
+            'up' or 'down'.
+          reload_site_config (bool): Default is True.  If True, the
+            site config file is parsed in order to (re-)populate the
+            database of child Agent instances.
 
-        - ``requests`` (list): Default is [].  Each entry must be a
-          tuple of the form (instance_id, target_state).  The
-          instance_id must be a string that matches an item in the
-          current database, or be the string 'all', which will match
-          all items in the current database.  The target_state must be
-          one of 'up','down', or 'cycle'.  Requests in this list are
-          processed from start to end, and subsequent entries overrule
-          previous ones.
+        Examples:
 
-        - ``reload_site_config`` (bool): Default is True.  If True,
-          the site config file is parsed in order to (re-)populate the
-          database of child Agent instances.
+          ::
 
-        First, the site config file is parsed and used to update the
-        internal database of child instances (unless
-        ``reload_site_config`` has been set to False).  Any previously
-        unknown child Agent is added to the internal tracking
-        database, and assigned a target_state of "down".  Any
-        previously known child Agent instance is not modified in the
-        tracking database (unless a specific request is given, through
-        ``requests``).  If any child Agent instances in the internal
-        database appear to have been removed from the site config,
-        then they are set to have target_state "down" and will be
-        deleted from the database when that state is reached.
+            _update_target_states(session, reload_site_config=True)
+            _update_target_states(session, requests=[('thermo1', 'down')])
+            _update_target_states(session, requests=[('all', 'up')])
 
-        State update requests in the ``requests`` list are processed
-        in order.  For example, if the requests were [('all', 'up'),
-        ('data1', 'down')].  This would result in setting all known
-        children to have target_state "up", except for "data1" which
-        would be given target state of "down".
+        Notes:
+          First, the site config file is parsed and used to update the
+          internal database of child instances (unless
+          ``reload_site_config`` has been set to False).  Any
+          previously unknown child Agent is added to the internal
+          tracking database, and assigned a target_state of "down".
+          Any previously known child Agent instance is not modified in
+          the tracking database (unless a specific request is given,
+          through ``requests``).  If any child Agent instances in the
+          internal database appear to have been removed from the site
+          config, then they are set to have target_state "down" and
+          will be deleted from the database when that state is
+          reached.
+
+          State update requests in the ``requests`` list are processed
+          in order.  For example, if the requests were [('all', 'up'),
+          ('data1', 'down')].  This would result in setting all known
+          children to have target_state "up", except for "data1" which
+          would be given target state of "down".
 
         """
         if reload_site_config:
@@ -237,23 +243,52 @@ class HostManager:
     def manager(self, session, params):
         """manager(requests=[], reload_site_config=True)
 
-        **Process** - The "manager" Process maintains a list of child Agents for
-        which it is responsible.  In response to requests from a client, the
-        Process will launch or terminate child Agents.
+        **Process** - The "manager" Process maintains a list of child
+        Agents for which it is responsible.  In response to requests
+        from a client, the Process will launch or terminate child
+        Agents.
 
-        If an Agent process exits unexpectedly, it will be relaunched
-        within a few seconds.
+        Notes:
 
-        Prior to starting the management loop, this function passes
-        the parameters to the ``_update_target_states`` function;
-        please see that docstring for what they mean.
+          If an Agent process exits unexpectedly, it will be
+          relaunched within a few seconds.
 
-        Once this process is running, the target states for managed
-        Agents can be manipulated through the ``update`` task.
+          Prior to starting the management loop, this function passes
+          the parameters to the ``_update_target_states`` function;
+          please see that docstring for what they mean.
 
-        Note that when a stop is requested on this Process, all
-        managed Agents will be moved to the "down" state before the
-        Process exits.
+          Once this process is running, the target states for managed
+          Agents can be manipulated through the ``update`` task.
+
+          Note that when a stop is requested on this Process, all
+          managed Agents will be moved to the "down" state before the
+          Process exits.
+
+          The session.data is a dict, and entry 'child_states'
+          contains a list with the managed Agent statuses.  For
+          example::
+
+            {'child_states': [
+              {'next_action': 'up',
+               'target_state': 'up',
+               'stability': 1.0,
+               'class_name': 'Lakeshore372Agent',
+               'instance_id': 'thermo1'},
+              {'next_action': 'down',
+               'target_state': 'down',
+               'stability': 1.0,
+               'class_name': 'ACUAgent',
+               'instance_id': 'acu-1'},
+              {'next_action': 'up',
+               'target_state': 'up',
+               'stability': 1.0,
+               'class_name': 'FakeDataAgent',
+               'instance_id': 'faker6'},
+              ],
+            }
+
+          If you are looking for the "current state", it's called
+          "next_action" here.
 
         """
         self.running = True
@@ -263,7 +298,6 @@ class HostManager:
 
         session.data = {
             'child_states': [],
-            'last_error': None,
         }
 
         dying_words = ['down', 'kill', 'wait_dead']  #allowed during shutdown
@@ -370,14 +404,24 @@ class HostManager:
         return True, 'This HostManager should terminate in about 1 second.'
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+def make_parser(parser=None):
+    if parser is None:
+        parser = argparse.ArgumentParser()
     pgroup = parser.add_argument_group('Agent Options')
     pgroup.add_argument('--initial-state', default=None,
-                        choices=['up', 'down'])
+                        choices=['up', 'down'],
+                        help="Sets the target state for managed agents, "
+                        "on start-up.")
     pgroup.add_argument('--docker-compose', default=None,
-                        help="Comma-separated list of docker-compose files to parse and manage.")
-    pgroup.add_argument('--quiet', action='store_true')
+                        help="Comma-separated list of docker-compose files "
+                        "to parse and manage.")
+    pgroup.add_argument('--quiet', action='store_true',
+                        help="Suppress output to stdout/stderr.")
+    return parser
+
+
+if __name__ == '__main__':
+    parser = make_parser()
     args = site_config.parse_args(agent_class='HostManager',
                                   parser=parser)
 

@@ -2,60 +2,52 @@
 
 .. _host_manager:
 
-==================
-Host Manager Agent
-==================
+=================
+HostManager Agent
+=================
 
-The Host Manager Agent (HMA) helps to manage the many Agent instances
-that need to run on a single host machine.  The HMA is [will be] able
-to:
+The HostManager Agent helps to manage the many Agent instances that
+need to run on a single host machine, providing a way to start and
+stop Agents without connecting to the host system.
 
-- Parse the entire site configuration file, and help to start, stop,
-  and monitor each Agent instance running on a certain host.
-- Integrate with systemd as a daemon, to allow the process to be
-  controlled using standard systemctl commands, including how it
-  behaves on system start up. 
-- Accept control commands through the usual OCS channels, i.e. from
-  anywhere in the network.
+For a complete discussion of this Agent and how to best use it, see
+:ref:`centralized_management`.
 
-Direct user interaction with an HMA can be achieved through the 
-``ocsbow`` command line script.
+
+.. argparse::
+   :module: agents.host_manager.host_manager
+   :func: make_parser
+   :prog: host_manager.py
+
+
 
 Configuration File Examples
 ---------------------------
 
-The Host Manager Agent is an optional component.  In order to function
-properly, it requires that site_config be in use.  It should be listed
-in the SCF like other agents.  There should only be a single HMA per
-host definition block.
+Note that the HostManager Agent usually runs on the native system,
+and not in a Docker container.  (If you did set up a HostManager in a
+Docker container, it would only be able to start/stop agents within
+that container.)
 
 OCS Site Config
 ```````````````
 
-Here's an abbreviated SCF showing the correct configuration:
+Here's an example configuration block:
 
 .. code-block:: yaml
 
-  ...
-  hosts:
-    ...
-    host-1: {
-      ...
-      'agent-instances': [
-        ...
-        {'agent-class': 'HostManager',
-         'instance-id': 'hm-1',
-         'arguments': []}
-        ...
-      ]
-      ...
-    }
-    ...
-  ...
+     {'agent-class': 'HostManager',
+      'instance-id': 'hm-mydaqhost1'}
 
-The ``agent-class`` should be ``HostManager``.  The ``instance-id`` in
-this example is based on a (recommended) convention that HostManager
-live at ``hm-{host}``.
+By convention, the HostManager responsible for host ``<hostname>``
+should be given instance-id ``hm-<hostname>``.
+
+
+Description
+-----------
+
+Please see :ref:`centralized_management`.
+
 
 Agent API
 ---------
@@ -65,4 +57,5 @@ Agent API
 
 Supporting APIs
 ---------------
+
 .. automethod:: agents.host_manager.host_manager.HostManager._update_target_states

@@ -14,10 +14,11 @@ they are used for, and how to use them.
 ocsbow
 ======
 
-In order to use ``ocsbow`` to start and stop Agents in a distributed
-(multi-host) system, you must first have set up a :ref:`HostManager
-Agent<host_manager>` on each host you want to manage.  ``ocsbow``
-should be able to function in any environment where you can
+The purpose of ``ocsbow`` is to issue commands to :ref:`HostManager
+<host_manager>` Agents.  See :ref:`centralized_management` for general
+instructions.
+
+``ocsbow`` should be able to function in any environment where you can
 instantiate an OCSClient; it needs to know how to find the site config
 file, and it needs access to the crossbar router.
 
@@ -213,8 +214,9 @@ ocs-client-cli
 ocs-install-systemd
 ===================
 
-This script assists with setting up Centralized Management, in concert
-with HostManager Agent instances.
+This script assists with setting up systemd services to launch
+:ref:`host_manager` instances.  See :ref:`centralized_management` for
+general instructions.
 
 .. note::
 

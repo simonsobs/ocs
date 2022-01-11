@@ -211,11 +211,11 @@ class AgentProcessHelper(protocol.ProcessProtocol):
         #print('%s.status:' % self.instance_id, status)
         self.status = status, time.time()
     def outReceived(self, data):
-        self.lines['stdout'].append(data.decode('utf8').split('\n'))
+        self.lines['stdout'].extend(data.decode('utf8').split('\n'))
         if len(self.lines['stdout']) > 100:
             self.lines['stdout'] = self.lines['stdout'][-100:]
     def errReceived(self, data):
-        self.lines['stderr'].append(data.decode('utf8').split('\n'))
+        self.lines['stderr'].extend(data.decode('utf8').split('\n'))
         if len(self.lines['stderr']) > 100:
             self.lines['stderr'] = self.lines['stderr'][-100:]
 

@@ -10,8 +10,8 @@ organize and configure a site's OCS Agents and supporting docker
 containers.
 
 Site operators may also need to alter the configuration of the
-crossbar router, and to set up systemd services for managing OCS
-Agents.
+crossbar router, and to set up systems for centralized management of
+OCS Agents even when they are running on a variety of hosts.
 
 Details about each of these configuration files are discussed in the
 following pages:
@@ -22,4 +22,4 @@ following pages:
     site_config
     docker_config 
     crossbar_config
-    systemd_config
+    centralized_management

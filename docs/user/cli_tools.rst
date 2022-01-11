@@ -208,7 +208,7 @@ ocs-client-cli
    :prog: ocs-client-cli
 
 
-.. _install_systemd:
+.. _`ocs-install-systemd`:
 
 ocs-install-systemd
 ===================

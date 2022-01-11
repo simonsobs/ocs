@@ -25,26 +25,344 @@ functionality:
   individual agents restarted using HostManager panels in OCS web.
 
 
+The HostManager system, once in place, should be the only means by
+which those managed Agents are started or stopped.  For Agents running
+on the native OS, HostManager will run them as child processes so that
+it can monitor their states more easily.  For Agents running in docker
+containers, HostManager takes charge of the implicated containers and
+there will be conflicts if users also try to use ``docker-compose`` to
+restart containers.
+
 The main components of this system are:
 
 - :ref:`host_manager` -- an instance of this Agent must be set up for
   each host or docker-ish host in the site_config.yaml file.
 - ``systemd`` scripts -- there should be one systemd script (and
   launcher script) set up for each HostManager Agent instance; the
-  command-line tool :ref:`install_systemd` helps with this.
+  command-line tool :ref:`ocs-install-systemd` helps with this.
 - :ref:`ocsbow` -- the command-line client for communicating with
   HostManager Agents.
 
 
-Setting up HostManager Agents
-=============================
+
+Configuration of HostManager Agents
+===================================
+
+The HostManager Agents will normally run on the bare systems, rather
+than in Docker containers.  This is because they need to start and
+start other processes and start Docker containers on the system.
+
+To enable full centralized control of your system, there must be an
+instance of HostManager Agent set up for each host in the Site Config
+file (SCF).  Some hosts in the SCF describe agents running in Docker
+containers, and normally these are grouped to correspond to a single
+docker-compose.yaml file.  Each such host needs a HostManager set up,
+though the HostManager runs on the native system and not in a docker
+container.
+
+Config for native system hosts
+------------------------------
+
+Considering the Example Config from :ref:`ocs_site_config_file`, the
+SCF there has 3 hosts defined: ``host-1``, ``host-1-docker``, and
+``host-2``.  We must add a HostManager block to the
+``'agent-instances'`` list in each case.  For example, the ``host-1``
+block would become:
+
+.. code-block:: yaml
+
+    host-1: {
+
+      # Directory for logs.
+      'log-dir': '/simonsobs/log/ocs/',
+
+      # List of additional paths to Agent plugin modules.
+      'agent-paths': [
+        '/simonsobs/ocs/agents/',
+      ],
+
+      # Description of host-1's Agents.
+      # We have two readout devices; they are both Lakeshore 240. But they can
+      # be distinguished, on startup, by a device serial number.
+      # We also have a HostManager.
+
+      'agent-instances': [
+        {'agent-class': 'Lakeshore240Agent',
+         'instance-id': 'thermo1',
+         'arguments': [['--serial-number', 'LSA11AA'],
+                       ['--mode', 'idle']]},
+        {'agent-class': 'Lakeshore240Agent',
+         'instance-id': 'thermo2',
+         'arguments': [['--serial-number', 'LSA22BB'],
+                       ['--mode', 'acq']]},
+        {'agent-class': 'HostManager',
+         'instance-id': 'hm-host-1',
+        },
+      ]
+    }
+
+To test the configuration, you can try to launch the HostManager.  In
+a fully configured system, this will be done through systemd.  But for
+initial setup you can use the ``ocs-local-support`` program.
+
+.. note::
+   When you launch HostManager, it will try to start new processes for
+   each of its managed Agents!  So you should shut down any running
+   instances, and be in a state where it's acceptable to start up new
+   instances.
+
+
+To launch the HostManager agent for the system you're logged into, run::
+
+  $ ocs-local-support start agent --foreground
+
+You can Ctrl-C out of this to kill the agent.  (If you accidentally
+run this without the ``--foreground``, you can try using
+``ocs-local-support stop agent`` to stop it.)
+
+To start using ocsbow to communicate with this HostManager, see
+`Communicating with HostManager Agents`_.  To set the HostManager
+up in systemd (useful especially to have the HostManager and managed
+agents start up when the system boots), see `systemd Control of
+HostManagers`_.
+
+
+Config for docker pseudo-hosts
+------------------------------
+
+Considering the Example Config from :ref:`ocs_site_config_file`, the
+host ``host-1-docker`` describes agents that are launched in
+containers using ``docker-compose``.  After adding a HostManager to
+that pseudo-host the configuration block would look like this:
+
+
+.. code-block:: yaml
+
+    host-1-docker: {
+
+      # Description of host-1's Agents running with Docker containers.
+      # We have one readout device; a Lakeshore 372.
+
+      'agent-instances': [
+        {'agent-class': 'Lakeshore372Agent',
+         'instance-id': 'LSARR00',
+         'manage': 'docker',
+         'arguments': [['--serial-number', 'LSARR00'],
+                       ['--ip-address', '10.10.10.55']]},
+        {'agent-class': 'HostManager',
+         'instance-id': 'hm-host-1-docker',
+         'arguments': [['--docker-compose', '/home/ocs/site-config/host-1-docker/docker-compose.yaml']]},
+      ]
+    }
+
+
+This has two important differences from the "native host" case:
+
+- The HostManager description block includes an "arguments" entry,
+  providing the path to the docker-compose.yaml file that describes
+  these agents.
+- All the other Agents should have a new setting, ``'manage':
+  'docker'``, which lets HostManager know that the instance is run in
+  a Docker container.  This is actually optional, but it will help to
+  produce clearer output later.
+
+
+Even though the HostManager is listed in the docker pseudo-host, it
+must run on the native system.  You can test launch it using
+``ocs-local-support``, as in the native host case, but make sure you
+tell it that you want to launch the HostManager for the host-1-docker
+pseudo-host::
+
+  $ ocs-local-support start agent --foreground --site-host host-1-docker
+
+
+Advanced host config
+~~~~~~~~~~~~~~~~~~~~
+
+In some cases you might want to temporarily exclude an agent from
+HostManager control.  You can do this by setting ``'manage':
+'no'``.  This only works for Agents running on the native system.
+
+
+Communicating with HostManager Agents
+=====================================
+
+This section describes using the :ref:`ocsbow` command line tool to
+communicate with all the HostManager agents in an OCS setup.  A
+complementary approach is to use OCS Web; see `Using OCS Web with HostManager`_.
+
+``ocsbow`` is a special client program that knows how to parse the SCF
+and figure out what HostManager are running on the system.  This
+allows it to query each one (using standard OCS techniques) and
+present the status of all the managed agents.
+
+Like any other OCS client program, ``ocsbow`` needs to be able to find
+the site config file.  (If you have just made changes to the SCF to
+add HostManager agents, make sure the system you're running this
+client on also has access to that updated SCF.)
+
+
+Inspecting status
+-----------------
+
+The basic status display is shown if you run ``ocsbow``.  In the
+example above, the output will look something like this::
+
+  $ ocsbow
+  ocs status
+  ----------
+
+  The site config file is :
+    /home/ocs/site-config/default.yaml
+
+  The crossbar base url is :
+    http://my-crossbar-server:8001/call
+
+  ---------------------------------------------------------------------------
+  Host: host-1
+
+    [instance-id]                  [agent-class]           [state]   [target]
+    hm-host-1                      HostManager                  up        n/a
+    thermo1                        Lakeshore240Agent            up         up
+    thermo2                        Lakeshore240Agent            up         up
+
+  ---------------------------------------------------------------------------
+  Host: host-1-docker
+
+    [instance-id]                  [agent-class]           [state]   [target]
+    hm-host-1-docker               HostManager                  up        n/a
+    LSARR00                        Lakeshore372Agent             ?          ?
+    ocs-LSARR00                    docker                       up         up
+
+  ---------------------------------------------------------------------------
+  Host: host-2
+
+    [instance-id]                  [agent-class]           [state]   [target]
+    hm-host-2                      HostManager                  up        n/a
+    thermo3                        Lakeshore240Agent            up         up
+    aggregator                     AggregatorAgent              up         up
+
+
+The output is interpreted as follows.  After an initial statement of
+what site config file is being used, and the crossbar access address,
+a block is presented for each host in the SCF.  Within each host
+block, each agent instance-id is listed, along with its agent-class
+and values for "state" and "target".
+
+(See `below <Agents Running in Docker containers>`_ for an explanation
+of why the host-1-docker entries look odd.)
+
+``state`` and ``target``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``state`` column shows whether the Agent is currently running
+(``up``) or not (``down``).  This column may also show the value
+``unstable``, which indicates that an Agent keeps restarting (this
+usually indicates a code, configuration, or hardware error that is
+causing the agent to crash shortly after start-up).
+
+For the non-HostManager agents, the ``target`` column shows the state
+that HostManager will try to achieve for that Agent.  So if
+``target=up`` then the HostManager will start the Agent, and keep
+restarting the Agent if it crashes or otherwise terminates.  If
+``target=down`` then the HostManager will stop the Agent and
+not restart it.  (Note that in the case of Agents in docker
+containers, the HostManager will recognize if the Agent container has
+been started up and will proceed to stop it ``target=down``).
+
+Each HostManager can be commanded to change the target state of Agents
+it controls; see `Start/Stop Agents`_.
+
+For the HostManager lines, the ``target`` will always be ``[n/a]`` and
+the state will either be ``up``, ``down``, or ``sleeping``.  When the
+HostManager appears to be functioning normally, the state will be
+``up``.  If the HostManager appears to not be running at all, the
+state will be ``down``.  If the HostManager is running but the
+"manage" Process is not running for some reason, the state will be
+``sleeping``.
+
+Agents running in Docker containers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``ocsbow status`` output for Agent instances running in docker
+containers is a bit confusing.  In this example we seem to have two
+lines that refer to LSARR00::
+
+    LSARR00                        Lakeshore372Agent             ?          ?
+    ocs-LSARR00                    docker                       up         up
+
+The first line is there because the SCF listed an agent with class
+Lakeshore372Agent and instance-id LSARR00.  But because it was
+configured with ``'manage': 'docker'``, the HostManager is not
+managing that item directly.
+
+The second line is there because the ``docker-compose.yaml`` to which
+the HostManager was pointed specifies a service called "ocs-LSARR00",
+and this HostManager is managing that service.  It stands to reason
+that this service corresponds to LSARR00, but it is not currently
+possible to check this reliably.
+
+When using ocsbow to control Docker-based agents (see next sections),
+use the service name (ocs-LSARR00), not the agent_id (LSARR00), to
+specify the target.
+
+.. note::
+
+   It's likely we can find a better way to deal with Docker-based
+   Agents in this system; please consider the current behavior as a
+   interim solution.
+
+
+Start/Stop Agents
+-----------------
+
+To start an Agent, through its HostManager, run ``ocsbow up``,
+specifying the agent-id.  For example::
+
+  $ ocsbow up thermo1
+
+The correct HostManager will be contacted and ``target=up`` will be
+set for that Agent instance.  Similarly::
+
+  $ ocsbow down thermo1
+
+will set ``target=down`` for the ``thermo1`` instance.
+
+
+Start/Stop Batches of Agents
+----------------------------
+
+You can pass multiple instance-id targets in a single line, even if they are managed by
+different HostManagers.  For example::
+
+  $ ocsbow down thermo1 thermo3
+
+If you pass the instance-id of a *HostManager*, then the target state
+will be applied to *all* its managed agents.  So in our example::
+
+  $ ocsbow down hm-host-1
+
+is equivalent to::
+
+  $ ocsbow down thermo1 thermo2
+
+You can target *all* the managed agents in a system using the ``-a``
+(``--all``) switch::
+
+  $ ocsbow down -a    # Bring down all the agents!
+  $ ocsbow up -a      # Bring up all the agents!
+
+
+Note that none of these commands will cause the HostManager agents to
+stop.  Restarting HostManagers must be done through another means (the
+systemd controls, or ``ocs-local-support``).
 
 
 systemd Control of HostManagers
 ===============================
 
 `systemd`_ is widely used on Linux systems to manage services and
-daemons (and lots of other stuff).  The OCS script
+daemons (and lots of other stuff).  The OCS program
 :ref:`ocs-install-systemd` may be used to help register each
 HostManager Agent as a systemd service.  The `systemctl`_ program
 (part of systemd) can then be used to start and stop the Agent, or to
@@ -94,11 +412,11 @@ Some additional details about the service file and launcher script are
 provided here.
 
 The .service file
-`````````````````
+~~~~~~~~~~~~~~~~~
 
 The .service file is a `service_configuration_`<service configuration
 file> for systemd, and there are lots of things that could be set up
-in there.  The file created by ``ocs-install-systemd`` is minimal, but
+in there.  The file created by :ref:`ocs-install-systemd` is minimal, but
 sufficient.  It should look something like this::
 
   [Unit]
@@ -128,7 +446,7 @@ in your site config dir.
 .. _`service_configuration`: https://www.freedesktop.org/software/systemd/man/systemd.service.html
 
 The launcher script
-```````````````````
+~~~~~~~~~~~~~~~~~~~
 
 The launcher script is a bash script that runs HostManager.  It is
 called by systemd when starting the service.  Any environment
@@ -186,3 +504,12 @@ To disable launch-on-boot::
 
 Using OCS Web with HostManager
 ==============================
+
+The OCS Web system includes a Panel for HostManager agents.  Here's a
+screenshot of what that looks like:
+
+.. image:: ../_static/ocs_web_hostmanager.png
+
+In its current form, the control panel is associated with a single
+HostManager, and there is no way to broadcast target state requests to
+multiple targets.

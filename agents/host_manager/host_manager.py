@@ -125,9 +125,9 @@ class HostManager:
         return True, 'Kill requested.'
 
     @inlineCallbacks
-    def _update_target_states(self, session, params):
-        """_update_target_states(params)
-
+    def _update_target_states(
+            self, session, requests=[], reload_site_config=True):
+        """
         Update the child Agent management parameters of the manager process.
         This function is used both for first-time init of the manager
         Process, but also for subsequent parameter updates while
@@ -168,10 +168,7 @@ class HostManager:
         would be given target state of "down".
 
         """
-        if params is None:
-            params = {}
-
-        if params.get('reload_site_config', True):
+        if reload_site_config:
             # Update the list of Agent instances.
             agent_keys = yield self._get_instance_list()
             session.add_message('Loaded %i agent instance configs.' %
@@ -222,7 +219,6 @@ class HostManager:
                 continue
             addressable[k[1]] = v
 
-        requests = params.get('requests', [])
         for key, state in requests:
             if not state in VALID_TARGETS:
                 session.add_message('Ignoring request for "%s" -> invalid state "%s".' %
@@ -235,9 +231,11 @@ class HostManager:
                 if key in addressable:
                     addressable[key]['target_state'] = state
 
+    @ocs_agent.param('requests', default=[])
+    @ocs_agent.param('reload_site_config', default=True, type=bool)
     @inlineCallbacks
     def manager(self, session, params):
-        """manager(**kwargs)
+        """manager(requests=[], reload_site_config=True)
 
         **Process** - The "manager" Process maintains a list of child Agents for
         which it is responsible.  In response to requests from a client, the
@@ -246,18 +244,22 @@ class HostManager:
         If an Agent process exits unexpectedly, it will be relaunched
         within a few seconds.
 
-        When the manager Process receives a stop request, it will terminate all
-        child agents before moving to the 'done' state.
+        Prior to starting the management loop, this function passes
+        the parameters to the ``_update_target_states`` function;
+        please see that docstring for what they mean.
 
-        Parameters:
-            **kwargs: Passed directly to
-                ``_update_target_states(params=kwargs)``; see
-                :func:`HostManager._update_target_states`.
+        Once this process is running, the target states for managed
+        Agents can be manipulated through the ``update`` task.
+
+        Note that when a stop is requested on this Process, all
+        managed Agents will be moved to the "down" state before the
+        Process exits.
 
         """
         self.running = True
         session.set_status('running')
-        self._update_target_states(session, params)
+        self._update_target_states(
+            session, params['requests'], params['reload_site_config'])
 
         session.data = {
             'child_states': [],
@@ -327,23 +329,25 @@ class HostManager:
         self.running = False
         return True, 'Stop initiated.'
 
+    @ocs_agent.param('requests', default=[])
+    @ocs_agent.param('reload_site_config', default=True, type=bool)
     def update(self, session, params):
-        """update(**kwargs)
+        """update(requests=[], reload_site_config=True)
 
         **Task** - Update the manager process' child Agent parameters.
 
         This Task will fail if the manager Process is not running.
 
-        Parameters:
-            **kwargs: Passed directly to
-                ``_update_target_states(params=kwargs)``; see
-                :func:`HostManager._update_target_states`.
+        The parameters passed in here are passed to the
+        ``_update_target_states`` function; please see that docstring
+        for what they mean.
 
         """
         if not self.running:
             return False, 'Manager process is not running; params not updated.'
 
-        self._update_target_states(session, params)
+        self._update_target_states(
+            session, params['requests'], params['reload_site_config'])
         return True, 'Update requested.'
 
     @inlineCallbacks

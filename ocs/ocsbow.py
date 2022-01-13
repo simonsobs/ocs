@@ -100,7 +100,7 @@ def get_args_and_site_config(args=None, parser_func=None):
     for agent_class in ['*host*', '*control*']:
         try:
             parser = parser_func()
-            args_ = ocs.site_config.parse_args(agent_class=agent_class, parser=parser)
+            args_ = ocs.site_config.parse_args(agent_class=agent_class, parser=parser, args=args)
             site_config = ocs.site_config.get_config(args_, agent_class=agent_class)
             break
         except KeyError:

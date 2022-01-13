@@ -1,7 +1,9 @@
 import os
+import time
 import pytest
 
 from ocs.base import OpCode
+from ocs import ocsbow
 
 from integration.util import (
     create_agent_runner_fixture,
@@ -27,3 +29,39 @@ def test_host_manager_agent_manager(wait_for_crossbar, run_agent, client):
     resp = client.manager.status()
     print(resp)
     assert resp.session['op_code'] == OpCode.RUNNING.value
+
+    def find_child(resp, instance_id):
+        for v in resp.session['data']['child_states']:
+            if v['instance_id'] == instance_id:
+                return v
+        raise ValueError
+
+    target = 'fake-data-local'
+
+    state = find_child(resp, target)
+    assert(state['target_state'] == 'down')
+    assert(state['next_action'] == 'down')
+
+    # Start it up
+    resp = client.update(requests=[(target, 'up')])
+    print(resp)
+
+    # Give manager session data a change to update
+    time.sleep(1)
+    resp = client.manager.status()
+    state = find_child(resp, target)
+    assert(state['target_state'] == 'up')
+
+    for i in range(10):
+        time.sleep(1)
+        resp = client.manager.status()
+        state = find_child(resp, target)
+        if state['target_state'] == 'up':
+            break
+    else:
+        raise RuntimeError("state['target_state'] != 'up'")
+
+    # Check ocsbow
+    ocsbow.main(['status'])
+    ocsbow.main(['up', target])
+    ocsbow.main(['down', 'host-manager-1'])

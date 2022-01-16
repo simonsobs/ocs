@@ -1,9 +1,12 @@
 import os
 import pytest
 
-from integration.util import (
+from ocs.testing import (
     create_agent_runner_fixture,
     create_client_fixture,
+)
+
+from integration.util import (
     create_crossbar_fixture
 )
 

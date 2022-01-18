@@ -5,7 +5,6 @@ import signal
 import subprocess
 import coverage.data
 import urllib.request
-import docker
 
 from urllib.error import URLError
 
@@ -40,7 +39,7 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
                                      stderr=subprocess.PIPE,
                                      preexec_fn=os.setsid)
 
-        # wait for Agent to startup 
+        # wait for Agent to startup
         time.sleep(1)
 
         yield
@@ -107,15 +106,16 @@ def check_crossbar_connection(port=18001, interval=5, max_attempts=6):
 
     Notes:
         For this check to work the crossbar server needs the `Node Info Service
-        <https://crossbar.io/docs/Node-Info-Service/>`_ running at the path /info.
-
+        <https://crossbar.io/docs/Node-Info-Service/>`_ running at the path
+        /info.
 
     """
     attempts = 0
 
     while attempts < max_attempts:
         try:
-            code = urllib.request.urlopen(f"http://localhost:{port}/info").getcode()
+            url = f"http://localhost:{port}/info"
+            code = urllib.request.urlopen(url).getcode()
         except (URLError, ConnectionResetError):
             print("Crossbar server not online yet, waiting 5 seconds.")
             time.sleep(interval)

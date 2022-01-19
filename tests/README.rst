@@ -1,5 +1,5 @@
 Tests
------
+=====
 We use pytest as our test runner for OCS. To run all of the tests, from within
 this ``tests/`` directory, run pytest::
 
@@ -10,7 +10,7 @@ unit tests will run quickly, however the integration test will take some time,
 and might require some first time setup.
 
 Test Organization
-`````````````````
+-----------------
 Tests that test the functionality of the core ocs library are kept in the root
 of the ``tests/`` directory. They are named identically to the core library
 module filenames with a ``test_`` prefix.
@@ -24,7 +24,7 @@ Finally, integration tests that test the Agents and interaction with them
 through Clients are kept in ``tests/integration``.
 
 Unit Tests
-``````````
+----------
 The unit tests are built to run quickly and test functionality of individual
 parts of the OCS library. These are run automatically on every commit to a
 branch/PR on GitHub, using GitHub Actions.  However, you might want to run them
@@ -43,7 +43,7 @@ tests, leaving just the unit tests.
         $ docker run --rm -w="/app/ocs/tests/" ocs sh -c "python3 -m pytest -m 'not integtest'"
 
 Integration Tests
-`````````````````
+-----------------
 These tests are built to test the running OCS system, and as such need several
 running components. This includes a crossbar server and each core OCS Agent. In
 order to run these in an isolated environment we make use of Docker and Docker
@@ -70,7 +70,7 @@ all integration tests with::
     crossbar on port 18001 instead of port 8001.)
 
 Reducing Turnaround Time in Testing
-...................................
+```````````````````````````````````
 Since the integration tests depend on docker containers you need to have the
 docker images built prior to running the tests. You can build all of the docker
 images from the root of the ocs repo::
@@ -99,7 +99,7 @@ Agent/container you are working on. For example, in the fake-data-agent::
       - "--site-http=http://crossbar:18001/call"
 
 Code Coverage
-`````````````
+-------------
 Code coverage reports can be produced with the ``--cov`` flag::
 
   python3 -m pytest -m 'not integtest' --cov

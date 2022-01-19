@@ -386,6 +386,12 @@ class OCSAgent(ApplicationSession):
                 launched on startup.  If the ``startup`` argument is a
                 dictionary, this is passed to the Operation's start
                 function.
+
+        Notes:
+            The function func will be called with arguments (session,
+            params) where session is the active OpSession and params
+            is passed from the client.
+
         """
         self.tasks[name] = AgentTask(func, blocking=blocking)
         self.sessions[name] = None
@@ -411,6 +417,14 @@ class OCSAgent(ApplicationSession):
                 launched on startup.  If the ``startup`` argument is a
                 dictionary, this is passed to the Operation's start
                 function.
+
+        Notes:
+            The functions start_func and stop_func will be called with
+            arguments (session, params) where session is the active
+            OpSession and params is passed from the client.
+
+            (Passing params to the stop_func might not be supported in
+            the client library so don't count on that being useful.)
 
         """
         self.processes[name] = AgentProcess(start_func, stop_func,
@@ -756,15 +770,20 @@ class OCSAgent(ApplicationSession):
 
           ocs.OK: the Process stop routine has been launched.
         """
+        print('stop called for {}'.format(op_name))
         if op_name in self.tasks:
             return (ocs.ERROR, 'No implementation for "%s" because it is a task.' % op_name,
                     {})
         elif op_name in self.processes:
+            def _errback(self, *args, **kw):
+                print(f'Error calling stopper for "{op_name}"; args:',
+                      args, kw)
             session = self.sessions.get(op_name)
             if session is None:
                 return (ocs.ERROR, 'No session active.', {})
             proc = self.processes[op_name]
             d2 = threads.deferToThread(proc.stopper, session, params)
+            d2.addErrback(_errback)
             return (ocs.OK, 'Requested stop on process "%s".' % op_name, session.encoded())
         else:
             return (ocs.ERROR, 'No process called "%s".' % op_name, {})

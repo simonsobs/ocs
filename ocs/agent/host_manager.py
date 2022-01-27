@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 import yaml
 
@@ -219,6 +220,15 @@ class AgentProcessHelper(protocol.ProcessProtocol):
         if len(self.lines['stderr']) > 100:
             self.lines['stderr'] = self.lines['stderr'][-100:]
 
+
+def _run_docker_compose(args, docker_compose_bin=None):
+    # Help avoid some boilerplate.
+    if docker_compose_bin is None:
+        docker_compose_bin = shutil.which('docker-compose')
+    return utils.getProcessOutputAndValue(
+        docker_compose_bin, args)
+
+
 class DockerContainerHelper:
 
     """Class for managing the docker container associated with some
@@ -226,13 +236,14 @@ class DockerContainerHelper:
     AgentProcessHelper in HostManager agent.
 
     """
-    def __init__(self, service):
+    def __init__(self, service, docker_compose_bin=None):
         self.service = {}
         self.status = -1, time.time()
         self.killed = False
         self.instance_id = service['service']
         self.d = None
         self.update(service)
+        self.docker_compose_bin = docker_compose_bin
 
     def update(self, info):
         """Update self.status based on the latest "info", for this service,
@@ -246,23 +257,28 @@ class DockerContainerHelper:
             self.status = info['exit_code'], time.time()
 
     def up(self):
-        self.d = utils.getProcessOutputAndValue(
-            'docker-compose', ['-f', self.service['compose_file'],
-                               'up', '-d', self.service['service']])
+        self.d = _run_docker_compose(
+            ['-f', self.service['compose_file'],
+             'up', '-d', self.service['service']],
+            docker_compose_bin=self.docker_compose_bin)
         self.status = None, time.time()
 
     def down(self):
-        self.d = utils.getProcessOutputAndValue(
-            'docker-compose', ['-f', self.service['compose_file'],
-                               'rm', '--stop', '--force', self.service['service']])
+        self.d = _run_docker_compose(
+            ['-f', self.service['compose_file'],
+             'rm', '--stop', '--force', self.service['service']],
+            docker_compose_bin=self.docker_compose_bin)
         self.killed = True
 
 
 @inlineCallbacks
-def parse_docker_state(docker_compose_file):
+def parse_docker_state(docker_compose_file, docker_compose_bin=None):
     """Analyze a docker-compose.yaml file to get a list of services.
     Using docker-compose ps and docker inspect, determine whether each
     service is running or not.
+
+    Use docker_compose_bin to pass in the full path to the
+    docker-compose executable.
 
     Returns:
       A dict where the key is the service name and each value is a
@@ -292,8 +308,9 @@ def parse_docker_state(docker_compose_file):
         }
 
     # Query docker-compose for container ids...
-    out, err, code = yield utils.getProcessOutputAndValue(
-        'docker-compose', ['-f', docker_compose_file, 'ps', '-q'])
+    out, err, code = yield _run_docker_compose(
+        ['-f', docker_compose_file, 'ps', '-q'],
+        docker_compose_bin=docker_compose_bin)
     if code != 0:
         raise RuntimeError("Could not run docker-compose or could not parse "
                            "docker-compose file; exit code %i, error text: %s" %

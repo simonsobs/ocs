@@ -23,12 +23,13 @@ class HostManager:
     a system boots, it can then be used to start up the rest of OCS on
     that host (either automatically or on request).
     """
-    def __init__(self, agent, docker_composes=[]):
+    def __init__(self, agent, docker_composes=[], docker_compose_bin=None):
         self.agent = agent
         self.running = False
         self.database = {} # key is (class_name, instance_id)
         self.site_file = None
         self.docker_composes = docker_composes
+        self.docker_compose_bin = docker_compose_bin
 
     @inlineCallbacks
     def _get_instance_list(self):
@@ -64,7 +65,8 @@ class HostManager:
         # Add in services from specified docker-compose files.
         self.docker_services = {}
         for compose in self.docker_composes:
-            services = yield hm_utils.parse_docker_state(compose)
+            services = yield hm_utils.parse_docker_state(
+                compose, docker_compose_bin=self.docker_compose_bin)
             self.docker_services.update(services)
             for k in services.keys():
                 keys.append(('docker', k))
@@ -78,12 +80,17 @@ class HostManager:
 
         """
         for compose in self.docker_composes:
-            services = yield hm_utils.parse_docker_state(compose)
+            services = yield hm_utils.parse_docker_state(
+                compose, docker_compose_bin=self.docker_compose_bin)
             for k, info in services.items():
                 db = self.database[('docker', k)]
                 if db['prot'] is None:
-                    db['prot'] = hm_utils.DockerContainerHelper(info)
+                    db['prot'] = self._get_docker_helper(info)
                 db['prot'].update(info)
+
+    def _get_docker_helper(self, compose_file):
+        return hm_utils.DockerContainerHelper(
+            compose_file, docker_compose_bin=self.docker_compose_bin)
 
     def _launch_instance(self, key, script_file, instance_id):
         """
@@ -100,7 +107,7 @@ class HostManager:
 
         """
         if key[0] == 'docker':
-            prot = hm_utils.DockerContainerHelper(self.docker_services[instance_id])
+            prot = self._get_docker_helper(self.docker_services[instance_id])
         else:
             pyth = sys.executable
             cmd = [pyth, script_file,
@@ -194,7 +201,7 @@ class HostManager:
                     state = 'down'
                     if k[0] == 'docker':
                         agent_script = 'docker'
-                        prot = hm_utils.DockerContainerHelper(self.docker_services[k[1]])
+                        prot = self._get_docker_helper(self.docker_services[k[1]])
                         if prot.status[0] == None:
                             session.add_message(
                                 'On startup, detected active container for %s' % k[1])
@@ -415,6 +422,11 @@ def make_parser(parser=None):
     pgroup.add_argument('--docker-compose', default=None,
                         help="Comma-separated list of docker-compose files "
                         "to parse and manage.")
+    pgroup.add_argument('--docker-compose-bin', default=None,
+                        help="Path to docker-compose binary.  This "
+                        "will be interpreted as a path relative to "
+                        "current working directory.  If not specified, "
+                        "will try to use `which docker-compose`.")
     pgroup.add_argument('--quiet', action='store_true',
                         help="Suppress output to stdout/stderr.")
     return parser
@@ -440,8 +452,12 @@ if __name__ == '__main__':
     docker_composes = []
     if args.docker_compose:
         docker_composes = args.docker_compose.split(',')
+        docker_compose_bin = args.docker_compose_bin
+        if args.docker_compose_bin is not None:
+            docker_compose_bin = os.path.join(os.getcwd(), docker_compose_bin)
 
-    host_manager = HostManager(agent, docker_composes=docker_composes)
+    host_manager = HostManager(agent, docker_composes=docker_composes,
+                               docker_compose_bin=args.docker_compose_bin)
 
     startup_params = {}
     if args.initial_state:

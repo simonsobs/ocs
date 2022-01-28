@@ -48,6 +48,7 @@ write OCS Agents or Clients.
     developer/clients
     developer/data
     developer/web
+    developer/testing
 
 
 .. toctree::

@@ -25,13 +25,15 @@ functionality:
   individual agents restarted using HostManager panels in OCS web.
 
 
-The HostManager system, once in place, should be the only means by
-which those managed Agents are started or stopped.  For Agents running
-on the native OS, HostManager will run them as child processes so that
-it can monitor their states more easily.  For Agents running in docker
-containers, HostManager takes charge of the implicated containers and
-there will be conflicts if users also try to use ``docker-compose`` to
-restart containers.
+.. warning::
+
+    The HostManager system, once in place, should be the only means by
+    which those managed Agents are started or stopped.  For Agents
+    running on the native OS, HostManager will run them as child
+    processes so that it can monitor their states more easily.  For
+    Agents running in docker containers, HostManager takes charge of
+    the implicated containers and there will be conflicts if users
+    also try to use ``docker-compose`` to restart containers.
 
 The main components of this system are:
 
@@ -50,7 +52,7 @@ Configuration of HostManager Agents
 
 The HostManager Agents will normally run on the bare systems, rather
 than in Docker containers.  This is because they need to start and
-start other processes and start Docker containers on the system.
+stop other processes and start Docker containers on the system.
 
 To enable full centralized control of your system, there must be an
 instance of HostManager Agent set up for each host in the Site Config
@@ -249,7 +251,7 @@ a block is presented for each host in the SCF.  Within each host
 block, each agent instance-id is listed, along with its agent-class
 and values for "state" and "target".
 
-(See `below <Agents Running in Docker containers>`_ for an explanation
+(See `Agents Running in Docker containers`_ for an explanation
 of why the host-1-docker entries look odd.)
 
 ``state`` and ``target``
@@ -265,10 +267,11 @@ For the non-HostManager agents, the ``target`` column shows the state
 that HostManager will try to achieve for that Agent.  So if
 ``target=up`` then the HostManager will start the Agent, and keep
 restarting the Agent if it crashes or otherwise terminates.  If
-``target=down`` then the HostManager will stop the Agent and
-not restart it.  (Note that in the case of Agents in docker
-containers, the HostManager will recognize if the Agent container has
-been started up and will proceed to stop it ``target=down``).
+``target=down`` then the HostManager will stop the Agent and not
+restart it.  (Note that in the case of Agents in docker containers,
+the HostManager will use docker and docker-compose to monitor the
+state of containers, and request start or stop in order to match the
+target state.)
 
 Each HostManager can be commanded to change the target state of Agents
 it controls; see `Start/Stop Agents`_.
@@ -389,7 +392,10 @@ in more detail a little later:
 
 To generate those files, run::
 
-  [ocs@ocs-host5 my-ocs]$ ocs-install-systemd --service-dir=.
+  $ hostname
+  ocs-host5
+  $ cd $OCS_CONFIG_DIR
+  $ ocs-install-systemd --service-dir=.
   Writing /home/ocs/ocs-site-configs/my-ocs/launcher-hostmanager-ocs-host5.sh ...
   Writing ./ocs-hostmanager.service ...
 
@@ -414,10 +420,10 @@ provided here.
 The .service file
 ~~~~~~~~~~~~~~~~~
 
-The .service file is a `service_configuration_`<service configuration
-file> for systemd, and there are lots of things that could be set up
-in there.  The file created by :ref:`ocs-install-systemd` is minimal, but
-sufficient.  It should look something like this::
+The .service file is a `service configuration file`_ for systemd, and
+there are lots of things that could be set up in there.  The file
+created by :ref:`ocs-install-systemd` is minimal, but sufficient.  It
+should look something like this::
 
   [Unit]
   Description=OCS HostManager for server5
@@ -443,7 +449,7 @@ aware that it might make sense to call the installed service file
 different filenames (probably ``ocs-hostmanager-<hostname>.service``)
 in your site config dir.
 
-.. _`service_configuration`: https://www.freedesktop.org/software/systemd/man/systemd.service.html
+.. _`service configuration file`: https://www.freedesktop.org/software/systemd/man/systemd.service.html
 
 The launcher script
 ~~~~~~~~~~~~~~~~~~~

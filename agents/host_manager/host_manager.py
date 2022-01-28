@@ -5,13 +5,10 @@ from ocs.agent import host_manager as hm_utils
 import time
 import argparse
 
-from twisted.internet import reactor, task, threads
-from twisted.internet import protocol
-from twisted.internet.defer import inlineCallbacks, Deferred, DeferredList, FirstError
+from twisted.internet import reactor
+from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
 
-import threading
-import socket
 import os, sys
 
 VALID_TARGETS = ['up', 'down']
@@ -26,6 +23,9 @@ class HostManager:
     def __init__(self, agent, docker_composes=[], docker_compose_bin=None):
         self.agent = agent
         self.running = False
+        # The keys in self.database are of the form (class_name,
+        # instance_id); for docker services use ('docker',
+        # service_name).
         self.database = {} # key is (class_name, instance_id)
         self.site_file = None
         self.docker_composes = docker_composes
@@ -306,8 +306,6 @@ class HostManager:
         session.data = {
             'child_states': [],
         }
-
-        dying_words = ['down', 'kill', 'wait_dead']  #allowed during shutdown
 
         next_docker_update = time.time()
 

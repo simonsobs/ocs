@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, socket, stat, sys
+import os, stat, sys
 from ocs import site_config
 
 """The idea here is to create a launcher script that will live in the

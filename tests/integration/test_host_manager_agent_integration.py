@@ -46,12 +46,7 @@ def test_host_manager_agent_manager(wait_for_crossbar, run_agent, client):
     resp = client.update(requests=[(target, 'up')])
     print(resp)
 
-    # Give manager session data a change to update
-    time.sleep(1)
-    resp = client.manager.status()
-    state = find_child(resp, target)
-    assert(state['target_state'] == 'up')
-
+    # Give manager session data a chance to update
     for i in range(10):
         time.sleep(1)
         resp = client.manager.status()

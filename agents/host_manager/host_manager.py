@@ -205,14 +205,17 @@ class HostManager:
                         if prot.status[0] == None:
                             session.add_message(
                                 'On startup, detected active container for %s' % k[1])
-                            ## Leave it up?  No.
-                            #state = 'up'
+                            # Mark current state as up... by the end
+                            # of this function target_state will be up
+                            # or down and that will determine if
+                            # container is left up or stopped.
+                            state = 'up'
                     else:
                         agent_script = site_config.agent_script_reg.get(k[0])
                         prot = None
                     self.database[k] = {
                         'next_action': state,
-                        'target_state': state,
+                        'target_state': 'down',
                         'class_name': k[0],
                         'instance_id': k[1],
                         'prot': prot,

@@ -7,18 +7,11 @@ import pytest_twisted
 
 from agents.util import create_session, create_agent_fixture
 
+from registry import Registry
 
-try:
-    # depends on spt3g
-    from registry import Registry
-
-    agent = create_agent_fixture(Registry)
-except ModuleNotFoundError as e:
-    print(f"Unable to import: {e}")
+agent = create_agent_fixture(Registry)
 
 
-@pytest.mark.spt3g
-@pytest.mark.dependency(depends=['so3g'], scope='session')
 class TestMain:
     @pytest_twisted.inlineCallbacks
     def test_registry_main(self, agent):
@@ -79,8 +72,6 @@ class TestMain:
         assert session.data['observatory.test_agent']['op_codes'] == expected_op_codes
 
 
-@pytest.mark.spt3g
-@pytest.mark.dependency(depends=['so3g'], scope='session')
 class TestStopMain:
     def test_registry_stop_main_while_running(self, agent):
         session = create_session('main')
@@ -97,8 +88,6 @@ class TestStopMain:
         assert res[0] is False
 
 
-@pytest.mark.spt3g
-@pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_registry_register_agent(agent):
     session = create_session('main')
     agent_data = {'agent_address': 'observatory.test_agent'}

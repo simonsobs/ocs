@@ -6,8 +6,6 @@ from autobahn.twisted.util import sleep as dsleep
 from collections import defaultdict
 from ocs.ocs_feed import Feed
 
-from ocs.agent.aggregator import Provider
-
 class RegisteredAgent:
     """
         Contains data about registered agents.
@@ -166,7 +164,7 @@ class Registry:
                     field = f'{addr}_{op_name}'
                     field = field.replace('.', '_')
                     field = field.replace('-', '_')
-                    field = Provider._enforce_field_name_rules(field)
+                    field = Feed.enforce_field_name_rules(field)
                     try:
                         Feed.verify_data_field_string(field)
                     except ValueError as e:

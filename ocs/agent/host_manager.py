@@ -87,7 +87,6 @@ def resolve_child_state(db):
                 db['next_action'] = 'wait_start'
                 now = time.time()
                 db['at'] = now + 1.
-                db['start_times'].append(now)
         elif db['next_action'] == 'up':
             stat, t = prot.status
             if stat is not None:
@@ -103,6 +102,7 @@ def resolve_child_state(db):
                                     .format('\n'.join(lines), note=note, **db))
                 db['next_action'] = 'start_at'
                 db['at'] = time.time() + 3
+                db['fail_times'].append(time.time())
         else:  # 'down'
             db['next_action'] = 'start'
 
@@ -148,22 +148,25 @@ def resolve_child_state(db):
 
 
 def stability_factor(times, window=120):
-    """Given an increasing list of start times, the last one corresponding
-    to the present run, decide whether the process the activity is
-    running stably or not.
+    """Given an increasing list of failure times, quantify the stability
+    of the activity.
 
-    Returns a culled list of start times and a stability factor (0 -
-    1).  A stable agent will settle to stability factor of 1 within
-    window seconds.  An unstable agent will have stability factor of
-    0.5 or less.
+    A single failure, 10 seconds in the past, has a stability factor
+    of 0.5; if there were additional failures before that, the
+    stability factor will be lower.
+
+    Returns a culled list of stop times and a stability factor (0 -
+    1).
 
     """
     now = time.time()
     if len(times) == 0:
-        return times, -1.
+        return times, 1.
+    # Only keep the last few failures, within our time window.
     times = [t for t in times[-200:-1]
              if t >= now - window] + times[-1:]
-    return times, 1./len(times)
+    dt = [5./(now - t) for t in times]
+    return times, max(1 - sum(dt), 0.)
 
 
 class AgentProcessHelper(protocol.ProcessProtocol):

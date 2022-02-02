@@ -221,7 +221,7 @@ class HostManager:
                         'prot': prot,
                         'full_name': ('%s:%s' % tuple(k)),
                         'agent_script': agent_script,
-                        'start_times': [],
+                        'fail_times': [],
                     }
 
         # Special requests will target specific instance_id; make a map for that.
@@ -343,8 +343,8 @@ class HostManager:
                 any_jobs = (any_jobs or (db['next_action'] != 'down'))
 
                 # Criteria for stability:
-                db['start_times'], db['stability'] = hm_utils.stability_factor(
-                    db['start_times'])
+                db['fail_times'], db['stability'] = hm_utils.stability_factor(
+                    db['fail_times'])
 
             # Clean up retired items.
             self.database = {k:v for k,v in self.database.items()

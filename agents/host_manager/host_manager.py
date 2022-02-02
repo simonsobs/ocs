@@ -83,7 +83,11 @@ class HostManager:
             services = yield hm_utils.parse_docker_state(
                 compose, docker_compose_bin=self.docker_compose_bin)
             for k, info in services.items():
-                db = self.database[('docker', k)]
+                try:
+                    db = self.database[('docker', k)]
+                except KeyError:
+                    print(f'Unexpected service in docker-compose: {k}\n'
+                          f'Restart the Agent?')
                 if db['prot'] is None:
                     db['prot'] = self._get_docker_helper(info)
                 db['prot'].update(info)

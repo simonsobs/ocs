@@ -157,6 +157,13 @@ After adding the ``--docker-compose`` argument to the site config,
 restart HostManager; changes to the command line parameters can't be
 processed without restarting the Agent.
 
+.. note::
+
+   The HostManager process must be running as a user with sufficient
+   privileges to run ``docker`` and ``docker-compose``.  Usually that
+   means that the user must be root, or must be in the "docker" user
+   group.  More advice is forthcoming on this.
+
 The HostManager will now keep track of the agents listed under host-1,
 and also the services defined in that docker-compose.yaml file.  In
 ``ocsbow`` and OCS Web (see below) the Agents will be listed by their

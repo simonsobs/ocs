@@ -162,7 +162,11 @@ processed without restarting the Agent.
    The HostManager process must be running as a user with sufficient
    privileges to run ``docker`` and ``docker-compose``.  Usually that
    means that the user must be root, or must be in the "docker" user
-   group.  More advice is forthcoming on this.
+   group.  The recommendation is that you add the :ref:`OCS user
+   <create_ocs_user>` to the docker group (see
+   `docker-linux-postinstall`_).
+
+.. _docker-linux-postinstall: https://docs.docker.com/engine/install/linux-postinstall/
 
 The HostManager will now keep track of the agents listed under host-1,
 and also the services defined in that docker-compose.yaml file.  In

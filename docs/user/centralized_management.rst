@@ -99,6 +99,7 @@ block would become:
                        ['--mode', 'acq']]},
         {'agent-class': 'HostManager',
          'instance-id': 'hm-host-1',
+         'arguments': [['--initial-state', 'up']],
         },
       ]
     }
@@ -134,48 +135,42 @@ Config for docker pseudo-hosts
 
 Considering the Example Config from :ref:`ocs_site_config_file`, the
 host ``host-1-docker`` describes agents that are launched in
-containers using ``docker-compose``.  After adding a HostManager to
-that pseudo-host the configuration block would look like this:
-
+containers using ``docker-compose``.  However, instead of adding a
+HostManager to that host block, we simply add a pointer to the
+relevant docker-compose.yaml file in the HostManager arguments in
+``host-1``; the new config for the HostManager would be:
 
 .. code-block:: yaml
 
-    host-1-docker: {
-
-      # Description of host-1's Agents running with Docker containers.
-      # We have one readout device; a Lakeshore 372.
-
+    host-1: {
+      ...
       'agent-instances': [
-        {'agent-class': 'Lakeshore372Agent',
-         'instance-id': 'LSARR00',
-         'manage': 'docker',
-         'arguments': [['--serial-number', 'LSARR00'],
-                       ['--ip-address', '10.10.10.55']]},
+      ...
         {'agent-class': 'HostManager',
-         'instance-id': 'hm-host-1-docker',
-         'arguments': [['--docker-compose', '/home/ocs/site-config/host-1-docker/docker-compose.yaml']]},
+         'instance-id': 'hm-host-1',
+         'arguments': [['--initial-state', 'up'],
+                       ['--docker-compose', '/home/ocs/site-config/host-1-docker/docker-compose.yaml']]},
       ]
     }
 
+After adding the ``--docker-compose`` argument to the site config,
+restart HostManager; changes to the command line parameters can't be
+processed without restarting the Agent.
 
-This has two important differences from the "native host" case:
+The HostManager will now keep track of the agents listed under host-1,
+and also the services defined in that docker-compose.yaml file.  In
+``ocsbow`` and OCS Web (see below) the Agents will be listed by their
+instance-id, but the docker containers will be listed by their service
+name.  So you should probably make the service name correspond to
+(perhaps a slight modification of) the instance_id.
 
-- The HostManager description block includes an "arguments" entry,
-  providing the path to the docker-compose.yaml file that describes
-  these agents.
-- All the other Agents should have a new setting, ``'manage':
-  'docker'``, which lets HostManager know that the instance is run in
-  a Docker container.  This is actually optional, but it will help to
-  produce clearer output later.
+.. note::
 
-
-Even though the HostManager is listed in the docker pseudo-host, it
-must run on the native system.  You can test launch it using
-``ocs-local-support``, as in the native host case, but make sure you
-tell it that you want to launch the HostManager for the host-1-docker
-pseudo-host::
-
-  $ ocs-local-support start agent --foreground --site-host host-1-docker
+   The HostManager does not try to figure out which services in the
+   ``docker-compose.yaml`` are running Agents and which ones aren't.
+   All services defined in the docker-compose.yaml file will be
+   treated the same way, and made available for monitoring and control
+   by clients.
 
 
 Advanced host config
@@ -227,13 +222,6 @@ example above, the output will look something like this::
     hm-host-1                      HostManager                  up        n/a
     thermo1                        Lakeshore240Agent            up         up
     thermo2                        Lakeshore240Agent            up         up
-
-  ---------------------------------------------------------------------------
-  Host: host-1-docker
-
-    [instance-id]                  [agent-class]           [state]   [target]
-    hm-host-1-docker               HostManager                  up        n/a
-    LSARR00                        Lakeshore372Agent             ?          ?
     ocs-LSARR00                    docker                       up         up
 
   ---------------------------------------------------------------------------
@@ -251,8 +239,13 @@ a block is presented for each host in the SCF.  Within each host
 block, each agent instance-id is listed, along with its agent-class
 and values for "state" and "target".
 
-(See `Agents Running in Docker containers`_ for an explanation
-of why the host-1-docker entries look odd.)
+Note that if an Agent has been configured with ``'manage': 'no'`` or
+``'manage': 'docker'``, then it will show question marks in the state
+and target fields, e.g.::
+
+    [instance-id]                  [agent-class]           [state]   [target]
+    LSARR00                        Lakeshore372Agent             ?          ?
+
 
 ``state`` and ``target``
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -284,37 +277,6 @@ state will be ``down``.  If the HostManager is running but the
 "manage" Process is not running for some reason, the state will be
 ``sleeping``.
 
-Agents running in Docker containers
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The ``ocsbow status`` output for Agent instances running in docker
-containers is a bit confusing.  In this example we seem to have two
-lines that refer to LSARR00::
-
-    LSARR00                        Lakeshore372Agent             ?          ?
-    ocs-LSARR00                    docker                       up         up
-
-The first line is there because the SCF listed an agent with class
-Lakeshore372Agent and instance-id LSARR00.  But because it was
-configured with ``'manage': 'docker'``, the HostManager is not
-managing that item directly.
-
-The second line is there because the ``docker-compose.yaml`` to which
-the HostManager was pointed specifies a service called "ocs-LSARR00",
-and this HostManager is managing that service.  It stands to reason
-that this service corresponds to LSARR00, but it is not currently
-possible to check this reliably.
-
-When using ocsbow to control Docker-based agents (see next sections),
-use the service name (ocs-LSARR00), not the agent_id (LSARR00), to
-specify the target.
-
-.. note::
-
-   It's likely we can find a better way to deal with Docker-based
-   Agents in this system; please consider the current behavior as a
-   interim solution.
-
 
 Start/Stop Agents
 -----------------
@@ -330,6 +292,13 @@ set for that Agent instance.  Similarly::
   $ ocsbow down thermo1
 
 will set ``target=down`` for the ``thermo1`` instance.
+
+
+.. note::
+   When using ocsbow to control Docker-based agents, remember to use
+   the service name (i.e. ``ocs-LSARR00`` in the example above) rather
+   than the instance-id (``LSARR00``).
+
 
 
 Start/Stop Batches of Agents

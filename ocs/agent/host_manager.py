@@ -326,7 +326,12 @@ def parse_docker_state(docker_compose_file, docker_compose_bin=None):
         out, err, code = yield utils.getProcessOutputAndValue(
             'docker', ['inspect', line])
         if code != 0:
-            raise RuntimeError('Trouble running "docker inspect %s".' % line)
+            # This could be a container that stopped after we ran
+            # compose?  Let's trap a few to make a better judgement
+            # though...
+            raise RuntimeError(
+                f'Trouble running "docker inspect %s".\n'
+                f'stdout: {out}\n  stderr {err}')
         # Reconcile config against docker-compose ...
         info = yaml.safe_load(out)[0]
         config = info['Config']['Labels']

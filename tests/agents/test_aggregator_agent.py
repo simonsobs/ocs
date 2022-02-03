@@ -10,23 +10,18 @@ from agents.util import (
     generate_data_for_queue
 )
 
-try:
-    # depends on spt3g
-    from aggregator_agent import AggregatorAgent
+# depends on spt3g
+from aggregator_agent import AggregatorAgent
 
-    args = mock.MagicMock()
-    args.time_per_file = 3
-    args.data_dir = '/tmp/data'
-    # start idle so we can use a tmpdir for data_dir
-    args.initial_state = 'idle'
+args = mock.MagicMock()
+args.time_per_file = 3
+args.data_dir = '/tmp/data'
+# start idle so we can use a tmpdir for data_dir
+args.initial_state = 'idle'
 
-    agent = create_agent_fixture(AggregatorAgent, {'args': args})
-except ModuleNotFoundError as e:
-    print(f"Unable to import: {e}")
+agent = create_agent_fixture(AggregatorAgent, {'args': args})
 
 
-@pytest.mark.spt3g
-@pytest.mark.dependency(depends=['so3g'], scope='session')
 class TestRecord:
     def test_aggregator_agent_record_no_data(self, agent, tmpdir):
         # repoint data_dir to tmpdir fixture
@@ -62,8 +57,6 @@ class TestRecord:
         assert session.data['providers']['observatory.test-agent1.feeds.test_feed']['last_block_received'] == 'temps'
 
 
-@pytest.mark.spt3g
-@pytest.mark.dependency(depends=['so3g'], scope='session')
 def test_aggregator_agent_enqueue_data_no_aggregate(agent):
     agent.aggregate = False
 
@@ -73,8 +66,6 @@ def test_aggregator_agent_enqueue_data_no_aggregate(agent):
     assert agent.incoming_data.empty()
 
 
-@pytest.mark.spt3g
-@pytest.mark.dependency(depends=['so3g'], scope='session')
 class TestStopRecord:
     def test_aggregator_agent_stop_record_while_running(self, agent):
         session = create_session('record')

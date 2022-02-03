@@ -21,7 +21,6 @@ run_agent = create_agent_runner_fixture(
 client = create_client_fixture('aggregator-local')
 
 
-@pytest.mark.dependency(depends=["so3g"], scope='session')
 @pytest.mark.integtest
 def test_aggregator_agent_record(wait_for_crossbar, run_agent, client):
     resp = client.record.start(test_mode=True)

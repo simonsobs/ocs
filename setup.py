@@ -42,4 +42,7 @@ setup (name = 'ocs',
            'influxdb',
            'numpy',
        ],
+       extras_require={
+           "so3g": ["so3g"],
+       },
 )

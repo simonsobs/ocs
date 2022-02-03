@@ -2,5 +2,4 @@ pytest
 pytest-cov
 docker
 pytest-docker-compose
-pytest-dependency
 pytest-twisted

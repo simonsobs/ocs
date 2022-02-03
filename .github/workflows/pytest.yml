@@ -33,26 +33,18 @@ jobs:
     - name: Install ocs
       run: |
         pip3 install -r requirements.txt
-        pip3 install -e .
+        pip3 install -e .[so3g]
 
     # Unit Tests
     - name: Run unit tests
       working-directory: ./tests
       run: |
-        COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not (integtest or spt3g)'
-
-    - name: Build docker image for containerized tests
-      run: |
-        docker-compose build ocs
-
-    - name: Test with pytest within a docker container
-      run: |
-        docker run -v $PWD:/coverage --rm -w="/app/ocs/tests/" ocs sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov -m 'spt3g'"
+        COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not integtest'
 
     # Integration Tests
     - name: Build images for integration tests
       run: |
-        docker-compose build ocs-fake-data-agent ocs-aggregator-agent ocs-crossbar
+        docker-compose build ocs ocs-fake-data-agent ocs-aggregator-agent ocs-crossbar
 
     - name: Run integration tests
       working-directory: ./tests

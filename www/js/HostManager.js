@@ -127,8 +127,15 @@ KidsTable.prototype = {
     update: function(child_states) {
         var self = this;
         var missing = Object.getOwnPropertyNames(self.data);
+        let found = [];
         $.each(child_states, function(idx, data) {
             ident = data.instance_id;
+            if (found.includes(ident)) {
+                // HostManager shouldn't ever do this!
+                console.log(`HostManager encountered second block for agent_id=${ident}, ignoring.`);
+                return;
+            }
+            found.push(ident);
             var idx = missing.indexOf(ident);
             if (idx < 0) {
                 self.data[ident] = data;

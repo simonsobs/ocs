@@ -6,7 +6,7 @@ import time
 import argparse
 
 from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn.twisted.util import sleep as dsleep
 
 import os, sys
@@ -20,24 +20,30 @@ class HostManager:
     a system boots, it can then be used to start up the rest of OCS on
     that host (either automatically or on request).
     """
-    def __init__(self, agent, docker_composes=[], docker_compose_bin=None):
+    def __init__(self, agent, docker_composes=[], docker_compose_bin=None,
+                 docker_service_prefix='ocs-'):
         self.agent = agent
         self.running = False
-        # The keys in self.database are of the form (class_name,
-        # instance_id); for docker services use ('docker',
-        # service_name).
-        self.database = {} # key is (class_name, instance_id)
-        self.site_file = None
+        self.database = {}  # key is instance_id (or docker service name).
+        self.docker_services = {}  # key is service name.
         self.docker_composes = docker_composes
         self.docker_compose_bin = docker_compose_bin
+        self.docker_service_prefix = docker_service_prefix
 
     @inlineCallbacks
-    def _get_instance_list(self):
+    def _get_local_instances(self):
         """Parse the site config and return a list of this host's Agent
         instances.
 
         Returns:
-            List of (agent_class, instance_id) pairs.
+          agent_dict (dict): Maps instance-id to a dict describing the
+            agent config.  The config is as contained in
+            HostConfig.instances but where 'instance-id',
+            'agent-class', and 'manage' are all guaranteed populated
+            (and manage is one of ['yes', 'no', 'docker']).
+          warnings: A list of strings, each of which corresponds to
+            some problem found in the config.
+
         """
         # Load site config file.
         site, hc, _ = site_config.get_config(
@@ -46,82 +52,253 @@ class HostManager:
         self.host_name = hc.name
         self.working_dir = hc.working_dir
 
-        # Add plugin paths and scan.
+        # Add plugin paths and scan for agent launch scripts.
         for p in hc.agent_paths:
             if not p in sys.path:
                 sys.path.append(p)
         site_config.scan_for_agents()
         
-        # Construct the list; exclude HostManager class.
-        keys = []
+        # Gather managed items from site config.
+        warnings = []
+        instances = {}
         for inst in hc.instances:
-            class_name, instance_id = inst['agent-class'], inst['instance-id']
-            manage = inst.get('manage', 'yes')
-            if class_name == 'HostManager':
-                manage = 'no'
-            if manage == 'yes':
-                keys.append((class_name, instance_id))
+            if inst['instance-id'] in instances:
+                warnings.append(
+                    f'Configuration problem, instance-id={inst["instance-id"]} '
+                    f'has multiple entries.  Ignoring repeats.')
+                continue
+            # Make sure 'manage' is set, and valid.
+            default_manage = 'no' \
+                if inst['agent-class'] == 'HostManager' else 'yes'
+            inst['manage'] = inst.get('manage', default_manage)
+            if inst['manage'] not in ['yes', 'no', 'docker']:
+                warnings.append(
+                    f'Configuration problem, invalid manage={inst["manage"]} '
+                    f'for instance_id={inst["instance-id"]}.')
+                continue
+            instances[inst['instance-id']] = inst
+        returnValue((instances, warnings))
+        yield
 
-        # Add in services from specified docker-compose files.
-        self.docker_services = {}
+    @inlineCallbacks
+    def _update_docker_services(self):
+        """Parse the docker-compose.yaml files and update the internal cache
+        of docker service information.
+
+        Returns:
+          dead (dict): a dict of service entries that were removed
+            from self.docker_services because they are nolonger
+            configured in any compose file.
+
+        """
+        # Read services from all docker-compose files.
+        docker_services = {}
         for compose in self.docker_composes:
             services = yield hm_utils.parse_docker_state(
                 compose, docker_compose_bin=self.docker_compose_bin)
-            self.docker_services.update(services)
-            for k in services.keys():
-                keys.append(('docker', k))
-        return keys
+            docker_services.update(services)
+
+        # Mark containers that have disappeared.
+        dead = {}
+        for k in self.docker_services:
+            if not k in docker_services:
+                dead[k] = self.docker_services.pop(k)
+
+        # Everything else is good.
+        self.docker_services.update(docker_services)
+        returnValue(dead)
 
     @inlineCallbacks
-    def _update_docker_states(self):
+    def _reload_config(self, session):
+        """
+        Notes:
+          First, the site config file is parsed and used to update the
+          internal database of child instances.  Any previously
+          unknown child Agent is added to the internal tracking
+          database, and assigned a target_state of "down".  Any
+          previously known child Agent instance is not modified in the
+          tracking database (unless a specific request is given,
+          through ``requests``).  If any child Agent instances in the
+          internal database appear to have been removed from the site
+          config, then they are set to have target_state "down" and
+          will be deleted from the database when that state is
+          reached.
+        """
+        # Parse the site config and compose files.
+        agent_dict, warnings = yield self._get_local_instances()
+        for w in warnings:
+            session.add_message(w)
+        dead_services = yield self._update_docker_services()
+
+        managed_agents = [k for (k, instance) in agent_dict.items()
+                          if instance['manage'] != 'no']
+
+        def retire(db_key):
+            instance = self.database.get(db_key, None)
+            if instance is None:
+                return
+            instance['management'] = 'retired'
+            instance['at'] = time.time()
+            instance['target_state'] = 'down'
+
+        # First identify items that we were managing that have
+        # disappeared from the configs.
+        for iid, instance in self.database.items():
+            if (instance['management'] == 'host' and
+                iid not in agent_dict) or \
+               (instance['management'] == 'docker' and
+                instance['agent_script'] not in self.docker_services):
+                # Sheesh
+                session.add_message(
+                    f'Retiring {instance["full_name"]}, which has disappeared from '
+                    f'configuration file(s) or have manage:no.')
+                retire(iid)
+
+        # We have three kinds of managed things:
+        # - agents managed on the host system (iid only)
+        # - agents managed through docker (iid & srv)
+        # - non-agents managed through docker (srv only)
+        #
+        # Make a list of items we need to manage, including all three
+        # kinds of thing.  Store tuples:
+        #   (db_key, instance_id, service_name, agent_class, management)
+        new_managed = []
+        docker_nonagents = list(self.docker_services.keys())
+
+        for iid, hinst in agent_dict.items():
+            srv = self.docker_service_prefix + iid
+            cls = hinst['agent-class']
+            mgmt = 'host'
+            if srv in docker_nonagents:
+                docker_nonagents.remove(srv)
+                cls += '[d]'
+                mgmt = 'docker'
+                if hinst['manage'] != 'docker':
+                    session.add_message(
+                        f'The agent config for instance-id='
+                        f'{iid} was matched to docker service '
+                        f'{srv}, but config does not specify '
+                        f'manage:docker! Dropping both.')
+                    retire(iid)
+                    continue
+            else:
+                srv = None
+                if hinst['manage'] == 'no':
+                    continue
+                if hinst['manage'] == 'docker':
+                    session.add_message(
+                        f'No docker config found for instance-id='
+                        f'{iid}, though manage:docker specified '
+                        f'in config.  Dropping.')
+                    retire(iid)
+                    continue
+            new_managed.append((iid, iid, srv, cls, mgmt))
+
+        for srv in docker_nonagents:
+            new_managed.append((srv, srv, srv, '[docker]', 'docker'))
+
+        # Compare new managed items to stuff already in our database.
+        for db_key, iid, srv, cls, mgmt in new_managed:
+            instance = self.database.get(db_key, None)
+            if instance is not None and \
+               instance['management'] == 'retired':
+                instance = None
+            if instance is not None:
+                # So instance is some kind of actively managed container.
+                if (instance['agent_class'] != cls or
+                    instance['management'] != mgmt):
+                    session.add_message(
+                        f'Managed agent "{db_key}" changed agent_class '
+                        f'({instance["agent_class"]} -> {cls}) or management '
+                        f'({instance["management"]} -> {mgmt}) and is being '
+                        f'reset!')
+                    instance = None
+            if instance is None:
+                instance = hm_utils.ManagedInstance.init(
+                    management=mgmt,
+                    instance_id=iid,
+                    agent_class=cls,
+                    full_name=(f'{cls}:{db_key}'),
+                )
+                if mgmt == 'docker':
+                    instance['agent_script'] = srv
+                    instance['prot'] = self._get_docker_helper(instance)
+                    if instance['prot'].status[0] == None:
+                        session.add_message(
+                            'On startup, detected active container for %s' % iid)
+                        # Mark current state as up... by the end
+                        # of this function target_state will be up
+                        # or down and that will determine if
+                        # container is left up or stopped.
+                        instance['next_action'] = 'up'
+                else:
+                    instance['agent_script'] = site_config.agent_script_reg.get(cls)
+                session.add_message(f'Tracking {instance["full_name"]}')
+                self.database[db_key] = instance
+        yield warnings
+
+    @inlineCallbacks
+    def _check_docker_states(self):
         """Scan the docker-compose files, again, and update the database
         information ('running' state, most importantly) for all
         services.
 
+        It is the policy of this function to ignore things that are
+        odd rather than deal with them somehow.
+
         """
+        # Dict of database entries, indexed by docker service name.
+        docker_managed = {info['agent_script']: info
+                          for info in self.database.values()
+                          if info['management'] == 'docker'}
         for compose in self.docker_composes:
             services = yield hm_utils.parse_docker_state(
                 compose, docker_compose_bin=self.docker_compose_bin)
             for k, info in services.items():
-                try:
-                    db = self.database[('docker', k)]
-                except KeyError:
-                    print(f'Unexpected service in docker-compose: {k}\n'
-                          f'Restart the Agent?')
-                if db['prot'] is None:
-                    db['prot'] = self._get_docker_helper(info)
-                db['prot'].update(info)
+                db = docker_managed.get(k)
+                if db is not None:
+                    if db['prot'] is None:
+                        db['prot'] = self._get_docker_helper(db)
+                    db['prot'].update(info)
 
-    def _get_docker_helper(self, compose_file):
+    def _get_docker_helper(self, instance):
+        service_name = instance['agent_script']
         return hm_utils.DockerContainerHelper(
-            compose_file, docker_compose_bin=self.docker_compose_bin)
+            self.docker_services[service_name],
+            docker_compose_bin=self.docker_compose_bin)
 
-    def _launch_instance(self, key, script_file, instance_id):
+    def _launch_instance(self, instance):
+        """Launch an Agent instance (whether 'host' or 'docker' managed) using
+        hm_utils.
+
+        For 'host' managed agents: hm_utils will use
+        reactor.spawnProcess, and store the AgentProcessHelper (which
+        inherits from twisted ProcessProtocol) in instance['prot'].
+        The site_file and instance_id are passed on the command line;
+        this means that any weird config overrides passed to this
+        HostManager are not propagated.  One exception is working_dir,
+        which is propagated in order that relative paths can make any
+        sense.
+
+        For 'docker' managed agents: hm_utils will try to start the
+        right service container, and instance['prot'] will hold a
+        DockerContainerHelper (which has some common interface with
+        AgentProcessHelper).
+
         """
-        Launch an Agent instance using reactor.spawnProcess.  The
-        ProcessProtocol, which holds communication pathways to the
-        process, will be registered in self.database.  The site_file
-        and instance_id are passed on the command line; this means
-        that any weird config overrides passed to this HostManager are
-        not propagated.  One exception is working_dir, which is
-        propagated in order that relative paths can make any sense.
-
-        Because of the use of spawnProcess, this should be called in
-        the reactor thread.
-
-        """
-        if key[0] == 'docker':
-            prot = self._get_docker_helper(self.docker_services[instance_id])
+        if instance['management'] == 'docker':
+            prot = self._get_docker_helper(instance)
         else:
+            iid = instance['instance_id']
             pyth = sys.executable
-            cmd = [pyth, script_file,
-                   '--instance-id', instance_id,
+            cmd = [pyth, instance['agent_script'],
+                   '--instance-id', iid,
                    '--site-file', self.site_config_file,
                    '--site-host', self.host_name,
                    '--working-dir', self.working_dir]
-            prot = hm_utils.AgentProcessHelper(instance_id, cmd)
+            prot = hm_utils.AgentProcessHelper(iid, cmd)
         prot.up()
-        self.database[key]['prot'] = prot
+        instance['prot'] = prot
 
     def _terminate_instance(self, key):
         """
@@ -132,12 +309,12 @@ class HostManager:
             return True, 'Instance was not running.'
         if prot.killed:
             return True, 'Instance already has kill set.'
+        # Note the .down call does not block -- the thing will be
+        # stopped from a thread.
         prot.down()
         return True, 'Kill requested.'
 
-    @inlineCallbacks
-    def _update_target_states(self, session, requests=[],
-                              reload_site_config=True):
+    def _process_target_states(self, session, requests=[]):
         """Update the child Agent target states.  The manager Process will
         then try to maintain those states.  This function is used both
         for first-time init of the manager Process, but also for
@@ -152,32 +329,18 @@ class HostManager:
             database, or be the string 'all', which will match all
             items in the current database.  The target_state must be
             'up' or 'down'.
-          reload_site_config (bool): Default is True.  If True, the
-            site config file is parsed in order to (re-)populate the
-            database of child Agent instances.
+          reload_config (bool): Default is True.  If True, the site
+            config file and docker-compose files are reparsed in order
+            to (re-)populate the database of child Agent instances.
 
         Examples:
 
           ::
 
-            _update_target_states(session, reload_site_config=True)
-            _update_target_states(session, requests=[('thermo1', 'down')])
-            _update_target_states(session, requests=[('all', 'up')])
+            _process_target_states(session, requests=[('thermo1', 'down')])
+            _process_target_states(session, requests=[('all', 'up')])
 
         Notes:
-          First, the site config file is parsed and used to update the
-          internal database of child instances (unless
-          ``reload_site_config`` has been set to False).  Any
-          previously unknown child Agent is added to the internal
-          tracking database, and assigned a target_state of "down".
-          Any previously known child Agent instance is not modified in
-          the tracking database (unless a specific request is given,
-          through ``requests``).  If any child Agent instances in the
-          internal database appear to have been removed from the site
-          config, then they are set to have target_state "down" and
-          will be deleted from the database when that state is
-          reached.
-
           State update requests in the ``requests`` list are processed
           in order.  For example, if the requests were [('all', 'up'),
           ('data1', 'down')].  This would result in setting all known
@@ -185,59 +348,16 @@ class HostManager:
           would be given target state of "down".
 
         """
-        if reload_site_config:
-            # Update the list of Agent instances.
-            agent_keys = yield self._get_instance_list()
-            session.add_message('Loaded %i agent instance configs.' %
-                                len(agent_keys))
-            downers = 0
-            for k, item in self.database.items():
-                # Any new keys?
-                if k not in agent_keys:
-                    item['retired'] = True
-                    item['target_state'] = 'down'
-                    downers += 1
-            if downers > 0:
-                session.add_message('Retiring %i instances that disappeared '
-                                    'from config.' % downers)
-            for k in agent_keys:
-                if not k in self.database:
-                    state = 'down'
-                    if k[0] == 'docker':
-                        agent_script = 'docker'
-                        prot = self._get_docker_helper(self.docker_services[k[1]])
-                        if prot.status[0] == None:
-                            session.add_message(
-                                'On startup, detected active container for %s' % k[1])
-                            # Mark current state as up... by the end
-                            # of this function target_state will be up
-                            # or down and that will determine if
-                            # container is left up or stopped.
-                            state = 'up'
-                    else:
-                        agent_script = site_config.agent_script_reg.get(k[0])
-                        prot = None
-                    self.database[k] = {
-                        'next_action': state,
-                        'target_state': 'down',
-                        'class_name': k[0],
-                        'instance_id': k[1],
-                        'prot': prot,
-                        'full_name': ('%s:%s' % tuple(k)),
-                        'agent_script': agent_script,
-                        'fail_times': [],
-                    }
-
         # Special requests will target specific instance_id; make a map for that.
         addressable = {}
-        for k,v in self.database.items():
-            if v.get('retired'):
+        for k, v in self.database.items():
+            if v['management'] == 'retired':
                 continue
-            if k[1] in addressable:
+            if k in addressable:
                 session.add_message('Internal state problem; multiple agents '
                                     'with instance_id=%s' % k[1])
                 continue
-            addressable[k[1]] = v
+            addressable[k] = v
 
         for key, state in requests:
             if not state in VALID_TARGETS:
@@ -252,10 +372,10 @@ class HostManager:
                     addressable[key]['target_state'] = state
 
     @ocs_agent.param('requests', default=[])
-    @ocs_agent.param('reload_site_config', default=True, type=bool)
+    @ocs_agent.param('reload_config', default=True, type=bool)
     @inlineCallbacks
     def manager(self, session, params):
-        """manager(requests=[], reload_site_config=True)
+        """manager(requests=[], reload_config=True)
 
         **Process** - The "manager" Process maintains a list of child
         Agents for which it is responsible.  In response to requests
@@ -267,16 +387,19 @@ class HostManager:
           If an Agent process exits unexpectedly, it will be
           relaunched within a few seconds.
 
-          Prior to starting the management loop, this function passes
-          the parameters to the ``_update_target_states`` function;
-          please see that docstring for what they mean.
+          Prior to starting the management loop, this function
+          (re-)parses the site config and docker compose files (unless
+          ``reload_config`` is False).  It passes ``requests`` to the
+          ``_update_target_states`` function; please see that
+          docstring for formatting.
 
           Once this process is running, the target states for managed
           Agents can be manipulated through the ``update`` task.
 
           Note that when a stop is requested on this Process, all
-          managed Agents will be moved to the "down" state before the
-          Process exits.
+          managed Agents will be moved to the "down" state and an
+          attempt will be made to terminate them before the Process
+          exits.
 
           The session.data is a dict, and entry 'child_states'
           contains a list with the managed Agent statuses.  For
@@ -286,17 +409,17 @@ class HostManager:
               {'next_action': 'up',
                'target_state': 'up',
                'stability': 1.0,
-               'class_name': 'Lakeshore372Agent',
+               'agent_class': 'Lakeshore372Agent',
                'instance_id': 'thermo1'},
               {'next_action': 'down',
                'target_state': 'down',
                'stability': 1.0,
-               'class_name': 'ACUAgent',
+               'agent_class': 'ACUAgent',
                'instance_id': 'acu-1'},
               {'next_action': 'up',
                'target_state': 'up',
                'stability': 1.0,
-               'class_name': 'FakeDataAgent',
+               'agent_class': 'FakeDataAgent',
                'instance_id': 'faker6'},
               ],
             }
@@ -307,8 +430,10 @@ class HostManager:
         """
         self.running = True
         session.set_status('running')
-        self._update_target_states(
-            session, params['requests'], params['reload_site_config'])
+
+        if params['reload_config']:
+            yield self._reload_config(session)
+        self._process_target_states(session, params['requests'])
 
         session.data = {
             'child_states': [],
@@ -320,7 +445,7 @@ class HostManager:
         while self.running or any_jobs:
 
             if time.time() >= next_docker_update:
-                yield self._update_docker_states()
+                yield self._check_docker_states()
                 next_docker_update = time.time() + 2
 
             sleep_times = [1.]
@@ -340,8 +465,7 @@ class HostManager:
                     self._terminate_instance(key)
                 if actions['launch']:
                     reactor.callFromThread(
-                        self._launch_instance, key, db['agent_script'],
-                        db['instance_id'])
+                        self._launch_instance, db)
                 if actions['sleep']:
                     sleep_times.append(actions['sleep'])
                 any_jobs = (any_jobs or (db['next_action'] != 'down'))
@@ -351,17 +475,17 @@ class HostManager:
                     db['fail_times'])
 
             # Clean up retired items.
-            self.database = {k:v for k,v in self.database.items()
-                             if not v.get('retired') or v['next_action'] != 'down'}
+            self.database = {k: v for k, v in self.database.items()
+                             if v['management'] != 'retired' or v['next_action'] != 'down'}
 
             # Update session info.
             child_states = []
-            for k,v in self.database.items():
-                child_states.append({_k: v[_k] for _k in
+            for state in self.database.values():
+                child_states.append({_k: state[_k] for _k in
                                      ['next_action' ,
                                       'target_state',
                                       'stability',
-                                      'class_name',
+                                      'agent_class',
                                       'instance_id']})
             session.data['child_states'] = child_states
 
@@ -376,24 +500,27 @@ class HostManager:
         return True, 'Stop initiated.'
 
     @ocs_agent.param('requests', default=[])
-    @ocs_agent.param('reload_site_config', default=True, type=bool)
+    @ocs_agent.param('reload_config', default=False, type=bool)
+    @inlineCallbacks
     def update(self, session, params):
-        """update(requests=[], reload_site_config=True)
+        """update(requests=[], reload_config=False)
 
         **Task** - Update the manager process' child Agent parameters.
 
         This Task will fail if the manager Process is not running.
 
-        The parameters passed in here are passed to the
-        ``_update_target_states`` function; please see that docstring
-        for what they mean.
+        If ``reload_config`` is True, the management agent
+        configuration will be reloaded by ``_reload_config``.  Then
+        the ``requests`` are passed to ``_process_target_states``.
+        See those docstrings for more info.
 
         """
         if not self.running:
             return False, 'Manager process is not running; params not updated.'
-
-        self._update_target_states(
-            session, params['requests'], params['reload_site_config'])
+        session.set_status('running')
+        if params['reload_config']:
+            yield self._reload_config(session)
+        self._process_target_states(session, params['requests'])
         return True, 'Update requested.'
 
     @inlineCallbacks
@@ -427,6 +554,10 @@ def make_parser(parser=None):
     pgroup.add_argument('--docker-compose', default=None,
                         help="Comma-separated list of docker-compose files "
                         "to parse and manage.")
+    pgroup.add_argument('--docker-service-prefix', default='ocs-',
+                        help="Prefix, to be used in combination with "
+                        "instance-id, for recognizing docker services "
+                        "that correspond to entries in site config.")
     pgroup.add_argument('--docker-compose-bin', default=None,
                         help="Path to docker-compose binary.  This "
                         "will be interpreted as a path relative to "
@@ -462,7 +593,8 @@ if __name__ == '__main__':
             docker_compose_bin = os.path.join(os.getcwd(), docker_compose_bin)
 
     host_manager = HostManager(agent, docker_composes=docker_composes,
-                               docker_compose_bin=args.docker_compose_bin)
+                               docker_compose_bin=args.docker_compose_bin,
+                               docker_service_prefix=args.docker_service_prefix)
 
     startup_params = {}
     if args.initial_state:

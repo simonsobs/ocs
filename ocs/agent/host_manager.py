@@ -6,11 +6,60 @@ import yaml
 from twisted.internet import reactor, utils, protocol
 from twisted.internet.defer import inlineCallbacks
 
+class ManagedInstance(dict):
+    """Track properties of a managed Agent-instance.  This is just a dict
+    with a schema docstring and an "init" function to set defaults.
+
+    Properties that must be set explicitly by user:
+
+    - 'management' (str): Either 'host', 'docker', or 'retired'.
+    - 'agent_class' (str): The agent class.  This will have special
+      value 'docker' if the instance corresponds to a docker-compose
+      service that has not been matched to a site_config entry.
+    - 'instance_id' (str): The agent instance-id, or the docker
+      service name if the instance is an unmatched docker-compose
+      service.
+    - 'full_name' (str): instance_id:agent_class
+
+    Properties that are given a default value by init function:
+
+    - 'agent_script' (str): Path to the launcher script (if host
+      system managed).  If docker-managed, this is the service name.
+    - 'prot': The twisted ProcessProtocol object (if host system
+      managed), or the DockerContainerHelper (if a docker container).
+    - 'target_state' (state): The state we're trying to achieve (up or
+      down).
+    - 'next_action' (state): The thing HostManager needs to do next;
+      this will sometimes indicate the "current state" (up or down),
+      but sometimes it will carry a transitional state, such as
+      "wait_start".
+    - 'at' (float): a unix timestamp for transitional states
+      (e.g. used to set how long to wait for something).
+    - 'fail_times' (list of floats): unix timestamps when the instance
+      process has stopped unexpectedly (used to identify "unstable"
+      agents).
+
+    """
+    @classmethod
+    def init(cls, **kwargs):
+        # Note some core things are not included.
+        self = cls({
+            'agent_script': None,
+            'prot': None,
+            'next_action': 'down',
+            'target_state': 'down',
+            'fail_times': [],
+            'at': 0,
+        })
+        self.update(kwargs)
+        return self
+
+
 def resolve_child_state(db):
     """Args:
 
-      db (dict): the instance state information.  This will be
-        modified in place.
+      db (ManagedInstance): the instance state information.  This will
+        be modified in place.
 
     Returns:
 
@@ -74,19 +123,13 @@ def resolve_child_state(db):
             else:
                 sleeps.append(db['at'] - time.time())
         elif db['next_action'] == 'start':
-            # Launch.
-            if db['agent_script'] is None:
-                messages.append('No Agent script registered for '
-                                'class: {class_name}'.format(**db))
-                db['next_action'] = 'down'
-            else:
-                messages.append(
-                    'Requested launch for {full_name}'.format(**db))
-                db['prot'] = None
-                actions['launch'] = True
-                db['next_action'] = 'wait_start'
-                now = time.time()
-                db['at'] = now + 1.
+            messages.append(
+                'Requested launch for {full_name}'.format(**db))
+            db['prot'] = None
+            actions['launch'] = True
+            db['next_action'] = 'wait_start'
+            now = time.time()
+            db['at'] = now + 1.
         elif db['next_action'] == 'up':
             stat, t = prot.status
             if stat is not None:
@@ -236,7 +279,9 @@ class DockerContainerHelper:
 
     """Class for managing the docker container associated with some
     service.  Provides some of the same interface as
-    AgentProcessHelper in HostManager agent.
+    AgentProcessHelper in HostManager agent.  Pass in a service
+    description dict (such as the ones returned by
+    parse_docker_state).
 
     """
     def __init__(self, service, docker_compose_bin=None):
@@ -248,16 +293,16 @@ class DockerContainerHelper:
         self.update(service)
         self.docker_compose_bin = docker_compose_bin
 
-    def update(self, info):
-        """Update self.status based on the latest "info", for this service,
-        from parse_docker_state.
+    def update(self, service):
+        """Update self.status based on service info (in format returned by
+        parse_docker_state).
 
         """
-        self.service.update(info)
-        if info['running']:
+        self.service.update(service)
+        if service['running']:
             self.status = None, time.time()
         else:
-            self.status = info['exit_code'], time.time()
+            self.status = service['exit_code'], time.time()
 
     def up(self):
         self.d = _run_docker_compose(
@@ -319,16 +364,20 @@ def parse_docker_state(docker_compose_file, docker_compose_bin=None):
                            "docker-compose file; exit code %i, error text: %s" %
                            (code, err))
 
+    cont_ids = [line.strip() for line in out.decode('utf8').split('\n')
+                if line.strip() != '']
+
     # Run docker inspect.
-    for line in out.decode('utf8').split('\n'):
-        if line.strip() == '':
-            continue
+    for cont_id in cont_ids:
         out, err, code = yield utils.getProcessOutputAndValue(
-            'docker', ['inspect', line])
-        if code != 0:
-            # This could be a container that stopped after we ran
-            # compose?  Let's trap a few to make a better judgement
-            # though...
+            'docker', ['inspect', cont_id])
+        if code != 0 and 'No such object' in err.decode('utf8'):
+            # This is likely due to a race condition where some
+            # container was brought down since we ran docker-compose.
+            # Just drop the entry.
+            print(f'(no such object: {cont_id}')
+            continue
+        elif code != 0:
             raise RuntimeError(
                 f'Trouble running "docker inspect %s".\n'
                 f'stdout: {out}\n  stderr {err}')
@@ -341,7 +390,6 @@ def parse_docker_state(docker_compose_file, docker_compose_bin=None):
             raise RuntimeError("Consistency problem: container started from "
                                "some other compose file?\n%s\n%s" % (docker_compose_file, _dc_file))
         service = config['com.docker.compose.service']
-        assert(service in summary)
         if service not in summary:
             raise RuntimeError("Consistency problem: image does not self-report "
                                "as a listed service? (%s)" % (service))

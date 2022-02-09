@@ -183,6 +183,7 @@ def get_status(args, site_config, restrict_hosts=None):
             'msg': msg,
         },
         'hosts': [],
+        'warnings': [],
     }
 
     # Loop over hosts ...
@@ -190,7 +191,7 @@ def get_status(args, site_config, restrict_hosts=None):
         if restrict_hosts is not None and host_name not in restrict_hosts:
             continue
         hms = []
-        rows = []
+        agent_info = {}
         blank_state = {'current': '?',
                        'target': '?'}
         for idx, inst in enumerate(host_data.instances):
@@ -204,9 +205,16 @@ def get_status(args, site_config, restrict_hosts=None):
                     args, site_config, instance_id=inst['instance-id']))
             else:
                 sort_order = ['x', 'yes', 'no', 'docker'].index(inst['manage'])
-            rows.append((sort_order, idx, inst))
-        rows.sort()
-        agent_info = {k['instance-id']: k for _, _, k in rows}
+            iid = inst['instance-id']
+            if iid in agent_info:
+                output['warnings'].append(
+                    f'***WARNING -- site config contains multiple entries '
+                    f'with instance-id={iid}; ignoring all but first.')
+                continue
+            agent_info[iid] = (sort_order, idx, iid, inst)
+
+        order = [v[2] for v in sorted(agent_info.values())]
+        agent_info = {k: agent_info[k][3] for k in order}
         for hm in hms:
             info = hm.status()
             cinfo = {
@@ -222,13 +230,23 @@ def get_status(args, site_config, restrict_hosts=None):
                 cinfo['current'] = '?'
             agent_info[hm.instance_id].update(cinfo)
 
+            found = []
             for cinfo in info['child_states']:
                 this_id = cinfo['instance_id']
+                # Watch for [d] suffix, and steal it.
+                if cinfo['agent_class'].endswith('[d]'):
+                    agent_info[this_id]['agent-class'] = cinfo['agent_class']
+                if this_id in found:
+                    output['warnings'].append(
+                        f'***WARNING -- HostManager reports multiple states '
+                        f'for instance-id={this_id}; ignoring all but first.')
+                    continue
+                found.append(this_id)
                 if this_id not in agent_info:
                     # Secret agent!
                     agent_info[this_id] = {
                         'instance-id': this_id,
-                        'agent-class': 'docker',
+                        'agent-class': '[docker]',
                         'manage': 'yes',
                     }
                     agent_info[this_id].update(blank_state)
@@ -280,6 +298,11 @@ def print_status(args, site_config):
         for v in hstat['agent_info'].values():
             print(fmt.format(**v))
         print()
+
+    if len(status['warnings']):
+        print('Important Notes:')
+        for w in status['warnings']:
+            print('  '+w)
 
 def print_config(args, site_config):
     site, host, instance = site_config
@@ -790,7 +813,7 @@ def main(args=None):
             for inst in others:
                 if inst['instance-id'] not in args.instance:
                     continue
-                if inst['manage'] != 'yes':
+                if inst['manage'] not in ['yes', 'docker']:
                     raise OcsbowError(
                         "Cannot perform action on '%s', as it is not "
                         "configured as a managed Agent." % inst['instance-id'])

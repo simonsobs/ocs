@@ -27,10 +27,22 @@ function HostManager_populate(p, base_id, args) {
         .process('manager')
         .op_header()
         .status_indicator()
+        .task('update')
+        .op_header()
+        .status_indicator()
         .task('die')
         .op_header()
         .status_indicator()
     ;
+
+    ui1.on('update', 'start', function(data) {
+      client.run_task('update', {reload_config: true});
+    }, true);
+
+    client.add_watcher('update', 5., function(op_name, method, stat, msg, session) {
+        ui1.set_status('update', session)});
+    client.add_watcher('die', 5., function(op_name, method, stat, msg, session) {
+        ui1.set_status('die', session)});
 
     //
     // Left panel: monitor.
@@ -50,7 +62,7 @@ function HostManager_populate(p, base_id, args) {
     var child_count = 0;
     var props = {
         instance_id: {name: "instance-id"},
-        class_name: {name: "class-name"},
+        agent_class: {name: "agent-class"},
         next_action: {name: "current", center: true,
                       recoder: function (info) {
                           if (info.next_action != 'down' &&

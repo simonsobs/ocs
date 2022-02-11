@@ -58,4 +58,6 @@ Agent API
 Supporting APIs
 ---------------
 
-.. automethod:: agents.host_manager.host_manager.HostManager._update_target_states
+.. automethod:: agents.host_manager.host_manager.HostManager._process_target_states
+
+.. automethod:: agents.host_manager.host_manager.HostManager._reload_config

@@ -35,7 +35,7 @@ write OCS Agents or Clients.
     agents/influxdb_publisher
     agents/registry
     agents/fake_data
-    agents/host_master
+    agents/host_manager
 
 
 .. toctree::

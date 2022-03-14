@@ -11,7 +11,7 @@ root = os.path.abspath(os.path.split(__file__)[0])
 for n,f in [
         ('RegistryAgent', 'registry/registry.py'),
         ('AggregatorAgent', 'aggregator/aggregator_agent.py'),
-        ('HostMaster', 'host_master/host_master.py'),
+        ('HostManager', 'host_manager/host_manager.py'),
         ('FakeDataAgent', 'fake_data/fake_data_agent.py'),
         ('InfluxDBAgent', 'influxdb_publisher/influxdb_publisher.py'),
 ]:

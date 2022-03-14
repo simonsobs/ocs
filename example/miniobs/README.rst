@@ -2,7 +2,7 @@ Self-contained Test Mini-Observatory
 ====================================
 
 This example demonstrates operation of a single-host OCS.  The
-Observatory consists of the 2 core agents (HostMaster and
+Observatory consists of the 2 core agents (HostManager and
 RegistryAgent), a data aggregation agent (AggregatorAgent), and a
 producer of random data (FakeDataAgent).
 
@@ -52,7 +52,7 @@ configuration file for crossbar.
    mkdir logs
    mkdir data
 
-   ocsbow crossbar generate_config
+   ocs-local-support generate_crossbar_config
 
 
 **2. Bringing up the system**
@@ -61,14 +61,14 @@ To start up all components of the system, run:
 
 .. code-block:: shell
 
-   ocsbow up
+   ocs-local-support start
 
 This will result in the following things starting up (in order):
 
 - the crossbar server.
-- the HostMaster Agent instance.
-- the HostMaster Agent's "master" Process.
-- the child agent instances that are managed by the HostMaster in this
+- the HostManager Agent instance.
+- the HostManager Agent's "manager" Process.
+- the child agent instances that are managed by the HostManager in this
   example:
 
   - Registry
@@ -87,8 +87,8 @@ the data production Process is explicitly told to do so.  The script
 run_acq.py commands the start of a data production operation, and then
 stops it 30 seconds later.  Note that if you interrupt the run_acq.py
 script, the agent will keep generating data in the background, and it
-will keep being written to disk.  If that happens, run "ocsbow down"
-to terminate all agents.
+will keep being written to disk.  If that happens, run
+"ocs-local-support stop" to terminate all agents.
 
 .. code-block:: shell
 
@@ -96,9 +96,9 @@ to terminate all agents.
 
 **4. Bringing down the system**
 
-This ocsbow command brings down all the things you started in step 2,
-in reverse order.
+This ocsbow command stops all the things you started in step 2, in
+reverse order.
 
 .. code-block:: shell
 
-   ocsbow down
+   ocs-local-support stop

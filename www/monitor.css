@@ -10,12 +10,12 @@ h1, h2, h3 {
 }
 
 /* ... for clickable text elements. */
-span.clickable {
+.clickable {
      cursor:pointer;
      color:blue;
 }
 
-span.obviously_clickable {
+.obviously_clickable {
      cursor:pointer;
      color:black;
 }

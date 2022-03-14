@@ -9,8 +9,22 @@ CLI Tools
 Several CLI tools are provided with OCS. This page describes these tools, what
 they are used for, and how to use them.
 
-ocsbow 
+.. _ocsbow:
+
+ocsbow
 ======
+
+The purpose of ``ocsbow`` is to issue commands to :ref:`HostManager
+<host_manager>` Agents.  See :ref:`centralized_management` for general
+instructions.
+
+``ocsbow`` should be able to function in any environment where you can
+instantiate an OCSClient; it needs to know how to find the site config
+file, and it needs access to the crossbar router.
+
+
+Command-line arguments
+----------------------
 
 (The output from ``ocsbow --help`` should be rendered here.)
 
@@ -18,6 +32,24 @@ ocsbow
    :module: ocs.ocsbow
    :func: get_parser
    :prog: ocsbow
+   :noepilog:
+
+
+ocs-local-support
+=================
+
+This script helps with launching crossbar and/or a local HostManager
+instance.  It is useful in small (e.g. single host systems) or as an
+alternative to managing crossbar at the system level or with Docker.
+
+(The output from ``ocs-local-support --help`` should be rendered here.)
+
+.. argparse::
+   :module: ocs.ocsbow
+   :func: get_parser_local
+   :prog: ocs-local-support
+   :noepilog:
+
 
 checkdata
 =========
@@ -175,3 +207,25 @@ ocs-client-cli
    :module: ocs.client_cli
    :func: get_parser
    :prog: ocs-client-cli
+
+
+.. _`ocs-install-systemd`:
+
+ocs-install-systemd
+===================
+
+This script assists with setting up systemd services to launch
+:ref:`host_manager` instances.  See :ref:`centralized_management` for
+general instructions.
+
+.. note::
+
+    The output from ``ocs-install-systemd --help`` should be rendered
+    here.  In addition to the options discussed, the script supports
+    the same "Site Config Options" that Agents usually support, such
+    as ``--site-file=...``.
+
+.. argparse::
+   :module: ocs.ocs_systemd
+   :func: get_parser
+   :prog: ocs-install-systemd

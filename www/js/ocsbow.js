@@ -230,8 +230,8 @@ AgentClient.prototype = {
     // @param params      Object with key-value parameters for the method.
 
     dispatch : function(method, op_name, params) {
-        client = this;
-        _p = [method, op_name, params];
+        var client = this;
+        var _p = [method, op_name, params];
 
         // Wrap all API calls to call our onSession handler before
         // returning to the invoking agent.
@@ -310,7 +310,7 @@ AgentClient.prototype = {
         if (span > 0 && (current_span == 0 || current_span > span)) {
             this.watchers[op_name].span = span;
             clearInterval(this.watchers[op_name].timer);
-            client = this;
+            var client = this;
             this.watchers[op_name].timer = setInterval(function () {
                 client.status(op_name);
             }, span * 1000.);

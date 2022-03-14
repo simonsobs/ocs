@@ -196,7 +196,7 @@ HostManager, and can be set to the empty string if you want).  In
 ocsbow and OCS web, agents running in docker containers will show up
 with a [d] appended to their usual agent_class name.
 
-If HostManager find services in the docker-compose.yaml that don't
+If HostManager finds services in the docker-compose.yaml that don't
 seem to correspond to agent instances in site config, it will still
 permit them to be "managed" (brought up and down).  The agent_class,
 in ocsbow or OCS web, will show up as simply "[docker]".

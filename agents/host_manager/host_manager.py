@@ -128,10 +128,7 @@ class HostManager:
         agent_dict, warnings = yield self._get_local_instances()
         for w in warnings:
             session.add_message(w)
-        dead_services = yield self._update_docker_services()
-
-        managed_agents = [k for (k, instance) in agent_dict.items()
-                          if instance['manage'] != 'no']
+        yield self._update_docker_services()
 
         def retire(db_key):
             instance = self.database.get(db_key, None)

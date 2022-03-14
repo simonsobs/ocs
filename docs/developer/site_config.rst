@@ -245,7 +245,3 @@ works like this:
 
 A good example of a plugin script can be found in the OCS agents
 directory, ``ocs_plugins_standard.py``.
-
-
-Systemd Integration [empty]
-===========================

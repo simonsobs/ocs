@@ -437,6 +437,30 @@ At this point you might want to jump to :ref:`controlling_systemd`.
 Some additional details about the service file and launcher script are
 provided here.
 
+One Host, Many Managers
+~~~~~~~~~~~~~~~~~~~~~~~
+
+If you need to run two or more HostManagers on one system, you
+probably also want to have multiple services set up.  (This might be
+the case if you're using multiple docker-compose.yaml, or if you have
+both docker and native system agents running.).
+
+Use arguments ``--site-host`` and ``--service-host`` to identify which
+HostManager you mean, and give the services different names::
+
+  $ ocs-install-systemd --service-dir=. --service-host=host-1 --site-host=host-1
+  Writing /home/ocs/ocs-site-configs/my-ocs/launcher-hm-host-1.sh ...
+  Writing ./ocs-hostmanager-host-1.service ...
+
+  $ ocs-install-systemd --service-dir=. --service-host=host-1-docker --site-host=host-1-docker
+  Writing /home/ocs/ocs-site-configs/my-ocs/launcher-hm-host-1-docker.sh ...
+  Writing ./ocs-hostmanager-host-1-docker.service ...
+
+The ``--site-host`` argument helps the code find the instance_id of
+the HostManager in the SCF, and to name the launcher script.  The
+``--service-host`` argument is used simply to give the .service file a
+different filename.
+
 The .service file
 ~~~~~~~~~~~~~~~~~
 

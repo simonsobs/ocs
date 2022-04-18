@@ -2,10 +2,6 @@
 OCS - Observatory Control System
 ================================
 
-.. image:: https://img.shields.io/pypi/v/ocs
-   :target: https://pypi.org/project/ocs/
-   :alt: PyPI Package
-
 .. image:: https://img.shields.io/github/workflow/status/simonsobs/ocs/Build%20Develop%20Images
     :target: https://github.com/simonsobs/ocs/actions?query=workflow%3A%22Build+Develop+Images%22
     :alt: GitHub Workflow Status
@@ -19,6 +15,10 @@ OCS - Observatory Control System
 
 .. image:: https://img.shields.io/badge/dockerhub-latest-blue
     :target: https://hub.docker.com/r/simonsobs/ocs/tags
+
+.. image:: https://img.shields.io/pypi/v/ocs
+   :target: https://pypi.org/project/ocs/
+   :alt: PyPI Package
 
 Overview
 --------

@@ -49,4 +49,4 @@ Development Guide
 
 Contributors should follow the recommendations made in the `SO Developer Guide`_.
 
-.. _SO Developer Guide: https://simons1.princeton.edu/docs/so_dev_guide/html/
+.. _SO Developer Guide: https://simons1.princeton.edu/docs/so_dev_guide/

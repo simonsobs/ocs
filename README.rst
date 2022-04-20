@@ -2,10 +2,6 @@
 OCS - Observatory Control System
 ================================
 
-.. image:: https://img.shields.io/pypi/v/ocs
-   :target: https://pypi.org/project/ocs/
-   :alt: PyPI Package
-
 .. image:: https://img.shields.io/github/workflow/status/simonsobs/ocs/Build%20Develop%20Images
     :target: https://github.com/simonsobs/ocs/actions?query=workflow%3A%22Build+Develop+Images%22
     :alt: GitHub Workflow Status
@@ -19,6 +15,10 @@ OCS - Observatory Control System
 
 .. image:: https://img.shields.io/badge/dockerhub-latest-blue
     :target: https://hub.docker.com/r/simonsobs/ocs/tags
+
+.. image:: https://img.shields.io/pypi/v/ocs
+   :target: https://pypi.org/project/ocs/
+   :alt: PyPI Package
 
 Overview
 --------
@@ -48,7 +48,7 @@ historical look back of the housekeeping data.
 Dependencies
 ------------
 
-This code targets Python 3.6+.
+This code targets Python 3.7+.
 
 * `so3g`_ - Required for using the HK Aggregator Agent.
 * `crossbar`_ (optional) - The supported WAMP router. Controllable via

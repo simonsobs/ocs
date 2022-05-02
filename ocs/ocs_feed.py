@@ -116,7 +116,8 @@ class Feed:
             "feed_name": self.feed_name,
             "address": self.address,
             "record": self.record,
-            "session_id": self.agent.agent_session_id
+            "session_id": self.agent.agent_session_id,
+            "agent_class": self.agent.class_name
         }
 
     def flush_buffer(self):

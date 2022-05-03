@@ -23,11 +23,14 @@ class RegisteredAgent:
                 operations. For details on what the operation codes mean, see
                 docs from the ``ocs_agent`` module
     """
-    def __init__(self):
+    def __init__(self, feed):
         self.expired = False
         self.time_expired = None
         self.last_updated = time.time()
         self.op_codes = {}
+        self.agent_class = feed.get('agent_class')
+        self.agent_address = feed['agent_address']
+
 
     def refresh(self, op_codes=None):
         self.expired = False
@@ -49,6 +52,8 @@ class RegisteredAgent:
             'time_expired': self.time_expired,
             'last_updated': self.last_updated,
             'op_codes': self.op_codes,
+            'agent_class': self.agent_class,
+            'agent_address': self.agent_address,
         }
 
 
@@ -83,7 +88,7 @@ class Registry:
         self._run = False
 
         # Dict containing agent_data for each registered agent
-        self.registered_agents = defaultdict(RegisteredAgent)
+        self.registered_agents = {}
         self.agent_timeout = 5.0 # Removes agent after 5 seconds of no heartbeat.
 
         self.agent.subscribe_on_start(
@@ -104,7 +109,10 @@ class Registry:
             It will update that agent in the Registry's registered_agent dict.
         """
         op_codes, feed = _data
-        self.registered_agents[feed['agent_address']].refresh(op_codes=op_codes)
+        addr = feed['agent_address']
+        if addr not in self.registered_agents:
+            self.registered_agents[addr] = RegisteredAgent(feed)
+        self.registered_agents[addr].refresh(op_codes=op_codes)
 
     @ocs_agent.param('test_mode', default=False, type=bool)
     @inlineCallbacks

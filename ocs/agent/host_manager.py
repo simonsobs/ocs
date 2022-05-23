@@ -272,7 +272,7 @@ def _run_docker_compose(args, docker_compose_bin=None):
     if docker_compose_bin is None:
         docker_compose_bin = shutil.which('docker-compose')
     return utils.getProcessOutputAndValue(
-        docker_compose_bin, args)
+        docker_compose_bin, args, env=os.environ)
 
 
 class DockerContainerHelper:
@@ -370,7 +370,7 @@ def parse_docker_state(docker_compose_file, docker_compose_bin=None):
     # Run docker inspect.
     for cont_id in cont_ids:
         out, err, code = yield utils.getProcessOutputAndValue(
-            'docker', ['inspect', cont_id])
+            'docker', ['inspect', cont_id], env=os.environ)
         if code != 0 and 'No such object' in err.decode('utf8'):
             # This is likely due to a race condition where some
             # container was brought down since we ran docker-compose.

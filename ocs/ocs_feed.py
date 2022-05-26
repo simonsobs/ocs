@@ -248,17 +248,15 @@ class Feed:
         supported types.
 
         Args:
-            value (list, float, int):
+            value (list, float, int, bool):
                 'data' dictionary value published (see Feed.publish_message for details).
 
         """
-        valid_types = (float, int, str)
+        valid_types = (float, int, str, bool)
 
-        # separate bool checks since bool is a subclass of int
         # multi-sample check
         if isinstance(value, list):
-            if (any(isinstance(x, bool) for x in value)
-                    or not all(isinstance(x, valid_types) for x in value)):
+            if not all(isinstance(x, valid_types) for x in value):
                 type_set = set([type(x) for x in value])
                 invalid_types = type_set.difference(valid_types)
                 raise TypeError("message 'data' block contains invalid data" +
@@ -266,7 +264,7 @@ class Feed:
 
         # single sample check
         else:
-            if isinstance(value, bool) or not isinstance(value, valid_types):
+            if not isinstance(value, valid_types):
                 invalid_type = type(value)
                 raise TypeError("message 'data' block contains invalid " +
                                 f"data type: {invalid_type}")

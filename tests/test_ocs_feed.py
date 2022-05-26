@@ -76,8 +76,7 @@ class TestPublishMessage:
             }
         }
 
-        with pytest.raises(TypeError):
-            test_feed.publish_message(test_message)
+        test_feed.publish_message(test_message)
 
     def test_bool_multi_sample_input(self):
         mock_agent = MagicMock()
@@ -88,6 +87,21 @@ class TestPublishMessage:
             'timestamps': [time.time(), time.time()+1, time.time()+2],
             'data': {
                 'key1': [True, False, True],
+            }
+        }
+
+        test_feed.publish_message(test_message)
+
+    def test_invalid_single_sample_input(self):
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamps': time.time(),
+            'data': {
+                'key1': 1.,
+                'key2': None,
             }
         }
 

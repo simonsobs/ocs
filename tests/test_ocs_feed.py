@@ -76,8 +76,7 @@ class TestPublishMessage:
             }
         }
 
-        with pytest.raises(TypeError):
-            test_feed.publish_message(test_message)
+        test_feed.publish_message(test_message)
 
     def test_bool_multi_sample_input(self):
         mock_agent = MagicMock()
@@ -91,8 +90,7 @@ class TestPublishMessage:
             }
         }
 
-        with pytest.raises(TypeError):
-            test_feed.publish_message(test_message)
+        test_feed.publish_message(test_message)
 
     def test_str_multi_sample_input(self):
         """Passing multiple points, including invalid datatypes,

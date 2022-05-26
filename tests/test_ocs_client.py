@@ -161,6 +161,11 @@ class TestOCSClient:
         assert hasattr(client, 'process_name')
         assert hasattr(client, 'task_name')
 
+    @patch('ocs.site_config.get_control_client', fake_get_control_client)
+    def test_ocsclient_repr(self):
+        client = OCSClient('agent-id')
+        assert repr(client) == "OCSClient('agent-id')"
+
 
 class TestOCSReply:
     """Test various scenarios in OCSReply decoding. Since the representation

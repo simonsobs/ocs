@@ -112,6 +112,9 @@ class OCSClient:
             setattr(self, _opname_to_attr(name),
                     _get_op('process', name, encoded, self._client))
 
+    def __repr__(self):
+        return f"OCSClient('{self.instance_id}')"
+
 
 def _humanized_time(t):
     if abs(t) < 1.:

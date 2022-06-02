@@ -34,7 +34,7 @@ class FakeDataAgent:
         self.agent.register_feed('false_temperatures',
                                  record=True,
                                  agg_params=agg_params,
-                                 buffer_time=0.)
+                                 buffer_time=1.)
 
     # Exclusive access management.
     def try_set_job(self, job_name):

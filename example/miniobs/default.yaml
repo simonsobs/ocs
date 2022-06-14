@@ -3,7 +3,7 @@ hub:
 
   wamp_server: ws://localhost:8001/ws
   wamp_http: http://localhost:8001/call
-  wamp_realm: debug_realm
+  wamp_realm: test_realm
   address_root: observatory
   registry_address: observatory.registry
 
@@ -17,7 +17,7 @@ hosts:
         './',
         ],
     'agent-instances': [
-      {'agent-class': 'HostMaster',
+      {'agent-class': 'HostManager',
        'instance-id': 'hm1',
        'arguments': []},
       {'agent-class': 'RegistryAgent',

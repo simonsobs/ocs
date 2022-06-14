@@ -383,11 +383,13 @@ OcsUiHelper.prototype = {
         return data;
     },
 
-    on: function(op_name, action, callback) {
+    on: function(op_name, action, callback, reset=false) {
         /* Assign an event handler to a button (probably one from
          * op_header). */
         var ui = this;
         var input_id = this.base_id + '-' + op_name + '-' + action;
+        if (reset)
+            $('#' + input_id).off('click');
         $('#' + input_id).on('click', function() {
             data = ui._get_inputs(op_name);
             callback(data);

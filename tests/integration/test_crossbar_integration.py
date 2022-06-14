@@ -5,13 +5,9 @@ import pytest
 import docker
 
 from ocs.ocs_client import OCSClient
+from so3g import hk
 
 from integration.util import create_crossbar_fixture, restart_crossbar
-
-try:
-    from so3g import hk
-except ModuleNotFoundError as e:
-    print(f"Unable to import so3g: {e}")
 
 pytest_plugins = ("docker_compose",)
 
@@ -20,19 +16,6 @@ wait_for_crossbar = create_crossbar_fixture()
 
 
 CROSSBAR_SLEEP = 5  # time to wait before trying to make first connection
-
-
-@pytest.mark.spt3g
-@pytest.mark.dependency(name="so3g")
-def test_so3g_spt3g_import():
-    """Test that we can import so3g. Used to skip tests dependent on
-    this import.
-
-    """
-    import so3g
-
-    # Just to prevent flake8 from complaining
-    print(so3g.__file__)
 
 
 # @pytest.mark.integtest
@@ -76,7 +59,6 @@ def test_fake_data_after_crossbar_restart(wait_for_crossbar):
 #     """
 #     pass
 
-@pytest.mark.dependency(depends=["so3g"])
 @pytest.mark.integtest
 def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     """Test that the aggregator reconnects after a crossbar restart and that

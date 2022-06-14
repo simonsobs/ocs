@@ -11,6 +11,9 @@ from urllib.error import URLError
 from ocs.ocs_client import OCSClient
 
 
+SIGINT_TIMEOUT = 5
+
+
 def create_agent_runner_fixture(agent_path, agent_name, args=None):
     """Create a pytest fixture for running a given OCS Agent.
 
@@ -39,14 +42,27 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
                                      stderr=subprocess.PIPE,
                                      preexec_fn=os.setsid)
 
-        # wait for Agent to startup
+        def raise_subprocess(msg):
+            stdout, stderr = agentproc.stdout.read(), agentproc.stderr.read()
+            print(f'Here is stdout from {agent_name}:\n{stdout}')
+            print(f'Here is stderr from {agent_name}:\n{stderr}')
+            raise RuntimeError(msg)
+
+        # Wait briefly then make sure subprocess hasn't already exited.
         time.sleep(1)
+        if agentproc.poll() is not None:
+            raise_subprocess(f"Agent failed to startup, cmd: {cmd}")
 
         yield
 
         # shutdown Agent
         agentproc.send_signal(signal.SIGINT)
-        time.sleep(1)
+
+        try:
+            agentproc.communicate(timeout=SIGINT_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            raise_subprocess('Agent did not terminate within '
+                             f'{SIGINT_TIMEOUT} seconds on SIGINT.')
 
         # report coverage
         agentcov = coverage.data.CoverageData(
@@ -81,7 +97,7 @@ def create_client_fixture(instance_id, timeout=30):
         while attempts < timeout:
             try:
                 client = OCSClient(instance_id)
-                break
+                return client
             except RuntimeError as e:
                 print(f"Caught error: {e}")
                 print("Attempting to reconnect.")
@@ -89,7 +105,8 @@ def create_client_fixture(instance_id, timeout=30):
             time.sleep(1)
             attempts += 1
 
-        return client
+        raise RuntimeError(
+            f"Failed to connect to {instance_id} after {timeout} attempts.")
 
     return client_fixture
 

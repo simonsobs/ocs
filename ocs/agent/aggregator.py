@@ -10,8 +10,8 @@ txaio.use_twisted()
 
 from ocs.ocs_feed import Block, Feed
 
-from spt3g import core
 import so3g
+from spt3g import core
 
 
 HKAGG_VERSION = 2

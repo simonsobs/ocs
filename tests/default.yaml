@@ -15,8 +15,8 @@ hosts:
       '../agents/',
     ],
     'agent-instances': [
-      {'agent-class': 'HostMaster',
-       'instance-id': 'master-host-1',
+      {'agent-class': 'HostManager',
+       'instance-id': 'host-manager-1',
        'arguments': []},
       {'agent-class': 'FakeDataAgent',
        'instance-id': 'fake-data-local',

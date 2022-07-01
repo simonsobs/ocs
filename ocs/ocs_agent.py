@@ -398,7 +398,8 @@ class OCSAgent(ApplicationSession):
         if startup is not False:
             self.startup_ops.append(('task', name, startup))
 
-    def register_process(self, name, start_func, stop_func, blocking=True, startup=False):
+    def register_process(self, name, start_func, stop_func, blocking=True,
+                         stopper_blocking=None, startup=False):
         """Register a Process for this agent.
 
         Args:
@@ -407,9 +408,13 @@ class OCSAgent(ApplicationSession):
                 handle the "start" operation of the Process.
             stop_func (callable): The function that will be called to
                 handle the "stop" operation of the Process.
-            blocking (bool): Indicates that ``func`` should be
-               launched in a worker thread, rather than running in the
-               main reactor thread.
+            blocking (bool): Indicates that ``start_func`` should be
+                launched in a worker thread, rather than running in
+                the reactor.
+            stopper_blocking (bool or None): Indicates that
+                ``stop_func`` should be launched in a worker thread,
+                rather than running in the reactor.  Defaults to the
+                value of ``blocking``.
             startup (bool or dict): Controls if and how the Operation
                 is launched when the Agent successfully starts up and
                 connects to the WAMP realm.  If False, the Operation
@@ -427,8 +432,9 @@ class OCSAgent(ApplicationSession):
             the client library so don't count on that being useful.)
 
         """
-        self.processes[name] = AgentProcess(start_func, stop_func,
-                                            blocking=blocking)
+        self.processes[name] = AgentProcess(
+            start_func, stop_func, blocking=blocking,
+            stopper_blocking=stopper_blocking)
         self.sessions[name] = None
         if startup is not False:
             self.startup_ops.append(('process', name, startup))
@@ -782,8 +788,18 @@ class OCSAgent(ApplicationSession):
             if session is None:
                 return (ocs.ERROR, 'No session active.', {})
             proc = self.processes[op_name]
-            d2 = threads.deferToThread(proc.stopper, session, params)
-            d2.addErrback(_errback)
+            if proc.stop_blocking:
+                d2 = threads.deferToThread(proc.stopper, session, params)
+                d2.addErrback(_errback)
+            else:
+                # Assume it returns a deferred.
+                d2 = proc.stopper(session, params)
+                if not isinstance(d2, Deferred):
+                    # Warn but let it slide.
+                    print(f'WARNING: process {op_name} needs to be '
+                          'registered with stop_blocking=True.')
+                else:
+                    d2.addErrback(_errback)
             return (ocs.OK, 'Requested stop on process "%s".' % op_name, session.encoded())
         else:
             return (ocs.ERROR, 'No process called "%s".' % op_name, {})
@@ -839,10 +855,13 @@ class AgentTask:
         }
 
 class AgentProcess:
-    def __init__(self, launcher, stopper, blocking=None):
+    def __init__(self, launcher, stopper, blocking=None, stopper_blocking=None):
         self.launcher = launcher
         self.stopper = stopper
         self.blocking = blocking
+        if stopper_blocking is None:
+            stopper_blocking = blocking
+        self.stopper_blocking = stopper_blocking
         self.docstring = launcher.__doc__
 
     def encoded(self):

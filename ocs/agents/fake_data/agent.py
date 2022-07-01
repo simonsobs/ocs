@@ -7,7 +7,7 @@ import txaio
 from os import environ
 import numpy as np
 from autobahn.wamp.exception import ApplicationError
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn.twisted.util import sleep as dsleep
 
 # For logging
@@ -23,6 +23,8 @@ class FakeDataAgent:
         self.log = agent.log
         self.lock = threading.Semaphore()
         self.job = None
+        self._counter_running = None
+
         self.channel_names = ['channel_%02i' % i for i in range(num_channels)]
         self.sample_rate = max(1e-6, sample_rate) # #nozeros
 
@@ -164,6 +166,23 @@ class FakeDataAgent:
         return (ok, {True: 'Requested process stop.',
                      False: 'Failed to request process stop.'}[ok])
 
+    @inlineCallbacks
+    def count_seconds(self, session, params):
+        # This process runs entirely in the reactor, as does its stop function.
+        session.data = {'counter': 0,
+                        'last_update': time.time()}
+        session.set_status('running')
+        while session.status == 'running':
+            yield dsleep(1)
+            session.data['last_update'] = time.time()
+            session.data['counter'] += 1
+        return True, 'Exited on request.'
+
+    @inlineCallbacks
+    def _stop_count_seconds(self, session, params):
+        yield  # Make this a generator.
+        session.set_status('stopping')
+
     # Tasks
     
     @ocs_agent.param('heartbeat', default=True, type=bool)
@@ -262,6 +281,8 @@ def main(args=None):
                           frame_length=args.frame_length)
     agent.register_process('acq', fdata.acq, fdata._stop_acq,
                            blocking=True, startup=startup)
+    agent.register_process('count', fdata.count_seconds, fdata._stop_count_seconds,
+                           blocking=False, startup=startup)
     agent.register_task('set_heartbeat', fdata.set_heartbeat)
     agent.register_task('delay_task', fdata.delay_task, blocking=False)
 

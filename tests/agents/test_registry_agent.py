@@ -70,18 +70,20 @@ class TestMain:
 
 
 class TestStopMain:
+    @pytest_twisted.inlineCallbacks
     def test_registry_stop_main_while_running(self, agent):
         session = create_session('main')
 
         # Fake run main process
         agent._run = True
 
-        res = agent._stop_main(session, params=None)
+        res = yield agent._stop_main(session, params=None)
         assert res[0] is True
 
+    @pytest_twisted.inlineCallbacks
     def test_registry_stop_main_not_running(self, agent):
         session = create_session('main')
-        res = agent._stop_main(session, params=None)
+        res = yield agent._stop_main(session, params=None)
         assert res[0] is False
 
 

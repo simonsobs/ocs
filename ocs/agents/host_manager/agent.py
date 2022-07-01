@@ -507,7 +507,9 @@ class HostManager:
             yield dsleep(max(min(sleep_times), .001))
         return True, 'Exited.'
 
+    @inlineCallbacks
     def _stop_manager(self, session, params):
+        yield
         if session.status == 'done':
             return
         session.set_status('stopping')

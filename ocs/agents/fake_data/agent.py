@@ -23,7 +23,6 @@ class FakeDataAgent:
         self.log = agent.log
         self.lock = threading.Semaphore()
         self.job = None
-        self._counter_running = None
 
         self.channel_names = ['channel_%02i' % i for i in range(num_channels)]
         self.sample_rate = max(1e-6, sample_rate) # #nozeros
@@ -235,13 +234,23 @@ class FakeDataAgent:
                         'delay_so_far': 0}
         session.set_status('running')
         t0 = time.time()
-        while True:
+        while session.status == 'running':
             session.data['delay_so_far'] = time.time() - t0
             sleep_time = min(0.5, delay - session.data['delay_so_far'])
             if sleep_time < 0:
                 break
             yield dsleep(sleep_time)
+
+        if session.status != 'running':
+            return False, 'Aborted after %.1f seconds' % session.data['delay_so_far']
+
         return succeed, 'Exited after %.1f seconds' % session.data['delay_so_far']
+
+    @inlineCallbacks
+    def _abort_delay_task(self, session, params):
+        if session.status == 'running':
+            session.set_status('stopping')
+        yield
 
 
 def add_agent_args(parser_in=None):
@@ -284,7 +293,8 @@ def main(args=None):
     agent.register_process('count', fdata.count_seconds, fdata._stop_count_seconds,
                            blocking=False, startup=startup)
     agent.register_task('set_heartbeat', fdata.set_heartbeat)
-    agent.register_task('delay_task', fdata.delay_task, blocking=False)
+    agent.register_task('delay_task', fdata.delay_task, blocking=False,
+                        aborter=fdata._abort_delay_task)
 
     runner.run(agent, auto_reconnect=True)
 

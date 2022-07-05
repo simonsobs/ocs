@@ -809,9 +809,6 @@ class OCSAgent(ApplicationSession):
             return (ocs.ERROR, f'Cannot "{stop_type}" "{op_name}" because '
                     'it is a "{op_type}".', {})
 
-        def _errback(self, *args, **kw):
-            print(f'Error calling stopper for "{op_name}"; args:',
-                  args, kw)
         session = self.sessions.get(op_name)
         if session is None:
             return (ocs.ERROR, 'No session active.', {})
@@ -819,10 +816,22 @@ class OCSAgent(ApplicationSession):
         if session.status in ['stopping', 'done']:
             return (ocs.ERROR, f'The operation is already {session.status}', {})
 
+        # Use callback/errback to print message to logs.
+        def _callback(*args, **kw):
+            try:
+                ok, msg = args
+            except:
+                ok, msg = True, str(args)
+            print(f'Stopper for "{op_name}" terminated with ok={ok} and '
+                  f'message {msg}')
+        def _errback(*args, **kw):
+            print(f'Error calling stopper for "{op_name}"; args:',
+                  args, kw)
+
         if stopper_blocking:
             # Launch the code in a thread.
             d2 = threads.deferToThread(stopper, session, params)
-            d2.addErrback(_errback)
+            d2.addCallback(_callback).addErrback(_errback)
         else:
             # Assume the stopper returns a deferred (and will soon run
             # in the reactor).
@@ -837,7 +846,7 @@ class OCSAgent(ApplicationSession):
                 print(f'WARNING: {op_type} {op_name} needs to be '
                       'registered with stopper_blocking=True.')
             else:
-                d2.addErrback(_errback)
+                d2.addCallback(_callback).addErrback(_errback)
 
         return (ocs.OK, f'Requested {stop_type} on {op_type} {op_name}".',
                 session.encoded())

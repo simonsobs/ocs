@@ -64,3 +64,12 @@ services:
     build: ./agents/fake_data/
     depends_on:
       - "ocs"
+
+  # --------------------------------------------------------------------------
+  # The OCS Barebones Agent
+  # --------------------------------------------------------------------------
+  ocs-barebones-agent:
+    image: "ocs-barebones-agent"
+    build: ./agents/barebones_agent/
+    depends_on:
+      - "ocs"

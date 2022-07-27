@@ -31,5 +31,6 @@ def test_registry_agent_main(wait_for_crossbar, run_agent, client):
     assert resp.session['op_code'] == OpCode.RUNNING.value
 
     client.main.stop()
+    client.main.wait()  # wait for process to exit
     resp = client.main.status()
-    assert resp.session['op_code'] == OpCode.STOPPING.value
+    assert resp.session['op_code'] == OpCode.SUCCEEDED.value

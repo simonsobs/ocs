@@ -66,6 +66,10 @@ instances (running two different classes of agent):
     }
   
     host-1-docker: {
+
+      # Address of crossbar within Docker (based on service name)
+      'wamp_server': 'ws://crossbar:8001/ws',
+      'wamp_http': 'http://crossbar:8001/call',
   
       # Description of host-1's Agents running with Docker containers. 
       # We have one readout device; a Lakeshore 372.
@@ -140,6 +144,8 @@ unique name given to this agent instance. Here we use the Lakeshore 372 serial
 number, `LSARR00`. Finally the arguments are used to pass default arguments to
 the Agent at startup, which contains the serial number again as well as the IP
 address of the 372.
+
+.. _environment_setup:
 
 Environment Setup
 -----------------

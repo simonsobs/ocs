@@ -1,4 +1,4 @@
-.. _installation:
+.. _ocs_install:
 
 Installation
 ============
@@ -8,7 +8,9 @@ Installing Docker
 
 Docker is used to run many of the components in the live monitor. While the
 system can be run without Docker, it is the recommended deployment option. To
-install, please follow the `installation`_ documentation on the Docker website.
+install, please follow the `installation
+<https://docs.docker.com/engine/install/ubuntu/>`_ documentation on the Docker
+website.
 
 .. note::
 
@@ -59,12 +61,12 @@ To install, clone the repository and use pip to install::
 
   git clone https://github.com/simonsobs/ocs.git
   cd ocs/
-  pip3 install -r requirements.txt .
+  pip install -r requirements.txt .
 
 .. note::
 
     If you want to install locally, not globally, throw the `--user` flag
-    on both the pip3 and setup.py commands.
+    when installing with pip.
 
 .. _Docker Compose: https://docs.docker.com/compose/install/
 
@@ -81,15 +83,15 @@ container.
 The OCS user, `ocs`, has a UID of 9000, and a matching group, also called
 `ocs`, with a GID of 9000. To create the group and user run::
 
-    $ groupadd -g 9000 ocs
-    $ useradd -u 9000 -g 9000 ocs
+    $ sudo groupadd -g 9000 ocs
+    $ sudo useradd -u 9000 -g 9000 ocs
 
 Next we need to create the data directory which the aggregator will write files
 to. This can be any directory, for example, ``/data``, which we will use
 throughout this documentation::
 
-    $ mkdir /data
-    $ chown 9000:9000 /data
+    $ sudo mkdir /data
+    $ sudo chown 9000:9000 /data
 
 Finally, we should add the current user account to the `ocs` group, replace
 `user` with your current user::

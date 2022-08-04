@@ -19,7 +19,7 @@ pytest_plugins = ("docker_compose")
 
 
 wait_for_crossbar = create_crossbar_fixture()
-run_agent = create_agent_runner_fixture('../agents/host_manager/host_manager.py',
+run_agent = create_agent_runner_fixture('../ocs/agents/host_manager.py',
                                         'host-manager-1',
                                         args=['--log-dir',
                                               os.path.join(os.getcwd(),

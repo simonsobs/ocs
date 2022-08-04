@@ -15,7 +15,7 @@ from ocs.base import OpCode
 pytest_plugins = ("docker_compose")
 
 wait_for_crossbar = create_crossbar_fixture()
-run_agent = create_agent_runner_fixture('../agents/registry/registry.py',
+run_agent = create_agent_runner_fixture('../ocs/agents/registry.py',
                                         'registry',
                                         args=['--log-dir',
                                               os.path.join(os.getcwd(),

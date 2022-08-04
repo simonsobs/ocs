@@ -1,6 +1,4 @@
-import sys
-sys.path.insert(0, '../agents/influxdb_publisher/')
-from influxdb_publisher import InfluxDBAgent
+from ocs.agents.influxdb_publisher import InfluxDBAgent
 
 from unittest import mock
 

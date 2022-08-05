@@ -65,20 +65,24 @@ components)::
       # OCS Agents
       # --------------------------------------------------------------------------
       ocs-aggregator:
-        image: simonsobs/ocs-aggregator-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
         user: "9000"
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
           - "/data:/data"
+        command:
+          - "--instance-id=aggregator"
         depends_on:
           - "crossbar"
 
       ocs-influx-publisher:
-        image: simonsobs/ocs-influxdb-publisher-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
+        command:
+          - "--instance-id=influxagent"
 
       ocs-LSA99ZZ:
         image: simonsobs/ocs-lakeshore372-agent:latest
@@ -265,20 +269,24 @@ Where the separate compose files would look something like::
           name: ocs-net
     services:
       ocs-aggregator:
-        image: simonsobs/ocs-aggregator-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
         user: "9000"
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
           - "/data:/data"
+        command:
+          - "--instance-id=aggregator"
         depends_on:
           - "crossbar"
 
       ocs-influx-publisher:
-        image: simonsobs/ocs-influxdb-publisher-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
+        command:
+          - "--instance-id=influxagent"
 
       ocs-LSA99ZZ:
         image: simonsobs/ocs-lakeshore372-agent:latest

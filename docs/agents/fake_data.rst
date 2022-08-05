@@ -39,7 +39,7 @@ The Fake Data Agent can also be run in a Docker container. An example
 docker-compose service configuration is shown here::
 
     fake-data1:
-        image: simonsobs/ocs-fake-data-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
         environment:
           - LOGLEVEL=info

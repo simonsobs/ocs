@@ -65,7 +65,7 @@ The docker image for the aggregator agent is simonsobs/ocs-aggregator-agent
 Here is an example configuration::
 
     ocs-aggregator:
-        image: simonsobs/ocs-aggregator-agent:latest
+        image: simonsobs/ocs:latest
         container_name: ocs-aggregator
         hostname: ocs-docker
         user: "9000"
@@ -74,6 +74,8 @@ Here is an example configuration::
         volumes:
           - ${OCS_CONFIG_DIR}:/config
           - /path/to/host/data:/data
+        command:
+          - "--instance-id=aggregator"
 
 
 Description

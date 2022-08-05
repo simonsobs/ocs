@@ -162,7 +162,7 @@ def add_agent_args(parser_in=None):
     return parser_in
 
 
-if __name__ == '__main__':
+def main():
     # For logging
     txaio.use_twisted()
     LOG = txaio.make_logger()
@@ -188,3 +188,7 @@ if __name__ == '__main__':
     agent.register_task('print', barebone.print)
 
     runner.run(agent, auto_reconnect=True)
+
+
+if __name__ == '__main__':
+    main()

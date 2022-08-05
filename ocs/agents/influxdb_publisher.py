@@ -152,7 +152,7 @@ def make_parser(parser=None):
     return parser
 
 
-if __name__ == '__main__':
+def main():
     # Start logging
     txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
@@ -164,3 +164,7 @@ if __name__ == '__main__':
     influx_agent = InfluxDBAgent(agent, args)
 
     runner.run(agent, auto_reconnect=True)
+
+
+if __name__ == '__main__':
+    main()

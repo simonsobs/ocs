@@ -565,7 +565,7 @@ def make_parser(parser=None):
     return parser
 
 
-if __name__ == '__main__':
+def main():
     parser = make_parser()
     args = site_config.parse_args(agent_class='HostManager',
                                   parser=parser)
@@ -608,3 +608,6 @@ if __name__ == '__main__':
     reactor.addSystemEventTrigger('before', 'shutdown', agent._stop_all_running_sessions)
     runner.run(agent, auto_reconnect=True)
 
+
+if __name__ == '__main__':
+    main()

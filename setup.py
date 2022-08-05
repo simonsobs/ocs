@@ -17,6 +17,7 @@ setup (name = 'ocs',
                'ocsbow=ocs.ocsbow:main',
                'ocs-local-support=ocs.ocsbow:main_local',
                'ocs-client-cli=ocs.client_cli:main',
+               'ocs-agent-cli=ocs.agent_cli:main',
                'ocs-install-systemd=ocs.ocs_systemd:main',
                ],
            'ocs.plugins': [

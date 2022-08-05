@@ -31,12 +31,14 @@ Docker Compose
 An example docker-compose configuration::
 
     ocs-registry:
-        image: simonsobs/ocs-registry-agent:latest
+        image: simonsobs/ocs:latest
         container_name: ocs-registry
         hostname: ocs-docker
         user: "9000"
         volumes:
-            - ${OCS_CONFIG_DIR}:/config
+          - ${OCS_CONFIG_DIR}:/config
+        command:
+          - "--instance-id=registry"
 
 Description
 -----------

@@ -47,7 +47,6 @@ write OCS Agents or Clients.
     developer/agents
     developer/clients
     developer/data
-    developer/web
     developer/testing
 
 

@@ -292,12 +292,13 @@ written in any language supported by crossbar, however most commonly these will
 be written in Python or JavaScript. In this section we cover some of these
 alternative Client implementations.
 
-OCSWeb Client
-`````````````
+ocs-web control panels
+``````````````````````
 
-A Client can be written in JavaScript. This is what is done in OCS Web. For
-more details about how to implement a JavaScript Client, see
-:ref:`creating_web_panel`.
+A web-based graphical user interface, written in the Vue 3 framework,
+is maintained here: https://github.com/simonsobs/ocs-web/ .
+Specialized control panels can be written for each Agent to expose
+some or all of an Agent's operations and session data.
 
 
 Control Programs using Twisted

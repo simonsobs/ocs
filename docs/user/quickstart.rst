@@ -165,7 +165,6 @@ Now that the system is configured, we can start it with a single
     Creating ocs-site-configs_grafana_1              ... done
     Creating ocs-site-configs_ocs-fake-data1_1       ... done
     Creating ocs-site-configs_crossbar_1             ... done
-    Creating ocs-site-configs_ocs-web_1              ... done
     Creating influxdb                                ... done
 
 .. note::

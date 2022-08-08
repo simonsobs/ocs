@@ -12,7 +12,7 @@ have a way to start and stop Agents without ssh-ing to the various
 host systems.
 
 The HostManager Agent, in combination with the ocsbow CLI script or
-the HostManager panel in OCS web, provide this functionality.  When
+the HostManager panel in ocs-web, provide this functionality.  When
 fully configured, the system provides the following functionality:
 
 - Any OCS Agent in the system can be started and stopped from a single
@@ -22,7 +22,7 @@ fully configured, the system provides the following functionality:
   automatically when the system is booted (even if the Agents are not
   contained in Docker containers).
 - The basic health of Agents, across the system, can be monitored and
-  individual agents restarted using HostManager panels in OCS web.
+  individual agents restarted using HostManager panels in ocs-web.
 
 
 .. warning::
@@ -193,13 +193,13 @@ docker-compose.yaml correspond to certain agent instance_id values,
 make sure the services are called ``ocs-[instance_id]``.  (The choice
 of ocs- prefix is configurable with a command-line argument to
 HostManager, and can be set to the empty string if you want).  In
-ocsbow and OCS web, agents running in docker containers will show up
+ocsbow and ocs-web, agents running in docker containers will show up
 with a [d] appended to their usual agent_class name.
 
 If HostManager finds services in the docker-compose.yaml that don't
 seem to correspond to agent instances in site config, it will still
 permit them to be "managed" (brought up and down).  The agent_class,
-in ocsbow or OCS web, will show up as simply "[docker]".
+in ocsbow or ocs-web, will show up as simply "[docker]".
 
 
 Advanced host config
@@ -229,7 +229,7 @@ Communicating with HostManager Agents
 
 This section describes using the :ref:`ocsbow` command line tool to
 communicate with all the HostManager agents in an OCS setup.  A
-complementary approach is to use OCS Web; see `Using OCS Web with
+complementary approach is to use ocs-web; see `Using ocs-web with
 HostManager`_.
 
 ``ocsbow`` is a special client program that knows how to parse the SCF
@@ -552,10 +552,10 @@ To disable launch-on-boot::
   $ sudo systemctl disable ocs-hostmanager.service
 
 
-Using OCS Web with HostManager
+Using ocs-web with HostManager
 ==============================
 
-The OCS Web system includes a Panel for HostManager agents.  Here's a
+The ocs-web system includes a Panel for HostManager agents.  Here's a
 screenshot of what that looks like:
 
 .. image:: ../_static/ocs_web_hostmanager.png

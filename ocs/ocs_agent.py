@@ -316,8 +316,8 @@ class OCSAgent(ApplicationSession):
         """Get a description of this Agent's API.  This is for adaptive
         clients (such as MatchedClient) to construct their interfaces.
 
-        Params
-        ------
+        Parameters
+        ----------
         q : string
           One of 'get_api', 'get_tasks', 'get_processes', 'get_feeds',
           'get_agent_class'.

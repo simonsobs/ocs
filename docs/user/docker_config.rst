@@ -25,7 +25,10 @@ section of this documentation. An example `docker-compose.yaml` file looks
 something like this (note this does not contain all possibly configured
 components)::
 
-    version: '2'
+    version: '3.7'
+    volumes:
+      grafana-storage:
+
     services:
       # --------------------------------------------------------------------------
       # Grafana for the live monitor.
@@ -36,7 +39,7 @@ components)::
         ports:
           - "127.0.0.1:3000:3000"
         volumes:
-          - /srv/grafana:/var/lib/grafana
+          - grafana-storage:/var/lib/grafana
 
       # InfluxDB Backend for Grafana
       influxdb:
@@ -45,6 +48,8 @@ components)::
         restart: always
         ports:
           - "8086:8086"
+        volumes:
+          - /srv/influxdb:/var/lib/influxdb
 
       # --------------------------------------------------------------------------
       # Crossbar
@@ -239,6 +244,8 @@ Where the separate compose files would look something like::
       default:
         external:
           name: ocs-net
+    volumes:
+      grafana-storage:
     services:
       grafana:
         image: grafana/grafana:latest
@@ -246,7 +253,7 @@ Where the separate compose files would look something like::
         ports:
           - "127.0.0.1:3000:3000"
         volumes:
-          - /srv/grafana:/var/lib/grafana
+          - grafana-storage:/var/lib/grafana
 
 ::
 

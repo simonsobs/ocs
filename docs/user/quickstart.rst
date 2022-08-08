@@ -3,13 +3,12 @@
 Quickstart
 ==========
 
-We will assume you have already gone through the :ref:`installation` part of the
+We will assume you have already gone through the :ref:`ocs_install` part of the
 documentation and thus have installed the required dependencies, namely Docker,
 Docker Compose, and ocs.
 
-In this example we will generate a crossbar server configuration, run a single
-OCS Agent (the Lakeshore 240 Agent) and an associated hardware simulator, pass
-the data to an InfluxDB, and view the data in Grafana.
+In this example we will run an OCS Agent (the Fake Data Agent) which generates
+random data, pass the data to an InfluxDB, and view the data in Grafana.
 
 Configuration Files
 -------------------
@@ -19,52 +18,89 @@ directory to keep all of our site configuration files in::
     $ mkdir -p ocs-site-configs
     $ cd ocs-site-configs/
 
-Next we need to write our two configuration files, first the OCS site config
-file, use this file, unchanged.
+OCS needs to know where these configuration files are stored, and does so
+through the ``OCS_CONFIG_DIR`` environment variable. In the terminal you are
+using run::
+
+    $ export OCS_CONFIG_DIR=$(pwd)
+
+You can also set this more permanently in your ``.bashrc`` file. More details
+in :ref:`environment_setup`.
+
+.. note::
+
+    This quickstart example includes only a couple Agents. The Agent Reference
+    pages, linked in the sidebar, contain example configuration blocks for
+    configuring each Agent.
+
+Next, we need to write our two configuration files, starting with the OCS site
+config file. You must replace "<hostname>" in this file with the hostname of
+the computer you are working on. Also replace "<user>" with your username, or
+change the paths "<user>" is in entirely to reflect your desired file
+structure.
 
 **default.yaml**::
 
     # Site configuration for a fake observatory.
     hub:
     
-      wamp_server: ws://crossbar:8001/ws
-      wamp_http: http://crossbar:8001/call
+      wamp_server: ws://localhost:8001/ws
+      wamp_http: http://localhost:8001/call
       wamp_realm: test_realm
       address_root: observatory
       registry_address: observatory.registry
     
     hosts:
     
-      localhost: {
-      'crossbar': {'config-dir': './dot_crossbar/'},
+      <hostname>: {
+        # Directory for logs.
+        'log-dir': '/home/<user>/log/ocs/',
+
+        # List of additional paths to Agent plugin modules.
+        'agent-paths': [
+            '/home/<user>/git/ocs/agents/',
+            '/home/<user>/git/socs/agents/',
+        ],
+
+        # Agents running directly on the host machine
+        # Note: We aren't going to run this Agent in the quickstart example,
+        #       but this gives a good example of configuring an agent directly
+        #       on the host
         'agent-instances': [
           {'agent-class': 'HostManager',
            'instance-id': 'hm-1',
-           'arguments': []},
+           'arguments': ['--initial-state', 'up']},
         ]   
       }
     
-      ocs-docker: {
+      <hostname>-docker: {
+        # Address of crossbar within Docker (based on service name)
+        'wamp_server': 'ws://crossbar:8001/ws',
+        'wamp_http': 'http://crossbar:8001/call',
     
-        # Quick start example Agents
-    
+        # Agents running within Docker containers
         'agent-instances': [
           {'agent-class': 'InfluxDBAgent',
            'instance-id': 'influxagent',
-           'arguments': [['--initial-state', 'record']]},
-          {'agent-class': 'Lakeshore240Agent',
-           'instance-id': 'LSSIM',
-           'arguments': [['--serial-number', 'LSSIM'],
-                         ['--port', 'tcp://ls240-sim:1094'],
-                         ['--mode', 'acq']]},
+           'arguments': ['--initial-state', 'record']},
+          {'agent-class': 'FakeDataAgent',
+           'instance-id': 'fake-data1',
+           'arguments': ['--mode', 'acq',
+                         '--num-channels', '16',
+                         '--sample-rate', '4']},
         ]   
       }
 
-Next, we need to define the Docker Compose file. Again, use this file unchanged.
+Next, we need to define the Docker Compose file. Again, "<hostname>" should be
+replaced with the hostname of your computer.
 
 **docker-compose.yaml**::
 
-    version: '2' 
+    version: '3.7' 
+    volumes:
+      grafana-storage:
+      influxdb-storage:
+
     services:
       # --------------------------------------------------------------------------
       # Grafana for the live monitor.
@@ -73,6 +109,8 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
         image: grafana/grafana:latest
         ports:
           - "127.0.0.1:3000:3000"
+        volumes:
+          - grafana-storage:/var/lib/grafana
     
       # InfluxDB Backend for Grafana
       influxdb:
@@ -81,6 +119,8 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
         restart: always
         ports:
           - "8086:8086"
+        volumes:
+          - influxdb-storage:/var/lib/influxdb
     
       # --------------------------------------------------------------------------
       # Crossbar Server
@@ -95,84 +135,55 @@ Next, we need to define the Docker Compose file. Again, use this file unchanged.
       # --------------------------------------------------------------------------
       # OCS Components
       # --------------------------------------------------------------------------
-
-      # LS240 Simulator
-      ls240-sim:
-        image: simonsobs/ocs-lakeshore240-simulator:latest
-        hostname: ocs-docker
-    
-      # LS240 OCS Agent for Simulator Interaction
-      ocs-LSSIM:
-        image: simonsobs/ocs-lakeshore240-agent:latest
-        hostname: ocs-docker
-        depends_on:
-          - "crossbar"
+      # Fake Data Agent for example housekeeping data 
+      ocs-fake-data1:
+        image: simonsobs/ocs-fake-data-agent:latest
+        hostname: <hostname>-docker
         environment:
-          - LOGLEVEL=debug
+          - LOGLEVEL=info
         volumes:
-          - ./:/config:ro
+          - ${OCS_CONFIG_DIR}:/config:ro
         command:
-          - "--instance-id=LSSIM"
-          - "--site-hub=ws://crossbar:8001/ws"
-          - "--site-http=http://crossbar:8001/call"
+          - "--instance-id=fake-data1" 
 
       # InfluxDB Publisher 
       ocs-influx-publisher:
         image: simonsobs/ocs-influxdb-publisher-agent:latest
-        hostname: ocs-docker
+        hostname: <hostname>-docker
         volumes:
-          - ./:/config:ro
+          - ${OCS_CONFIG_DIR}:/config:ro
     
-      # Client for fully containerized interactions
-      ocs-client:
-        image: simonsobs/socs:latest
-        depends_on:
-          - "crossbar"
-        stdin_open: true
-        tty: true
-        hostname: ocs-docker
-        volumes:
-          - ./:/config:ro
-          - "./clients:/clients"
-        environment:
-          - OCS_CONFIG_DIR=/config
-        working_dir: /clients
-
-.. warning::
-    This bare configuration does not consider persistent storage. Any
-    configuration done within the containers will be lost on shutdown.
-
 Running
 -------
 
 Now that the system is configured, we can start it with a single
 ``docker-compose`` command::
 
-    $ sudo docker-compose up -d
-    Creating network "self-contained-quickstart_default" with the default driver
-    Creating self-contained-quickstart_ocs-influx-publisher_1 ... done
-    Creating self-contained-quickstart_grafana_1              ... done
-    Creating self-contained-quickstart_ls240-sim_1            ... done
-    Creating influxdb                                         ... done
-    Creating self-contained-quickstart_crossbar_1             ... done
-    Creating self-contained-quickstart_ocs-LSSIM_1            ... done
-    Creating self-contained-quickstart_ocs-client_1           ... done
+    $ sudo -E docker-compose up -d
+    Creating network "ocs-site-configs_default" with the default driver
+    Creating ocs-site-configs_ocs-influx-publisher_1 ... done
+    Creating ocs-site-configs_grafana_1              ... done
+    Creating ocs-site-configs_ocs-fake-data1_1       ... done
+    Creating ocs-site-configs_crossbar_1             ... done
+    Creating influxdb                                ... done
 
 .. note::
     If this is the first time you have run the example, you will see Docker
     Compose "pulling" (downloading) all the required images from DockerHub.
 
+.. note::
+    The ``-E`` here preserves the user environment within sudo, so
+    ``$OCS_CONFIG_DIR`` still resolves properly.
+
 You can view the running containers with::
 
     $ sudo docker ps
-    CONTAINER ID        IMAGE                                           COMMAND                  CREATED             STATUS              PORTS                      NAMES
-    41e4eb3529f5        simonsobs/socs:latest                           "/bin/bash"              11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ocs-client_1
-    15d785830335        simonsobs/ocs-lakeshore240-agent:latest         "python3 -u LS240_ag…"   11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ocs-LSSIM_1
-    48ea293ab900        influxdb:1.7                                    "/entrypoint.sh infl…"   11 minutes ago      Up 11 minutes       0.0.0.0:8086->8086/tcp     influxdb
-    cff53a069dd5        simonsobs/crossbar:latest                       "crossbar start"         11 minutes ago      Up 11 minutes       127.0.0.1:8001->8001/tcp   self-contained-quickstart_crossbar_1
-    807d27607f40        simonsobs/ocs-lakeshore240-simulator:latest     "python3 -u ls240_si…"   11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ls240-sim_1
-    e1574571de93        simonsobs/ocs-influxdb-publisher-agent:latest   "python3 -u influxdb…"   11 minutes ago      Up 11 minutes                                  self-contained-quickstart_ocs-influx-publisher_1
-    f92628c36f58        grafana/grafana:6.5.0                           "/run.sh"                11 minutes ago      Up 11 minutes       127.0.0.1:3000->3000/tcp   self-contained-quickstart_grafana_1
+    CONTAINER ID   IMAGE                                           COMMAND                  CREATED          STATUS          PORTS                                          NAMES
+    dc3792e8d4f3   influxdb:1.7                                    "/entrypoint.sh infl…"   27 seconds ago   Up 25 seconds   0.0.0.0:8086->8086/tcp, :::8086->8086/tcp      influxdb
+    7aa0c07345de   simonsobs/ocs-crossbar:latest                   "crossbar start --cb…"   27 seconds ago   Up 25 seconds   8000/tcp, 8080/tcp, 127.0.0.1:8001->8001/tcp   ocs-site-configs_crossbar_1
+    88dd47cc6714   simonsobs/ocs-fake-data-agent:latest            "dumb-init python3 -…"   27 seconds ago   Up 25 seconds                                                  ocs-site-configs_ocs-fake-data1_1
+    41231a482dec   simonsobs/ocs-influxdb-publisher-agent:latest   "dumb-init python3 -…"   27 seconds ago   Up 25 seconds                                                  ocs-site-configs_ocs-influx-publisher_1
+    bcdc0423ab4c   grafana/grafana:latest                          "/run.sh"                27 seconds ago   Up 25 seconds   127.0.0.1:3000->3000/tcp                       ocs-site-configs_grafana_1
 
 If anything has gone wrong and some containers have not started, you can view
 all containers, even stopped ones with::
@@ -181,14 +192,12 @@ all containers, even stopped ones with::
 
 Commanding
 ----------
-The Agents can now be commanded using an OCS Client. To do so, we will enter
-the ocs-client container::
+The Agents can now be commanded using an OCS Client. To do so, we will open a Python interpreter and run::
 
-    $ sudo docker exec -it self-contained-quickstart_ocs-client_1 /bin/bash
-    root@ocs-docker:/clients# python3
+    $ python
     >>> from ocs.ocs_client import OCSClient
-    >>> client = OCSClient('LSSIM')
-    >>> client.acq.start()
+    >>> client = OCSClient('fake-data1')
+    >>> client.delay_task.start(delay=10)
 
 For more details on how to use OCSClient and how to write a control program see
 the Developer Guide section on :ref:`clients`.
@@ -197,10 +206,10 @@ Viewing
 -------
 Now that all of the containers are running 
 we can view the random data being automatically generated by the
-Lakeshore240 Simulator in Grafana. You can access Grafana by pointing your web
+Fake Data Agent in Grafana. You can access Grafana by pointing your web
 browswer to `<http://localhost:3000/>`_. For information about how to configure
 the InfluxDB data source please see :ref:`influxdb_publisher`. Following that
-page you should be able to view a live datastream from the LS240 Simulator.
+page you should be able to view a live datastream from the Fake Data Agent.
 
 .. note::
     The default Grafana credentials are "admin"/"admin".
@@ -208,9 +217,9 @@ page you should be able to view a live datastream from the LS240 Simulator.
 Next Steps
 ----------
 From here the possibilities are endless. You can add additional Agents for more
-hardware, viewing their datastreams in Grafana, write a Client to
-interact with the running Agents, or develop your own Agent to control any
-unsupported hardware.
+hardware, viewing their datastreams in Grafana, write a :ref:`Client
+<clients>` to interact with the running Agents, or develop your own :ref:`Agent
+<agents>` to control any unsupported hardware.
 
 Shutdown
 --------
@@ -220,10 +229,6 @@ If you'd just like to shutdown the example you can run::
 
 This will shutdown and remove all the containers.
 
-.. warning::
-    Any configuration made within the containers will be lost when they are
-    removed.
-
 If you would also like to remove any Docker images you may have downloaded you
 can identify them with::
 
@@ -232,3 +237,14 @@ can identify them with::
 And remove them with::
 
     $ sudo docker image rm <image name>
+
+.. warning::
+    Running the following command will cause data within the containers to be
+    lost! This includes Grafana dashboard configurations and data within
+    InfluxDB.
+
+If you would like to totally remove all trace of your OCS instance, including
+the storage volumes, run::
+
+    $ sudo docker-compose down --volumes
+

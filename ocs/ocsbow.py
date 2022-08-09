@@ -948,6 +948,10 @@ def main_local(args=None):
 
             if any([soln == 'agent' for soln, text in supports.analysis]):
                 print('Trying to launch hostmanager agent...')
+                if not supports.host_manager['configured']:
+                    raise OcsbowError(
+                        'No HostManager configuration was found for this host. '
+                        'Check your site config (host="%s").' % supports.site_config.host.name)
                 hm = supports.host_manager['ctrl']
                 ok, message = hm.start(up=True, foreground=args.foreground)
                 if not ok:

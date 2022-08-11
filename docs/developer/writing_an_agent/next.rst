@@ -53,7 +53,7 @@ working, build the Docker image and test it.
 
 Another approach is to still use Docker (maybe you need some of those
 complicated dependencies on your development system as well and it's the most
-convenient way to get them), but to mount the code your working on over the
+convenient way to get them), but to mount the code you're working on over the
 copy used within the container. This requires an understanding of how files are
 stored within the container. Once you are done you should still build and run
 the image to test without your mounted code.

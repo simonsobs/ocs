@@ -32,7 +32,7 @@ each one of which should contain an ``ocs_plugin_<experiment>.py`` file. This
 script registers all of the agents so that Host Manager can start and stop
 them. An example (of the standard ocs library plugin file) is shown here:
 
-.. include:: ../../agents/ocs_plugin_standard.py
+.. include:: ../../../agents/ocs_plugin_standard.py
     :code: python
 
 Development Tips

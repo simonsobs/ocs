@@ -124,6 +124,7 @@ Our Agent in full now looks like this:
             session.set_status('running')
     
             # Initialize the counter
+            self._count=True
             counter = 0
     
             print("Starting the count!")

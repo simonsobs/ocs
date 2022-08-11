@@ -241,7 +241,7 @@ an OCS Feed. We can inspect the feed on the commandline using the ``ocs-client-c
 
 .. code-block::
 
-    $ ocs-client-cli listen observatory.barebones1.feeds.feed_name
+    $ OCS_CONFIG_DIR=/path/to/your/ocs-site-config/ ocs-client-cli listen observatory.barebones1.feeds.feed_name
     Subscribing to observatory.barebones1.feeds.feed_name
     2022-07-27T01:30:02+0000 [observatory.barebones1.feeds.feed_name] [{'count': {'block_name': 'count', 'data': {'value': [51, 52]}, 'timestamps': [1658885401.7566712, 1658885402.7578506]}}, {'agent_address': 'observatory.barebones1', 'agg_params': {'frame_length': 600}, 'feed_name': 'feed_name', 'address': 'observatory.barebones1.feeds.feed_name', 'record': True, 'session_id': '1658885340.4431145', 'agent_class': 'BarebonesAgent'}]
     2022-07-27T01:30:04+0000 [observatory.barebones1.feeds.feed_name] [{'count': {'block_name': 'count', 'data': {'value': [53, 54]}, 'timestamps': [1658885403.7590535, 1658885404.7613802]}}, {'agent_address': 'observatory.barebones1', 'agg_params': {'frame_length': 600}, 'feed_name': 'feed_name', 'address': 'observatory.barebones1.feeds.feed_name', 'record': True, 'session_id': '1658885340.4431145', 'agent_class': 'BarebonesAgent'}]

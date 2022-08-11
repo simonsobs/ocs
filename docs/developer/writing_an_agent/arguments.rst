@@ -72,7 +72,7 @@ precedent over the configuration file:
 
 .. code-block::
 
-    $ python3 barebones_agent.py --mode count
+    $ OCS_CONFIG_DIR=/path/to/your/ocs-site-config/ python3 barebones_agent.py --mode count
     2022-07-27T01:52:11+0000 Using OCS version 0.9.3
     2022-07-27T01:52:11+0000 Log directory does not exist: /home/<user>/log/ocs/
     2022-07-27T01:52:11+0000 ocs: starting <class 'ocs.ocs_agent.OCSAgent'> @ observatory.barebones1

@@ -27,8 +27,46 @@ will help with deployment on user's machines. Start by creating a file called
     CMD ["--site-hub=ws://crossbar:8001/ws", \
          "--site-http=http://crossbar:8001/call"]
 
+At this point you should have a directory structure that looks somewhat like this:
+
+.. code-block:: bash
+
+    ├── ocs
+    │   ├── agents
+    │   │   ├── aggregator
+    │   │   ├── barebones_agent
+    │   │   │   ├── barebones_agent.py
+    │   │   │   └── Dockerfile
+    │   │   ├── fake_data
+    │   │   ├── host_manager
+    │   │   ├── influxdb_publisher
+    │   │   ├── ocs_plugin_standard.py
+    │   │   └── registry
+    │   ├── bin
+    │   ├── CONTRIBUTING.rst
+    │   ├── docker
+    │   ├── docker-compose.yml
+    │   ├── Dockerfile
+    │   ├── docs
+    │   ├── example
+    │   ├── LICENSE.txt
+    │   ├── Makefile
+    │   ├── MANIFEST.in
+    │   ├── ocs
+    │   ├── pyproject.toml
+    │   ├── README.rst
+    │   ├── requirements
+    │   ├── requirements.txt
+    │   ├── setup.cfg
+    │   ├── setup.py
+    │   ├── tests
+    │   ├── versioneer.py
+    └── ocs-site-configs
+        ├── default.yaml
+        └── docker-compose.yaml
+
 We can now build the Docker image for the Agent. First we need to make sure the
-ocs base container is built. From the root of the repository run:
+ocs base container is built. From the root of the ocs repository run:
 
 .. code-block:: bash
 
@@ -113,7 +151,24 @@ Now we can run the Agent with ``docker-compose``:
 
     $ docker-compose up -d
 
-The Agent's logs should be available:
+Once the containers have started, you can see the running containers with:
+
+.. code-block:: bash
+
+    $ docker ps
+    CONTAINER ID   IMAGE                                 COMMAND                  CREATED         STATUS         PORTS                                                           NAMES
+    80cc47c7b476   ocs:latest                            "bash"                   4 seconds ago   Up 1 second                                                                    barebones-agent-dev-ocs-client-1
+    e4dac1f43450   ocs-barebones-agent                   "dumb-init python3 -…"   4 seconds ago   Up 2 seconds                                                                   barebones-agent-dev-ocs-barebones-agent-1
+    c7e124c543e6   grafana/grafana:7.1.0                 "/run.sh"                4 seconds ago   Up 2 seconds   127.0.0.1:3000->3000/tcp                                        barebones-agent-dev-grafana-1
+    ed64b4aca954   ocs-fake-data-agent:latest            "dumb-init python3 -…"   4 seconds ago   Up 2 seconds                                                                   barebones-agent-dev-fake-data1-1
+    1d37cf0d8d22   ocs-influxdb-publisher-agent:latest   "dumb-init python3 -…"   4 seconds ago   Up 2 seconds                                                                   barebones-agent-dev-ocs-influx-publisher-1
+    4f0a8fa762f5   ocs-web:latest                        "docker-entrypoint.s…"   4 seconds ago   Up 2 seconds   8080/tcp, 127.0.0.1:3002->80/tcp                                barebones-agent-dev-ocs-web-1
+    b5ce20809c73   simonsobs/ocs-crossbar:v0.8.0         "crossbar start --cb…"   4 seconds ago   Up 2 seconds   8000/tcp, 8080/tcp, 0.0.0.0:8001->8001/tcp, :::8001->8001/tcp   barebones-agent-dev-crossbar-1
+    1bd06acf8da6   ocs-registry-agent:latest             "dumb-init python3 -…"   4 seconds ago   Up 2 seconds                                                                   ocs-registry
+    6f785c871bc7   influxdb:1.7                          "/entrypoint.sh infl…"   4 seconds ago   Up 2 seconds   0.0.0.0:8086->8086/tcp, :::8086->8086/tcp                       influxdb
+
+The Agent's logs should be available (using the container name from the
+``docker ps`` output):
 
 .. code-block:: bash
 

@@ -22,7 +22,8 @@ here:
             The session data will be updated with the text::
 
                 >>> response.session['data']
-                {'text': 'hello world'}
+                {'text': 'hello world',
+                 'last_updated': 1660249321.8729222}
 
         """
         # Set operations status to 'running'
@@ -32,7 +33,8 @@ here:
         print(f"{params['text']}")
 
         # Store the text provided in session.data
-        session.data = {'text': params['text']}
+        session.data = {'text': params['text'],
+                        'last_updated': time.time()}
 
         # bool, 'descriptive text message'
         # True if task succeeds, False if not
@@ -87,6 +89,8 @@ Our full Agent so far should look like this:
 .. code-block:: python
    :linenos:
 
+    import time
+
     from ocs import ocs_agent, site_config
 
 
@@ -119,7 +123,8 @@ Our full Agent so far should look like this:
                 The session data will be updated with the text::
 
                     >>> response.session['data']
-                    {'text': 'hello world'}
+                    {'text': 'hello world',
+                     'last_updated': 1660249321.8729222}
 
             """
             # Set operations status to 'running'
@@ -129,7 +134,8 @@ Our full Agent so far should look like this:
             print(f"{params['text']}")
 
             # Store the text provided in session.data
-            session.data = {'text': params['text']}
+            session.data = {'text': params['text'],
+                            'last_updated': time.time()}
 
             # bool, 'descriptive text message'
             # True if task succeeds, False if not

@@ -187,7 +187,8 @@ Our Agent in full now looks like this:
                 The session data will be updated with the text::
     
                     >>> response.session['data']
-                    {'text': 'hello world'}
+                    {'text': 'hello world',
+                     'last_updated': 1660249321.8729222}
     
             """
             with self.lock.acquire_timeout(timeout=3.0, job='print') as acquired:
@@ -203,7 +204,8 @@ Our Agent in full now looks like this:
                 self.log.info(f"{params['text']}")
     
                 # Store the text provided in session.data
-                session.data = {'text': params['text']}
+                session.data = {'text': params['text'],
+                                'last_updated': time.time()}
     
             # bool, 'descriptive text message'
             # True if task succeeds, False if not

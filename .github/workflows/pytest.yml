@@ -44,7 +44,7 @@ jobs:
     # Integration Tests
     - name: Build images for integration tests
       run: |
-        docker-compose build ocs ocs-fake-data-agent ocs-aggregator-agent ocs-crossbar
+        docker-compose build ocs ocs-crossbar
 
     - name: Run integration tests
       working-directory: ./tests

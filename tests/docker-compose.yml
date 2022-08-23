@@ -22,7 +22,7 @@ services:
   # OCS Components
   # --------------------------------------------------------------------------
   fake-data1:
-    image: ocs-fake-data-agent
+    image: ocs
     container_name: "ocs-tests-fake-data-agent"
     hostname: ocs-docker
     volumes:
@@ -33,7 +33,7 @@ services:
       - "--site-http=http://ocs-tests-crossbar:18001/call"
 
   ocs-aggregator:
-    image: ocs-aggregator-agent
+    image: ocs
     hostname: ocs-docker
     volumes:
       - ./default.yaml:/config/default.yaml:ro
@@ -41,5 +41,6 @@ services:
     environment:
       - LOGLEVEL=debug
     command:
+      - "--instance-id=aggregator"
       - "--site-hub=ws://ocs-tests-crossbar:18001/ws"
       - "--site-http=http://ocs-tests-crossbar:18001/call"

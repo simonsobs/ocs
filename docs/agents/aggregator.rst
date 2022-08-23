@@ -17,7 +17,7 @@ to disk in the `.g3` file format.
     data to disk.
 
 .. argparse::
-   :module: agents.aggregator.aggregator_agent
+   :module: ocs.agents.aggregator_agent
    :func: make_parser
    :prog: aggregator_agent.py
 
@@ -188,7 +188,7 @@ data and a vector of timestamps.
 
 Agent API
 ---------
-.. autoclass:: agents.aggregator.aggregator_agent.AggregatorAgent
+.. autoclass:: ocs.agents.aggregator_agent.AggregatorAgent
     :members:
 
 Supporting APIs

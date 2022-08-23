@@ -11,7 +11,7 @@ writing to file it will publish all recorded OCS data feeds to an InfluxDB
 instance running somewhere on the network.
 
 .. argparse::
-   :module: agents.influxdb_publisher.influxdb_publisher
+   :module: ocs.agents.influxdb_publisher
    :func: make_parser
    :prog: influxdb_publisher.py
 
@@ -119,7 +119,7 @@ For more information about using InfluxDB in Grafana, see the `Grafana Documenta
 Agent API
 ---------
 
-.. autoclass:: agents.influxdb_publisher.influxdb_publisher.InfluxDBAgent
+.. autoclass:: ocs.agents.influxdb_publisher.InfluxDBAgent
     :members:
 
 

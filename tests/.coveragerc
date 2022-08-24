@@ -1,7 +1,6 @@
 [run]
 source =
     ../ocs
-    ../agents/
 
 omit =
   # omit versioneer

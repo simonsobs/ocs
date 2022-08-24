@@ -1,4 +1,4 @@
-from ocs.agents.influxdb_publisher import InfluxDBAgent
+from ocs.agents.influxdb_publisher.agent import InfluxDBAgent
 
 from unittest import mock
 
@@ -22,7 +22,7 @@ agent = create_agent_fixture(InfluxDBAgent, {'args': args})
 
 
 class TestRecord:
-    @mock.patch('ocs.agent.influxdb_publisher.InfluxDBClient',
+    @mock.patch('ocs.agents.influxdb_publisher.drivers.InfluxDBClient',
                 mock.MagicMock())
     def test_influxdb_publisher_record(self, agent):
         session = create_session('record')
@@ -32,7 +32,7 @@ class TestRecord:
 
         assert res[0] is True
 
-    @mock.patch('ocs.agent.influxdb_publisher.InfluxDBClient',
+    @mock.patch('ocs.agents.influxdb_publisher.drivers.InfluxDBClient',
                 mock.MagicMock())
     def test_influxdb_publisher_record_data(self, agent, tmpdir):
         # repoint data_dir to tmpdir fixture

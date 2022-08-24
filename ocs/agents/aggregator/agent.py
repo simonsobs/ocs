@@ -8,7 +8,8 @@ from twisted.internet import reactor
 from os import environ
 from ocs import ocs_agent, site_config
 from ocs.base import OpCode
-from ocs.agent.aggregator import Aggregator
+
+from ocs.agents.aggregator.drivers import Aggregator
 
 # For logging
 txaio.use_twisted()

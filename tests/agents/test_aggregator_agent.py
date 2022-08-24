@@ -8,7 +8,7 @@ from agents.util import (
 )
 
 # depends on spt3g
-from ocs.agents.aggregator_agent import AggregatorAgent
+from ocs.agents.aggregator.agent import AggregatorAgent
 
 args = mock.MagicMock()
 args.time_per_file = 3

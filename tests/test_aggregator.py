@@ -7,7 +7,7 @@ from unittest.mock import patch
 import so3g
 from spt3g import core
 
-from ocs.agent.aggregator import Provider, g3_cast, make_filename
+from ocs.agents.aggregator.drivers import Provider, g3_cast, make_filename
 
 
 def test_passing_float_in_provider_to_frame():

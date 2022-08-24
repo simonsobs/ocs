@@ -1,6 +1,6 @@
 import ocs
 from ocs import ocs_agent, site_config
-from ocs.agent import host_manager as hm_utils
+from ocs.agents.host_manager import drivers as hm_utils
 
 import time
 import argparse

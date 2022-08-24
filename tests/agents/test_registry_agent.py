@@ -4,7 +4,7 @@ import pytest_twisted
 
 from agents.util import create_session, create_agent_fixture
 
-from ocs.agents.registry import Registry
+from ocs.agents.registry.agent import Registry
 
 agent = create_agent_fixture(Registry)
 

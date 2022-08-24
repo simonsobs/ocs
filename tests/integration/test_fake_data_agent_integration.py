@@ -12,7 +12,7 @@ from integration.util import (
     create_crossbar_fixture,
 )
 
-AGENT_PATH = '../ocs/agents/fake_data_agent.py'
+AGENT_PATH = '../ocs/agents/fake_data/agent.py'
 
 pytest_plugins = ("docker_compose")
 

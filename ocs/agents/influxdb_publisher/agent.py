@@ -7,7 +7,8 @@ from os import environ
 
 from ocs import ocs_agent, site_config
 from ocs.base import OpCode
-from ocs.agent.influxdb_publisher import Publisher
+
+from ocs.agents.influxdb_publisher.drivers import Publisher
 
 # For logging
 txaio.use_twisted()

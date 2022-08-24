@@ -1,4 +1,4 @@
-from ocs.agents.fake_data_agent import FakeDataAgent
+from ocs.agents.fake_data.agent import FakeDataAgent
 
 import pytest_twisted
 

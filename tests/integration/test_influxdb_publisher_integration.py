@@ -16,7 +16,7 @@ pytest_plugins = ("docker_compose")
 
 wait_for_crossbar = create_crossbar_fixture()
 run_agent = create_agent_runner_fixture(
-    '../ocs/agents/influxdb_publisher.py',
+    '../ocs/agents/influxdb_publisher/agent.py',
     'influxagent-local')
 client = create_client_fixture('influxagent-local')
 

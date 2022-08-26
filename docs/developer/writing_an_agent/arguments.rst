@@ -61,7 +61,7 @@ Agent Code
 
 Our Agent in full now looks like this:
 
-.. literalinclude:: ../../../agents/barebones_agent/barebones_agent.py
+.. literalinclude:: ../../../ocs/agents/barebones/agent.py
     :language: python
 
 Running the Agent

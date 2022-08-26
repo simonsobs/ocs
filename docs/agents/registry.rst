@@ -106,11 +106,11 @@ all operations on a network as pictured below:
 Agent API
 ---------
 
-.. autoclass:: ocs.agents.registry.Registry
+.. autoclass:: ocs.agents.registry.agent.Registry
     :members:
 
 Supporting APIs
 ---------------
-.. autoclass:: ocs.agents.registry.RegisteredAgent
+.. autoclass:: ocs.agents.registry.agent.RegisteredAgent
     :members:
 

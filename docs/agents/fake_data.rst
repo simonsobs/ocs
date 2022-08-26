@@ -9,9 +9,9 @@ with data aggregation and display. It will generate random data and pass it to
 an OCS feed.
 
 .. argparse::
-   :module: ocs.agents.fake_data_agent
+   :module: ocs.agents.fake_data.agent
    :func: add_agent_args
-   :prog: fake_data_agent.py
+   :prog: agent.py
 
 Configuration File Examples
 ---------------------------
@@ -51,5 +51,5 @@ docker-compose service configuration is shown here::
 Agent API
 ---------
 
-.. autoclass:: ocs.agents.fake_data_agent.FakeDataAgent
+.. autoclass:: ocs.agents.fake_data.agent.FakeDataAgent
     :members:

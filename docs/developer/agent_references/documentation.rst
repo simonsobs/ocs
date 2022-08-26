@@ -138,6 +138,6 @@ Here is a template for an Agent documentation page. Text starting with a '#' is
 there to guide you in writing the page and should be replaced or removed.
 Unneeded sections should be removed.
 
-.. include:: ../../example/docs/agent_template.rst
+.. include:: ../../../example/docs/agent_template.rst
     :code: rst
 

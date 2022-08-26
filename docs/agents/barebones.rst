@@ -27,5 +27,5 @@ available arguments::
 Agent API
 ---------
 
-.. autoclass:: agents.barebones_agent.barebones_agent.BarebonesAgent
+.. autoclass:: ocs.agents.barebones.agent.BarebonesAgent
     :members:

@@ -12,7 +12,7 @@ from ocs import site_config
 DESCRIPTION = """
 This script provides a quick way to start an OCS Agent. You will need to set
 OCS_CONFIG_DIR environment variable to the directory containing default.yaml,
-or else use --site-* options to specify your configuration.
+or else use ``--site-*`` options to specify your configuration.
 
 To start an Agent, run::
 

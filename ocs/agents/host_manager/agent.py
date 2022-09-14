@@ -300,11 +300,12 @@ class HostManager:
             prot = self._get_docker_helper(instance)
         else:
             iid = instance['instance_id']
+            pyth = sys.executable
             script = instance['agent_script']
             if script == '__plugin__':
-                cmd = ['ocs-agent-cli']
+                cmd = [pyth, '-m', 'ocs.agent_cli']
             else:
-                cmd = [sys.executable, script]
+                cmd = [pyth, script]
             cmd.extend([
                 '--instance-id', iid,
                 '--site-file', self.site_config_file,

@@ -83,3 +83,10 @@ def main(args=None):
     # Expose the imported function by having locals=globals()
     exec(import_line, globals(), globals())
     start()  # noqa: F821
+
+
+if __name__ == '__main__':
+    # This __main__ checker allows ocs-agent-cli to be invoked through
+    # python -m ocs.agent_cli; this is helpful with, e.g., conda when
+    # one is trying to use a particular interpreter and its packages.
+    main()

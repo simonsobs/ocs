@@ -1,5 +1,5 @@
 import ocs
-from ocs import ocs_agent, site_config
+from ocs import ocs_agent, site_config, agent_cli
 from ocs.agents.host_manager import drivers as hm_utils
 
 import time
@@ -52,7 +52,7 @@ class HostManager:
         self.host_name = hc.name
         self.working_dir = hc.working_dir
 
-        # Add plugin paths and scan for agent launch scripts.
+        # Scan for agent scripts in (deprecated) script registry
         for p in hc.agent_paths:
             if not p in sys.path:
                 sys.path.append(p)
@@ -129,6 +129,9 @@ class HostManager:
         for w in warnings:
             session.add_message(w)
         yield self._update_docker_services()
+
+        # Get agent class list from modern plugin system.
+        agent_plugins = agent_cli.build_agent_list()
 
         def retire(db_key):
             instance = self.database.get(db_key, None)
@@ -229,7 +232,17 @@ class HostManager:
                         # container is left up or stopped.
                         instance['next_action'] = 'up'
                 else:
-                    instance['agent_script'] = site_config.agent_script_reg.get(cls)
+                    # Check for the agent class in the plugin system;
+                    # then check the (deprecated) agent script registry.
+                    if cls in agent_plugins:
+                        session.add_message(f'Found plugin for "{cls}"')
+                        instance['agent_script'] = '__plugin__'
+                    elif cls in site_config.agent_script_reg:
+                        session.add_message(f'Found launcher script for "{cls}"')
+                        instance['agent_script'] = site_config.agent_script_reg[cls]
+                    else:
+                        session.add_message(f'No plugin (nor launcher script) '
+                                            f'found for agent_class "{cls}"!')
                 session.add_message(f'Tracking {instance["full_name"]}')
                 self.database[db_key] = instance
         yield warnings
@@ -287,12 +300,16 @@ class HostManager:
             prot = self._get_docker_helper(instance)
         else:
             iid = instance['instance_id']
-            pyth = sys.executable
-            cmd = [pyth, instance['agent_script'],
-                   '--instance-id', iid,
-                   '--site-file', self.site_config_file,
-                   '--site-host', self.host_name,
-                   '--working-dir', self.working_dir]
+            script = instance['agent_script']
+            if script == '__plugin__':
+                cmd = ['ocs-agent-cli']
+            else:
+                cmd = [sys.executable, script]
+            cmd.extend([
+                '--instance-id', iid,
+                '--site-file', self.site_config_file,
+                '--site-host', self.host_name,
+                '--working-dir', self.working_dir])
             prot = hm_utils.AgentProcessHelper(iid, cmd)
         prot.up()
         instance['prot'] = prot

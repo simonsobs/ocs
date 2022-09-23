@@ -1,4 +1,5 @@
 import argparse
+import importlib
 import sys
 import warnings
 
@@ -79,9 +80,9 @@ def main(args=None):
     agent_info = agents[agent_class]
     _module = agent_info["module"]
     _entry = agent_info["entry_point"]
-    import_line = f'from {_module} import {_entry} as start'
-    # Expose the imported function by having locals=globals()
-    exec(import_line, globals(), globals())
+
+    mod = importlib.import_module(_module)
+    start = getattr(mod, _entry)  # This is the start function.
     start()  # noqa: F821
 
 

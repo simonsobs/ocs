@@ -20,6 +20,11 @@ To start an Agent, run::
 
   %(prog)s --instance-id INSTANCE_ID
 
+``ocs-agent-cli`` will also inspect environment variables for commonly passed
+arguments to facilitate configuration within Docker containers. Supported
+arguments include, ``--instance-id`` as ``INSTANCE_ID``, ``--site-hub`` as
+``SITE_HUB``, and ``--site-http`` as ``SITE_HTTP``.
+
 """
 
 
@@ -89,6 +94,16 @@ def main(args=None):
     if "--instance-id" not in args:
         args.extend(["--instance-id", id_env])
 
+    # Inject optional args from ENV
+    optional_env = {"--site-hub": "SITE_HUB" ,
+                    "--site-http": "SITE_HTTP"}
+
+    for _arg, _var in optional_env.items():
+        set_var = os.environ.get(_var, None)
+        if set_var is not None and _arg not in args:
+            args.extend([_arg, set_var])
+
+    print('ARGS', args)
     parser = _get_parser()
 
     # Note this call adds a bunch of args to the parser, and parses them

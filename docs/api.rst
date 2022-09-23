@@ -78,6 +78,14 @@ agents.registry
     :show-inheritance:
     :noindex:
 
+ocs.agent_cli
+-------------
+
+.. automodule:: ocs.agent_cli
+    :members: build_agent_list
+    :undoc-members:
+    :show-inheritance:
+
 .. _ocs_base_api:
 
 ocs.base

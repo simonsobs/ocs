@@ -22,7 +22,7 @@ To start an Agent, run::
 """
 
 
-def get_parser():
+def _get_parser():
     parser = argparse.ArgumentParser(
         description=DESCRIPTION,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -34,9 +34,25 @@ def build_agent_list():
     """Builds a list of all Agents available across all ocs plugins installed
     on the system.
 
-    Note: Currently if two plugins provide the same Agent the one loaded first
-    is used. This should be improved somehow if we expect overlapping Agents to
-    be provided by plugins.
+    Note:
+        Currently if two plugins provide the same Agent the one loaded first is
+        used. This should be improved somehow if we expect overlapping Agents
+        to be provided by plugins.
+
+    Examples:
+        An example agent list:
+
+        >>> build_agent_list()
+        {'RegistryAgent': {'module': 'ocs.agents.registry.agent', 'entry_point': 'main'},
+        'AggregatorAgent': {'module': 'ocs.agents.aggregator.agent', 'entry_point': 'main'},
+        'HostManager': {'module': 'ocs.agents.host_manager.agent', 'entry_point': 'main'},
+        'FakeDataAgent': {'module': 'ocs.agents.fake_data.agent', 'entry_point': 'main'},
+        'InfluxDBAgent': {'module': 'ocs.agents.influxdb_publisher.agent', 'entry_point': 'main'},
+        'BarebonesAgent': {'module': 'ocs.agents.barebones.agent', 'entry_point': 'main'}}
+
+    Returns:
+        dict: Dictionary of available agents, with agent names as the keys, and
+        dicts containing the module and entry_point as values.
 
     """
     discovered_plugins = entry_points(group='ocs.plugins')
@@ -56,6 +72,7 @@ def build_agent_list():
             del loaded.agents[con]
 
         agents.update(loaded.agents)
+
     return agents
 
 
@@ -63,7 +80,7 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
 
-    parser = get_parser()
+    parser = _get_parser()
 
     # Note this call adds a bunch of args to the parser, and parses them
     # including looking up the site config file and loading defaults from

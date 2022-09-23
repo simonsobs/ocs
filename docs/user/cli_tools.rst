@@ -235,5 +235,5 @@ ocs-agent-cli
 
 .. argparse::
    :module: ocs.agent_cli
-   :func: get_parser
+   :func: _get_parser
    :prog: ocs-agent-cli

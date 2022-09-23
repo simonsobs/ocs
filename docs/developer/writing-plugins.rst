@@ -27,7 +27,9 @@ the Agent and used in the SCF.
     Agent name when adding new Agents until this is improved.
 
 Note that each Agent needs to have an entry point that can be called to run the
-Agent. Before the introduction of this plugin system this was typically handled
+Agent. In the above example each Agent defines a ``main`` method that is used.
+If undefined, OCS will default to trying to use ``main`` as the entry point.
+Before the introduction of this plugin system this was typically handled
 within the ``__main__`` block.
 
 Entry Point

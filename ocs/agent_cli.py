@@ -96,7 +96,7 @@ def main(args=None):
     agents = build_agent_list()
     agent_info = agents[agent_class]
     _module = agent_info["module"]
-    _entry = agent_info["entry_point"]
+    _entry = agent_info.get("entry_point", "main")
 
     mod = importlib.import_module(_module)
     start = getattr(mod, _entry)  # This is the start function.

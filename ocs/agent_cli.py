@@ -1,5 +1,6 @@
 import argparse
 import importlib
+import os
 import sys
 import warnings
 
@@ -77,8 +78,16 @@ def build_agent_list():
 
 
 def main(args=None):
+    # Grab instance-id from ENV for running in Docker
+    id_env = os.environ.get("INSTANCE_ID", None)
+
+    # Grab commandline arguments
     if args is None:
         args = sys.argv[1:]
+
+    # Inject ENV based instance-id only if not passed on cli
+    if "--instance-id" not in args:
+        args.extend(["--instance-id", id_env])
 
     parser = _get_parser()
 

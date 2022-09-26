@@ -90,6 +90,11 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
 
+    # Split and flatten args list
+    _split = [x.split('=') for x in args]
+    args = [x for y in _split for x in y]
+
+    print(args)
     # Inject ENV based instance-id only if not passed on cli
     if "--instance-id" not in args:
         args.extend(["--instance-id", id_env])

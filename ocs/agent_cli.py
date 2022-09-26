@@ -88,37 +88,36 @@ def main(args=None):
 
     # Grab commandline arguments
     if args is None:
-        args = sys.argv[1:]
+        argv = sys.argv[1:]
 
-    # Split and flatten args list
-    _split = [x.split('=') for x in args]
-    args = [x for y in _split for x in y]
+    # Split and flatten argv list
+    _split = [x.split('=') for x in argv]
+    argv = [x for y in _split for x in y]
 
-    print(args)
     # Inject ENV based instance-id only if not passed on cli
-    if "--instance-id" not in args:
-        args.extend(["--instance-id", id_env])
+    if "--instance-id" not in argv:
+        argv.extend(["--instance-id", id_env])
 
-    # Inject optional args from ENV
+    # Inject optional argv from ENV
     optional_env = {"--site-hub": "SITE_HUB" ,
                     "--site-http": "SITE_HTTP"}
 
     for _arg, _var in optional_env.items():
         set_var = os.environ.get(_var, None)
-        if set_var is not None and _arg not in args:
-            args.extend([_arg, set_var])
+        if set_var is not None and _arg not in argv:
+            argv.extend([_arg, set_var])
 
-    print('ARGS', args)
+    print('ARGS', argv)
     parser = _get_parser()
 
-    # Note this call adds a bunch of args to the parser, and parses them
-    # including looking up the site config file and loading defaults from
-    # there.
+    # Note this is only used to lookup the agent-class, argv is passed to the
+    # agent's entrypoint below when calling start(), which includes injected
+    # ENV based arguments.
     args = site_config.parse_args(agent_class='*host*',
-                                  parser=parser, args=args)
+                                  parser=parser, args=argv)
 
     # Determine agent-class from instance-id
-    (_, _, instance) = site_config.get_config(args)
+    (site_, host_, instance) = site_config.get_config(args)
     agent_class = instance.data['agent-class']
 
     # Import agent's entrypoint and execute
@@ -129,7 +128,7 @@ def main(args=None):
 
     mod = importlib.import_module(_module)
     start = getattr(mod, _entry)  # This is the start function.
-    start()  # noqa: F821
+    start(argv)  # noqa: F821
 
 
 if __name__ == '__main__':

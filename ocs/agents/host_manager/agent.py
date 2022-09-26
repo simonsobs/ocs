@@ -583,10 +583,11 @@ def make_parser(parser=None):
     return parser
 
 
-def main():
+def main(args=None):
     parser = make_parser()
     args = site_config.parse_args(agent_class='HostManager',
-                                  parser=parser)
+                                  parser=parser,
+                                  args=args)
 
     if args.quiet:
         # For launch-to-background, disconnect stdio.

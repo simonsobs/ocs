@@ -241,12 +241,14 @@ def add_agent_args(parser_in=None):
 
     return parser_in
 
-def main():
+def main(args=None):
     # Start logging
     txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
     parser = add_agent_args()
-    args = site_config.parse_args(agent_class='FakeDataAgent', parser=parser)
+    args = site_config.parse_args(agent_class='FakeDataAgent',
+                                  parser=parser,
+                                  args=args)
 
     startup = False
     if args.mode == 'acq':

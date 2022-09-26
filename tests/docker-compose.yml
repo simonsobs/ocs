@@ -27,10 +27,10 @@ services:
     hostname: ocs-docker
     volumes:
       - ./default.yaml:/config/default.yaml:ro
-    command:
-      - "--instance-id=fake-data1"
-      - "--site-hub=ws://ocs-tests-crossbar:18001/ws"
-      - "--site-http=http://ocs-tests-crossbar:18001/call"
+    environment:
+      - INSTANCE_ID=fake-data1
+      - SITE_HUB=ws://ocs-tests-crossbar:18001/ws
+      - SITE_HTTP=http://ocs-tests-crossbar:18001/call
 
   ocs-aggregator:
     image: ocs
@@ -40,7 +40,6 @@ services:
       - "./data/:/data"
     environment:
       - LOGLEVEL=debug
-    command:
-      - "--instance-id=aggregator"
-      - "--site-hub=ws://ocs-tests-crossbar:18001/ws"
-      - "--site-http=http://ocs-tests-crossbar:18001/call"
+      - INSTANCE_ID=aggregator
+      - SITE_HUB=ws://ocs-tests-crossbar:18001/ws
+      - SITE_HTTP=http://ocs-tests-crossbar:18001/call

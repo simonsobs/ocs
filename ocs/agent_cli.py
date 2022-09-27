@@ -97,6 +97,9 @@ def main(args=None):
     # Inject ENV based instance-id only if not passed on cli
     if "--instance-id" not in argv:
         argv.extend(["--instance-id", id_env])
+        if id_env is None:
+            print("--instance-id (or $INSTANCE_ID) not provided. Exiting.")
+            sys.exit(1)
 
     # Inject optional argv from ENV
     optional_env = {"--site-hub": "SITE_HUB" ,

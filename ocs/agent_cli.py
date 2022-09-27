@@ -66,7 +66,12 @@ def build_agent_list():
     agents = {}
     for name in discovered_plugins.names:
         (plugin, ) = discovered_plugins.select(name=name)
-        loaded = plugin.load()
+        try:
+            loaded = plugin.load()
+        except Exception as e:
+            print(f"Could not load plugin: {name}")
+            print("  Error:", e)
+            continue
 
         # Remove any duplicate agent classes from newly loaded plugin
         current_agents = set(agents)

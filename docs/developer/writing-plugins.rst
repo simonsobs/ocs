@@ -32,11 +32,12 @@ If undefined, OCS will default to trying to use ``main`` as the entry point.
 Before the introduction of this plugin system this was typically handled
 within the ``__main__`` block.
 
-Entry Point
------------
-After you have created the plugin file, you need to add the an entry point to
-``setup.py``. This looks like (assuming the plugin file is called ``plugin.py``
-and lives at the top level of the package):
+Package Entry Point
+-------------------
+After you have created the plugin file, you need to add an entry point to
+``setup.py``. This will register your package for discovery by ocs. This looks
+like (assuming the plugin file is called ``plugin.py`` and lives at the top
+level of the package):
 
 .. code-block:: python
 
@@ -48,15 +49,41 @@ and lives at the top level of the package):
 
 Plugin name should just match the package name, however the group name must
 always be ``ocs.plugins`` in order for OCS to recognize the plugin. For
-example, in OCS this would be:
+example, if your package was called ``my_ocs_pkg`` this would be:
 
 .. code-block:: python
 
        entry_points={
            'ocs.plugins': [
-               'ocs = ocs.plugin',
+               'my_ocs_pkg = my_ocs_pkg.plugin',
                ],
        },
+
+Agent Entry Point
+-----------------
+OCS needs to know the entry point function used to launch each Agent in your
+plugin. By default ocs will try to use ``main`` as the entrypoint. If your
+Agent entrypoint has a different name you must list it in ``plugin.py``. This
+function must take a single parameter for passing arguments through to the
+Agent. This looks something like:
+
+.. code-block:: python
+
+    def main(args=None):
+        parser = add_agent_args()
+        args = site_config.parse_args(agent_class='BarebonesAgent',
+                                      parser=parser,
+                                      args=args)
+    
+        agent, runner = ocs_agent.init_site_agent(args)
+    
+        barebone = BarebonesAgent(agent)
+    
+        runner.run(agent, auto_reconnect=True)
+
+This example leaves out some other boilerplate from the Barebones Agent, but
+the important part is the ``args=None`` argument to ``main()``, and passing
+those args to ``site_config.parse_args()``.
 
 Testing
 -------

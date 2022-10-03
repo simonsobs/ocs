@@ -131,7 +131,7 @@ def main(args=None):
     # Add additional optional arguments by appending to optional_env
     # Format is {"arg name within argparse": "ENVIRONMENT VARIABLE NAME"}
     # E.g. --my-new-arg should be {"my_new_arg": "MY_NEW_ARG"}
-    optional_env = {"site_hub": "SITE_HUB" ,
+    optional_env = {"site_hub": "SITE_HUB",
                     "site_http": "SITE_HTTP"}
 
     for _name, _var in optional_env.items():
@@ -183,7 +183,7 @@ def main(args=None):
         mod = importlib.import_module(_module)
 
     start = getattr(mod, entrypoint)  # This is the start function.
-    start(post_args)  # noqa: F821
+    start(args=post_args)
 
 
 if __name__ == '__main__':

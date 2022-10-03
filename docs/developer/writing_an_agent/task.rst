@@ -87,7 +87,6 @@ Agent Code
 Our full Agent so far should look like this:
 
 .. code-block:: python
-   :linenos:
 
     import time
 
@@ -142,12 +141,17 @@ Our full Agent so far should look like this:
             return True, 'Printed text'
 
 
-    if __name__ == '__main__':
-        args = site_config.parse_args(agent_class='BarebonesAgent')
+    def main(args=None)
+        args = site_config.parse_args(agent_class='BarebonesAgent', args=args)
         agent, runner = ocs_agent.init_site_agent(args)
         barebone = BarebonesAgent(agent)
         agent.register_task('print', barebone.print)
         runner.run(agent, auto_reconnect=True)
+
+
+    if __name__ == '__main__':
+        main()
+
 
 Running the Agent
 `````````````````
@@ -157,7 +161,8 @@ Agent:
 
 .. code-block::
 
-    $ OCS_CONFIG_DIR=/path/to/your/ocs-site-config/ python3 barebones_agent.py
+    $ OCS_CONFIG_DIR=/path/to/your/ocs-site-config/ ocs-agent-cli --agent barebones_agent.py --entrypoint main --instance-id barebones1
+    Args: ['--instance-id', 'barebones1']
     2022-07-22T10:55:46-0400 Using OCS version 0.9.3+3.gfc30f3d.dirty
     2022-07-22T10:55:46-0400 ocs: starting <class 'ocs.ocs_agent.OCSAgent'> @ observatory.barebones1
     2022-07-22T10:55:46-0400 log_file is apparently None

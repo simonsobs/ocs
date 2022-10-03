@@ -223,7 +223,7 @@ Our Agent in full now looks like this:
             return True, 'Printed text to logs'
     
     
-    if __name__ == '__main__':
+    def main(args=None):
         # For logging
         txaio.use_twisted()
         LOG = txaio.make_logger()
@@ -231,7 +231,7 @@ Our Agent in full now looks like this:
         # Start logging
         txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
     
-        args = site_config.parse_args(agent_class='BarebonesAgent')
+        args = site_config.parse_args(agent_class='BarebonesAgent', args=args)
     
         agent, runner = ocs_agent.init_site_agent(args)
     
@@ -243,6 +243,10 @@ Our Agent in full now looks like this:
         agent.register_task('print', barebone.print)
     
         runner.run(agent, auto_reconnect=True)
+
+
+    if __name__ == '__main__':
+        main()
 
 Running the Agent
 `````````````````

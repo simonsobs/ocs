@@ -1,3 +1,5 @@
+.. _ocs_plugins:
+
 Writing Plugins
 ===============
 

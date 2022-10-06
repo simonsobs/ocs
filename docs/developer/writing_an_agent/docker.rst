@@ -1,10 +1,29 @@
 Dockerizing an Agent
 --------------------
 
-Now that our Agent is complete, and we know it runs natively, let's build it
-into a Docker container. If your Agent has any complicated dependencies this
-will help with deployment on user's machines. Start by creating a file called
-``Dockerfile`` in your Agent's directory:
+Now that our Agent is complete, and we know it runs natively we want to deploy
+it. A common way to do this is using Docker. Depending on the context for your
+development this process might look different. 
+
+#. If you are adding an Agent to an existing OCS plugin you might be able to
+   use the Docker image provided by that plugin (assuming it provides one.)
+   This is simple if your Agent does not require any additional dependencies.
+#. If you are adding an Agent to an existing OCS plugin, but it lacks the
+   dependencies required to run your Agent you should consider adding those
+   dependencies to that plugin's Docker image.
+   See :ref:`dockerizing_agent_or_plugin` for information on how to write (or
+   modify) a Dockerfile for a plugin.
+#. If you are adding an Agent to an existing OCS plugin, but the dependencies
+   are complicated or you need a different entrypoint you should create a separate
+   Docker image for you Agent. This can be based on the plugin's base image.
+   See :ref:`dockerizing_agent_or_plugin` for information on how to write (or
+   modify) a Dockerfile for an Agent.
+#. If you are creating an Agent outside of an existing OCS plugin you will
+   build an image based on the OCS base image. We will describe this on this
+   page below.
+
+Here we assume the Agent is not apart of a package or OCS plugin. Start by
+creating a file called ``Dockerfile`` in your Agent's directory:
 
 .. code-block:: dockerfile
 
@@ -12,89 +31,45 @@ will help with deployment on user's machines. Start by creating a file called
     # ocs Agent for demonstrating how to write an Agent
     
     # Use ocs base image
-    FROM ocs:latest
+    FROM simonsobs/ocs:latest
     
-    # Set the working directory to registry directory
-    WORKDIR /app/ocs/agents/barebones_agent/
+    # Set the working directory to copy your Agent into
+    WORKDIR /app/agents/barebones_agent/
     
-    # Copy this agent into the WORKDIR
+    # If there are extra dependencies install them here
+
+    # Copy the current directory into the WORKDIR
     COPY . .
-    
+
     # Run registry on container startup
-    ENTRYPOINT ["dumb-init", "python3", "-u", "barebones_agent.py"]
+    ENTRYPOINT ["dumb-init", "ocs-agent-cli"]
     
-    # Sensible defaults for crossbar server
-    CMD ["--site-hub=ws://crossbar:8001/ws", \
-         "--site-http=http://crossbar:8001/call"]
-
-At this point you should have a directory structure that looks somewhat like this:
-
-.. code-block:: bash
-
-    ├── ocs
-    │   ├── agents
-    │   │   ├── aggregator
-    │   │   ├── barebones_agent
-    │   │   │   ├── barebones_agent.py
-    │   │   │   └── Dockerfile
-    │   │   ├── fake_data
-    │   │   ├── host_manager
-    │   │   ├── influxdb_publisher
-    │   │   ├── ocs_plugin_standard.py
-    │   │   └── registry
-    │   ├── bin
-    │   ├── CONTRIBUTING.rst
-    │   ├── docker
-    │   ├── docker-compose.yml
-    │   ├── Dockerfile
-    │   ├── docs
-    │   ├── example
-    │   ├── LICENSE.txt
-    │   ├── Makefile
-    │   ├── MANIFEST.in
-    │   ├── ocs
-    │   ├── pyproject.toml
-    │   ├── README.rst
-    │   ├── requirements
-    │   ├── requirements.txt
-    │   ├── setup.cfg
-    │   ├── setup.py
-    │   ├── tests
-    │   ├── versioneer.py
-    └── ocs-site-configs
-        ├── default.yaml
-        └── docker-compose.yaml
-
-We can now build the Docker image for the Agent. First we need to make sure the
-ocs base container is built. From the root of the ocs repository run:
-
-.. code-block:: bash
-
-    $ docker build -t ocs .
+    # Set default commandline arguments
+    CMD ["--agent", "barebones_agent.py", "--entrypoint", "main"]
 
 Then from the Agent directory:
 
 .. code-block:: bash
 
     $ docker build -t ocs-barebones-agent .
-    Sending build context to Docker daemon  68.61kB
-    Step 1/5 : FROM ocs:latest
-     ---> bb938fc7d43b
-    Step 2/5 : WORKDIR /app/ocs/agents/barebones_agent/
-     ---> Running in 5167620dc9aa
-    Removing intermediate container 5167620dc9aa
-     ---> 9ee12c04df26
+    Sending build context to Docker daemon   2.56kB
+    Step 1/5 : FROM simonsobs/ocs:latest
+     ---> ffe70796b093
+    Step 2/5 : WORKDIR /app/agents/barebones_agent/
+     ---> Running in 123cd75bd3df
+    Removing intermediate container 123cd75bd3df
+     ---> 9dbcef5d0a88
     Step 3/5 : COPY . .
-     ---> 81c1c08b9f32
-    Step 4/5 : ENTRYPOINT ["dumb-init", "python3", "-u", "barebones_agent.py"]
-     ---> Running in 67e56599a784
-    Removing intermediate container 67e56599a784
-     ---> b4c651ce8546
-    Step 5/5 : CMD ["--site-hub=ws://crossbar:8001/ws",      "--site-http=http://crossbar:8001/call"]
-     ---> Running in f58cd0c3e762
-    Removing intermediate container f58cd0c3e762
-     ---> fdef661823cb
-    Successfully built fdef661823cb
+     ---> d632fe89c0ab
+    Step 4/5 : ENTRYPOINT ["dumb-init", "ocs-agent-cli"]
+     ---> Running in 0aab84608b57
+    Removing intermediate container 0aab84608b57
+     ---> bf8aba93e055
+    Step 5/5 : CMD ["--agent", "barebones_agent.py", "--entrypoint", "main"]
+     ---> Running in e4cefc3c6458
+    Removing intermediate container e4cefc3c6458
+     ---> 185f74d5f6c4
+    Successfully built 185f74d5f6c4
     Successfully tagged ocs-barebones-agent:latest
 
 Now we can use the Dockerized version of our Agent by modifying our SCF, moving
@@ -134,6 +109,7 @@ We also need to add a configuration block to our docker-compose file:
       volumes:
         - ./:/config:ro
       environment:
+        - INSTANCE_ID=barebones1
         - LOGLEVEL=info
 
 The "image" line corresponds to your newly built Docker image. The "hostname"
@@ -143,7 +119,7 @@ convention in OCS this is the name of your main system with an added "-docker".
 "volumes" contains one or more mounted directories, in this case mounting the
 current directory (``./``) outside of the container to ``/config`` within the
 container, and do so read-only. Lastly, "environment" sets environment
-variables within the container, in this case the log level.
+variables within the container, in this case the instance-id and log level.
 
 Now we can run the Agent with ``docker-compose``:
 
@@ -249,7 +225,16 @@ In the docker logs you will see:
     2022-07-25T21:06:07+0000 count:0 Acquisition exited cleanly.
     2022-07-25T21:06:07+0000 count:0 Status is now "done".
 
-In order for our Docker image to be built automatically by the continuous
+Building Images Automatically
+-----------------------------
+
+.. note::
+
+    This section is applicable to the core ocs repo. It may or may not apply
+    for other OCS plugins, depending on their build process.
+
+In context 3 we want to add a new separate Docker image for our Agent. In
+order for our Docker image to be built automatically by the continuous
 integration pipeline we must also add some configuration to the main
 ``docker-compose.yaml`` file at the root of the repository:
 
@@ -257,6 +242,9 @@ integration pipeline we must also add some configuration to the main
 
     ocs-barebones-agent:
       image: "ocs-barebones-agent"
-      build: ./agents/barebones_agent/
+      build: ./docker/barebones_agent/
       depends_on:
         - "ocs"
+
+Here the "build" path points to the directory containing the ``Dockerfile`` for
+our Agent.

@@ -105,3 +105,20 @@ running:
     discovered_plugins = entry_points(group='ocs.plugins')
     print(discovered_plugins)
     # [EntryPoint(name='ocs', value='ocs.plugin', group='ocs.plugins')]
+
+Deploying + Docker
+------------------
+
+Your plugin can now be deployed by installing the package with pip. It can also
+be built into a Docker image, which can then be used to run all of the Agents
+included in the plugin. For details on how to build a Docker image for your
+plugin see :ref:`dockerizing_agent_or_plugin`.
+
+List of OCS Plugins
+-------------------
+
+Here is a list of known OCS plugins. If you have written an OCS plugin, and
+would like to include it in this list, we encourage you to submit a PR adding
+it here.
+
+* `socs <https://github.com/simonsobs/socs>`_ - The Simons Observatory OCS plugin

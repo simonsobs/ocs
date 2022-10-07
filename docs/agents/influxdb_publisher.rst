@@ -44,10 +44,10 @@ Add the InfluxDB Publisher Agent container to your docker-compose file::
   ocs-influxdb-publisher:
     image: simonsobs/ocs:latest
     hostname: ocs-docker
+    environment:
+      - INSTANCE_ID=influxagent
     volumes:
       - ${OCS_CONFIG_DIR}:/config:ro
-    command:
-      - "--instance-id=influxagent"
 
 You will also need an instance of InfluxDB running somewhere on your network.
 This likely should go in a separate docker-compose file so that it remains

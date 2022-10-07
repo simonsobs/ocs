@@ -43,10 +43,9 @@ docker-compose service configuration is shown here::
         hostname: ocs-docker
         environment:
           - LOGLEVEL=info
+          - INSTANCE_ID=fake-data1
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=fake-data1"
 
 Agent API
 ---------

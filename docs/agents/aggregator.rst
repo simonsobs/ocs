@@ -71,11 +71,10 @@ Here is an example configuration::
         user: "9000"
         environment:
           - LOGLEVEL=info
+          - INSTANCE_ID=aggregator
         volumes:
           - ${OCS_CONFIG_DIR}:/config
           - /path/to/host/data:/data
-        command:
-          - "--instance-id=aggregator"
 
 
 Description

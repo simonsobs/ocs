@@ -35,10 +35,10 @@ An example docker-compose configuration::
         container_name: ocs-registry
         hostname: ocs-docker
         user: "9000"
+        environment:
+          - INSTANCE_ID=registry
         volumes:
           - ${OCS_CONFIG_DIR}:/config
-        command:
-          - "--instance-id=registry"
 
 Description
 -----------

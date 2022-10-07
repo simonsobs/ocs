@@ -68,32 +68,32 @@ components)::
         image: simonsobs/ocs:latest
         hostname: ocs-docker
         user: "9000"
+        environment:
+          - INSTANCE_ID=aggregator
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
           - "/data:/data"
-        command:
-          - "--instance-id=aggregator"
         depends_on:
           - "crossbar"
 
       ocs-influx-publisher:
         image: simonsobs/ocs:latest
         hostname: ocs-docker
+        environment:
+          - INSTANCE_ID=influxagent
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=influxagent"
 
       ocs-LSA99ZZ:
         image: simonsobs/ocs-lakeshore372-agent:latest
         hostname: grumpy-docker
         network_mode: "host"
+        environment:
+          - INSTANCE_ID=LSA99ZZ
+          - SITE_HUB=ws://10.10.10.2:8001/ws
+          - SITE_HTTP=http://10.10.10.2:8001/call
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=LSA99ZZ"
-          - "--site-hub=ws://10.10.10.2:8001/ws"
-          - "--site-http=http://10.10.10.2:8001/call"
 
 
 .. warning::
@@ -272,32 +272,32 @@ Where the separate compose files would look something like::
         image: simonsobs/ocs:latest
         hostname: ocs-docker
         user: "9000"
+        environment:
+          - INSTANCE_ID=aggregator
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
           - "/data:/data"
-        command:
-          - "--instance-id=aggregator"
         depends_on:
           - "crossbar"
 
       ocs-influx-publisher:
         image: simonsobs/ocs:latest
         hostname: ocs-docker
+        environment:
+          - INSTANCE_ID=influxagent
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=influxagent"
 
       ocs-LSA99ZZ:
         image: simonsobs/ocs-lakeshore372-agent:latest
         hostname: grumpy-docker
         network_mode: "host"
+        environment:
+          - INSTANCE_ID=LSA99ZZ
+          - SITE_HUB=ws://10.10.10.2:8001/ws
+          - SITE_HTTP=http://10.10.10.2:8001/call
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=LSA99ZZ"
-          - "--site-hub=ws://10.10.10.2:8001/ws"
-          - "--site-http=http://10.10.10.2:8001/call"
 
 Once the separate influxdb, crossbar, and web services are brought up, they
 should rarely need to be restarted, and are configured to automatically start

@@ -140,20 +140,19 @@ replaced with the hostname of your computer.
         image: simonsobs/ocs:latest
         hostname: <hostname>-docker
         environment:
+          - INSTANCE_ID=fake-data1
           - LOGLEVEL=info
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=fake-data1" 
 
       # InfluxDB Publisher 
       ocs-influx-publisher:
         image: simonsobs/ocs:latest
         hostname: <hostname>-docker
+        environment:
+          - INSTANCE_ID=influxagent
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=influxagent"
     
 Running
 -------

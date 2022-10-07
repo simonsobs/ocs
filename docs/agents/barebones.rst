@@ -24,6 +24,20 @@ available arguments::
      'instance-id': 'barebones-1',
      'arguments': []},
 
+Docker Compose
+``````````````
+
+An example docker-compose configuration::
+
+    ocs-barebones-1:
+        image: simonsobs/ocs:latest
+        hostname: ocs-docker
+        environment:
+          - LOGLEVEL=info
+          - INSTANCE_ID=barebones-1
+        volumes:
+          - ${OCS_CONFIG_DIR}:/config:ro
+
 Agent API
 ---------
 

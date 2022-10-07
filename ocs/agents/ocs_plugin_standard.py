@@ -7,7 +7,6 @@ path and called something like ocs_plugin_*.
 import ocs
 import os
 root = os.path.abspath(os.path.split(__file__)[0])
-print(root)
 
 for n,f in [
         ('RegistryAgent', 'registry/agent.py'),

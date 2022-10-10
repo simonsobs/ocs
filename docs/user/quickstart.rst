@@ -137,19 +137,20 @@ replaced with the hostname of your computer.
       # --------------------------------------------------------------------------
       # Fake Data Agent for example housekeeping data 
       ocs-fake-data1:
-        image: simonsobs/ocs-fake-data-agent:latest
+        image: simonsobs/ocs:latest
         hostname: <hostname>-docker
         environment:
+          - INSTANCE_ID=fake-data1
           - LOGLEVEL=info
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=fake-data1" 
 
       # InfluxDB Publisher 
       ocs-influx-publisher:
-        image: simonsobs/ocs-influxdb-publisher-agent:latest
+        image: simonsobs/ocs:latest
         hostname: <hostname>-docker
+        environment:
+          - INSTANCE_ID=influxagent
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
     
@@ -181,8 +182,8 @@ You can view the running containers with::
     CONTAINER ID   IMAGE                                           COMMAND                  CREATED          STATUS          PORTS                                          NAMES
     dc3792e8d4f3   influxdb:1.7                                    "/entrypoint.sh infl…"   27 seconds ago   Up 25 seconds   0.0.0.0:8086->8086/tcp, :::8086->8086/tcp      influxdb
     7aa0c07345de   simonsobs/ocs-crossbar:latest                   "crossbar start --cb…"   27 seconds ago   Up 25 seconds   8000/tcp, 8080/tcp, 127.0.0.1:8001->8001/tcp   ocs-site-configs_crossbar_1
-    88dd47cc6714   simonsobs/ocs-fake-data-agent:latest            "dumb-init python3 -…"   27 seconds ago   Up 25 seconds                                                  ocs-site-configs_ocs-fake-data1_1
-    41231a482dec   simonsobs/ocs-influxdb-publisher-agent:latest   "dumb-init python3 -…"   27 seconds ago   Up 25 seconds                                                  ocs-site-configs_ocs-influx-publisher_1
+    88dd47cc6714   simonsobs/ocs:latest                            "dumb-init python3 -…"   27 seconds ago   Up 25 seconds                                                  ocs-site-configs_ocs-fake-data1_1
+    41231a482dec   simonsobs/ocs:latest                            "dumb-init python3 -…"   27 seconds ago   Up 25 seconds                                                  ocs-site-configs_ocs-influx-publisher_1
     bcdc0423ab4c   grafana/grafana:latest                          "/run.sh"                27 seconds ago   Up 25 seconds   127.0.0.1:3000->3000/tcp                       ocs-site-configs_grafana_1
 
 If anything has gone wrong and some containers have not started, you can view

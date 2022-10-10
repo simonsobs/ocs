@@ -11,8 +11,15 @@ ENV LANG C.UTF-8
 RUN groupadd -g 9000 ocs && \
     useradd -m -l -u 9000 -g 9000 ocs
 
+# aggregator: Prepare data directory for mount
+RUN mkdir -p /data && \
+    chown ocs:ocs /data
+
 # Setup configuration environment
 ENV OCS_CONFIG_DIR=/config
+
+# Disable output buffer
+ENV PYTHONUNBUFFERED=1
 
 # Install python and pip
 RUN apt-get update && apt-get install -y python3 \
@@ -35,3 +42,9 @@ COPY . /app/ocs/
 
 # Install ocs
 RUN pip3 install .
+
+# Reset workdir to avoid local imports
+WORKDIR /
+
+# Run agent on container startup
+ENTRYPOINT ["dumb-init", "ocs-agent-cli"]

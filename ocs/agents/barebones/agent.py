@@ -162,7 +162,7 @@ def add_agent_args(parser_in=None):
     return parser_in
 
 
-if __name__ == '__main__':
+def main(args=None):
     # For logging
     txaio.use_twisted()
     LOG = txaio.make_logger()
@@ -171,7 +171,9 @@ if __name__ == '__main__':
     txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
     parser = add_agent_args()
-    args = site_config.parse_args(agent_class='BarebonesAgent', parser=parser)
+    args = site_config.parse_args(agent_class='BarebonesAgent',
+                                  parser=parser,
+                                  args=args)
 
     startup = False
     if args.mode == 'count':
@@ -188,3 +190,7 @@ if __name__ == '__main__':
     agent.register_task('print', barebone.print)
 
     runner.run(agent, auto_reconnect=True)
+
+
+if __name__ == '__main__':
+    main()

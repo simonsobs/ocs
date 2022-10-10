@@ -1,6 +1,4 @@
-import sys
-sys.path.insert(0, '../agents/host_manager/')
-from host_manager import HostManager
+from ocs.agents.host_manager.agent import HostManager
 
 import pytest_twisted
 

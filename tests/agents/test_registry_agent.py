@@ -1,13 +1,10 @@
-import sys
-sys.path.insert(0, '../agents/registry/')
-
 import time
 import pytest
 import pytest_twisted
 
 from agents.util import create_session, create_agent_fixture
 
-from registry import Registry
+from ocs.agents.registry.agent import Registry
 
 agent = create_agent_fixture(Registry)
 

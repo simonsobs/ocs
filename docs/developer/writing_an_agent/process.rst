@@ -179,8 +179,8 @@ Our Agent in full now looks like this:
             return True, 'Printed text to logs'
     
     
-    if __name__ == '__main__':
-        args = site_config.parse_args(agent_class='BarebonesAgent')
+    def main(args=None):
+        args = site_config.parse_args(agent_class='BarebonesAgent', args=args)
         agent, runner = ocs_agent.init_site_agent(args)
         barebone = BarebonesAgent(agent)
         agent.register_process(
@@ -189,6 +189,10 @@ Our Agent in full now looks like this:
             barebone._stop_count)
         agent.register_task('print', barebone.print)
         runner.run(agent, auto_reconnect=True)
+
+
+    if __name__ == '__main__':
+        main()
 
 Running the Agent
 `````````````````

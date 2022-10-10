@@ -44,8 +44,7 @@ PYTHON={python_bin}
 
 ###
 
-${{PYTHON}} \\
-  {host_manager_agent} \\
+${{PYTHON}} -m ocs.agent_cli \\
   --site-file=${{SITE_FILE}} \\
   {host_manager_args}
 """
@@ -73,8 +72,6 @@ def get_parser():
                        "Override the name of the systemd service.")
     group.add_argument('--service-host', help=
                        "Set a hostname to use when generating the service name.")
-    group.add_argument('--host-manager-agent', help=
-                       "Override the host_manager.py agent script.")
     return parser
 
 def main(args=None):
@@ -127,14 +124,6 @@ def main(args=None):
         args.python_bin = sys.executable
     if args.site_file is None:
         args.site_file = site.source_file
-
-    if args.host_manager_agent is None:
-        # Determine path to host_manager agent.
-        for p in host.agent_paths:
-            if not p in sys.path:
-                sys.path.append(p)
-        site_config.scan_for_agents()
-        args.host_manager_agent = site_config.agent_script_reg['HostManager']
 
     host_manager_args = [
         f'--instance-id={args.instance_id}',

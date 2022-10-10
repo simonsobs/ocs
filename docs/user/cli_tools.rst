@@ -229,3 +229,11 @@ general instructions.
    :module: ocs.ocs_systemd
    :func: get_parser
    :prog: ocs-install-systemd
+
+ocs-agent-cli
+==============
+
+.. argparse::
+   :module: ocs.agent_cli
+   :func: _get_parser
+   :prog: ocs-agent-cli

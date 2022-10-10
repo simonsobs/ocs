@@ -1,6 +1,4 @@
-import sys
-sys.path.insert(0, '../agents/fake_data/')
-from fake_data_agent import FakeDataAgent
+from ocs.agents.fake_data.agent import FakeDataAgent
 
 import pytest_twisted
 

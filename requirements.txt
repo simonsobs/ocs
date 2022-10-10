@@ -2,6 +2,7 @@ autobahn
 twisted
 deprecation
 PyYAML
+importlib_metadata
 
 # InfluxDB Publisher
 influxdb

@@ -7,7 +7,8 @@ from os import environ
 
 from ocs import ocs_agent, site_config
 from ocs.base import OpCode
-from ocs.agent.influxdb_publisher import Publisher
+
+from ocs.agents.influxdb_publisher.drivers import Publisher
 
 # For logging
 txaio.use_twisted()
@@ -152,15 +153,21 @@ def make_parser(parser=None):
     return parser
 
 
-if __name__ == '__main__':
+def main(args=None):
     # Start logging
     txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
     parser = make_parser()
-    args = site_config.parse_args(agent_class='InfluxDBAgent', parser=parser)
+    args = site_config.parse_args(agent_class='InfluxDBAgent',
+                                  parser=parser,
+                                  args=args)
 
     agent, runner = ocs_agent.init_site_agent(args)
 
     influx_agent = InfluxDBAgent(agent, args)
 
     runner.run(agent, auto_reconnect=True)
+
+
+if __name__ == '__main__':
+    main()

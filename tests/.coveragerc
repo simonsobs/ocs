@@ -1,8 +1,10 @@
 [run]
 source =
     ../ocs
-    ../agents/
 
 omit =
   # omit versioneer
   */_version.py
+
+[coverage:report]
+skip_empty = true

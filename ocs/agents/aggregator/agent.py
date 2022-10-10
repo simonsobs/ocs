@@ -8,7 +8,8 @@ from twisted.internet import reactor
 from os import environ
 from ocs import ocs_agent, site_config
 from ocs.base import OpCode
-from ocs.agent.aggregator import Aggregator
+
+from ocs.agents.aggregator.drivers import Aggregator
 
 # For logging
 txaio.use_twisted()
@@ -165,14 +166,19 @@ def make_parser(parser=None):
     return parser
 
 
-if __name__ == '__main__':
+def main(args=None):
     # Start logging
     txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
     parser = make_parser()
     args = site_config.parse_args(agent_class='AggregatorAgent',
-                                  parser=parser)
+                                  parser=parser,
+                                  args=args)
     agent, runner = ocs_agent.init_site_agent(args)
 
     data_aggregator = AggregatorAgent(agent, args)
     runner.run(agent, auto_reconnect=True)
+
+
+if __name__ == '__main__':
+    main()

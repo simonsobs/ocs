@@ -206,9 +206,10 @@ class Registry:
         return True, "'register_agent' is deprecated"
 
 
-if __name__ == '__main__':
+def main(args=None):
     args = site_config.parse_args(agent_class='RegistryAgent',
-                                  parser=None)
+                                  parser=None,
+                                  args=args)
 
     agent, runner = ocs_agent.init_site_agent(args)
     registry = Registry(agent)
@@ -218,3 +219,6 @@ if __name__ == '__main__':
     
     runner.run(agent, auto_reconnect=True)
 
+
+if __name__ == '__main__':
+    main()

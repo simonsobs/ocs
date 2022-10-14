@@ -7,7 +7,7 @@ import txaio
 from os import environ
 import numpy as np
 from autobahn.wamp.exception import ApplicationError
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
 
 # For logging

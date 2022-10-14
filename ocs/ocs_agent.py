@@ -383,7 +383,7 @@ class OCSAgent(ApplicationSession):
                launched in a worker thread, rather than running in the
                main reactor thread.
             aborter_blocking(bool or None): Indicates that ``aborter``
-               should be run in a worked thread, rather than running
+               should be run in a worker thread, rather than running
                in the main reactor thread.  Defaults to value of
                ``blocking``.
             startup (bool or dict): Controls if and how the Operation

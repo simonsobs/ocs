@@ -81,6 +81,59 @@ the Task with crossbar.
 
     agent.register_task('print', barebone.print)
 
+Aborting a Task
+```````````````
+'print' is a very short Task that runs very quickly, however if we have a long
+running Task, we might need the ability to stop it before it would normally
+complete. OCS supports aborting a Task, however this mechanism needs to be
+implemented within the Agent code. This will require adding an aborter
+function, which typically will look like this:
+
+.. code-block:: python
+
+    def _abort_print(self, session, params):
+        if session.status == 'running':
+            session.set_status('stopping')
+
+Within the Task function, at points that are reasonable to request an abort,
+you must add a check of the ``session.status`` that then exits the Task if the
+status is no longer running. For example:
+
+.. code-block:: python
+
+    if session.status != 'running':
+        return False, 'Aborted print'
+
+Where you insert this interrupt code will vary from Agent to Agent. Tasks that
+run quickly do not need an abort to be implemented at all. However, for long
+running Tasks abort should be implemented.
+
+When registering the Task, the aborter must be specified:
+
+.. code-block:: python
+
+    agent.register_task('print', barebone.print, aborter=barebone._abort_print)
+
+.. note::
+
+    By default the aborter will run in the same threading pattern as the task.
+    If your Task runs in the main reactor (i.e. is decorated with
+    ``@inlineCallbacks``), then the aborter should also run in the reactor, and so
+    needs to ``yield`` at the end of the method. In our example this would look
+    like:
+
+    .. code-block:: python
+
+        @inlineCallbacks
+        def _abort_print(self, session, params):
+            if session.status == 'running':
+                session.set_status('stopping')
+            yield
+
+Again, since 'print' runs quickly, we do not implement an aborter for it here.
+For an example of an abortable task, see
+:func:`ocs.agents.fake_data.agent.FakeDataAgent.delay_task`.
+
 Agent Code
 ``````````
 

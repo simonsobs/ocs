@@ -32,6 +32,7 @@ write OCS Agents or Clients.
     :maxdepth: 3
 
     agents/aggregator
+    agents/barebones
     agents/influxdb_publisher
     agents/registry
     agents/fake_data
@@ -47,7 +48,8 @@ write OCS Agents or Clients.
     developer/agents
     developer/clients
     developer/data
-    developer/web
+    developer/writing-plugins
+    developer/docker
     developer/testing
 
 

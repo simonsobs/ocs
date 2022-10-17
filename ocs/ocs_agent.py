@@ -316,8 +316,8 @@ class OCSAgent(ApplicationSession):
         """Get a description of this Agent's API.  This is for adaptive
         clients (such as MatchedClient) to construct their interfaces.
 
-        Params
-        ------
+        Parameters
+        ----------
         q : string
           One of 'get_api', 'get_tasks', 'get_processes', 'get_feeds',
           'get_agent_class'.
@@ -369,16 +369,23 @@ class OCSAgent(ApplicationSession):
             self.log.error('Unable to publish status. TransportLost. ' +
                            'crossbar server likely unreachable.')
 
-    def register_task(self, name, func, blocking=True, startup=False):
+    def register_task(self, name, func, aborter=None, blocking=True,
+                      aborter_blocking=None, startup=False):
         """Register a Task for this agent.
 
         Args:
             name (string): The name of the Task.
             func (callable): The function that will be called to
                 handle the "start" operation of the Task.
+            aborter (callable): The function that will be called to
+                handle the "abort" operation of the Task (optional).
             blocking (bool): Indicates that ``func`` should be
                launched in a worker thread, rather than running in the
                main reactor thread.
+            aborter_blocking(bool or None): Indicates that ``aborter``
+               should be run in a worker thread, rather than running
+               in the main reactor thread.  Defaults to value of
+               ``blocking``.
             startup (bool or dict): Controls if and how the Operation
                 is launched when the Agent successfully starts up and
                 connects to the WAMP realm.  If False, the Operation
@@ -386,13 +393,26 @@ class OCSAgent(ApplicationSession):
                 launched on startup.  If the ``startup`` argument is a
                 dictionary, this is passed to the Operation's start
                 function.
+
+        Notes:
+
+            The functions func and aborter will be called with
+            arguments (session, params) where session is the active
+            OpSession and params is passed from the client.
+
+            (Passing params to the aborter might not be supported in
+            the client library so don't count on that being useful.)
+
         """
-        self.tasks[name] = AgentTask(func, blocking=blocking)
+        self.tasks[name] = AgentTask(
+            func, blocking=blocking, aborter=aborter,
+            aborter_blocking=aborter_blocking)
         self.sessions[name] = None
         if startup is not False:
             self.startup_ops.append(('task', name, startup))
 
-    def register_process(self, name, start_func, stop_func, blocking=True, startup=False):
+    def register_process(self, name, start_func, stop_func, blocking=True,
+                         stopper_blocking=None, startup=False):
         """Register a Process for this agent.
 
         Args:
@@ -401,9 +421,13 @@ class OCSAgent(ApplicationSession):
                 handle the "start" operation of the Process.
             stop_func (callable): The function that will be called to
                 handle the "stop" operation of the Process.
-            blocking (bool): Indicates that ``func`` should be
-               launched in a worker thread, rather than running in the
-               main reactor thread.
+            blocking (bool): Indicates that ``start_func`` should be
+                launched in a worker thread, rather than running in
+                the reactor.
+            stopper_blocking (bool or None): Indicates that
+                ``stop_func`` should be launched in a worker thread,
+                rather than running in the reactor.  Defaults to the
+                value of ``blocking``.
             startup (bool or dict): Controls if and how the Operation
                 is launched when the Agent successfully starts up and
                 connects to the WAMP realm.  If False, the Operation
@@ -412,9 +436,18 @@ class OCSAgent(ApplicationSession):
                 dictionary, this is passed to the Operation's start
                 function.
 
+        Notes:
+            The functions start_func and stop_func will be called with
+            arguments (session, params) where session is the active
+            OpSession and params is passed from the client.
+
+            (Passing params to the stop_func might not be supported in
+            the client library so don't count on that being useful.)
+
         """
-        self.processes[name] = AgentProcess(start_func, stop_func,
-                                            blocking=blocking)
+        self.processes[name] = AgentProcess(
+            start_func, stop_func, blocking=blocking,
+            stopper_blocking=stopper_blocking)
         self.sessions[name] = None
         if startup is not False:
             self.startup_ops.append(('process', name, startup))
@@ -743,9 +776,84 @@ class OCSAgent(ApplicationSession):
             return (ocs.TIMEOUT, 'Operation "%s" still running; wait timed out.' % op_name,
                     session.encoded())
 
+    def _stop_helper(self, stop_type, op_name, params):
+        """Common stopper/aborter code for Process stop and Task
+        abort.
+
+        Args:
+          stop_type (str): either 'stop' or 'abort'.
+          op_name (str): the op_name.
+          params (dict or None): Params to be passed to stopper
+            function.
+
+        """
+        print(f'{stop_type} called for {op_name}')
+
+        # Find the op and populate op_type, op, stopper, stopper_blocking.
+        if op_name in self.tasks:
+            op_type = 'task'
+            op = self.tasks[op_name]
+            stopper = op.aborter
+            stopper_blocking = op.aborter_blocking
+        elif op_name in self.processes:
+            op_type = 'process'
+            op = self.processes[op_name]
+            stopper = op.stopper
+            stopper_blocking = op.stopper_blocking
+        else:
+            return (ocs.ERROR, 'No operation called "%s".' % op_name, {})
+
+        # Make sure the API function matches the op_type ...
+        if (stop_type == 'stop' and op_type == 'task') or \
+           (stop_type == 'abort' and op_type == 'process'):
+            return (ocs.ERROR, f'Cannot "{stop_type}" "{op_name}" because '
+                    'it is a "{op_type}".', {})
+
+        session = self.sessions.get(op_name)
+        if session is None:
+            return (ocs.ERROR, 'No session active.', {})
+
+        if session.status in ['stopping', 'done']:
+            return (ocs.ERROR, f'The operation is already {session.status}', {})
+
+        # Use callback/errback to print message to logs.
+        def _callback(*args, **kw):
+            try:
+                ok, msg = args
+            except:
+                ok, msg = True, str(args)
+            print(f'Stopper for "{op_name}" terminated with ok={ok} and '
+                  f'message {msg}')
+        def _errback(*args, **kw):
+            print(f'Error calling stopper for "{op_name}"; args:',
+                  args, kw)
+
+        if stopper_blocking:
+            # Launch the code in a thread.
+            d2 = threads.deferToThread(stopper, session, params)
+            d2.addCallback(_callback).addErrback(_errback)
+        else:
+            # Assume the stopper returns a deferred (and will soon run
+            # in the reactor).
+            d2 = stopper(session, params)
+            if not isinstance(d2, Deferred):
+                # Warn but let it slide.  in the past the default was
+                # to run the stopper in a worker thread.  Most
+                # stoppers run very quickly so it is probably not
+                # going to break much to have them run in the reactor.
+                # Change this to an error after all Agents have been
+                # updated for a while.
+                print(f'WARNING: {op_type} {op_name} needs to be '
+                      'registered with stopper_blocking=True.')
+            else:
+                d2.addCallback(_callback).addErrback(_errback)
+
+        return (ocs.OK, f'Requested {stop_type} on {op_type} {op_name}".',
+                session.encoded())
+
     def stop(self, op_name, params=None):
         """
-        Launch a Process stop routine.
+        Initiate a Process stop routine.
 
         Returns (status, message, session).
 
@@ -756,31 +864,23 @@ class OCSAgent(ApplicationSession):
 
           ocs.OK: the Process stop routine has been launched.
         """
-        if op_name in self.tasks:
-            return (ocs.ERROR, 'No implementation for "%s" because it is a task.' % op_name,
-                    {})
-        elif op_name in self.processes:
-            session = self.sessions.get(op_name)
-            if session is None:
-                return (ocs.ERROR, 'No session active.', {})
-            proc = self.processes[op_name]
-            d2 = threads.deferToThread(proc.stopper, session, params)
-            return (ocs.OK, 'Requested stop on process "%s".' % op_name, session.encoded())
-        else:
-            return (ocs.ERROR, 'No process called "%s".' % op_name, {})
+        return self._stop_helper('stop', op_name, params)
 
     def abort(self, op_name, params=None):
         """
-        Initiate a Task abort routine.  This function is not currently
-        implemented in any useful way.
+        Initiate a Task abort routine.
 
         Returns (status, message, session).
 
         Possible values for status:
 
-          ocs.ERROR: you called a function that does not do anything.
+          ocs.ERROR: the specified op_name is not known, or refers to
+            a Process.  Also returned if Task is known but not running.
+
+          ocs.OK: the Process stop routine has been launched.
+
         """
-        return (ocs.ERROR, 'No implementation of abort() for operation "%s"' % op_name, {})
+        return self._stop_helper('abort', op_name, params)
 
     def status(self, op_name, params=None):
         """
@@ -806,24 +906,33 @@ class OCSAgent(ApplicationSession):
 
 
 class AgentTask:
-    def __init__(self, launcher, blocking=None):
+    def __init__(self, launcher, blocking=None, aborter=None,
+                 aborter_blocking=None):
         self.launcher = launcher
         self.blocking = blocking
+        self.aborter = aborter
+        if aborter_blocking is None:
+            aborter_blocking = blocking
+        self.aborter_blocking = aborter_blocking
         self.docstring = launcher.__doc__
 
     def encoded(self):
         """Dict of static info for API self-description."""
         return {
             'blocking': self.blocking,
+            'abortable': (self.aborter is not None),
             'docstring': self.docstring,
             'op_type': 'task',
         }
 
 class AgentProcess:
-    def __init__(self, launcher, stopper, blocking=None):
+    def __init__(self, launcher, stopper, blocking=None, stopper_blocking=None):
         self.launcher = launcher
         self.stopper = stopper
         self.blocking = blocking
+        if stopper_blocking is None:
+            stopper_blocking = blocking
+        self.stopper_blocking = stopper_blocking
         self.docstring = launcher.__doc__
 
     def encoded(self):

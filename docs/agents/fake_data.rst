@@ -9,9 +9,9 @@ with data aggregation and display. It will generate random data and pass it to
 an OCS feed.
 
 .. argparse::
-   :module: agents.fake_data.fake_data_agent
+   :module: ocs.agents.fake_data.agent
    :func: add_agent_args
-   :prog: fake_data_agent.py
+   :prog: agent.py
 
 Configuration File Examples
 ---------------------------
@@ -39,17 +39,16 @@ The Fake Data Agent can also be run in a Docker container. An example
 docker-compose service configuration is shown here::
 
     fake-data1:
-        image: simonsobs/ocs-fake-data-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
         environment:
           - LOGLEVEL=info
+          - INSTANCE_ID=fake-data1
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=fake-data1"
 
 Agent API
 ---------
 
-.. autoclass:: agents.fake_data.fake_data_agent.FakeDataAgent
+.. autoclass:: ocs.agents.fake_data.agent.FakeDataAgent
     :members:

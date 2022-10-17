@@ -3,17 +3,86 @@ API
 
 This page contains the auto-generated documentation for the ocs package.
 
-agent
------
+agents
+------
 
-The ``agent/`` directory contains code that supports particular OCS Agents.
-Having this code in the ocs library facilitates testing.
+The ``agents/`` directory contains the OCS Agents, as well as any supporting
+code.
 
-agent.aggregator
+agents.aggregator
+`````````````````
+
+.. automodule:: ocs.agents.aggregator.agent
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :noindex:
+
+.. automodule:: ocs.agents.aggregator.drivers
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agents.barebones
 ````````````````
 
-.. automodule:: ocs.agent.aggregator
+.. automodule:: ocs.agents.barebones.agent
     :members:
+    :undoc-members:
+    :show-inheritance:
+    :noindex:
+
+agents.fake_data
+````````````````
+
+.. automodule:: ocs.agents.fake_data.agent
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :noindex:
+
+agents.host_manager
+```````````````````
+
+.. automodule:: ocs.agents.host_manager.agent
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :noindex:
+
+.. automodule:: ocs.agents.host_manager.drivers
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agents.influxdb_publisher
+`````````````````````````
+
+.. automodule:: ocs.agents.influxdb_publisher.agent
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :noindex:
+
+.. automodule:: ocs.agents.influxdb_publisher.drivers
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agents.registry
+```````````````
+
+.. automodule:: ocs.agents.registry.agent
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :noindex:
+
+ocs.agent_cli
+-------------
+
+.. automodule:: ocs.agent_cli
+    :members: build_agent_list
     :undoc-members:
     :show-inheritance:
 

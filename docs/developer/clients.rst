@@ -40,8 +40,7 @@ Process (referred to generally "Operation") exposed by the OCS Agent with the
 specified ``agent-instance-id``. Each of these attributes has a set of methods
 associated with them for controlling the Operation. The methods for running an
 Agent's Operations are described in :ref:`agent_ops`. They are "start",
-"status", "wait", and "stop" ("abort" is not implemented at the time of this
-writing.)
+"status", "wait", "stop" (Process only) and "abort" (Task only).
 
 Once the Client is instantiated, Operations can be commanded, for example, to
 start a Process called 'acq' (a common Process name for beginning data
@@ -292,12 +291,13 @@ written in any language supported by crossbar, however most commonly these will
 be written in Python or JavaScript. In this section we cover some of these
 alternative Client implementations.
 
-OCSWeb Client
-`````````````
+ocs-web control panels
+``````````````````````
 
-A Client can be written in JavaScript. This is what is done in OCS Web. For
-more details about how to implement a JavaScript Client, see
-:ref:`creating_web_panel`.
+A web-based graphical user interface, written in the Vue 3 framework,
+is maintained here: https://github.com/simonsobs/ocs-web/ .
+Specialized control panels can be written for each Agent to expose
+some or all of an Agent's operations and session data.
 
 
 Control Programs using Twisted

@@ -15,9 +15,9 @@ For a complete discussion of this Agent and how to best use it, see
 
 
 .. argparse::
-   :module: agents.host_manager.host_manager
+   :module: ocs.agents.host_manager.agent
    :func: make_parser
-   :prog: host_manager.py
+   :prog: agent.py
 
 
 
@@ -52,12 +52,12 @@ Please see :ref:`centralized_management`.
 Agent API
 ---------
 
-.. autoclass:: agents.host_manager.host_manager.HostManager
+.. autoclass:: ocs.agents.host_manager.agent.HostManager
     :members:
 
 Supporting APIs
 ---------------
 
-.. automethod:: agents.host_manager.host_manager.HostManager._process_target_states
+.. automethod:: ocs.agents.host_manager.agent.HostManager._process_target_states
 
-.. automethod:: agents.host_manager.host_manager.HostManager._reload_config
+.. automethod:: ocs.agents.host_manager.agent.HostManager._reload_config

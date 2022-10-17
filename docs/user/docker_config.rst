@@ -25,7 +25,10 @@ section of this documentation. An example `docker-compose.yaml` file looks
 something like this (note this does not contain all possibly configured
 components)::
 
-    version: '2'
+    version: '3.7'
+    volumes:
+      grafana-storage:
+
     services:
       # --------------------------------------------------------------------------
       # Grafana for the live monitor.
@@ -36,7 +39,7 @@ components)::
         ports:
           - "127.0.0.1:3000:3000"
         volumes:
-          - /srv/grafana:/var/lib/grafana
+          - grafana-storage:/var/lib/grafana
 
       # InfluxDB Backend for Grafana
       influxdb:
@@ -45,6 +48,8 @@ components)::
         restart: always
         ports:
           - "8086:8086"
+        volumes:
+          - /srv/influxdb:/var/lib/influxdb
 
       # --------------------------------------------------------------------------
       # Crossbar
@@ -60,9 +65,11 @@ components)::
       # OCS Agents
       # --------------------------------------------------------------------------
       ocs-aggregator:
-        image: simonsobs/ocs-aggregator-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
         user: "9000"
+        environment:
+          - INSTANCE_ID=aggregator
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
           - "/data:/data"
@@ -70,8 +77,10 @@ components)::
           - "crossbar"
 
       ocs-influx-publisher:
-        image: simonsobs/ocs-influxdb-publisher-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
+        environment:
+          - INSTANCE_ID=influxagent
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
 
@@ -79,12 +88,12 @@ components)::
         image: simonsobs/ocs-lakeshore372-agent:latest
         hostname: grumpy-docker
         network_mode: "host"
+        environment:
+          - INSTANCE_ID=LSA99ZZ
+          - SITE_HUB=ws://10.10.10.2:8001/ws
+          - SITE_HTTP=http://10.10.10.2:8001/call
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=LSA99ZZ"
-          - "--site-hub=ws://10.10.10.2:8001/ws"
-          - "--site-http=http://10.10.10.2:8001/call"
 
 
 .. warning::
@@ -239,6 +248,8 @@ Where the separate compose files would look something like::
       default:
         external:
           name: ocs-net
+    volumes:
+      grafana-storage:
     services:
       grafana:
         image: grafana/grafana:latest
@@ -246,7 +257,7 @@ Where the separate compose files would look something like::
         ports:
           - "127.0.0.1:3000:3000"
         volumes:
-          - /srv/grafana:/var/lib/grafana
+          - grafana-storage:/var/lib/grafana
 
 ::
 
@@ -258,9 +269,11 @@ Where the separate compose files would look something like::
           name: ocs-net
     services:
       ocs-aggregator:
-        image: simonsobs/ocs-aggregator-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
         user: "9000"
+        environment:
+          - INSTANCE_ID=aggregator
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
           - "/data:/data"
@@ -268,8 +281,10 @@ Where the separate compose files would look something like::
           - "crossbar"
 
       ocs-influx-publisher:
-        image: simonsobs/ocs-influxdb-publisher-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
+        environment:
+          - INSTANCE_ID=influxagent
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
 
@@ -277,12 +292,12 @@ Where the separate compose files would look something like::
         image: simonsobs/ocs-lakeshore372-agent:latest
         hostname: grumpy-docker
         network_mode: "host"
+        environment:
+          - INSTANCE_ID=LSA99ZZ
+          - SITE_HUB=ws://10.10.10.2:8001/ws
+          - SITE_HTTP=http://10.10.10.2:8001/call
         volumes:
           - ${OCS_CONFIG_DIR}:/config:ro
-        command:
-          - "--instance-id=LSA99ZZ"
-          - "--site-hub=ws://10.10.10.2:8001/ws"
-          - "--site-http=http://10.10.10.2:8001/call"
 
 Once the separate influxdb, crossbar, and web services are brought up, they
 should rarely need to be restarted, and are configured to automatically start

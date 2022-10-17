@@ -31,12 +31,14 @@ Docker Compose
 An example docker-compose configuration::
 
     ocs-registry:
-        image: simonsobs/ocs-registry-agent:latest
+        image: simonsobs/ocs:latest
         container_name: ocs-registry
         hostname: ocs-docker
         user: "9000"
+        environment:
+          - INSTANCE_ID=registry
         volumes:
-            - ${OCS_CONFIG_DIR}:/config
+          - ${OCS_CONFIG_DIR}:/config
 
 Description
 -----------
@@ -104,11 +106,11 @@ all operations on a network as pictured below:
 Agent API
 ---------
 
-.. autoclass:: agents.registry.registry.Registry
+.. autoclass:: ocs.agents.registry.agent.Registry
     :members:
 
 Supporting APIs
 ---------------
-.. autoclass:: agents.registry.registry.RegisteredAgent
+.. autoclass:: ocs.agents.registry.agent.RegisteredAgent
     :members:
 

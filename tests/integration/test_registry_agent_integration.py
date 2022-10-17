@@ -15,7 +15,7 @@ from ocs.base import OpCode
 pytest_plugins = ("docker_compose")
 
 wait_for_crossbar = create_crossbar_fixture()
-run_agent = create_agent_runner_fixture('../agents/registry/registry.py',
+run_agent = create_agent_runner_fixture('../ocs/agents/registry/agent.py',
                                         'registry',
                                         args=['--log-dir',
                                               os.path.join(os.getcwd(),
@@ -31,5 +31,6 @@ def test_registry_agent_main(wait_for_crossbar, run_agent, client):
     assert resp.session['op_code'] == OpCode.RUNNING.value
 
     client.main.stop()
+    client.main.wait()  # wait for process to exit
     resp = client.main.status()
-    assert resp.session['op_code'] == OpCode.STOPPING.value
+    assert resp.session['op_code'] == OpCode.SUCCEEDED.value

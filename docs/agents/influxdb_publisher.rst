@@ -11,9 +11,9 @@ writing to file it will publish all recorded OCS data feeds to an InfluxDB
 instance running somewhere on the network.
 
 .. argparse::
-   :module: agents.influxdb_publisher.influxdb_publisher
+   :module: ocs.agents.influxdb_publisher.agent
    :func: make_parser
-   :prog: influxdb_publisher.py
+   :prog: agent.py
 
 Configuration File Examples
 ---------------------------
@@ -42,8 +42,10 @@ Docker Compose
 Add the InfluxDB Publisher Agent container to your docker-compose file::
 
   ocs-influxdb-publisher:
-    image: simonsobs/ocs-influxdb-publisher-agent:latest
+    image: simonsobs/ocs:latest
     hostname: ocs-docker
+    environment:
+      - INSTANCE_ID=influxagent
     volumes:
       - ${OCS_CONFIG_DIR}:/config:ro
 
@@ -117,12 +119,12 @@ For more information about using InfluxDB in Grafana, see the `Grafana Documenta
 Agent API
 ---------
 
-.. autoclass:: agents.influxdb_publisher.influxdb_publisher.InfluxDBAgent
+.. autoclass:: ocs.agents.influxdb_publisher.agent.InfluxDBAgent
     :members:
 
 
 Supporting APIs
 ---------------
 
-.. autoclass:: ocs.agent.influxdb_publisher.Publisher
+.. autoclass:: ocs.agents.influxdb_publisher.agent.Publisher
     :members:

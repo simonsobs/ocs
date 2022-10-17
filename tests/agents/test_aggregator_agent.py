@@ -1,6 +1,3 @@
-import sys
-sys.path.insert(0, '../agents/aggregator/')
-
 import pytest
 from unittest import mock
 
@@ -11,7 +8,7 @@ from agents.util import (
 )
 
 # depends on spt3g
-from aggregator_agent import AggregatorAgent
+from ocs.agents.aggregator.agent import AggregatorAgent
 
 args = mock.MagicMock()
 args.time_per_file = 3

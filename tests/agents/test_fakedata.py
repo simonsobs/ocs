@@ -1,6 +1,4 @@
-import sys
-sys.path.insert(0, '../agents/fake_data/')
-from fake_data_agent import FakeDataAgent
+from ocs.agents.fake_data.agent import FakeDataAgent
 
 import pytest_twisted
 
@@ -32,18 +30,20 @@ def test_fake_data_acq(agent):
 
 
 class TestStopAcq:
+    @pytest_twisted.inlineCallbacks
     def test_fake_data_stop_acq_not_running(self, agent):
         session = create_session('acq')
-        res = agent._stop_acq(session, params=None)
+        res = yield agent._stop_acq(session, params=None)
         assert res[0] is False
 
+    @pytest_twisted.inlineCallbacks
     def test_fake_data_stop_acq_while_running(self, agent):
         session = create_session('acq')
 
         # set running job to 'acq'
         agent.job = 'acq'
 
-        res = agent._stop_acq(session, params=None)
+        res = yield agent._stop_acq(session, params=None)
         assert res[0] is True
 
 
@@ -53,6 +53,15 @@ def test_fake_data_delay_task(agent):
     params = {'delay': 0.001, 'succeed': True}
     res = yield agent.delay_task(session, params=params)
     assert res[0] is True
+
+@pytest_twisted.inlineCallbacks
+def test_fake_data_delay_task_abort(agent):
+    session = create_session('delay_task')
+    params = {'delay': 0.001, 'succeed': True}
+    D1 = agent.delay_task(session, params=params)
+    D2 = yield agent._abort_delay_task(session, params=None)
+    res = yield D1
+    assert res[0] is False
 
 
 def test_fake_data_try_set_job_running_job(agent):

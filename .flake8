@@ -13,3 +13,5 @@ aggressive = 2
 exclude =
     versioneer.py,
     docs/conf.py,
+per-file-ignores =
+    docker/ocs-util/dot_jupyter/jupyter_server_config.py:F821

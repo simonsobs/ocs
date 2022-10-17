@@ -3,7 +3,6 @@ from ocs.base import OpCode
 import time
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
-from collections import defaultdict
 from ocs.ocs_feed import Feed
 
 

@@ -165,7 +165,7 @@ def add_agent_args(parser_in=None):
 def main(args=None):
     # For logging
     txaio.use_twisted()
-    LOG = txaio.make_logger()
+    txaio.make_logger()
 
     # Start logging
     txaio.start_logging(level=environ.get("LOGLEVEL", "info"))

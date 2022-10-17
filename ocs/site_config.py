@@ -8,7 +8,6 @@ import yaml
 import argparse
 import collections
 import deprecation
-import errno
 
 
 class SiteConfig:
@@ -483,7 +482,6 @@ def get_config(args, agent_class=None):
                 break
     else:
         # Use the agent_class to figure it out...
-        matches = 0
         for dev in host_config.instances:
             if dev['agent-class'] == agent_class:
                 if instance_config is not None:

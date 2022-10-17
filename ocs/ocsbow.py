@@ -4,7 +4,7 @@
 """
 
 import ocs
-from ocs import matched_client, client_http
+from ocs import client_http
 
 import argparse
 import difflib
@@ -144,7 +144,7 @@ def decode_exception(args):
     try:
         text, data = args[0][4:6]
         assert (text.startswith('wamp.') or text.startswith('client_http.'))
-    except Exception as e:
+    except Exception:
         return False, args, str(args)
     return True, text, str(data)
 
@@ -548,7 +548,7 @@ class HostManagerManager:
     def stop(self, check=True, timeout=5.):
         print('Trying to stop HostManager agent...')
         try:
-            stat = self.client.die.start()
+            self.client.die.start()
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':

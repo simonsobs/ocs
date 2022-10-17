@@ -80,7 +80,7 @@ def decode_exception(args):
     try:
         text, data = args[0][4:6]
         assert (text.startswith('wamp.') or text.startswith('client_http.'))
-    except Exception as e:
+    except Exception:
         return False, args, str(args)
     return True, text, str(data)
 
@@ -102,7 +102,7 @@ def listen(parser, args):
         def onJoin(self, details):
             topic = feeds
             options = SubscribeOptions(match='wildcard', details=True)
-            sub = yield self.subscribe(self.on_event, topic, options=options)
+            yield self.subscribe(self.on_event, topic, options=options)
 
         def on_event(self, msg, details=None):
             print(f'[{details.topic}] {msg}')
@@ -150,7 +150,7 @@ def scan(parser, args):
             def onJoin(self, details):
                 topic = f'{args.address_root}..feeds.heartbeat'
                 options = SubscribeOptions(match='wildcard', details=True)
-                sub = yield self.subscribe(self.on_event, topic, options=options)
+                yield self.subscribe(self.on_event, topic, options=options)
 
             def on_event(self, msg, details=None):
                 beats[details.topic] = msg

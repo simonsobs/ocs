@@ -1,5 +1,5 @@
 from twisted.internet import reactor, threads
-from twisted.internet.defer import inlineCallbacks, Deferred
+from twisted.internet.defer import inlineCallbacks
 
 import time
 

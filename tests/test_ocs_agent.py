@@ -518,11 +518,11 @@ def test_params_decorator():
     # these should not
     with pytest.raises(TypeError):
         @param('a', 12)
-        def test_func(session, params):
+        def test_func2(session, params):
             pass
     with pytest.raises(TypeError):
         @param('a', invalid_keyword='something')
-        def test_func(session, params):
+        def test_func3(session, params):
             pass
 
 

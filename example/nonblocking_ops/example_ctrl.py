@@ -5,7 +5,6 @@ examples lying around.
 
 """
 
-import ocs
 from ocs import client_t
 
 

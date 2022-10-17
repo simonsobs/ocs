@@ -81,7 +81,7 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     restart_crossbar()
 
     # record current time
-    now = time.time()
+    # now = time.time()
 
     # wait for file rotation by checking session.data's "current_file" value
     status = agg_client.record.status()
@@ -139,7 +139,7 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     all_fields = []
     for k, v in arc.get_fields()[0].items():
         all_fields.append(k)
-    data = arc.simple(all_fields)
+    data = arc.simple(all_fields)  # noqa: F841 -- since used in commented section below
 
     # Check for gaps in all timestreams
     # This is an unreliable assertion

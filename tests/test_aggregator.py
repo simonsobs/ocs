@@ -115,7 +115,7 @@ def test_sparsely_sampled_block():
     sess.start_time = time.time()
     sess.session_id = 'test_sessid'
 
-    a = provider.to_frame(hksess=sess, clear=True)
+    provider.to_frame(hksess=sess, clear=True)
 
     # Now omit the 'test' block.
     provider.frame_start_time = time.time()
@@ -377,7 +377,7 @@ def test_g3_cast():
         ['a', 'b', 1, 2], True, [1, 1.0, 2]
     ]
     for x in incorrect_tests:
-        with pytest.raises(TypeError) as e_info:
+        with pytest.raises(TypeError):
             g3_cast(x)
 
 

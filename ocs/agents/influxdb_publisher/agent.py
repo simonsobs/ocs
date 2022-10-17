@@ -165,7 +165,7 @@ def main(args=None):
 
     agent, runner = ocs_agent.init_site_agent(args)
 
-    influx_agent = InfluxDBAgent(agent, args)
+    InfluxDBAgent(agent, args)
 
     runner.run(agent, auto_reconnect=True)
 

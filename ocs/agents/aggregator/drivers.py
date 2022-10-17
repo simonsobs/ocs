@@ -1,7 +1,6 @@
 import os
 import binascii
 import time
-import re
 
 from typing import Dict
 

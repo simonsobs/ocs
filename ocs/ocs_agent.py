@@ -21,7 +21,6 @@ import time
 import datetime
 import socket
 import os
-from deprecation import deprecated
 from ocs import client_t
 from ocs import ocs_feed
 from ocs.base import OpCode
@@ -252,8 +251,8 @@ class OCSAgent(ApplicationSession):
             pass
 
     def log_publish(self, event):
-        text = log_formatter(event)
-        #self.publish('observatory.%s.log', text)
+        text = log_formatter(event)  # noqa: F841 -- keep context for commented use
+        # self.publish('observatory.%s.log', text)
 
     """The methods below provide OCS framework support."""
 
@@ -762,7 +761,7 @@ class OCSAgent(ApplicationSession):
             dl = DeferredList([session.d, td], fireOnOneCallback=True,
                               fireOnOneErrback=True, consumeErrors=True)
             try:
-                results = yield dl
+                yield dl
             except FirstError as e:
                 assert e.index == 0  # i.e. session.d raised an error.
                 td.cancel()
@@ -1018,9 +1017,9 @@ class OpSession:
     def purge_log(self):
         cutoff = time.time() - self.purge_policy['min_age_s']
         while ((len(self.messages) > self.purge_policy['max_messages'])
-               or ((len(self.messages) > self.purge_policy['min_messages']) and
-                   self.messages[0][0] < cutoff)):
-            m = self.messages.pop(0)
+               or ((len(self.messages) > self.purge_policy['min_messages'])
+               and self.messages[0][0] < cutoff)):
+            self.messages.pop(0)
         # Set this purger to be called again in the future, at some
         # cadence based on the minimum message age.
         next_purge_time = max(self.purge_policy['min_age_s'] / 5, 600)

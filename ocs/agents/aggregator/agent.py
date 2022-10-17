@@ -177,7 +177,7 @@ def main(args=None):
                                   args=args)
     agent, runner = ocs_agent.init_site_agent(args)
 
-    data_aggregator = AggregatorAgent(agent, args)
+    AggregatorAgent(agent, args)
     runner.run(agent, auto_reconnect=True)
 
 

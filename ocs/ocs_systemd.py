@@ -148,7 +148,7 @@ def main(args=None):
     print(f'Writing {args.systemd_dest} ...')
     try:
         open(args.systemd_dest, 'w').write(systemd_script)
-    except PermissionError as p:
+    except PermissionError:
         print()
         print(f' -- PermissionError trying to write to {args.systemd_dest}!')
         print()
@@ -156,4 +156,4 @@ def main(args=None):
               'the service file in the current directory.  Then install it with:')
         print()
         print(f'   sudo cp ./{args.service_name} {args.service_dir}')
-        print(f'   sudo systemctl daemon-reload')
+        print('   sudo systemctl daemon-reload')

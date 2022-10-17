@@ -29,7 +29,7 @@ class ControlClient():
                              'args': args, 'kwargs': kwargs})
         try:
             r = requests.post(self.call_url, data=params)
-        except requests.exceptions.ConnectionError as e:
+        except requests.exceptions.ConnectionError:
             raise ControlClientError([0, 0, 0, 0, 'client_http.error.connection_error',
                                       ['Failed to connect to %s' % self.call_url], {}])
         if r.status_code != 200:

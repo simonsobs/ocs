@@ -60,7 +60,7 @@ def test_fake_data_delay_task_abort(agent):
     session = create_session('delay_task')
     params = {'delay': 0.001, 'succeed': True}
     D1 = agent.delay_task(session, params=params)
-    D2 = yield agent._abort_delay_task(session, params=None)
+    yield agent._abort_delay_task(session, params=None)
     res = yield D1
     assert res[0] is False
 

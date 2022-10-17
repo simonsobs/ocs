@@ -9,7 +9,6 @@ from twisted.internet.error import ReactorNotRunning
 
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
-from autobahn.twisted.util import sleep as dsleep
 import deprecation
 
 
@@ -64,7 +63,6 @@ def run_control_script(function, parser=None, *args, **kwargs):
     pargs = parser.parse_args()
     ocs.site_config.reparse_args(pargs, '*control*')
     server, realm = pargs.site_hub, pargs.site_realm
-    addr = pargs.address_root
     session = ControlClientSession(ComponentConfig(realm, {}), function,
                                    [pargs] + list(args), kwargs)
     runner = ApplicationRunner(server, realm)

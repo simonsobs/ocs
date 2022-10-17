@@ -1,12 +1,10 @@
-from ocs import ocs_agent, site_config, client_t, ocs_feed
+from ocs import ocs_agent, site_config, ocs_feed
 import time
 import threading
-import os
 import txaio
 
 from os import environ
 import numpy as np
-from autobahn.wamp.exception import ApplicationError
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
 

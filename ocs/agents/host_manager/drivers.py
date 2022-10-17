@@ -258,7 +258,7 @@ class AgentProcessHelper(protocol.ProcessProtocol):
         pass
 
     def processExited(self, status):
-        #print('%s.status:' % self.instance_id, status)
+        # print('%s.status:' % self.instance_id, status)
         self.status = status, time.time()
 
     def outReceived(self, data):

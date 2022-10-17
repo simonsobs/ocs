@@ -1,1 +1,1 @@
-from ocs import client_cli
+from ocs import client_cli  # noqa: F401

@@ -4,7 +4,7 @@ repos:
     hooks:
     -   id: check-ast
     -   id: check-yaml
-    #-   id: end-of-file-fixer
+    -   id: end-of-file-fixer
     #-   id: trailing-whitespace
 #-   repo: https://github.com/pre-commit/mirrors-autopep8
 #    rev: v1.7.0

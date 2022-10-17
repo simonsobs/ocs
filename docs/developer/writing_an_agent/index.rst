@@ -28,4 +28,3 @@ Process and can publish data to a Feed.
     arguments
     docker
     next
-

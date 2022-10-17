@@ -224,4 +224,3 @@ heartbeat registration callback::
         def _register_heartbeat(self, _data):
             msg, feed = _data
             self.registered_agents[feed['agent_address']].refresh()
-

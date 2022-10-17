@@ -984,4 +984,3 @@ def main_local(args=None):
         elif action == 'generate_crossbar_config':
             cm = supports.crossbar['ctrl']
             generate_crossbar_config(cm, site_config)
-

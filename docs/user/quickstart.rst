@@ -248,4 +248,3 @@ If you would like to totally remove all trace of your OCS instance, including
 the storage volumes, run::
 
     $ sudo docker-compose down --volumes
-

@@ -113,4 +113,3 @@ Supporting APIs
 ---------------
 .. autoclass:: ocs.agents.registry.agent.RegisteredAgent
     :members:
-

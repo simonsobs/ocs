@@ -89,5 +89,3 @@ with the bash shell. You can also run other commands, such as ``so3g-dump``
 readable format::
 
   $ docker exec ocs-util so3g-dump /data/path/to/file.g3
-
-

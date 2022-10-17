@@ -411,4 +411,3 @@ looks like::
         parser = site_config.add_arguments()
         parser.add_argument('--target', default="thermo1")
         client_t.run_control_script(my_client_function, parser=parser)
-

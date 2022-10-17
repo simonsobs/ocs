@@ -96,8 +96,8 @@ function, which typically will look like this:
             session.set_status('stopping')
 
 Within the Task function, at points that are reasonable to request an abort,
-you must add a check of the ``session.status`` that then exits the Task if the
-status is no longer running. For example:
+you must add a check of the ``session.status`` that then exits the Task with an
+error (i.e. returns ``False``) if the status is no longer running. For example:
 
 .. code-block:: python
 
@@ -106,7 +106,9 @@ status is no longer running. For example:
 
 Where you insert this interrupt code will vary from Agent to Agent. Tasks that
 run quickly do not need an abort to be implemented at all. However, for long
-running Tasks abort should be implemented.
+running Tasks abort should be implemented. (We will see this interruption
+implementation again in the next step where we discuss
+:ref:`adding_a_process`.)
 
 When registering the Task, the aborter must be specified:
 

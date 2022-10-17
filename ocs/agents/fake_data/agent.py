@@ -207,7 +207,8 @@ class FakeDataAgent:
     def delay_task(self, session, params):
         """delay_task(delay=5, succeed=True)
 
-        **Task** - Sleep (delay) for the requested number of seconds.
+        **Task** (abortable) - Sleep (delay) for the requested number of
+        seconds.
 
         This can run simultaneously with the acq Process.  This Task
         should run in the reactor thread.

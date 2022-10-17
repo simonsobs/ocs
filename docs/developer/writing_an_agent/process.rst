@@ -1,3 +1,5 @@
+.. _adding_a_process:
+
 Adding a Process
 ----------------
 

@@ -23,6 +23,7 @@ class FakeDataAgent:
         self.log = agent.log
         self.lock = threading.Semaphore()
         self.job = None
+
         self.channel_names = ['channel_%02i' % i for i in range(num_channels)]
         self.sample_rate = max(1e-6, sample_rate) # #nozeros
 
@@ -164,6 +165,23 @@ class FakeDataAgent:
         return (ok, {True: 'Requested process stop.',
                      False: 'Failed to request process stop.'}[ok])
 
+    @inlineCallbacks
+    def count_seconds(self, session, params):
+        # This process runs entirely in the reactor, as does its stop function.
+        session.data = {'counter': 0,
+                        'last_update': time.time()}
+        session.set_status('running')
+        while session.status == 'running':
+            yield dsleep(1)
+            session.data['last_update'] = time.time()
+            session.data['counter'] += 1
+        return True, 'Exited on request.'
+
+    @inlineCallbacks
+    def _stop_count_seconds(self, session, params):
+        yield  # Make this a generator.
+        session.set_status('stopping')
+
     # Tasks
     
     @ocs_agent.param('heartbeat', default=True, type=bool)
@@ -189,7 +207,8 @@ class FakeDataAgent:
     def delay_task(self, session, params):
         """delay_task(delay=5, succeed=True)
 
-        **Task** - Sleep (delay) for the requested number of seconds.
+        **Task** (abortable) - Sleep (delay) for the requested number of
+        seconds.
 
         This can run simultaneously with the acq Process.  This Task
         should run in the reactor thread.
@@ -216,13 +235,23 @@ class FakeDataAgent:
                         'delay_so_far': 0}
         session.set_status('running')
         t0 = time.time()
-        while True:
+        while session.status == 'running':
             session.data['delay_so_far'] = time.time() - t0
             sleep_time = min(0.5, delay - session.data['delay_so_far'])
             if sleep_time < 0:
                 break
             yield dsleep(sleep_time)
+
+        if session.status != 'running':
+            return False, 'Aborted after %.1f seconds' % session.data['delay_so_far']
+
         return succeed, 'Exited after %.1f seconds' % session.data['delay_so_far']
+
+    @inlineCallbacks
+    def _abort_delay_task(self, session, params):
+        if session.status == 'running':
+            session.set_status('stopping')
+        yield
 
 
 def add_agent_args(parser_in=None):
@@ -262,8 +291,11 @@ def main(args=None):
                           frame_length=args.frame_length)
     agent.register_process('acq', fdata.acq, fdata._stop_acq,
                            blocking=True, startup=startup)
+    agent.register_process('count', fdata.count_seconds, fdata._stop_count_seconds,
+                           blocking=False, startup=startup)
     agent.register_task('set_heartbeat', fdata.set_heartbeat)
-    agent.register_task('delay_task', fdata.delay_task, blocking=False)
+    agent.register_task('delay_task', fdata.delay_task, blocking=False,
+                        aborter=fdata._abort_delay_task)
 
     runner.run(agent, auto_reconnect=True)
 

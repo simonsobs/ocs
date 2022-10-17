@@ -40,8 +40,7 @@ Process (referred to generally "Operation") exposed by the OCS Agent with the
 specified ``agent-instance-id``. Each of these attributes has a set of methods
 associated with them for controlling the Operation. The methods for running an
 Agent's Operations are described in :ref:`agent_ops`. They are "start",
-"status", "wait", and "stop" ("abort" is not implemented at the time of this
-writing.)
+"status", "wait", "stop" (Process only) and "abort" (Task only).
 
 Once the Client is instantiated, Operations can be commanded, for example, to
 start a Process called 'acq' (a common Process name for beginning data

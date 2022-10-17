@@ -187,8 +187,10 @@ class Registry:
 
         return True, "Stopped registry main process"
 
+    @inlineCallbacks
     def _stop_main(self, session, params):
         """Stop function for the 'main' process."""
+        yield
         if self._run:
             session.set_status('stopping')
             self._run = False

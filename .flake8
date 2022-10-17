@@ -1,0 +1,15 @@
+[flake8]
+max_line_length = 80
+ignore =
+    # Line too long
+    E501,
+    # module level import not at top of file
+    E402,
+    # line break before binary operator
+    W503,
+in-place = true
+recursive = true
+aggressive = 2
+exclude =
+    versioneer.py,
+    docs/conf.py,

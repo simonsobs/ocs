@@ -183,7 +183,7 @@ class FakeDataAgent:
         session.set_status('stopping')
 
     # Tasks
-    
+
     @ocs_agent.param('heartbeat', default=True, type=bool)
     def set_heartbeat(self, session, params):
         """set_heartbeat(heartbeat=True)
@@ -282,7 +282,7 @@ def main(args=None):
     startup = False
     if args.mode == 'acq':
         startup=True
-    
+
     agent, runner = ocs_agent.init_site_agent(args)
 
     fdata = FakeDataAgent(agent,

@@ -9,8 +9,8 @@ ocs-util
 Overview
 ========
 
-In many situations you might want to run OCS clients or view so3g data without 
-having to install the software on your local system. The ocs-util container is a 
+In many situations you might want to run OCS clients or view so3g data without
+having to install the software on your local system. The ocs-util container is a
 general purpose utility docker container which can be used to easily view data
 or run ocs clients through a jupyter notebook or a command line interface.
 
@@ -23,7 +23,7 @@ The ocs-util container can be setup by putting the following entry in your syste
   ocs-util:
     image: ocs-util:latest
     container_name: ocs-util
-    environment: 
+    environment:
       JUPYTER_PORT: 8880
       JUPYTER_PW: password
     volumes:
@@ -32,15 +32,15 @@ The ocs-util container can be setup by putting the following entry in your syste
     ports:
       - 8880:8880
 
-Then on docker-compose up, the ocs-util container will automatically start up a 
+Then on docker-compose up, the ocs-util container will automatically start up a
 Jupyter Lab server on port 8880, with a password "password". To change the port,
-you can change the ``JUPYTER_PORT`` environment variable, and change the 
+you can change the ``JUPYTER_PORT`` environment variable, and change the
 ``ports`` entry to expose your chosen port.
 
 .. warning::
 
-    It is highly recommended that you change ``JUPYTER_PW`` to something other than 
-    "password", since access to this notebook will give anyone the opportunity to run 
+    It is highly recommended that you change ``JUPYTER_PW`` to something other than
+    "password", since access to this notebook will give anyone the opportunity to run
     arbitrary code from the "ocs" user.
 
 .. note::
@@ -65,19 +65,19 @@ local computer, with::
 again, replacing ``<port>``, ``<user>``, and ``<host>`` with relevant info.
 
 .. note::
-  
-  You can easily see which port of an existing ocs-util container is open with 
-  the `docker ps` command. When the ocs-util docker is running, the output might 
+
+  You can easily see which port of an existing ocs-util container is open with
+  the `docker ps` command. When the ocs-util docker is running, the output might
   look something like this::
 
     CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                        NAMES
     c34c91d57f14        ocs-util:latest     "jupyter notebook /d…"   24 minutes ago      Up 24 minutes       0.0.0.0:8880->8880/tcp       ocs-util
 
-  Under the ``PORTS`` column, the line ``0.0.0.0:8880->8880/tcp`` means that port 
+  Under the ``PORTS`` column, the line ``0.0.0.0:8880->8880/tcp`` means that port
   8880 has been exposed, and that is how you can reach the jupyter server.
 
 
-One common way of utilizing ``ocs-util`` is by using the ``docker-exec`` command, 
+One common way of utilizing ``ocs-util`` is by using the ``docker-exec`` command,
 which will run an executable within the docker-container. For example, to enter
 a bash environment inside ``ocs-util`` you can run::
 

@@ -171,7 +171,7 @@ become:
 
 To launch this agent, for testing, you can run::
 
-  $ ocs-local-support start agent --site-host=host-1-docker --foreground 
+  $ ocs-local-support start agent --site-host=host-1-docker --foreground
 
 (The ``--site-host`` argument helps ocs-local-support to find the
 HostManager config in the host-1-docker block of site config, instead

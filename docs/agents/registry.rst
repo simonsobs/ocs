@@ -44,8 +44,8 @@ Description
 -----------
 
 The registry agent is used to keep track of currently running active agents.
-It listens to the heartbeat feeds of all agents on the crossbar server, 
-and keeps track of the last heartbeat time of each agent and whether 
+It listens to the heartbeat feeds of all agents on the crossbar server,
+and keeps track of the last heartbeat time of each agent and whether
 or not each agent has agent has "expired" (gone 5 seconds without a heartbeat).
 
 This check happens in the registry's single "main" process. The session.data

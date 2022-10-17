@@ -61,21 +61,21 @@ class Registry:
     """
         The Registry agent is in charge of keeping track of which agents are
         currently running. It has a single process "main" that loops and keeps track
-        of when agents expire. This agent subscribes to all heartbeat feeds, 
+        of when agents expire. This agent subscribes to all heartbeat feeds,
         so no additional function calls are required to register an agent.
 
         A list of agent statuses is maintained in the "main" process's session.data
         object.
 
-        Args: 
+        Args:
             agent (OCSAgent):
                 the ocs agent object
 
         Attributes:
             registered_agents (defaultdict):
-                A defaultdict of RegisteredAgent objects, which contain whether 
-                the agent has expired, the time_expired, and the last_updated 
-                time. 
+                A defaultdict of RegisteredAgent objects, which contain whether
+                the agent has expired, the time_expired, and the last_updated
+                time.
             agent_timeout (float):
                 The time an agent has between heartbeats before being marked
                 as expired.
@@ -218,7 +218,7 @@ def main(args=None):
 
     agent.register_process('main', registry.main, registry._stop_main, blocking=False, startup=True)
     agent.register_task('register_agent', registry._register_agent, blocking=False)
-    
+
     runner.run(agent, auto_reconnect=True)
 
 

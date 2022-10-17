@@ -3,7 +3,7 @@ Dockerizing an Agent
 
 Now that our Agent is complete, and we know it runs natively we want to deploy
 it. A common way to do this is using Docker. Depending on the context for your
-development this process might look different. 
+development this process might look different.
 
 #. If you are adding an Agent to an existing OCS plugin you might be able to
    use the Docker image provided by that plugin (assuming it provides one.)
@@ -29,13 +29,13 @@ creating a file called ``Dockerfile`` in your Agent's directory:
 
     # OCS Barebones Agent
     # ocs Agent for demonstrating how to write an Agent
-    
+
     # Use ocs base image
     FROM simonsobs/ocs:latest
-    
+
     # Set the working directory to copy your Agent into
     WORKDIR /app/agents/barebones_agent/
-    
+
     # If there are extra dependencies install them here
 
     # Copy the current directory into the WORKDIR
@@ -43,7 +43,7 @@ creating a file called ``Dockerfile`` in your Agent's directory:
 
     # Run registry on container startup
     ENTRYPOINT ["dumb-init", "ocs-agent-cli"]
-    
+
     # Set default commandline arguments
     CMD ["--agent", "barebones_agent.py", "--entrypoint", "main"]
 
@@ -79,19 +79,19 @@ the BarbonesAgent config to the ``ocs-docker`` host.:
 
     # Site configuration for a fake observatory.
     hub:
-    
+
       wamp_server: ws://localhost:8001/ws
       wamp_http: http://localhost:8001/call
       wamp_realm: test_realm
       address_root: observatory
       registry_address: observatory.registry
-    
+
     hosts:
-    
+
       ocs-docker: {
         'wamp_server': 'ws://crossbar:8001/ws',
         'wamp_http': 'http://crossbar:8001/call',
-    
+
         'agent-instances': [
           {'agent-class': 'BarebonesAgent',
            'instance-id': 'barebones1',

@@ -254,7 +254,7 @@ class OCSAgent(ApplicationSession):
         #self.publish('observatory.%s.log', text)
 
     """The methods below provide OCS framework support."""
-            
+
     def encoded(self):
         """
         Returns a dict describing this Agent.  Includes 'agent_address',
@@ -705,7 +705,7 @@ class OCSAgent(ApplicationSession):
             session.d.addCallback(self._handle_task_return_val, session)
             session.d.addErrback(self._handle_task_error, session)
             return (ocs.OK, msg, session.encoded())
-        
+
         else:
             self.log.warn("No task called {}".format(op_name))
             return (ocs.ERROR, 'No task or process called "%s"' % op_name, {})
@@ -732,7 +732,7 @@ class OCSAgent(ApplicationSession):
         """
         if not (op_name in self.tasks or op_name in self.processes):
             return (ocs.ERROR, 'Unknown operation "%s".' % op_name, {})
-        
+
         session = self.sessions[op_name]
         if session is None:
             return (ocs.OK, 'Idle.', {})
@@ -1107,7 +1107,7 @@ class OpSession:
         Args:
             status (string): New value for status (see below).
             timestamp (float): timestamp for the operation.
-            log_status (bool): Determines whether change is logged in 
+            log_status (bool): Determines whether change is logged in
                 message buffer.
 
         The possible values for status are:

@@ -57,7 +57,7 @@ class HostManager:
             if not p in sys.path:
                 sys.path.append(p)
         site_config.scan_for_agents()
-        
+
         # Gather managed items from site config.
         warnings = []
         instances = {}

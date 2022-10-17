@@ -35,7 +35,7 @@ def main():
     v1 = yield d1
     v2 = yield d2
     print('Computed %i and %i in %.2f seconds' % (v1, v2, time.time() - t0))
-    
+
     t0 = time.time()
     print('Method 2 - launch two blocking operations, one after the other.')
     # Get the deferred d1 but then immediately 'yield' on it, to get
@@ -54,7 +54,7 @@ def main():
 
     print('Done, stopping the reactor.')
     reactor.stop()
-    
+
 #Set up "callable" to be run, in the reactor thread, at the next
 #opportunity.  Since the reactor is not currently running, the next
 #opportunity will be shortly after we call reactor.run().

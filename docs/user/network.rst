@@ -75,7 +75,7 @@ Docker network::
     user@node01:~$ docker network create --driver bridge ${NETWORK}
 
 Here you can name the network whatever you would like. We will use "ocs-net" in
-the example below. 
+the example below.
 
 .. note::
     If you are going to eventually setup a multi-node configuration you might
@@ -128,7 +128,7 @@ functionality is useful.
 
         Compose does not use swarm mode to deploy services to multiple nodes in
         a swarm. All containers are scheduled on the current node.
-        
+
         To deploy your application across the swarm, use `docker stack deploy`.
 
     This is normal, and can be safely ignored.
@@ -138,11 +138,11 @@ To start, pick one of your compute nodes to be the swarm "manager". We will use
 
     user@node01:~$ docker swarm init
     Swarm initialized: current node (vz1mm9am11qcmo979tlrlox42) is now a manager.
-    
+
     To add a worker to this swarm, run the following command:
-    
+
         docker swarm join --token SWMTKN-1-5g90q48weqrtqryq4kj6ow0e8xm9wmv9o6vgqc5j320ymybd5c-8ex8j0bc40s6hgvy5ui5gl4gy 172.31.47.252:2377
-    
+
     To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
 
 This initializes the swarm. On your other nodes (we'll stick to one other node,

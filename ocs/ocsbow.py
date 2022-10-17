@@ -118,7 +118,7 @@ def get_args_and_site_config(args=None, parser_func=None):
 def render_crossbar_config_example(pars):
     """Returns the text of a basic crossbar config file, suitable for OCS
     use.
-    
+
     """
     _pars = {
         'realm': 'debug_realm',
@@ -126,7 +126,7 @@ def render_crossbar_config_example(pars):
         'port': 8001,
     }
     _pars.update(pars)
-    
+
     # Generate configuration file.
     template_file = os.path.join(os.path.split(ocs.__file__)[0],
                                  'support/crossbar_config.json')
@@ -370,7 +370,7 @@ def generate_crossbar_config(cm, site_config):
     else:
         cb_filename = os.path.join(cm.crossbar.cbdir, 'config.json')
         print('The crossbar config-dir is set to:\n  %s\n'
-              'Using\n  %s\nas the target output file.\n' % 
+              'Using\n  %s\nas the target output file.\n' %
               (cm.crossbar.cbdir, cb_filename))
 
     print('Generating crossbar config text.')

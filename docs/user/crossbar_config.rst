@@ -59,7 +59,7 @@ ocs-site-config file. Now we can generate the config::
     Using
       ./dot_crossbar/config.json
     as the target output file.
-    
+
     Generating crossbar config text.
     Wrote ./dot_crossbar/config.json
 

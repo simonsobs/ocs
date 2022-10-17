@@ -168,7 +168,7 @@ class TestPublishMessage:
             test_feed.publish_message(test_message)
 
     def test_data_key_too_long(self):
-        """Passing a data key that exceeds 255 characters should raise a 
+        """Passing a data key that exceeds 255 characters should raise a
         ValueError upon publishing.
 
         """

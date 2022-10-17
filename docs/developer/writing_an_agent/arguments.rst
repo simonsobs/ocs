@@ -24,7 +24,7 @@ which will cause the count Process to run immediately upon startup.
         pgroup.add_argument('--mode', type=str, default='count',
                             choices=['idle', 'count'],
                             help="Starting action for the Agent.")
-    
+
         return parser_in
 
 In the ``if __name__ == '__main__':`` block we then add:

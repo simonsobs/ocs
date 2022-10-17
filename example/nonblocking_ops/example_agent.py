@@ -32,7 +32,7 @@ class MyHardwareDevice:
           designated for use in a worker thread (e.g. callFromThread).
 
         Blocking Operation functions require no special decoration.
-        """        
+        """
         for step in range(5):
             session.add_message('task1-blocking step %i' % step)
             time.sleep(1)
@@ -56,7 +56,7 @@ class MyHardwareDevice:
 
         - cause the function to block or sleep using non-twisted
           methods.
-        
+
         Within twisted, asynchronous routines that perform blocking
         operations (without blocking the reactor thread) will return a
         Deferred object, immediately, instead of the result of the

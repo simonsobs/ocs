@@ -10,7 +10,7 @@ import collections
 import deprecation
 import errno
 
-    
+
 class SiteConfig:
     def __init__(self):
         self.hosts = {}
@@ -53,7 +53,7 @@ class SiteConfig:
             self.hosts[k] = HostConfig.from_dict(v, parent=self, name=k)
         self.hub = HubConfig.from_dict(data['hub'], parent=self)
         return self
-        
+
     @classmethod
     def from_yaml(cls, filename):
         filename = os.path.abspath(filename)
@@ -70,7 +70,7 @@ class HostConfig:
         self.agent_paths = []
         self.log_dir = None
         self.working_dir = os.getcwd()
- 
+
     @classmethod
     def from_dict(cls, data, parent=None, name=None):
         """Args:
@@ -79,7 +79,7 @@ class HostConfig:
                 (this is stored as self.parent, but not used).
 
         The configuration dictionary should have the following elements:
-       
+
         ``agent-instances`` (required)
             A list of AgentConfig descriptions.
 
@@ -215,7 +215,7 @@ class InstanceConfig:
                 (this is stored as self.parent, but not used).
 
         The configuration dictionary should have the following elements:
-       
+
         ``instance-id`` (str, required)
             This string is used to set the Agent instance's base
             address.  This may also be matched against the instance-id
@@ -398,7 +398,7 @@ def add_arguments(parser=None):
     group.add_argument('--working-dir', help=
     """Propagate the working directory.""")
     return parser
-    
+
 def get_config(args, agent_class=None):
     """
     Args:
@@ -418,7 +418,7 @@ def get_config(args, agent_class=None):
     """
     if args.site == 'none':
         return (None,None,None)
-    
+
     site_file = args.site_file
     site = args.site
     if site_file is None:

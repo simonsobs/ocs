@@ -40,14 +40,14 @@ example Compose file looks like::
     version: '3.7'
     volumes:
       loki-storage:
-    
+
     x-log-options:
       &log-options
       logging:
         driver: loki
         options:
           loki-url: "http://localhost:3100/loki/api/v1/push"
-    
+
     services:
       loki:
         image: grafana/loki:1.5.0
@@ -59,7 +59,7 @@ example Compose file looks like::
         volumes:
           - loki-storage:/loki
         command: -config.file=/etc/loki/local-config.yaml
-    
+
     networks:
       default:
         external:

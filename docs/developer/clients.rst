@@ -320,13 +320,13 @@ When writing a script with the ``ocs.client_t`` module, typically we will define
 a function and then run it using :func:`ocs.client_t.run_control_script`. The general
 form of our program will be something like::
 
-    import ocs 
+    import ocs
     from ocs import client_t, site_config
-    
+
     def my_client_function(app, pargs):
         # Definition and use of Agent Tasks + Processes
         pass
-    
+
     if __name__ == '__main__':
         parser = site_config.add_arguments()
         parser.add_argument('--target', default="thermo1")
@@ -343,10 +343,10 @@ To do so we need to know what address to reach our Agent at::
         # Register addresses and operations
         therm_instance = pargs.target
         therm_address = '{}.{}'.format(root, therm_instance)
-        therm_ops = { 
+        therm_ops = {
             'init': client_t.TaskClient(app, therm_address, 'init_lakeshore'),
             'acq': client_t.ProcessClient(app, therm_address, 'acq')
-        }   
+        }
 
 In this code block we define the root of our address space, which by default is
 'observatory'. We combine this along with the target defined in
@@ -385,16 +385,16 @@ When calling a Process, we just use "start"::
 This will continue running until we command it to stop. Our full Control Program
 looks like::
 
-    import ocs 
+    import ocs
     from ocs import client_t, site_config
-    
+
     def my_client_function(app, pargs):
         root = 'observatory'
 
         # Register addresses and operations
         therm_instance = pargs.target
         therm_address = '{}.{}'.format(root, therm_instance)
-        therm_ops = { 
+        therm_ops = {
             'init': client_t.TaskClient(app, therm_address, 'init_lakeshore'),
             'acq': client_t.ProcessClient(app, therm_address, 'acq')
         }
@@ -406,7 +406,7 @@ looks like::
         print("Starting Data Acquisition")
         yield therm_ops['acq'].start()
 
-    
+
     if __name__ == '__main__':
         parser = site_config.add_arguments()
         parser.add_argument('--target', default="thermo1")

@@ -62,7 +62,7 @@ def test_passing_non_float_like_str_in_provider_to_frame():
     """Similar to passing a float like str, here we test passing a non-float
     like str. We can't put this into an so3g.IrregBlockDouble(), so this'll fail.
     We raise a TypeError when this happens and describe the type of the passed in
-    data. 
+    data.
 
     """
     # Dummy Provider for testing

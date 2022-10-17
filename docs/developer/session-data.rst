@@ -55,7 +55,7 @@ Fake Data Agent as an example, specifically at its primary Process,
 
         """
         ok, msg = self.try_set_job('acq')
-        if not ok: return ok, msg 
+        if not ok: return ok, msg
         session.set_status('running')
 
         if params is None:
@@ -80,16 +80,16 @@ Fake Data Agent as an example, specifically at its primary Process,
                     return 10
 
             now = time.time()
-            delay_time = next_report - now 
+            delay_time = next_report - now
             if delay_time > 0:
                 time.sleep(min(delay_time, 1.))
                 continue
 
             # Safety: if we ever get waaaay behind, reset.
-            if delay_time / reporting_interval < -3: 
+            if delay_time / reporting_interval < -3:
                 self.log.info('Got way behind in reporting: %.1s seconds. '
                               'Dropping fake data.' % delay_time)
-                next_timestamp = now 
+                next_timestamp = now
                 next_report = next_timestamp + reporting_interval
                 continue
 
@@ -100,7 +100,7 @@ Fake Data Agent as an example, specifically at its primary Process,
             next_report += reporting_interval
 
             # This is to handle the (acceptable) case of sample_rate < 0.
-            if (n_data <= 0): 
+            if (n_data <= 0):
                 time.sleep(.1)
                 continue
 
@@ -177,12 +177,12 @@ likely want to access it via an OCS client. The ``session`` object is returned
 by all :ref:`Operation Methods<op_replies>`, for instance the ``status`` method, as shown in this small example::
 
     from ocs.ocs_client import OCSClient
-    
+
     therm_client = OCSClient('fake-data1')
     therm_client.acq.start()
-    
+
     response = therm_client.acq.status()
-    
+
 After running the client we can examine the data dict stored within the response::
 
     >>> print(response.session.get('data'))

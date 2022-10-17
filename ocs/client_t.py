@@ -114,7 +114,7 @@ class OperationClient:
         self.app = app
         self.root = root_address
         self.op_name = op_name
-        
+
     def request(self, action, params=None, timeout=None):
         return self.app.call(self.root + '.ops', action, self.op_name,
                              params=params, timeout=timeout)

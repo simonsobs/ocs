@@ -6,4 +6,4 @@ quaternionarray
 toml
 
 # Requirement for sotoddb
-h5py 
+h5py

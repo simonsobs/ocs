@@ -10,6 +10,7 @@ class TestPublishMessage:
     """Test ocs_feed.Feed.publish_message().
 
     """
+
     def test_valid_single_sample_input(self):
         """We should be able to pass single ints and floats to a feed.
 
@@ -37,7 +38,7 @@ class TestPublishMessage:
 
         test_message = {
             'block_name': 'test',
-            'timestamps': [time.time(), time.time()+1],
+            'timestamps': [time.time(), time.time() + 1],
             'data': {
                 'key1': [1., 2.],
                 'key2': [10, 5]
@@ -84,7 +85,7 @@ class TestPublishMessage:
 
         test_message = {
             'block_name': 'test',
-            'timestamps': [time.time(), time.time()+1, time.time()+2],
+            'timestamps': [time.time(), time.time() + 1, time.time() + 2],
             'data': {
                 'key1': [True, False, True],
             }
@@ -118,7 +119,7 @@ class TestPublishMessage:
 
         test_message = {
             'block_name': 'test',
-            'timestamps': [time.time(), time.time()+1, time.time()+2],
+            'timestamps': [time.time(), time.time() + 1, time.time() + 2],
             'data': {
                 'key1': [1., 3.4, 4.3],
                 'key2': [10., 'string', None]
@@ -179,7 +180,7 @@ class TestPublishMessage:
             'block_name': 'test',
             'timestamp': time.time(),
             'data': {
-                'a'*256: 1.,
+                'a' * 256: 1.,
                 'valid_key2': 1.,
             }
         }
@@ -290,6 +291,8 @@ class TestPublishMessage:
             test_feed.publish_message(test_message)
 
 # ocs_feed.Block
+
+
 def test_block_creation():
     """Test the creation of a simple feed Block."""
     test_block = ocs_feed.Block('test_block', ['key1'])

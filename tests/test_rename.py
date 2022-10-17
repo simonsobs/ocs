@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ocs import rename
 
+
 def test_rename_main(tmpdir):
     """Test rename.main(), should hit most of the rename module. Tests renaming
     a directory with a single file in it.
@@ -15,6 +16,7 @@ def test_rename_main(tmpdir):
     rename.main(p, verbose=1)
 
     assert os.path.isfile(os.path.join(p, "1577880000.g3"))
+
 
 def test_rename_single_file(tmpdir):
     """target can be a single file, so we test tarting a file instead of a
@@ -28,6 +30,7 @@ def test_rename_single_file(tmpdir):
     rename.main(os.path.join(p, filename))
 
     assert os.path.isfile(os.path.join(p, "1577880000.g3"))
+
 
 def test_nonmatching_filename(tmpdir):
     """Files must match the datestring time format, else we won't run them.
@@ -43,6 +46,7 @@ def test_nonmatching_filename(tmpdir):
 
     # file should remain unaffected
     assert os.path.isfile(os.path.join(p, filename))
+
 
 def test_file_collision(tmpdir):
     """If we somehow end up with a matching timestring we shouldn't overwrite

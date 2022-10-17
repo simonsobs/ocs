@@ -4,6 +4,7 @@ import time
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
 
+
 class MyHardwareDevice:
 
     """

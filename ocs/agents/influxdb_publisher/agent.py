@@ -39,6 +39,7 @@ class InfluxDBAgent:
         loop_time (float):
             Time between iterations of the run loop.
     """
+
     def __init__(self, agent, args):
         self.agent: ocs_agent.OCSAgent = agent
         self.log = agent.log

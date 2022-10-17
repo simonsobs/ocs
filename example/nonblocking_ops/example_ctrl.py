@@ -8,6 +8,7 @@ examples lying around.
 import ocs
 from ocs import client_t
 
+
 def my_script(app, parser_args, target=None):
     print('Entered my_script')
 

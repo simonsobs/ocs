@@ -3,6 +3,7 @@ from twisted.internet.defer import inlineCallbacks, Deferred
 
 import time
 
+
 def blockingCalculation(a, b):
     """
     Returns a*b, slowly.  This is an example of a function that
@@ -11,12 +12,14 @@ def blockingCalculation(a, b):
     time.sleep is enough.
     """
     time.sleep(2.)  # thinking...
-    return a*b
+    return a * b
+
 
 def backgroundTick():
     """Print a tick message, and schedule self to re-run regularly."""
     print(' %.1f tick ' % time.time())
     reactor.callLater(0.3, backgroundTick)
+
 
 @inlineCallbacks
 def main():
@@ -55,9 +58,10 @@ def main():
     print('Done, stopping the reactor.')
     reactor.stop()
 
-#Set up "callable" to be run, in the reactor thread, at the next
-#opportunity.  Since the reactor is not currently running, the next
-#opportunity will be shortly after we call reactor.run().
+
+# Set up "callable" to be run, in the reactor thread, at the next
+# opportunity.  Since the reactor is not currently running, the next
+# opportunity will be shortly after we call reactor.run().
 reactor.callWhenRunning(main)
 
 # Start the reactor.

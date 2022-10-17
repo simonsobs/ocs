@@ -14,6 +14,7 @@ from autobahn.twisted.util import sleep as dsleep
 txaio.use_twisted()
 LOG = txaio.make_logger()
 
+
 class FakeDataAgent:
     def __init__(self, agent,
                  num_channels=2,
@@ -25,7 +26,7 @@ class FakeDataAgent:
         self.job = None
 
         self.channel_names = ['channel_%02i' % i for i in range(num_channels)]
-        self.sample_rate = max(1e-6, sample_rate) # #nozeros
+        self.sample_rate = max(1e-6, sample_rate)  # nozeros
 
         # Register feed
         agg_params = {
@@ -40,7 +41,7 @@ class FakeDataAgent:
     # Exclusive access management.
     def try_set_job(self, job_name):
         with self.lock:
-            if self.job == None:
+            if self.job is None:
                 self.job = job_name
                 return True, 'ok.'
             return False, 'Conflict: "%s" is already running.' % self.job
@@ -79,7 +80,8 @@ class FakeDataAgent:
 
         """
         ok, msg = self.try_set_job('acq')
-        if not ok: return ok, msg
+        if not ok:
+            return ok, msg
         session.set_status('running')
 
         T = [.100 for c in self.channel_names]
@@ -158,7 +160,7 @@ class FakeDataAgent:
     def _stop_acq(self, session, params):
         ok = False
         with self.lock:
-            if self.job =='acq':
+            if self.job == 'acq':
                 session.set_status('stopping')
                 self.job = '!acq'
                 ok = True
@@ -270,6 +272,7 @@ def add_agent_args(parser_in=None):
 
     return parser_in
 
+
 def main(args=None):
     # Start logging
     txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
@@ -281,7 +284,7 @@ def main(args=None):
 
     startup = False
     if args.mode == 'acq':
-        startup=True
+        startup = True
 
     agent, runner = ocs_agent.init_site_agent(args)
 
@@ -298,6 +301,7 @@ def main(args=None):
                         aborter=fdata._abort_delay_task)
 
     runner.run(agent, auto_reconnect=True)
+
 
 if __name__ == '__main__':
     main()

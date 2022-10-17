@@ -27,7 +27,7 @@ def timestamp2influxtime(time, protocol):
         t_dt = t_dt.astimezone(tz=timezone.utc)
         influx_t = t_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
     elif protocol == 'line':
-        influx_t = int(time*1e9)  # ns
+        influx_t = int(time * 1e9)  # ns
     return influx_t
 
 
@@ -65,6 +65,7 @@ class Publisher:
             InfluxDB client connection
 
     """
+
     def __init__(self, host, database, incoming_data, port=8086, protocol='line', gzip=False):
         self.host = host
         self.port = port

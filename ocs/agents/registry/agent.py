@@ -6,6 +6,7 @@ from autobahn.twisted.util import sleep as dsleep
 from collections import defaultdict
 from ocs.ocs_feed import Feed
 
+
 class RegisteredAgent:
     """
         Contains data about registered agents.
@@ -23,6 +24,7 @@ class RegisteredAgent:
                 operations. For details on what the operation codes mean, see
                 docs from the ``ocs_agent`` module
     """
+
     def __init__(self, feed):
         self.expired = False
         self.time_expired = None
@@ -30,7 +32,6 @@ class RegisteredAgent:
         self.op_codes = {}
         self.agent_class = feed.get('agent_class')
         self.agent_address = feed['agent_address']
-
 
     def refresh(self, op_codes=None):
         self.expired = False
@@ -80,6 +81,7 @@ class Registry:
                 The time an agent has between heartbeats before being marked
                 as expired.
     """
+
     def __init__(self, agent):
         self.log = agent.log
         self.agent = agent
@@ -89,7 +91,7 @@ class Registry:
 
         # Dict containing agent_data for each registered agent
         self.registered_agents = {}
-        self.agent_timeout = 5.0 # Removes agent after 5 seconds of no heartbeat.
+        self.agent_timeout = 5.0  # Removes agent after 5 seconds of no heartbeat.
 
         self.agent.subscribe_on_start(
             self._register_heartbeat, 'observatory..feeds.heartbeat',
@@ -165,9 +167,9 @@ class Registry:
             }
 
             for addr, agent in self.registered_agents.items():
-                msg = { 'block_name': addr,
-                        'timestamp': time.time(),
-                        'data': {}}
+                msg = {'block_name': addr,
+                       'timestamp': time.time(),
+                       'data': {}}
                 for op_name, op_code in agent.op_codes.items():
                     field = f'{addr}_{op_name}'
                     field = field.replace('.', '_')

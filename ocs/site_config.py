@@ -48,8 +48,8 @@ class SiteConfig:
 
         """
         self = cls()
-        for k,v in data.get('hosts', {}).items():
-            assert (k not in self.hosts) # duplicate host name in config file!
+        for k, v in data.get('hosts', {}).items():
+            assert (k not in self.hosts)  # duplicate host name in config file!
             self.hosts[k] = HostConfig.from_dict(v, parent=self, name=k)
         self.hub = HubConfig.from_dict(data['hub'], parent=self)
         return self
@@ -62,6 +62,7 @@ class SiteConfig:
         self = cls.from_dict(data)
         self.source_file = filename
         return self
+
 
 class HostConfig:
     def __init__(self, name=None):
@@ -111,6 +112,7 @@ class HostConfig:
         self.log_dir = data.get('log-dir', None)
         return self
 
+
 class CrossbarConfig:
     @classmethod
     def from_dict(cls, data, parent=None):
@@ -155,7 +157,7 @@ class CrossbarConfig:
         return summarize_dict({
             'bin': self.binary,
             'config-dir': self.cbdir,
-            })
+        })
 
 
 class HubConfig:
@@ -254,7 +256,7 @@ class InstanceConfig:
 
 def summarize_dict(d):
     output = '\n'.join(['  %s: %s,' % (repr(k), repr(v))
-                        for k,v in d.items()])
+                        for k, v in d.items()])
     return '{\n%s\n}' % output
 
 
@@ -274,6 +276,7 @@ class ArgContainer:
         arg_dict (dict):
             Dictionary of arguments, indexed by argument keyword.
     """
+
     def __init__(self, args):
         self.arg_dict = collections.OrderedDict()
 
@@ -368,36 +371,26 @@ def add_arguments(parser=None):
     if parser is None:
         parser = argparse.ArgumentParser()
     group = parser.add_argument_group('Site Config Options')
-    group.add_argument('--site', help=
-    """Instead of the default site, use the configuration for the
+    group.add_argument('--site', help="""Instead of the default site, use the configuration for the
        specified site.  The configuration is loaded from
        ``$OCS_CONFIG_DIR/{site}.yaml``.  If ``--site=none``, the
        site_config facility will not be used at all.""")
-    group.add_argument('--site-file', help=
-    """Instead of the default site config, use the specified file.  Full
+    group.add_argument('--site-file', help="""Instead of the default site config, use the specified file.  Full
        path must be specified.""")
-    group.add_argument('--site-host', help=
-    """Override the OCS determination of what host this instance is
+    group.add_argument('--site-host', help="""Override the OCS determination of what host this instance is
        running on, and instead use the configuration for the indicated
        host.""")
-    group.add_argument('--site-hub', help=
-    """Override the ocs hub url (wamp_server).""")
-    group.add_argument('--site-http', help=
-    """Override the ocs hub http url (wamp_http).""")
-    group.add_argument('--site-realm', help=
-    """Override the ocs hub realm (wamp_realm).""")
-    group.add_argument('--instance-id', help=
-    """Look in the SCF for Agent-instance specific configuration options,
+    group.add_argument('--site-hub', help="""Override the ocs hub url (wamp_server).""")
+    group.add_argument('--site-http', help="""Override the ocs hub http url (wamp_http).""")
+    group.add_argument('--site-realm', help="""Override the ocs hub realm (wamp_realm).""")
+    group.add_argument('--instance-id', help="""Look in the SCF for Agent-instance specific configuration options,
        and use those to launch the Agent.""")
-    group.add_argument('--address-root', help=
-    """Override the site default address root.""")
-    group.add_argument('--registry-address', help=
-    """Override the site default registry address.""")
-    group.add_argument('--log-dir', help=
-    """Set the logging directory.""")
-    group.add_argument('--working-dir', help=
-    """Propagate the working directory.""")
+    group.add_argument('--address-root', help="""Override the site default address root.""")
+    group.add_argument('--registry-address', help="""Override the site default registry address.""")
+    group.add_argument('--log-dir', help="""Set the logging directory.""")
+    group.add_argument('--working-dir', help="""Propagate the working directory.""")
     return parser
+
 
 def get_config(args, agent_class=None):
     """
@@ -417,7 +410,7 @@ def get_config(args, agent_class=None):
         The tuple (site_config, host_config, device_config).
     """
     if args.site == 'none':
-        return (None,None,None)
+        return (None, None, None)
 
     site_file = args.site_file
     site = args.site
@@ -428,7 +421,7 @@ def get_config(args, agent_class=None):
         site_file = os.path.join(os.getenv('OCS_CONFIG_DIR'),
                                  site + '.yaml')
     else:
-        assert (site is None) # do not pass both --site and --site-file
+        assert (site is None)  # do not pass both --site and --site-file
 
     # Load the site config file.
     site_config = SiteConfig.from_yaml(site_file)
@@ -452,7 +445,7 @@ def get_config(args, agent_class=None):
                 if k in host_config.data.keys()
             }
             site_config.hub.data.update(host_update_dict)
-            #Updates host_config with command line args
+            # Updates host_config with command line args
             if args.working_dir is not None:
                 host_config.working_dir = args.working_dir
             if args.log_dir is not None:
@@ -501,8 +494,7 @@ def get_config(args, agent_class=None):
                     dev, parent=host_config)
     if instance_config is None and not no_dev_match:
         raise RuntimeError("Could not find matching device description.")
-    return collections.namedtuple('SiteConfig', ['site', 'host', 'instance'])\
-        (site_config, host_config, instance_config)
+    return collections.namedtuple('SiteConfig', ['site', 'host', 'instance'])(site_config, host_config, instance_config)
 
 
 def add_site_attributes(args, site, host=None):
@@ -551,7 +543,7 @@ def reparse_args(args, agent_class=None):
     Special values accepted for agent_class:
     - '*control*': do not insist on matching host or device.
     """
-    if args.site=='none':
+    if args.site == 'none':
         return args
 
     site, host, instance = get_config(args, agent_class=agent_class)
@@ -562,8 +554,8 @@ def reparse_args(args, agent_class=None):
         if args.instance_id is None:
             args.instance_id = instance.data['instance-id']
 
-        for k,v in instance.data['arguments']:
-            kprop = k.lstrip('-').replace('-','_')
+        for k, v in instance.data['arguments']:
+            kprop = k.lstrip('-').replace('-', '_')
             print('site_config is setting values of "%s" to "%s".' % (kprop, v))
             setattr(args, kprop, v)
 
@@ -629,6 +621,7 @@ def get_control_client(instance_id, site=None, args=None, start=True,
 # We'll also keep the Agent script registry here.
 agent_script_reg = {}
 
+
 def register_agent_class(class_name, filename):
     """Register an Agent script in the site_config registry.
 
@@ -644,7 +637,7 @@ def register_agent_class(class_name, filename):
 def scan_for_agents(do_registration=True):
     """Identify and import ocs Agent plugin scripts.  This will find all
     modules in the current module search path (sys.path) that begin
-    with the name 'ocs_plugin\_'.
+    with the name 'ocs_plugin\\_'.
 
     Args:
         do_registration (bool): If True, the modules are imported,

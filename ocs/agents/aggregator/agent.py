@@ -41,6 +41,7 @@ class AggregatorAgent:
         loop_time (float):
             Time between iterations of the run loop.
     """
+
     def __init__(self, agent, args):
         self.agent: ocs_agent.OCSAgent = agent
         self.log = agent.log
@@ -157,7 +158,7 @@ def make_parser(parser=None):
                         help="Base directory to store data. "
                              "Subdirectories will be made here.")
     pgroup.add_argument('--initial-state',
-                        default='idle',choices=['idle', 'record'],
+                        default='idle', choices=['idle', 'record'],
                         help="Initial state of argument parser. Can be either"
                              "idle or record")
     pgroup.add_argument('--time-per-file', default='3600',

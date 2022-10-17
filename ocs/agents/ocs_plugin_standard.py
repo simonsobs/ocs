@@ -8,7 +8,7 @@ import ocs
 import os
 root = os.path.abspath(os.path.split(__file__)[0])
 
-for n,f in [
+for n, f in [
         ('RegistryAgent', 'registry/agent.py'),
         ('AggregatorAgent', 'aggregator/agent.py'),
         ('HostManager', 'host_manager/agent.py'),

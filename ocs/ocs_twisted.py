@@ -165,21 +165,22 @@ class Pacemaker:
             print("Acquiring thermometry data...")
             time.sleep(np.random.uniform(0, .3))
     """
+
     def __init__(self, sample_freq, quantize=False):
         self.sample_freq = sample_freq
-        self.sample_time = 1./self.sample_freq
+        self.sample_time = 1. / self.sample_freq
         self.next_sample = time.time()
         self.quantize = quantize
 
-        if quantize and (sample_freq%1 != 0):
+        if quantize and (sample_freq % 1 != 0):
             raise ValueError("Quantization only works for frequencies that are whole numbers.")
 
     def _set_next_sample(self):
         self.next_sample = time.time() + self.sample_time
         if self.quantize:
             # Snaps "next_sample" to grid defined by sample_freq
-            self.next_sample = (self.next_sample + self.sample_time/2) \
-                                // self.sample_time * self.sample_time
+            self.next_sample = (self.next_sample + self.sample_time / 2) \
+                // self.sample_time * self.sample_time
 
     def sleep(self):
         """

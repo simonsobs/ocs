@@ -59,6 +59,7 @@ def test_fake_data_after_crossbar_restart(wait_for_crossbar):
 #     """
 #     pass
 
+
 @pytest.mark.integtest
 def test_aggregator_after_crossbar_restart(wait_for_crossbar):
     """Test that the aggregator reconnects after a crossbar restart and that
@@ -142,8 +143,9 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
 
     # Check for gaps in all timestreams
     # This is an unreliable assertion
-    #for i, dataset in enumerate(data):
+    # for i, dataset in enumerate(data):
     #    assert np.all(np.diff(dataset[0]) < 0.25), f"{all_fields[i]} contains gap in data larger than 0.25 seconds"
+
 
 @pytest.mark.integtest
 def test_proper_agent_shutdown_on_lost_transport(wait_for_crossbar):
@@ -167,7 +169,7 @@ def test_proper_agent_shutdown_on_lost_transport(wait_for_crossbar):
     # 15 seconds should be enough with default 10 second timeout
     timeout = 15
     while timeout > 0:
-        time.sleep(1) # give time for the fake-data-agent to timeout, then shutdown
+        time.sleep(1)  # give time for the fake-data-agent to timeout, then shutdown
         fake_data_container = client.containers.get('ocs-tests-fake-data-agent')
         if fake_data_container.status == "exited":
             break

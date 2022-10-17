@@ -1,6 +1,7 @@
 import ocs
 from enum import Enum
 
+
 class ResponseCode(Enum):
     """Enumeration of response codes from the Operation API (start, stop,
     wait, ...).
@@ -33,6 +34,7 @@ class ResponseCode(Enum):
 OK = ResponseCode.OK.value
 ERROR = ResponseCode.ERROR.value
 TIMEOUT = ResponseCode.TIMEOUT.value
+
 
 class OpCode(Enum):
     """Enumeration of OpSession "op_code" values.

@@ -105,7 +105,6 @@ class ControlClientSession(ApplicationSession):
         yield self.leave()
 
 
-
 class OperationClient:
     """The endpoint client is associated with a single operation rather
     than with an operation server."""
@@ -128,9 +127,11 @@ class OperationClient:
     def wait(self, params=None, timeout=None):
         return self.request('wait', params=params, timeout=timeout)
 
+
 class TaskClient(OperationClient):
     def abort(self, params=None):
         return self.request('abort', params=params)
+
 
 class ProcessClient(OperationClient):
     def stop(self, params=None):

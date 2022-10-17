@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from ocs.ocs_twisted import Pacemaker
 
+
 def test_quantized():
     """
     Tests that Pacemaker forces regular sampling rate when quantize=True.
@@ -15,11 +16,11 @@ def test_quantized():
         pm.sleep()
         print("Sample time: {}".format(time.time()))
         times.append(time.time())
-        time.sleep(1/sample_freq/3)
+        time.sleep(1 / sample_freq / 3)
     diffs = np.diff(np.array(times))
     # Checks if the diffs (minus the first point due to quantization) match
-    tolerance = 1/sample_freq / 5
-    assert np.all(np.abs(diffs - 1/sample_freq)[1:] < tolerance)
+    tolerance = 1 / sample_freq / 5
+    assert np.all(np.abs(diffs - 1 / sample_freq)[1:] < tolerance)
 
 
 def test_nonquantized():
@@ -35,11 +36,11 @@ def test_nonquantized():
         pm.sleep()
         print("Sample time: {}".format(time.time()))
         times.append(time.time())
-        time.sleep(1/sample_freq/3)
+        time.sleep(1 / sample_freq / 3)
     diffs = np.diff(np.array(times))
     # Checks if the diffs (minus the first point due to quantization) match
-    tolerance = 1/sample_freq / 5
-    assert np.all(np.abs(diffs - 1/sample_freq) < tolerance)
+    tolerance = 1 / sample_freq / 5
+    assert np.all(np.abs(diffs - 1 / sample_freq) < tolerance)
 
 
 def test_non_integer_quantization():

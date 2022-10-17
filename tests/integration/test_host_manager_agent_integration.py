@@ -43,8 +43,8 @@ def test_host_manager_agent_manager(wait_for_crossbar, run_agent, client):
     target = 'fake-data-local'
 
     state = find_child(resp, target)
-    assert(state['target_state'] == 'down')
-    assert(state['next_action'] == 'down')
+    assert (state['target_state'] == 'down')
+    assert (state['next_action'] == 'down')
 
     # Start it up
     resp = client.update(requests=[(target, 'up')])

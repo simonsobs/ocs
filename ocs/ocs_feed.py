@@ -4,6 +4,7 @@ from autobahn.wamp.exception import TransportLost
 import time
 import re
 
+
 class Block:
     def __init__(self, name, keys):
         """
@@ -52,12 +53,13 @@ class Block:
 
     def encoded(self):
         n = len(self.timestamps)
-        assert(all([n==len(v) for v in self.data.values()]))
+        assert (all([n == len(v) for v in self.data.values()]))
         return {
             'block_name': self.name,
             'data': {k: self.data[k] for k in self.data.keys()},
             'timestamps': self.timestamps,
         }
+
 
 class Feed:
     """
@@ -94,7 +96,7 @@ class Feed:
     """
 
     def __init__(self, agent, feed_name, record=False, agg_params={},
-                buffer_time=0, max_messages=0):
+                 buffer_time=0, max_messages=0):
 
         self.agent = agent
         self.feed_name = feed_name
@@ -130,14 +132,14 @@ class Feed:
 
         if self.record:
             try:
-                self.agent.publish(self.address,(
-                                       {k: b.encoded() for k,b in self.blocks.items() if b.timestamps},
-                                        self.encoded()
-                                   ))
+                self.agent.publish(self.address, (
+                    {k: b.encoded() for k, b in self.blocks.items() if b.timestamps},
+                    self.encoded()
+                ))
             except TransportLost:
-                self.agent.log.error('Could not publish to Feed. TransportLost. ' +
-                                     'crossbar server likely unreachable.')
-            for k,b in self.blocks.items():
+                self.agent.log.error('Could not publish to Feed. TransportLost. '
+                                     + 'crossbar server likely unreachable.')
+            for k, b in self.blocks.items():
                 b.clear()
 
     def publish_message(self, message, timestamp=None):
@@ -238,8 +240,8 @@ class Feed:
             try:
                 self.agent.publish(self.address, (message, self.encoded()))
             except TransportLost:
-                self.agent.log.error('Could not publish to Feed. TransportLost. ' +
-                                     'crossbar server likely unreachable.')
+                self.agent.log.error('Could not publish to Feed. TransportLost. '
+                                     + 'crossbar server likely unreachable.')
 
     @staticmethod
     def verify_message_data_type(value):
@@ -259,15 +261,15 @@ class Feed:
             if not all(isinstance(x, valid_types) for x in value):
                 type_set = set([type(x) for x in value])
                 invalid_types = type_set.difference(valid_types)
-                raise TypeError("message 'data' block contains invalid data" +
-                                f"types: {invalid_types}")
+                raise TypeError("message 'data' block contains invalid data"
+                                + f"types: {invalid_types}")
 
         # single sample check
         else:
             if not isinstance(value, valid_types):
                 invalid_type = type(value)
-                raise TypeError("message 'data' block contains invalid " +
-                                f"data type: {invalid_type}")
+                raise TypeError("message 'data' block contains invalid "
+                                + f"data type: {invalid_type}")
 
     @staticmethod
     def verify_data_field_string(field):
@@ -294,8 +296,8 @@ class Feed:
         """
         # Check for empty field name
         if not field:
-            raise ValueError("Empty field name encountered, please enter " +
-                             "a valid field name.")
+            raise ValueError("Empty field name encountered, please enter "
+                             + "a valid field name.")
 
         # Complement (^) the set, matching any unlisted characters
         check_invalid = re.compile('[^a-zA-Z0-9_]')
@@ -314,14 +316,14 @@ class Feed:
         # check for non-letter start, even after underscores
         stripped_key = field.strip("_")
         if check_start.search(stripped_key):
-            raise ValueError(f"message 'data' block contains the key {field}, " +
-                             "which does not start with a letter (after any " +
-                             "number of leading underscores.)")
+            raise ValueError(f"message 'data' block contains the key {field}, "
+                             + "which does not start with a letter (after any "
+                             + "number of leading underscores.)")
 
         # check key length
         if len(field) > 255:
-            raise ValueError(f"message 'data' block contains key {field} which " +
-                             "exceeds the valid length of 255 characters.")
+            raise ValueError(f"message 'data' block contains key {field} which "
+                             + "exceeds the valid length of 255 characters.")
 
         return True
 

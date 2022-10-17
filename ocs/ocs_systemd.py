@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-import os, stat, sys
+import os
+import stat
+import sys
 from ocs import site_config
 
 """The idea here is to create a launcher script that will live in the
@@ -49,30 +51,24 @@ ${{PYTHON}} -m ocs.agent_cli \\
   {host_manager_args}
 """
 
+
 def get_parser():
     import argparse
     parser = argparse.ArgumentParser()
     group = parser.add_argument_group('Options specific to systemd service creation')
     group.add_argument('--docker-compose', action='append', default=[])
-    #group.add_argument('--host', help=)
-    group.add_argument('--shell', help=
-                       "Override the shell used for the launcher script.")
-    group.add_argument('--python-bin', help=
-                       "Select the Python interpreter with which to launch HostManager.")
-    group.add_argument('--launcher-dir', help=
-                       "Override the directory of the launcher script.")
-    group.add_argument('--launcher-script', help=
-                       "Override the name of the launcher script.")
-    group.add_argument('--service-dir', help=
-                       "Directory to which the .service file will be written; "
+    # group.add_argument('--host', help=)
+    group.add_argument('--shell', help="Override the shell used for the launcher script.")
+    group.add_argument('--python-bin', help="Select the Python interpreter with which to launch HostManager.")
+    group.add_argument('--launcher-dir', help="Override the directory of the launcher script.")
+    group.add_argument('--launcher-script', help="Override the name of the launcher script.")
+    group.add_argument('--service-dir', help="Directory to which the .service file will be written; "
                        f"default is {SERVICE_DEFAULT}.")
-    group.add_argument('--service-user', help=
-                       "Override the user under which HostManager agent will be run.")
-    group.add_argument('--service-name', help=
-                       "Override the name of the systemd service.")
-    group.add_argument('--service-host', help=
-                       "Set a hostname to use when generating the service name.")
+    group.add_argument('--service-user', help="Override the user under which HostManager agent will be run.")
+    group.add_argument('--service-name', help="Override the name of the systemd service.")
+    group.add_argument('--service-host', help="Set a hostname to use when generating the service name.")
     return parser
+
 
 def main(args=None):
     if args is None:
@@ -82,7 +78,7 @@ def main(args=None):
     args = site_config.parse_args(agent_class='*host*',
                                   parser=parser)
     site, host, _ = site_config.get_config(args, agent_class='*host*')
-    assert(host.name is not None)  # It won't be, right?
+    assert (host.name is not None)  # It won't be, right?
 
     # The "hostname" is potentially used for a few things:
     # - to name the service
@@ -146,8 +142,8 @@ def main(args=None):
 
     print(f'Writing {args.launcher_script} ...')
     open(args.launcher_script, 'w').write(launcher_code)
-    os.chmod(args.launcher_script, os.stat(args.launcher_script).st_mode |
-             (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
+    os.chmod(args.launcher_script, os.stat(args.launcher_script).st_mode
+             | (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
 
     print(f'Writing {args.systemd_dest} ...')
     try:

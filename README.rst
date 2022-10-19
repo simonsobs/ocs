@@ -20,6 +20,10 @@ OCS - Observatory Control System
    :target: https://pypi.org/project/ocs/
    :alt: PyPI Package
 
+.. image:: https://results.pre-commit.ci/badge/github/simonsobs/ocs/develop.svg
+   :target: https://results.pre-commit.ci/latest/github/simonsobs/ocs/develop
+   :alt: pre-commit.ci status
+
 Overview
 --------
 

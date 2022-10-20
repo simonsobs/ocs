@@ -4,9 +4,14 @@
 name: Run Tests
 
 on:
-  push:
-    branches-ignore: [ develop ]
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.rst'
+      - '**.md'
+      - '.flake8'
+      - '.pre-commit-config.yaml'
+  workflow_call:
 
 jobs:
   test:

@@ -450,7 +450,7 @@ def test_params_get():
         'float_param': 1e8,
         'numerical_string_param': '145.12',
         'none_param': None,
-        })
+    })
 
     # Basic successes
     params.get('int_param', type=int)
@@ -494,18 +494,20 @@ def test_params_get():
     with pytest.raises(ParamError):
         params.get('string_param', choices=['a', 'b'])
 
+
 def test_params_strays():
     """Test for detection of stray parameters."""
     params = ParamHandler({
         'a': 123,
         'b': 123,
-        })
+    })
     params.get('a')
     params.check_for_strays(ignore=['b'])
     with pytest.raises(ParamError):
         params.check_for_strays()
     params.get('b')
     params.check_for_strays()
+
 
 def test_params_decorator():
     """Test that the decorator is usable."""
@@ -516,12 +518,13 @@ def test_params_decorator():
     # these should not
     with pytest.raises(TypeError):
         @param('a', 12)
-        def test_func(session, params):
+        def test_func2(session, params):
             pass
     with pytest.raises(TypeError):
         @param('a', invalid_keyword='something')
-        def test_func(session, params):
+        def test_func3(session, params):
             pass
+
 
 def test_params_decorated():
     """Test that the decorator actually decorates."""

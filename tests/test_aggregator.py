@@ -22,7 +22,7 @@ def test_passing_float_in_provider_to_frame():
                      'data': {'key1': [1],
                               'key2': [2]},
                      }
-           }
+            }
     provider.save_to_block(data)
 
     # Dummy HKSessionHelper
@@ -47,7 +47,7 @@ def test_passing_float_like_str_in_provider_to_frame():
                      'data': {'key1': [1, 2],
                               'key2': ['1', 2]},
                      }
-           }
+            }
     provider.save_to_block(data)
 
     # Dummy HKSessionHelper
@@ -62,7 +62,7 @@ def test_passing_non_float_like_str_in_provider_to_frame():
     """Similar to passing a float like str, here we test passing a non-float
     like str. We can't put this into an so3g.IrregBlockDouble(), so this'll fail.
     We raise a TypeError when this happens and describe the type of the passed in
-    data. 
+    data.
 
     """
     # Dummy Provider for testing
@@ -73,7 +73,7 @@ def test_passing_non_float_like_str_in_provider_to_frame():
                      'data': {'key1': [1],
                               'key2': ['a']},
                      }
-           }
+            }
     provider.save_to_block(data)
 
     # Dummy HKSessionHelper
@@ -100,14 +100,14 @@ def test_sparsely_sampled_block():
                      'data': {'key3': [0],
                               'key4': ['z']},
                      }
-           }
+            }
     provider.save_to_block(data)
     data = {'test2': {'block_name': 'test2',
-                     'timestamps': [time.time()],
-                     'data': {'key1': [1],
-                              'key2': ['a']},
-                     }
-           }
+                      'timestamps': [time.time()],
+                      'data': {'key1': [1],
+                               'key2': ['a']},
+                      }
+            }
     provider.save_to_block(data)
 
     # Dummy HKSessionHelper
@@ -115,16 +115,16 @@ def test_sparsely_sampled_block():
     sess.start_time = time.time()
     sess.session_id = 'test_sessid'
 
-    a = provider.to_frame(hksess=sess, clear=True)
+    provider.to_frame(hksess=sess, clear=True)
 
     # Now omit the 'test' block.
     provider.frame_start_time = time.time()
     data = {'test2': {'block_name': 'test2',
-                     'timestamps': [time.time()],
-                     'data': {'key1': [1],
-                              'key2': ['a']},
-                     }
-           }
+                      'timestamps': [time.time()],
+                      'data': {'key1': [1],
+                               'key2': ['a']},
+                      }
+            }
     provider.save_to_block(data)
 
     b = provider.to_frame(hksess=sess, clear=True)
@@ -138,14 +138,14 @@ def test_sparsely_sampled_block():
                      'data': {'key3': [0],
                               'key4': ['z']},
                      }
-           }
+            }
     provider.save_to_block(data)
     data = {'test2': {'block_name': 'test2',
-                     'timestamps': [time.time()],
-                     'data': {'key1': [1],
-                              'key2': ['a']},
-                     }
-           }
+                      'timestamps': [time.time()],
+                      'data': {'key1': [1],
+                               'key2': ['a']},
+                      }
+            }
     provider.save_to_block(data)
 
     c = provider.to_frame(hksess=sess, clear=True)
@@ -165,7 +165,7 @@ def test_data_type_in_provider_save_to_block():
                      'data': {'key1': [1],
                               'key2': ['1', 1]},
                      }
-           }
+            }
     provider.save_to_block(data)
 
 
@@ -186,7 +186,7 @@ def test_passing_invalid_data_field_name1():
                      'data': {'invalid.key': [1],
                               'key2': ['a']},
                      }
-           }
+            }
     provider.save_to_block(data)
 
     assert 'invalidkey' in provider.blocks['test'].data.keys()
@@ -209,7 +209,7 @@ def test_passing_invalid_data_field_name2():
                      'data': {'__123invalid.key': [1],
                               'key2': ['a']},
                      }
-           }
+            }
     provider.save_to_block(data)
 
     assert '__invalidkey' in provider.blocks['test'].data.keys()
@@ -231,13 +231,13 @@ def test_passing_too_long_data_field_name():
     provider.frame_start_time = time.time()
     data = {'test': {'block_name': 'test',
                      'timestamps': [time.time()],
-                     'data': {'a'*1000: [1],
+                     'data': {'a' * 1000: [1],
                               'key2': ['a']},
                      }
-           }
+            }
     provider.save_to_block(data)
 
-    assert 'a'*255 in provider.blocks['test'].data.keys()
+    assert 'a' * 255 in provider.blocks['test'].data.keys()
 
 
 def test_long_duplicate_name():
@@ -255,14 +255,14 @@ def test_long_duplicate_name():
     provider.frame_start_time = time.time()
     data = {'test': {'block_name': 'test',
                      'timestamps': [time.time()],
-                     'data': {'a'*1000: [1],
-                              'a'*1001: ['a']},
+                     'data': {'a' * 1000: [1],
+                              'a' * 1001: ['a']},
                      }
-           }
+            }
     provider.save_to_block(data)
 
-    assert 'a'*255 in provider.blocks['test'].data.keys()
-    assert 'a'*252 + '_01' in provider.blocks['test'].data.keys()
+    assert 'a' * 255 in provider.blocks['test'].data.keys()
+    assert 'a' * 252 + '_01' in provider.blocks['test'].data.keys()
 
 
 def test_reducing_to_duplicate_field_names():
@@ -282,7 +282,7 @@ def test_reducing_to_duplicate_field_names():
                      'data': {'an.invalid.key#': [1],
                               'an.invalid.key%': ['a']},
                      }
-           }
+            }
     provider.save_to_block(data)
 
     # Should still be two keys, i.e. one didn't overwrite the other
@@ -308,7 +308,7 @@ def test_space_replacement_in_field_names():
                      'data': {'_an invalid key': [1],
                               'key2': ['a']},
                      }
-           }
+            }
     provider.save_to_block(data)
 
     assert '_an_invalid_key' in provider.blocks['test'].data.keys()
@@ -330,7 +330,7 @@ def test_empty_field_name():
                      'data': {'': [1],
                               'key2': ['a']},
                      }
-           }
+            }
     provider.save_to_block(data)
 
     assert '' not in provider.blocks['test'].data.keys()
@@ -352,7 +352,7 @@ def test_enforced_field_which_becomes_empty():
                      'data': {'123': [1],
                               'key2': ['a']},
                      }
-           }
+            }
     provider.save_to_block(data)
 
     assert '' not in provider.blocks['test'].data.keys()
@@ -377,7 +377,7 @@ def test_g3_cast():
         ['a', 'b', 1, 2], True, [1, 1.0, 2]
     ]
     for x in incorrect_tests:
-        with pytest.raises(TypeError) as e_info:
+        with pytest.raises(TypeError):
             g3_cast(x)
 
 

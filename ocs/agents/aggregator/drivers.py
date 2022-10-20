@@ -1,7 +1,6 @@
 import os
 import binascii
 import time
-import re
 
 from typing import Dict
 
@@ -70,6 +69,7 @@ def g3_cast(data, time=False):
         else:
             cast = _g3_casts[type(data)]
             return cast(data)
+
 
 def generate_id(hksess):
     """
@@ -160,7 +160,8 @@ class Provider:
             txaio logger
 
     """
-    def __init__(self, address, sessid, prov_id, frame_length=5*60, fresh_time=3*60):
+
+    def __init__(self, address, sessid, prov_id, frame_length=5 * 60, fresh_time=3 * 60):
         self.address = address
         self.sessid = sessid
         self.frame_length = frame_length
@@ -173,7 +174,7 @@ class Provider:
         self.frame_start_time = None
 
         self.fresh_time = fresh_time
-        self.last_refresh = time.time() # Determines if
+        self.last_refresh = time.time()  # Determines if
         self.last_block_received = None
 
     def encoded(self):
@@ -224,8 +225,8 @@ class Provider:
                 try:
                     Feed.verify_data_field_string(field_name)
                 except ValueError:
-                    self.log.error("data field name '{field}' is " +
-                                   "invalid, removing invalid characters.",
+                    self.log.error("data field name '{field}' is "
+                                   + "invalid, removing invalid characters.",
                                    field=field_name)
                     verified = False
 
@@ -335,7 +336,7 @@ class Provider:
         if self.frame_start_time is None:
             # Get min frame time out of all blocks
             self.frame_start_time = time.time()
-            for _,b in data.items():
+            for _, b in data.items():
                 if b['timestamps']:
                     self.frame_start_time = min(self.frame_start_time, b['timestamps'][0])
 
@@ -361,7 +362,7 @@ class Provider:
 
     def clear(self):
         """Clears all blocks and resets the frame_start_time"""
-        for _,b in self.blocks.items():
+        for _, b in self.blocks.items():
             b.clear()
 
         self.frame_start_time = None
@@ -444,6 +445,7 @@ class G3FileRotator(core.G3Module):
         current_file (str, optional):
             Path to the current file being written.
     """
+
     def __init__(self, time_per_file, filename):
         self.time_per_file = time_per_file
         self.filename = filename
@@ -538,6 +540,7 @@ class Aggregator:
             written to disk. This is set to True whenever a provider is added
             or removed.
     """
+
     def __init__(self, incoming_data, time_per_file, data_dir, session=None):
         self.log = txaio.make_logger()
 
@@ -554,7 +557,7 @@ class Aggregator:
         )
         self.writer.Process([self.hksess.session_frame()])
 
-        self.providers: Dict[Provider] = {} # by prov_id
+        self.providers: Dict[Provider] = {}  # by prov_id
         self.pids = {}  # By (address, sessid)
         self.provider_archive: Dict[Provider] = {}
 
@@ -695,7 +698,6 @@ class Aggregator:
             }
             for addr, prov in self.provider_archive.items():
                 self.session.data['providers'][addr] = prov.encoded()
-
 
     def close(self):
         """Flushes all remaining providers and closes file."""

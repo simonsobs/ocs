@@ -1,1 +1,1 @@
-from ocs import ocsbow
+from ocs import ocsbow  # noqa: F401

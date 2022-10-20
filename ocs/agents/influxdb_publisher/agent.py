@@ -39,6 +39,7 @@ class InfluxDBAgent:
         loop_time (float):
             Time between iterations of the run loop.
     """
+
     def __init__(self, agent, args):
         self.agent: ocs_agent.OCSAgent = agent
         self.log = agent.log
@@ -164,7 +165,7 @@ def main(args=None):
 
     agent, runner = ocs_agent.init_site_agent(args)
 
-    influx_agent = InfluxDBAgent(agent, args)
+    InfluxDBAgent(agent, args)
 
     runner.run(agent, auto_reconnect=True)
 

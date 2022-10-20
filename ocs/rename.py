@@ -1,6 +1,7 @@
 import os
 import datetime
 
+
 def _find_all_g3_files(target):
     """Build list of .g3 files.
 
@@ -26,6 +27,7 @@ def _find_all_g3_files(target):
                     _file_list.append(os.path.join(root, g3))
 
     return _file_list
+
 
 def _remove_non_matching_files(filelist, verbose=None):
     """Make new list, removing files that don't match the known stringtime format.
@@ -58,6 +60,7 @@ def _remove_non_matching_files(filelist, verbose=None):
 
     return new_list
 
+
 def build_filelist(target, verbose=None):
     """Build .g3 filelist to process.
 
@@ -82,6 +85,7 @@ def build_filelist(target, verbose=None):
     filelist = _remove_non_matching_files(_filelist, verbose)
 
     return filelist
+
 
 def _generate_ctime_filename(path):
     """Determine the ctime corresponding to a datestring formatted filename.
@@ -109,6 +113,7 @@ def _generate_ctime_filename(path):
 
     return new_filename
 
+
 def _rename_file(path, verbose=None):
     """Rename a single file from "%Y-%m-%d-%H-%M-%S.g3" to "ctime.g3".
 
@@ -132,6 +137,7 @@ def _rename_file(path, verbose=None):
 
     os.rename(path, new_path)
 
+
 def rename_files(path, verbose=None):
     """Rename all .g3 file in path to new ctime based format.
 
@@ -147,6 +153,7 @@ def rename_files(path, verbose=None):
 
     for f in filelist:
         _rename_file(f, verbose)
+
 
 def main(target, verbose=None):
     rename_files(target, verbose)

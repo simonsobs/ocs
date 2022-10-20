@@ -93,8 +93,8 @@ def build_agent_list():
         conflicts = current_agents.intersection(set(loaded.agents))
         for con in conflicts:
             warnings.warn(
-                f'Found duplicate agent-class {con} provided by {name}. ' +
-                f'Using {agents[con]}.')
+                f'Found duplicate agent-class {con} provided by {name}. '
+                + f'Using {agents[con]}.')
             del loaded.agents[con]
 
         agents.update(loaded.agents)

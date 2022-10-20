@@ -30,17 +30,17 @@ instances (running two different classes of agent):
 .. code-block:: yaml
 
   hub:
-  
+
     wamp_server: ws://10.10.10.3:8001/ws
     wamp_http: http://10.10.10.3:8001/call
     wamp_realm: test_realm
     address_root: observatory
     registry_agent: observatory.registry
-  
+
   hosts:
-  
+
     host-1: {
-  
+
       # Directory for logs.
       'log-dir': '/simonsobs/log/ocs/',
 
@@ -49,10 +49,10 @@ instances (running two different classes of agent):
         '/simonsobs/ocs/agents/',
       ],
 
-      # Description of host-1's Agents. 
+      # Description of host-1's Agents.
       # We have two readout devices; they are both Lakeshore 240. But they can
       # be distinguished, on startup, by a device serial number.
-  
+
       'agent-instances': [
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo1',
@@ -64,16 +64,16 @@ instances (running two different classes of agent):
                        ['--mode', 'acq']]},
       ]
     }
-  
+
     host-1-docker: {
 
       # Address of crossbar within Docker (based on service name)
       'wamp_server': 'ws://crossbar:8001/ws',
       'wamp_http': 'http://crossbar:8001/call',
-  
-      # Description of host-1's Agents running with Docker containers. 
+
+      # Description of host-1's Agents running with Docker containers.
       # We have one readout device; a Lakeshore 372.
-  
+
       'agent-instances': [
         {'agent-class': 'Lakeshore372Agent',
          'instance-id': 'LSARR00',
@@ -81,9 +81,9 @@ instances (running two different classes of agent):
                        ['--ip-address', '10.10.10.55']]},
       ]
     }
-  
+
     host-2: {
-  
+
       # Crossbar start-up instructions (optional).
       'crossbar': {'config-dir': '/simonsobs/ocs/dot_crossbar/'},
 
@@ -98,7 +98,7 @@ instances (running two different classes of agent):
       # Description of host-2's Agents.
       # We have two devices; another Lakeshore 240, and the OCS g3 file
       # Aggregator.
-  
+
       'agent-instances': [
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo3',
@@ -118,9 +118,9 @@ This entire section will likely remain unchanged, except for the
 
 Under `hosts` we have defined a three hosts, `host-1`, `host-1-docker`, and
 `host-2`. This configuration example shows a mix of Agents running directly on
-hosts and running within Docker containers. 
+hosts and running within Docker containers.
 
-.. note:: 
+.. note::
     The hostname within a Docker container is configurable in the
     ``docker-compose.yaml`` file. While you could configure it to be identical to
     the host system, we recommend naming the docker hosts with the convention
@@ -130,7 +130,7 @@ hosts and running within Docker containers.
 .. note::
     To determine your host name, open a terminal and enter ``hostname``.
 
-Each item under a given host describes the OCS Agents which can be run. For 
+Each item under a given host describes the OCS Agents which can be run. For
 example look at the first 372 Agent::
 
         {'agent-class': 'Lakeshore372Agent',
@@ -211,7 +211,7 @@ telescope.yaml --site-host host-1`` *. One exception to this is when using*
 
      $ python LS240_agent.py --instance-id=thermo1 --site-realm=my_other_realm
      I am in charge of device with serial number: LSA11AA
-   
+
 3. Run an instance of an Agent, but force all configuration matching
    to occur as though the Agent were running on a host called
    "host-2"::

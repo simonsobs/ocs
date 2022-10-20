@@ -3,8 +3,8 @@ from ocs.base import OpCode
 import time
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
-from collections import defaultdict
 from ocs.ocs_feed import Feed
+
 
 class RegisteredAgent:
     """
@@ -23,6 +23,7 @@ class RegisteredAgent:
                 operations. For details on what the operation codes mean, see
                 docs from the ``ocs_agent`` module
     """
+
     def __init__(self, feed):
         self.expired = False
         self.time_expired = None
@@ -30,7 +31,6 @@ class RegisteredAgent:
         self.op_codes = {}
         self.agent_class = feed.get('agent_class')
         self.agent_address = feed['agent_address']
-
 
     def refresh(self, op_codes=None):
         self.expired = False
@@ -61,25 +61,26 @@ class Registry:
     """
         The Registry agent is in charge of keeping track of which agents are
         currently running. It has a single process "main" that loops and keeps track
-        of when agents expire. This agent subscribes to all heartbeat feeds, 
+        of when agents expire. This agent subscribes to all heartbeat feeds,
         so no additional function calls are required to register an agent.
 
         A list of agent statuses is maintained in the "main" process's session.data
         object.
 
-        Args: 
+        Args:
             agent (OCSAgent):
                 the ocs agent object
 
         Attributes:
             registered_agents (defaultdict):
-                A defaultdict of RegisteredAgent objects, which contain whether 
-                the agent has expired, the time_expired, and the last_updated 
-                time. 
+                A defaultdict of RegisteredAgent objects, which contain whether
+                the agent has expired, the time_expired, and the last_updated
+                time.
             agent_timeout (float):
                 The time an agent has between heartbeats before being marked
                 as expired.
     """
+
     def __init__(self, agent):
         self.log = agent.log
         self.agent = agent
@@ -89,7 +90,7 @@ class Registry:
 
         # Dict containing agent_data for each registered agent
         self.registered_agents = {}
-        self.agent_timeout = 5.0 # Removes agent after 5 seconds of no heartbeat.
+        self.agent_timeout = 5.0  # Removes agent after 5 seconds of no heartbeat.
 
         self.agent.subscribe_on_start(
             self._register_heartbeat, 'observatory..feeds.heartbeat',
@@ -165,9 +166,9 @@ class Registry:
             }
 
             for addr, agent in self.registered_agents.items():
-                msg = { 'block_name': addr,
-                        'timestamp': time.time(),
-                        'data': {}}
+                msg = {'block_name': addr,
+                       'timestamp': time.time(),
+                       'data': {}}
                 for op_name, op_code in agent.op_codes.items():
                     field = f'{addr}_{op_name}'
                     field = field.replace('.', '_')
@@ -218,7 +219,7 @@ def main(args=None):
 
     agent.register_process('main', registry.main, registry._stop_main, blocking=False, startup=True)
     agent.register_task('register_agent', registry._register_agent, blocking=False)
-    
+
     runner.run(agent, auto_reconnect=True)
 
 

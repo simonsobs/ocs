@@ -62,8 +62,8 @@ class BarebonesAgent:
         """
         with self.lock.acquire_timeout(timeout=0, job='count') as acquired:
             if not acquired:
-                print("Lock could not be acquired because it " +
-                      f"is held by {self.lock.job}")
+                print("Lock could not be acquired because it "
+                      + f"is held by {self.lock.job}")
                 return False
 
             session.set_status('running')
@@ -72,7 +72,7 @@ class BarebonesAgent:
             last_release = time.time()
 
             # Initialize the counter
-            self._count=True
+            self._count = True
             counter = 0
 
             self.log.info("Starting the count!")
@@ -131,8 +131,8 @@ class BarebonesAgent:
         """
         with self.lock.acquire_timeout(timeout=3.0, job='print') as acquired:
             if not acquired:
-                self.log.warn("Lock could not be acquired because it " +
-                              f"is held by {self.lock.job}")
+                self.log.warn("Lock could not be acquired because it "
+                              + f"is held by {self.lock.job}")
                 return False
 
             # Set operations status to 'running'
@@ -165,7 +165,7 @@ def add_agent_args(parser_in=None):
 def main(args=None):
     # For logging
     txaio.use_twisted()
-    LOG = txaio.make_logger()
+    txaio.make_logger()
 
     # Start logging
     txaio.start_logging(level=environ.get("LOGLEVEL", "info"))

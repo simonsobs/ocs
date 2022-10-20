@@ -4,7 +4,7 @@
 """
 
 import ocs
-from ocs import matched_client, client_http
+from ocs import client_http
 
 import argparse
 import difflib
@@ -14,12 +14,12 @@ import sys
 import time
 import urllib
 
-DESCRIPTION="""ocsbow is used to talk to HostManager agents across an OCS
+DESCRIPTION = """ocsbow is used to talk to HostManager agents across an OCS
 installation.  In a distributed OCS, you can request that Agents
 across the observatory be started or stopped.
 
 """
-EPILOG="""
+EPILOG = """
 More info for each command is available by adding --help, e.g. "ocsbow up --help".
 
 For more details, see https://ocs.readthedocs.io/en/develop/user/cli_tools.html#ocsbow.
@@ -28,8 +28,10 @@ For more details, see https://ocs.readthedocs.io/en/develop/user/cli_tools.html#
 # agent_class of the HostManager.
 HOSTMANAGER_CLASS = 'HostManager'
 
+
 class OcsbowError(Exception):
     pass
+
 
 def get_parser():
     parser = argparse.ArgumentParser(description=DESCRIPTION,
@@ -55,32 +57,27 @@ def get_parser():
     # common args for up and down
     target_parser = argparse.ArgumentParser(add_help=False)
     target_parser.add_argument(
-        '--all', '-a', action='store_true', help=
-        "Apply the command to all HostManagers in the OCS.")
+        '--all', '-a', action='store_true', help="Apply the command to all HostManagers in the OCS.")
     target_parser.add_argument(
-        '--dry-run', action='store_true', help=
-        "If set, HostManagers will be queried for info but no state "
+        '--dry-run', action='store_true', help="If set, HostManagers will be queried for info but no state "
         "change requests will be issued.")
     target_parser.add_argument(
-        'instance', nargs='*', help=
-        "instance-id to target.  If this is the id of a HostManager "
+        'instance', nargs='*', help="instance-id to target.  If this is the id of a HostManager "
         "agent, it will be asked to start all of its managed agents.")
 
     # up and down
-    p = cmdsubp.add_parser('up', parents=[target_parser], help=
-                           "Mark targets as 'up' (so HostManagers will "
+    p = cmdsubp.add_parser('up', parents=[target_parser], help="Mark targets as 'up' (so HostManagers will "
                            "launch them).")
-    p = cmdsubp.add_parser('down', parents=[target_parser], help=
-                           "Mark targets as 'down' (so HostManagers will "
+    p = cmdsubp.add_parser('down', parents=[target_parser], help="Mark targets as 'down' (so HostManagers will "
                            "shut them down).")
 
     # config
-    p = cmdsubp.add_parser('config', help=
-                           'Query the local OCS config.')
+    p = cmdsubp.add_parser('config', help='Query the local OCS config.')
     p.add_argument('cfg_request', nargs='?', choices=['summary', 'plugins', 'crossbar'],
                    default='summary')
 
     return parser
+
 
 def get_args_and_site_config(args=None, parser_func=None):
     # The proper parsing of args in all the various cases is pretty
@@ -115,10 +112,11 @@ def get_args_and_site_config(args=None, parser_func=None):
 
     return args_, site_config
 
+
 def render_crossbar_config_example(pars):
     """Returns the text of a basic crossbar config file, suitable for OCS
     use.
-    
+
     """
     _pars = {
         'realm': 'debug_realm',
@@ -126,7 +124,7 @@ def render_crossbar_config_example(pars):
         'port': 8001,
     }
     _pars.update(pars)
-    
+
     # Generate configuration file.
     template_file = os.path.join(os.path.split(ocs.__file__)[0],
                                  'support/crossbar_config.json')
@@ -134,9 +132,10 @@ def render_crossbar_config_example(pars):
 
     # Manual substitution, since json contains many { formatting chars }.
     for k, v in _pars.items():
-        config_text = config_text.replace('{'+k+'}', str(v))
+        config_text = config_text.replace('{' + k + '}', str(v))
 
     return config_text
+
 
 def decode_exception(args):
     """
@@ -144,10 +143,11 @@ def decode_exception(args):
     """
     try:
         text, data = args[0][4:6]
-        assert(text.startswith('wamp.') or text.startswith('client_http.'))
-    except Exception as e:
+        assert (text.startswith('wamp.') or text.startswith('client_http.'))
+    except Exception:
         return False, args, str(args)
     return True, text, str(data)
+
 
 def crossbar_test(args, site_config):
     """Test connection to the crossbar bridge.  Returns (ok, msg)."""
@@ -166,6 +166,7 @@ def crossbar_test(args, site_config):
         else:
             ok, msg = True, 'unexpected bridge connection problem; raised %s' % (str(ccex))
     return ok, msg.format(**site.hub.data)
+
 
 def get_status(args, site_config, restrict_hosts=None):
     """Assemble a detailed description of the site configuration, that
@@ -263,6 +264,7 @@ def get_status(args, site_config, restrict_hosts=None):
             'agent_info': agent_info})
     return output
 
+
 def print_status(args, site_config):
     site, host, instance = site_config
 
@@ -302,7 +304,8 @@ def print_status(args, site_config):
     if len(status['warnings']):
         print('Important Notes:')
         for w in status['warnings']:
-            print('  '+w)
+            print('  ' + w)
+
 
 def print_config(args, site_config):
     site, host, instance = site_config
@@ -321,7 +324,7 @@ def print_config(args, site_config):
             print('Specified host is:  %s\n' % host.name)
         print()
         print('The site file describes %i hosts:' % len(site.hosts))
-        for k,v in site.hosts.items():
+        for k, v in site.hosts.items():
             print('  Host %s includes %i agent instances:' % (k, len(v.instances)))
             for inst in v.instances:
                 print('    %s::%s' % (inst['agent-class'], inst['instance-id']))
@@ -339,8 +342,8 @@ def print_config(args, site_config):
             sys.path.append(p)
         ocs.site_config.scan_for_agents()
         print('Found:')
-        for k,v in ocs.site_config.agent_script_reg.items():
-            print('  %-20s : %s' % (k,v))
+        for k, v in ocs.site_config.agent_script_reg.items():
+            print('  %-20s : %s' % (k, v))
         print()
 
     if args.cfg_request == 'crossbar':
@@ -370,7 +373,7 @@ def generate_crossbar_config(cm, site_config):
     else:
         cb_filename = os.path.join(cm.crossbar.cbdir, 'config.json')
         print('The crossbar config-dir is set to:\n  %s\n'
-              'Using\n  %s\nas the target output file.\n' % 
+              'Using\n  %s\nas the target output file.\n' %
               (cm.crossbar.cbdir, cb_filename))
 
     print('Generating crossbar config text.')
@@ -391,7 +394,7 @@ def generate_crossbar_config(cm, site_config):
         else:
             print('\nThe target output file differs from the new one:')
             diff = difflib.unified_diff(
-                lines0, lines1,fromfile=cb_filename, tofile='new')
+                lines0, lines1, fromfile=cb_filename, tofile='new')
             for line in diff:
                 print(line, end='')
             print('\n')
@@ -399,6 +402,7 @@ def generate_crossbar_config(cm, site_config):
     else:
         open(cb_filename, 'w').write(config_text)
         print('Wrote %s' % cb_filename)
+
 
 class CrossbarManager:
     def __init__(self, host):
@@ -461,7 +465,7 @@ class HostManagerManager:
 
         if instance is not None:
             self.manager_addr = '%s.%s' % (site.hub.data['address_root'],
-                                          instance.data['instance-id'])
+                                           instance.data['instance-id'])
         self.working_dir = args.working_dir
         self._reconnect()
 
@@ -532,7 +536,7 @@ class HostManagerManager:
                 if is_running:
                     result['message'] = (
                         'Manager Process has been running for %i seconds.' %
-                        (time.time()  - session['start_time']))
+                        (time.time() - session['start_time']))
                     result['child_states'] = session['data']['child_states']
                 else:
                     result['message'] = 'Manager Process is in state: %s' % status_text
@@ -544,7 +548,7 @@ class HostManagerManager:
     def stop(self, check=True, timeout=5.):
         print('Trying to stop HostManager agent...')
         try:
-            stat = self.client.die.start()
+            self.client.die.start()
         except RuntimeError as e:
             parsed, err_name, text = decode_exception(e.args)
             if parsed and err_name == 'wamp.error.no_such_procedure':
@@ -662,6 +666,7 @@ class HostManagerManager:
             print('Unexpected error getting manager process status:')
             raise
 
+
 def _term_format(text, indent='', right_margin=1):
     # Slowly reformat text to fit in the terminal ...
     output = ''
@@ -671,7 +676,7 @@ def _term_format(text, indent='', right_margin=1):
         # Always pop at least one word.
         try:
             idx = text.index(' ')
-        except:
+        except BaseException:
             idx = len(text)
         while idx < len(text) and text[idx] == ' ':
             idx += 1
@@ -695,6 +700,7 @@ class LocalSupports:
     of docker.
 
     """
+
     def __init__(self, args, site_config, update=True, target=None):
         self.args = args
         self.site_config = site_config
@@ -821,12 +827,13 @@ def main(args=None):
                     raise OcsbowError(
                         "Cannot perform action on '%s', as there are "
                         "%i HostManagers configured on host '%s'." % (
-                            inst['instance-id'], len(active_hms), host_name))
+                            inst['instance-id'], len(active_hms), host_data['host_name']))
                 agents.append((inst, active_hms[0]))
         if args.dry_run:
             print('[dry-run, no requests will be issued]')
 
         clients = {}
+
         def client(hm):
             iid = hm['instance-id']
             if iid not in clients:
@@ -867,6 +874,7 @@ Or with a target subsystem::
 LOCAL_EPILOG = """For more details, see
 https://ocs.readthedocs.io/en/develop/user/cli_tools.html#ocs-local-support."""
 
+
 def get_parser_local():
     p = argparse.ArgumentParser(description=LOCAL_DESCRIPTION,
                                 epilog=LOCAL_EPILOG,
@@ -876,10 +884,10 @@ def get_parser_local():
                    help="Command to apply to the targets.")
     p.add_argument('target', nargs='?', default=None, choices=['crossbar', 'agent', 'process'],
                    help='Operate on the specific subsystem only.')
-    p.add_argument('--foreground', action='store_true', help=
-                   "For targeted 'start', run the command in the foreground and "
+    p.add_argument('--foreground', action='store_true', help="For targeted 'start', run the command in the foreground and "
                    "copy stdout/stderr to the terminal.")
     return p
+
 
 def main_local(args=None):
     args, site_config = get_args_and_site_config(
@@ -909,6 +917,7 @@ def main_local(args=None):
     # supports.analysis for start, and by eligible() for stop.
     supports = LocalSupports(args, site_config, update=False,
                              target=args.target)
+
     def eligible(subsys):
         return (args.target is None) or (args.target == subsys)
 
@@ -984,4 +993,3 @@ def main_local(args=None):
         elif action == 'generate_crossbar_config':
             cm = supports.crossbar['ctrl']
             generate_crossbar_config(cm, site_config)
-

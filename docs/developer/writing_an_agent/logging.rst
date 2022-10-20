@@ -10,13 +10,13 @@ adding a log attribute to the Agent class. Focusing on just the addition of
 
     class BarebonesAgent:
         """Barebone Agent demonstrating writing an Agent from scratch.
-    
+
         Attributes:
             log (txaio.tx.Logger): Logger object used to log events within the
                 Agent.
-    
+
         """
-    
+
         def __init__(self, agent):
             self.agent = agent
             self.log = agent.log
@@ -47,21 +47,21 @@ Our Agent in full now looks like this:
 
     import time
     import txaio
-    
+
     from os import environ
-    
+
     from ocs import ocs_agent, site_config
-    
-    
+
+
     class BarebonesAgent:
         """Barebone Agent demonstrating writing an Agent from scratch.
-    
+
         This Agent is meant to be an example for Agent development, and provides a
         clean starting point when developing a new Agent.
-    
+
         Parameters:
             agent (OCSAgent): OCSAgent object from :func:`ocs.ocs_agent.init_site_agent`.
-    
+
         Attributes:
             agent (OCSAgent): OCSAgent object from :func:`ocs.ocs_agent.init_site_agent`.
             log (txaio.tx.Logger): Logger object used to log events within the
@@ -72,38 +72,38 @@ Our Agent in full now looks like this:
                 counting or not. This is used to exit the Process loop by changing
                 it to False via the count.stop() command. Your Agent won't use this
                 exact attribute, but might have a similar one.
-    
+
         """
-    
+
         def __init__(self, agent):
             self.agent = agent
             self.log = agent.log
             self._count = False
-    
+
         def count(self, session, params):
             """count(test_mode=False)
-    
+
             **Process** - Count up from 0.
-    
+
             The count will restart if the process is stopped and restarted.
-    
+
             Notes:
                 The most recent value is stored in the session data object in the
                 format::
-    
+
                     >>> response.session['data']
                     {"value": 0,
                      "timestamp":1600448753.9288929}
-    
+
             """
             session.set_status('running')
-    
+
             # Initialize the counter
             self._count=True
             counter = 0
-    
+
             self.log.info("Starting the count!")
-    
+
             # Main process loop
             while self.count:
                 counter += 1
@@ -111,9 +111,9 @@ Our Agent in full now looks like this:
                 session.data = {"value": counter,
                                 "timestamp": time.time()}
                 time.sleep(1)
-    
+
             return True, 'Acquisition exited cleanly.'
-    
+
         def _stop_count(self, session, params):
             """Stop monitoring the turbo output."""
             if self.count:
@@ -121,58 +121,58 @@ Our Agent in full now looks like this:
                 return True, 'requested to stop taking data.'
             else:
                 return False, 'count is not currently running'
-    
+
         @ocs_agent.param('text', default='hello world', type=str)
         def print(self, session, params):
             """print(text='hello world')
-    
+
             **Task** - Print some text passed to a Task.
-    
+
             Args:
                 text (str): Text to print out. Defaults to 'hello world'.
-    
+
             Notes:
                 The session data will be updated with the text::
-    
+
                     >>> response.session['data']
                     {'text': 'hello world',
                      'last_updated': 1660249321.8729222}
-    
+
             """
             # Set operations status to 'running'
             session.set_status('running')
-    
+
             # Log the text provided to the Agent logs
             self.log.info(f"{params['text']}")
-    
+
             # Store the text provided in session.data
             session.data = {'text': params['text'],
                             'last_updated': time.time()}
-    
+
             # bool, 'descriptive text message'
             # True if task succeeds, False if not
             return True, 'Printed text to logs'
-    
-    
+
+
     def main(args=None):
         # For logging
         txaio.use_twisted()
         LOG = txaio.make_logger()
-    
+
         # Start logging
         txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
-    
+
         args = site_config.parse_args(agent_class='BarebonesAgent', args=args)
-    
+
         agent, runner = ocs_agent.init_site_agent(args)
-    
+
         barebone = BarebonesAgent(agent)
         agent.register_process(
             'count',
             barebone.count,
             barebone._stop_count)
         agent.register_task('print', barebone.print)
-    
+
         runner.run(agent, auto_reconnect=True)
 
 

@@ -1,7 +1,8 @@
 from twisted.internet import reactor, threads
-from twisted.internet.defer import inlineCallbacks, Deferred
+from twisted.internet.defer import inlineCallbacks
 
 import time
+
 
 def blockingCalculation(a, b):
     """
@@ -11,12 +12,14 @@ def blockingCalculation(a, b):
     time.sleep is enough.
     """
     time.sleep(2.)  # thinking...
-    return a*b
+    return a * b
+
 
 def backgroundTick():
     """Print a tick message, and schedule self to re-run regularly."""
     print(' %.1f tick ' % time.time())
     reactor.callLater(0.3, backgroundTick)
+
 
 @inlineCallbacks
 def main():
@@ -35,7 +38,7 @@ def main():
     v1 = yield d1
     v2 = yield d2
     print('Computed %i and %i in %.2f seconds' % (v1, v2, time.time() - t0))
-    
+
     t0 = time.time()
     print('Method 2 - launch two blocking operations, one after the other.')
     # Get the deferred d1 but then immediately 'yield' on it, to get
@@ -54,12 +57,12 @@ def main():
 
     print('Done, stopping the reactor.')
     reactor.stop()
-    
-#Set up "callable" to be run, in the reactor thread, at the next
-#opportunity.  Since the reactor is not currently running, the next
-#opportunity will be shortly after we call reactor.run().
+
+
+# Set up "callable" to be run, in the reactor thread, at the next
+# opportunity.  Since the reactor is not currently running, the next
+# opportunity will be shortly after we call reactor.run().
 reactor.callWhenRunning(main)
 
 # Start the reactor.
 reactor.run()
-

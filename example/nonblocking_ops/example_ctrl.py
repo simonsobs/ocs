@@ -5,8 +5,8 @@ examples lying around.
 
 """
 
-import ocs
 from ocs import client_t
+
 
 def my_script(app, parser_args, target=None):
     print('Entered my_script')
@@ -16,13 +16,13 @@ def my_script(app, parser_args, target=None):
     # Obtain handles to both tasks.
     cw1 = client_t.TaskClient(app, target_addr, 'task1')
     cw2 = client_t.TaskClient(app, target_addr, 'task2')
-    
+
     print('Starting first task.')
     d1 = yield cw1.start()
     print(d1)
     x = yield cw1.wait(timeout=20)
     print(x)
-    
+
     print('Starting second task.')
     d2 = yield cw2.start()
     print(d2)

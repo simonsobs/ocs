@@ -20,6 +20,6 @@ following pages:
     :maxdepth: 2
 
     site_config
-    docker_config 
+    docker_config
     crossbar_config
     centralized_management

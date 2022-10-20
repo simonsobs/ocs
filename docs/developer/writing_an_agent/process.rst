@@ -81,56 +81,56 @@ Our Agent in full now looks like this:
 .. code-block:: python
 
     import time
-    
+
     from ocs import ocs_agent, site_config
-    
-    
+
+
     class BarebonesAgent:
         """Barebone Agent demonstrating writing an Agent from scratch.
-    
+
         This Agent is meant to be an example for Agent development, and provides a
         clean starting point when developing a new Agent.
-    
+
         Parameters:
             agent (OCSAgent): OCSAgent object from :func:`ocs.ocs_agent.init_site_agent`.
-    
+
         Attributes:
             agent (OCSAgent): OCSAgent object from :func:`ocs.ocs_agent.init_site_agent`.
             _count (bool): Internal tracking of whether the Agent should be
                 counting or not. This is used to exit the Process loop by changing
                 it to False via the count.stop() command. Your Agent won't use this
                 exact attribute, but might have a similar one.
-    
+
         """
-    
+
         def __init__(self, agent):
             self.agent = agent
             self._count = False
-    
+
         def count(self, session, params):
             """count()
-    
+
             **Process** - Count up from 0.
-    
+
             The count will restart if the process is stopped and restarted.
-    
+
             Notes:
                 The most recent value is stored in the session data object in the
                 format::
-    
+
                     >>> response.session['data']
                     {"value": 0,
                      "timestamp": 1600448753.9288929}
-    
+
             """
             session.set_status('running')
-    
+
             # Initialize the counter
             self._count=True
             counter = 0
-    
+
             print("Starting the count!")
-    
+
             # Main process loop
             while self._count:
                 counter += 1
@@ -138,9 +138,9 @@ Our Agent in full now looks like this:
                 session.data = {"value": counter,
                                 "timestamp": time.time()}
                 time.sleep(1)
-    
+
             return True, 'Acquisition exited cleanly.'
-    
+
         def _stop_count(self, session, params):
             """Stop monitoring the turbo output."""
             if self._count:
@@ -148,39 +148,39 @@ Our Agent in full now looks like this:
                 return True, 'requested to stop taking data.'
             else:
                 return False, 'count is not currently running'
-    
+
         @ocs_agent.param('text', default='hello world', type=str)
         def print(self, session, params):
             """print(text='hello world')
-    
+
             **Task** - Print some text passed to a Task.
-    
+
             Args:
                 text (str): Text to print out. Defaults to 'hello world'.
-    
+
             Notes:
                 The session data will be updated with the text::
-    
+
                     >>> response.session['data']
                     {'text': 'hello world',
                      'last_updated': 1660249321.8729222}
-    
+
             """
             # Set operations status to 'running'
             session.set_status('running')
-    
+
             # Print the text provided to the Agent logs
             print(f"{params['text']}")
-    
+
             # Store the text provided in session.data
             session.data = {'text': params['text'],
                             'last_updated': time.time()}
-    
+
             # bool, 'descriptive text message'
             # True if task succeeds, False if not
             return True, 'Printed text to logs'
-    
-    
+
+
     def main(args=None):
         args = site_config.parse_args(agent_class='BarebonesAgent', args=args)
         agent, runner = ocs_agent.init_site_agent(args)

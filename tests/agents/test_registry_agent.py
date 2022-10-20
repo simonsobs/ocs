@@ -1,5 +1,4 @@
 import time
-import pytest
 import pytest_twisted
 
 from agents.util import create_session, create_agent_fixture

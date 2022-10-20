@@ -9,7 +9,6 @@ from twisted.internet.error import ReactorNotRunning
 
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
-from autobahn.twisted.util import sleep as dsleep
 import deprecation
 
 
@@ -64,7 +63,6 @@ def run_control_script(function, parser=None, *args, **kwargs):
     pargs = parser.parse_args()
     ocs.site_config.reparse_args(pargs, '*control*')
     server, realm = pargs.site_hub, pargs.site_realm
-    addr = pargs.address_root
     session = ControlClientSession(ComponentConfig(realm, {}), function,
                                    [pargs] + list(args), kwargs)
     runner = ApplicationRunner(server, realm)
@@ -105,7 +103,6 @@ class ControlClientSession(ApplicationSession):
         yield self.leave()
 
 
-
 class OperationClient:
     """The endpoint client is associated with a single operation rather
     than with an operation server."""
@@ -114,7 +111,7 @@ class OperationClient:
         self.app = app
         self.root = root_address
         self.op_name = op_name
-        
+
     def request(self, action, params=None, timeout=None):
         return self.app.call(self.root + '.ops', action, self.op_name,
                              params=params, timeout=timeout)
@@ -128,9 +125,11 @@ class OperationClient:
     def wait(self, params=None, timeout=None):
         return self.request('wait', params=params, timeout=timeout)
 
+
 class TaskClient(OperationClient):
     def abort(self, params=None):
         return self.request('abort', params=params)
+
 
 class ProcessClient(OperationClient):
     def stop(self, params=None):

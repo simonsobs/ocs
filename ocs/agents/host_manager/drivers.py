@@ -6,6 +6,7 @@ import yaml
 from twisted.internet import reactor, utils, protocol
 from twisted.internet.defer import inlineCallbacks
 
+
 class ManagedInstance(dict):
     """Track properties of a managed Agent-instance.  This is just a dict
     with a schema docstring and an "init" function to set defaults.
@@ -152,17 +153,17 @@ def resolve_child_state(db):
     # State handling when target is to be 'down'.
     elif db['target_state'] == 'down':
         if db['next_action'] == 'down':
-            ## The lines below will prevent HostManager from killing
-            ## Agents that suddenly seem to be alive.  With these
-            ## lines commented out, someone running "up" on a managed
-            ## docker-compose.yaml will see their Agents immediately
-            ## be brought down by HostManager.
-            #if prot is not None and prot.status[0] is None:
+            # The lines below will prevent HostManager from killing
+            # Agents that suddenly seem to be alive.  With these
+            # lines commented out, someone running "up" on a managed
+            # docker-compose.yaml will see their Agents immediately
+            # be brought down by HostManager.
+            # if prot is not None and prot.status[0] is None:
             #    messages.append('Detected unexpected session for {full_name} '
             #                    '(probably docker); changing target state to "up".'.format(**db))
             #    db['target_state'] = 'up'
 
-            ## In fully managed mode, force a termination.
+            # In fully managed mode, force a termination.
             if prot is not None and prot.status[0] is None:
                 messages.append('Detected unexpected session for {full_name} '
                                 '(probably docker); it will be shut down.'.format(**db))
@@ -173,7 +174,7 @@ def resolve_child_state(db):
             actions['terminate'] = True
             db['next_action'] = 'wait_dead'
             db['at'] = time.time() + 5
-        else: # 'start_at', 'start'
+        else:  # 'start_at', 'start'
             messages.append('Modifying state of {full_name} from '
                             '{next_action} to idle'.format(**db))
             db['next_action'] = 'down'
@@ -208,7 +209,7 @@ def stability_factor(times, window=120):
     # Only keep the last few failures, within our time window.
     times = [t for t in times[-200:-1]
              if t >= now - window] + times[-1:]
-    dt = [5./(now - t) for t in times]
+    dt = [5. / (now - t) for t in times]
     return times, max(1 - sum(dt), 0.)
 
 
@@ -252,15 +253,19 @@ class AgentProcessHelper(protocol.ProcessProtocol):
     # "outReceived" and "errReceived".
     def connectionMade(self):
         self.transport.closeStdin()
+
     def inConnectionLost(self):
         pass
+
     def processExited(self, status):
-        #print('%s.status:' % self.instance_id, status)
+        # print('%s.status:' % self.instance_id, status)
         self.status = status, time.time()
+
     def outReceived(self, data):
         self.lines['stdout'].extend(data.decode('utf8').split('\n'))
         if len(self.lines['stdout']) > 100:
             self.lines['stdout'] = self.lines['stdout'][-100:]
+
     def errReceived(self, data):
         self.lines['stderr'].extend(data.decode('utf8').split('\n'))
         if len(self.lines['stderr']) > 100:
@@ -284,6 +289,7 @@ class DockerContainerHelper:
     parse_docker_state).
 
     """
+
     def __init__(self, service, docker_compose_bin=None):
         self.service = {}
         self.status = -1, time.time()

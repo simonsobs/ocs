@@ -140,4 +140,3 @@ Unneeded sections should be removed.
 
 .. include:: ../../../example/docs/agent_template.rst
     :code: rst
-

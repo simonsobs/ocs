@@ -137,11 +137,11 @@ boilerplate code:
       args = site_config.parse_args(agent_class='FakeDataAgent', parser=parser)
 
       print('I am in charge of device with serial number: %s' % args.serial_number)
-  
+
       # Call launcher function (initiates connection to appropriate
       # WAMP hub and realm).
       agent, runner = ocs_agent.init_site_agent(args)
-  
+
       my_hd = MyHardwareDevice()
       #... register processes and tasks, e.g.:
       agent.register_process('acq', my_hd.start_acq, my_hd.stop_acq)
@@ -188,8 +188,8 @@ behaves as follows:
     :noindex:
 
 The control client script might look something like this (see also
-river_ctrl.py in the examples):  
-    
+river_ctrl.py in the examples):
+
 .. code-block:: python
 
   def my_script(app, pargs):
@@ -198,10 +198,10 @@ river_ctrl.py in the examples):
       # We've added a --target option.
       # Construct the full agent address.
       agent_addr = '%s.%s' % (pargs.address_root, pargs.target)
-  
+
       # Create a ProcessClient for the process 'acq'.
       cw = client_t.ProcessClient(app, agent_addr, 'acq')
-  
+
       print('Starting a data acquisition process...')
       d1 = yield cw.start()
       #...

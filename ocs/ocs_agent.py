@@ -17,13 +17,14 @@ from autobahn.wamp.exception import ApplicationError, TransportLost
 from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
 
-import time, datetime
+import time
+import datetime
 import socket
 import os
-from deprecation import deprecated
 from ocs import client_t
 from ocs import ocs_feed
 from ocs.base import OpCode
+
 
 def init_site_agent(args, address=None):
     """
@@ -39,7 +40,7 @@ def init_site_agent(args, address=None):
     if address is None:
         address = '%s.%s' % (args.address_root, args.instance_id)
     server, realm = args.site_hub, args.site_realm
-    #txaio.start_logging(level='debug')
+    # txaio.start_logging(level='debug')
     agent = OCSAgent(ComponentConfig(realm, {}), args, address=address,
                      class_name=getattr(args, 'agent_class', None))
     runner = ApplicationRunner(server, realm)
@@ -92,7 +93,7 @@ class OCSAgent(ApplicationSession):
         self.feeds = {}
         self.sessions = {}    # by op_name, single OpSession.
         self.next_session_id = 0
-        self.session_archive = {} # by op_name, lists of OpSession.
+        self.session_archive = {}  # by op_name, lists of OpSession.
         self.agent_address = address
         self.class_name = class_name
         self.registered = False
@@ -124,8 +125,6 @@ class OCSAgent(ApplicationSession):
                     self.log.error('Permissions error writing to log file %s' % log_file)
             else:
                 self.log.error('Log directory does not exist: %s' % log_dir)
-
-        log.addObserver(self.log_publish)
 
         # Can we log already?
         self.log.info('ocs: starting %s @ %s' % (str(self.__class__), address))
@@ -192,7 +191,7 @@ class OCSAgent(ApplicationSession):
                 self.publish_to_feed("heartbeat", op_codes, from_reactor=True)
 
         self.heartbeat_call = task.LoopingCall(heartbeat)
-        self.heartbeat_call.start(1.0) # Calls the hearbeat every second
+        self.heartbeat_call.start(1.0)  # Calls the hearbeat every second
 
         # Subscribe to startup_subs
         for sub in self.startup_subs:
@@ -249,12 +248,8 @@ class OCSAgent(ApplicationSession):
         except ReactorNotRunning:
             pass
 
-    def log_publish(self, event):
-        text = log_formatter(event)
-        #self.publish('observatory.%s.log', text)
-
     """The methods below provide OCS framework support."""
-            
+
     def encoded(self):
         """
         Returns a dict describing this Agent.  Includes 'agent_address',
@@ -366,8 +361,8 @@ class OCSAgent(ApplicationSession):
         try:
             self.publish(self.agent_address + '.feed', session.encoded())
         except TransportLost:
-            self.log.error('Unable to publish status. TransportLost. ' +
-                           'crossbar server likely unreachable.')
+            self.log.error('Unable to publish status. TransportLost. '
+                           + 'crossbar server likely unreachable.')
 
     def register_task(self, name, func, aborter=None, blocking=True,
                       aborter_blocking=None, startup=False):
@@ -616,7 +611,7 @@ class OCSAgent(ApplicationSession):
             session.success = ok
             session.add_message(message)
             session.set_status('done')
-        except:
+        except BaseException:
             print('Failed to decode _handle_task_return_val args:',
                   args, kw)
             raise
@@ -631,7 +626,7 @@ class OCSAgent(ApplicationSession):
             session.add_message(message)
             session.success = False
             session.set_status('done')
-        except:
+        except BaseException:
             print('Failure to decode _handle_task_error args:',
                   args, kw)
             raise
@@ -664,7 +659,7 @@ class OCSAgent(ApplicationSession):
             if session is not None:
                 if session.status == 'done':
                     # Move to history...
-                    #...
+                    # ...
                     # Clear from active.
                     self.sessions[op_name] = None
                 else:
@@ -705,7 +700,7 @@ class OCSAgent(ApplicationSession):
             session.d.addCallback(self._handle_task_return_val, session)
             session.d.addErrback(self._handle_task_error, session)
             return (ocs.OK, msg, session.encoded())
-        
+
         else:
             self.log.warn("No task called {}".format(op_name))
             return (ocs.ERROR, 'No task or process called "%s"' % op_name, {})
@@ -732,7 +727,7 @@ class OCSAgent(ApplicationSession):
         """
         if not (op_name in self.tasks or op_name in self.processes):
             return (ocs.ERROR, 'Unknown operation "%s".' % op_name, {})
-        
+
         session = self.sessions[op_name]
         if session is None:
             return (ocs.OK, 'Idle.', {})
@@ -760,7 +755,7 @@ class OCSAgent(ApplicationSession):
             dl = DeferredList([session.d, td], fireOnOneCallback=True,
                               fireOnOneErrback=True, consumeErrors=True)
             try:
-                results = yield dl
+                yield dl
             except FirstError as e:
                 assert e.index == 0  # i.e. session.d raised an error.
                 td.cancel()
@@ -820,10 +815,11 @@ class OCSAgent(ApplicationSession):
         def _callback(*args, **kw):
             try:
                 ok, msg = args
-            except:
+            except BaseException:
                 ok, msg = True, str(args)
             print(f'Stopper for "{op_name}" terminated with ok={ok} and '
                   f'message {msg}')
+
         def _errback(*args, **kw):
             print(f'Error calling stopper for "{op_name}"; args:',
                   args, kw)
@@ -925,6 +921,7 @@ class AgentTask:
             'op_type': 'task',
         }
 
+
 class AgentProcess:
     def __init__(self, launcher, stopper, blocking=None, stopper_blocking=None):
         self.launcher = launcher
@@ -979,6 +976,7 @@ class OpSession:
     The message buffer is purged periodically.
 
     """
+
     def __init__(self, session_id, op_name, status='starting', log_status=True,
                  app=None, purge_policy=None):
         # Note that some data members are used internally, while others are
@@ -1003,19 +1001,19 @@ class OpSession:
                                    # messages can be discarded.
             'min_messages': 5,     # Number of messages to keep,
                                    # even if they have expired.
-            'max_messages': 10000, # Max number of messages to keep,
+            'max_messages': 10000,  # Max number of messages to keep,
                                    # even if they have not expired.
-            }
+        }
         if purge_policy is not None:
             self.purge_policy.update(purge_policy)
         self.purge_log()
 
     def purge_log(self):
         cutoff = time.time() - self.purge_policy['min_age_s']
-        while ((len(self.messages) > self.purge_policy['max_messages']) or
-               ((len(self.messages) > self.purge_policy['min_messages']) and
-                self.messages[0][0] < cutoff)):
-            m = self.messages.pop(0)
+        while ((len(self.messages) > self.purge_policy['max_messages'])
+               or ((len(self.messages) > self.purge_policy['min_messages'])
+               and self.messages[0][0] < cutoff)):
+            self.messages.pop(0)
         # Set this purger to be called again in the future, at some
         # cadence based on the minimum message age.
         next_purge_time = max(self.purge_policy['min_age_s'] / 5, 600)
@@ -1107,7 +1105,7 @@ class OpSession:
         Args:
             status (string): New value for status (see below).
             timestamp (float): timestamp for the operation.
-            log_status (bool): Determines whether change is logged in 
+            log_status (bool): Determines whether change is logged in
                 message buffer.
 
         The possible values for status are:
@@ -1138,7 +1136,7 @@ class OpSession:
                                           timestamp=timestamp,
                                           log_status=log_status)
         # Sanity check the status value.
-        from_index = SESSION_STATUS_CODES.index(self.status) # current status valid?
+        from_index = SESSION_STATUS_CODES.index(self.status)  # current status valid?
         to_index = SESSION_STATUS_CODES.index(status)        # new status valid?
         assert (to_index >= from_index)  # Only forward moves in status are permitted.
 
@@ -1149,8 +1147,8 @@ class OpSession:
             try:
                 self.add_message('Status is now "%s".' % status, timestamp=timestamp)
             except (TransportLost, Disconnected):
-                self.app.log.error('setting session status to "{s}" failed. ' +
-                                   'transport lost or disconnected', s=status)
+                self.app.log.error('setting session status to "{s}" failed. '
+                                   + 'transport lost or disconnected', s=status)
 
     def add_message(self, message, timestamp=None):
         """Add a log message to the OpSession messages buffer.
@@ -1177,6 +1175,7 @@ class OpSession:
 class ParamError(Exception):
     def __init__(self, msg):
         self.msg = msg
+
 
 class ParamHandler:
     """Helper for Agent Operation codes to extract params.  Supports type
@@ -1243,6 +1242,7 @@ class ParamHandler:
           other keys in .session: op_code, data
 
     """
+
     def __init__(self, params):
         self._params = params
         self._checked = set()
@@ -1325,7 +1325,7 @@ class ParamHandler:
             if cast is not None:
                 try:
                     value = cast(value)
-                except:
+                except BaseException:
                     raise ParamError(f"Param '{key}'={value} could not be cast to {cast}.")
             if type is not None:
                 # Free cast from int to float.
@@ -1368,6 +1368,7 @@ class ParamHandler:
         if len(weird_args):
             raise ParamError(f"params included unexpected values: {weird_args}")
 
+
 def param(key, **kwargs):
     """Decorator for Agent operation functions to assist with checking
     params prior to actually trying to execute the code.  Example::
@@ -1395,6 +1396,7 @@ def param(key, **kwargs):
     else:
         ParamHandler({}).get(key, default=None, **kwargs)
     # Start a cache and append these args to it...
+
     def deco(func):
         if not hasattr(func, '_ocs_prescreen'):
             setattr(func, '_ocs_prescreen', [])

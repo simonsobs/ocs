@@ -12,6 +12,7 @@ from ocs.ocs_feed import Feed
 from colorama import init, Fore, Style
 init()
 
+
 def _build_file_list(target):
     """Build list of files to scan.
 
@@ -37,6 +38,7 @@ def _build_file_list(target):
                     _file_list.append(os.path.join(root, g3))
 
     return _file_list
+
 
 class DataChecker:
     """Check data for latest feeds and fields.
@@ -67,6 +69,7 @@ class DataChecker:
         _populate_instances docstring
 
     """
+
     def __init__(self, target, verbose=False):
         self.target = target
         self.verbose = verbose
@@ -194,7 +197,7 @@ class DataChecker:
 
                     description_string += f"  {feed}\n"
                     # 20 per fixed field, 9 for dividers, and field_str_len
-                    description_string += "  " + "-"*(69+field_str_len) + "\n"
+                    description_string += "  " + "-" * (69 + field_str_len) + "\n"
 
                     # Header string
                     desc_substring = "  "
@@ -217,7 +220,7 @@ class DataChecker:
 
                     description_string += desc_substring + "\n"
 
-                    description_string += "  " + "-"*(69+field_str_len) + "\n"
+                    description_string += "  " + "-" * (69 + field_str_len) + "\n"
 
                     for field, d_info in fields['fields'].items():
                         t_diff = time.time() - d_info['t_last']

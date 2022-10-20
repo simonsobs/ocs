@@ -76,11 +76,11 @@ Agent. This looks something like:
         args = site_config.parse_args(agent_class='BarebonesAgent',
                                       parser=parser,
                                       args=args)
-    
+
         agent, runner = ocs_agent.init_site_agent(args)
-    
+
         barebone = BarebonesAgent(agent)
-    
+
         runner.run(agent, auto_reconnect=True)
 
 This example leaves out some other boilerplate from the Barebones Agent, but
@@ -101,7 +101,7 @@ running:
         from importlib_metadata import entry_points
     else:
         from importlib.metadata import entry_points
-    
+
     discovered_plugins = entry_points(group='ocs.plugins')
     print(discovered_plugins)
     # [EntryPoint(name='ocs', value='ocs.plugin', group='ocs.plugins')]

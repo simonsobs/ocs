@@ -827,7 +827,7 @@ def main(args=None):
                     raise OcsbowError(
                         "Cannot perform action on '%s', as there are "
                         "%i HostManagers configured on host '%s'." % (
-                            inst['instance-id'], len(active_hms), host_name))
+                            inst['instance-id'], len(active_hms), host_data['host_name']))
                 agents.append((inst, active_hms[0]))
         if args.dry_run:
             print('[dry-run, no requests will be issued]')

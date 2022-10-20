@@ -126,8 +126,6 @@ class OCSAgent(ApplicationSession):
             else:
                 self.log.error('Log directory does not exist: %s' % log_dir)
 
-        log.addObserver(self.log_publish)
-
         # Can we log already?
         self.log.info('ocs: starting %s @ %s' % (str(self.__class__), address))
         self.log.info('log_file is apparently %s' % (log_file))
@@ -249,10 +247,6 @@ class OCSAgent(ApplicationSession):
             reactor.stop()
         except ReactorNotRunning:
             pass
-
-    def log_publish(self, event):
-        text = log_formatter(event)  # noqa: F841 -- keep context for commented use
-        # self.publish('observatory.%s.log', text)
 
     """The methods below provide OCS framework support."""
 

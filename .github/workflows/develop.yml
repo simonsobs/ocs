@@ -50,3 +50,40 @@ jobs:
         # Upload to docker registry
         docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}
         docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo ${DOCKERHUB_ORG}/{}:${DOCKER_TAG} pushed
+
+  # testing so we can catch any issues before release
+  # if issues are found, test locally, or copy to pytest.yml and set to test on push
+  wheel:
+    name: build and test wheel
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: clone ocs
+      uses: actions/checkout@v2
+
+    - name: install build dependencies
+      run: |
+        python3 -m pip install --upgrade build twine
+
+    - name: build wheel
+      run: |
+        python3 -m build
+
+    - name: install wheel
+      run: |
+        python3 -m pip install dist/ocs*.whl
+
+    - name: install testing requirements
+      run: |
+        pip3 install -r requirements/testing.txt
+
+    - name: Run unit tests
+      working-directory: ./tests
+      run: |
+        python3 -m pytest -m 'not integtest'

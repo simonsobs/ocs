@@ -3,6 +3,12 @@ name: Build Develop Images
 on:
   push:
     branches: [ develop ]
+    paths-ignore:
+      - 'docs/**'
+      - '**.rst'
+      - '**.md'
+      - '.flake8'
+      - '.pre-commit-config.yaml'
 
 jobs:
   test:

@@ -3,58 +3,16 @@ name: Build Develop Images
 on:
   push:
     branches: [ develop ]
+    paths-ignore:
+      - 'docs/**'
+      - '**.rst'
+      - '**.md'
+      - '.flake8'
+      - '.pre-commit-config.yaml'
 
 jobs:
   test:
-    name: pytest with coverage
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8
-
-    - name: clone ocs
-      uses: actions/checkout@v2
-      # Fetch all history for all tags and branches
-      with:
-        fetch-depth: 0
-
-    - name: Install ocs
-      run: |
-        pip3 install -r requirements.txt
-        pip3 install -e .[so3g]
-
-    # Test (steps from pytest workflow)
-    # Unit Tests
-    - name: Run unit tests
-      working-directory: ./tests
-      run: |
-        COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not integtest'
-
-    # Integration Tests
-    - name: Build images for integration tests
-      run: |
-        docker-compose build ocs ocs-crossbar
-
-    - name: Run integration tests
-      working-directory: ./tests
-      run: |
-        mkdir log
-        COVERAGE_FILE=.coverage.int python3 -m pytest --cov -m 'integtest'
-        ls -la ./log/
-
-    # Coverage
-    - name: Report test coverage
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        mv ./tests/.coverage.* ./
-        pip install coveralls
-        coverage combine
-        coverage report
-        coveralls --service=github
+    uses: ./.github/workflows/pytest.yml
 
   build:
     name: build and deploy dev images
@@ -92,3 +50,40 @@ jobs:
         # Upload to docker registry
         docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}
         docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo ${DOCKERHUB_ORG}/{}:${DOCKER_TAG} pushed
+
+  # testing so we can catch any issues before release
+  # if issues are found, test locally, or copy to pytest.yml and set to test on push
+  wheel:
+    name: build and test wheel
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: clone ocs
+      uses: actions/checkout@v2
+
+    - name: install build dependencies
+      run: |
+        python3 -m pip install --upgrade build twine
+
+    - name: build wheel
+      run: |
+        python3 -m build
+
+    - name: install wheel
+      run: |
+        python3 -m pip install dist/ocs*.whl
+
+    - name: install testing requirements
+      run: |
+        pip3 install -r requirements/testing.txt
+
+    - name: Run unit tests
+      working-directory: ./tests
+      run: |
+        python3 -m pytest -m 'not integtest'

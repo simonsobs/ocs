@@ -4,6 +4,7 @@ import time
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
 from ocs.ocs_feed import Feed
+import argparse
 
 
 class RegisteredAgent:
@@ -81,9 +82,10 @@ class Registry:
                 as expired.
     """
 
-    def __init__(self, agent):
+    def __init__(self, agent, args):
         self.log = agent.log
         self.agent = agent
+        self.wait_time = args.wait_time
 
         # Tracking for 'main' Process
         self._run = False
@@ -155,7 +157,7 @@ class Registry:
 
         session.set_status('running')
         while self._run:
-            yield dsleep(1)
+            yield dsleep(self.wait_time)
 
             for k, agent in self.registered_agents.items():
                 if time.time() - agent.last_updated > self.agent_timeout:
@@ -208,14 +210,23 @@ class Registry:
 
         return True, "'register_agent' is deprecated"
 
+def make_parser(parser=None):
+    if parser is None:
+        parser = argparse.ArgumentParser()
+    pgroup = parser.add_argument_group('Agent Options')
+    pgroup.add_argument('--wait-time', type=float, default=30.,
+                        help='Sleep time for main loop')
+    return parser
+
 
 def main(args=None):
+    parser = make_parser()
     args = site_config.parse_args(agent_class='RegistryAgent',
-                                  parser=None,
+                                  parser=parser,
                                   args=args)
 
     agent, runner = ocs_agent.init_site_agent(args)
-    registry = Registry(agent)
+    registry = Registry(agent, args)
 
     agent.register_process('main', registry.main, registry._stop_main, blocking=False, startup=True)
     agent.register_task('register_agent', registry._register_agent, blocking=False)

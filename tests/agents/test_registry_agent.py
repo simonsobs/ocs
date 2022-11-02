@@ -3,9 +3,11 @@ import pytest_twisted
 
 from agents.util import create_session, create_agent_fixture
 
-from ocs.agents.registry.agent import Registry
+from ocs.agents.registry.agent import Registry, make_parser
 
-agent = create_agent_fixture(Registry)
+parser = make_parser()
+args = parser.parse_args(['--wait-time', '0.1'])
+agent = create_agent_fixture(Registry, agent_kwargs=dict(args=args))
 
 
 class TestMain:

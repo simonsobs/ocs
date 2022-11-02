@@ -210,6 +210,7 @@ class Registry:
 
         return True, "'register_agent' is deprecated"
 
+
 def make_parser(parser=None):
     if parser is None:
         parser = argparse.ArgumentParser()

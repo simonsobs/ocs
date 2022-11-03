@@ -126,6 +126,19 @@ class Publisher:
                 LOG.error("InfluxDB Server Error: {e}", e=err)
 
     @staticmethod
+    def _format_field_line(field_key, field_value):
+        """Format key-value pair for InfluxDB line protocol."""
+        # Strings must be in quotes for line protocol
+        if isinstance(field_value, str):
+            line = f'{field_key}="{field_value}"'
+        else:
+            line = f"{field_key}={field_value}"
+        # Don't append 'i' to bool, which is a subclass of int
+        if isinstance(field_value, int) and not isinstance(field_value, bool):
+            line += "i"
+        return line
+
+    @staticmethod
     def format_data(data, feed, protocol):
         """Format the data from an OCS feed into a dict for pushing to InfluxDB.
 
@@ -167,13 +180,7 @@ class Publisher:
                 if protocol == 'line':
                     fields_line = []
                     for mk, mv in fields.items():
-                        # Strings must be in quotes for line protocol
-                        if isinstance(mv, str):
-                            f_line = f'{mk}="{mv}"'
-                        else:
-                            f_line = f"{mk}={mv}"
-                        if isinstance(mv, int):
-                            f_line += "i"
+                        f_line = Publisher._format_field_line(mk, mv)
                         fields_line.append(f_line)
 
                     measurement_line = ','.join(fields_line)

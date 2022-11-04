@@ -4,7 +4,7 @@
 """
 
 import ocs
-from ocs import client_http
+from ocs import client_http, ocs_client
 
 import argparse
 import difflib
@@ -471,7 +471,7 @@ class HostManagerManager:
 
     def _reconnect(self):
         try:
-            self.client = ocs.matched_client.MatchedClient(self.instance_id, args=self.args)
+            self.client = ocs_client.OCSClient(self.instance_id, args=self.args)
         except (ConnectionError, client_http.ControlClientError):
             self.client = None
 
@@ -578,6 +578,11 @@ class HostManagerManager:
         return False, 'Agent did not die within %.1f seconds.' % timeout
 
     def start(self, check=True, timeout=5., up=False, foreground=False):
+        if self.instance_id is None:
+            print('\nERROR: cannot "start" HostManager because '
+                  'instance_id could not be determined.')
+            return False, 'The HostManager instance_id is not known.'
+
         host = self.site_config.host
         log_dir = host.log_dir
         if log_dir is not None and not log_dir.startswith('/'):
@@ -586,17 +591,14 @@ class HostManagerManager:
             if not os.path.exists(log_dir):
                 print('\nWARNING: the expected log dir, %s, does not exist!\n' %
                       log_dir)
-        # Most important is the site filename and host alias.
-        for agent_path in host.agent_paths:
-            hm_script = os.path.join(agent_path, 'host_manager/host_manager.py')
-            if os.path.exists(hm_script):
-                break
-        else:
-            return False, "Could not find host_manager.py in the agent_paths!"
 
-        print('Launching HostManager through %s' % hm_script)
         print('Log dir is: %s' % log_dir)
-        cmd = [sys.executable, hm_script,
+
+        # Most important args are instance_id, site filename and host
+        # alias.
+        cmd = [sys.executable,
+               '-m', 'ocs.agents.host_manager.agent',
+               '--instance-id', self.instance_id,
                '--site-file', self.site_config.site.source_file,
                '--site-host', host.name,
                '--working-dir', self.working_dir]

@@ -15,10 +15,16 @@ from spt3g import core
 
 HKAGG_VERSION = 2
 _g3_casts = {
-    str: core.G3String, int: core.G3Int, float: core.G3Double,
+    str: core.G3String,
+    int: core.G3Int,
+    float: core.G3Double,
+    bool: core.G3Bool,
 }
 _g3_list_casts = {
-    str: core.G3VectorString, int: core.G3VectorInt, float: core.G3VectorDouble,
+    str: core.G3VectorString,
+    int: core.G3VectorInt,
+    float: core.G3VectorDouble,
+    bool: core.G3VectorBool,
 }
 
 LOG = txaio.make_logger()
@@ -30,6 +36,7 @@ def g3_cast(data, time=False):
         int   -> G3Int
         str   -> G3String
         float -> G3Double
+        bool  -> G3Bool
 
     and lists of type X will go to G3VectorX. If ``time`` is set to True, will
     convert to G3Time or G3VectorTime with the assumption that ``data`` consists

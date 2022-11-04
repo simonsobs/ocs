@@ -364,8 +364,10 @@ def test_g3_cast():
         ([1, 2, 3, 4], core.G3VectorInt),
         ([1., 2., 3.], core.G3VectorDouble),
         (["a", "b", "c"], core.G3VectorString),
+        ([True, False], core.G3VectorBool),
         (3, core.G3Int),
-        ("test", core.G3String)
+        ("test", core.G3String),
+        (True, core.G3Bool),
     ]
     for x, t in correct_tests:
         assert isinstance(g3_cast(x), t)
@@ -374,7 +376,7 @@ def test_g3_cast():
     assert isinstance(g3_cast([1, 2, 3], time=True), core.G3VectorTime)
 
     incorrect_tests = [
-        ['a', 'b', 1, 2], True, [1, 1.0, 2]
+        ['a', 'b', 1, 2], [1, 1.0, 2]
     ]
     for x in incorrect_tests:
         with pytest.raises(TypeError):

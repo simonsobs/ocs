@@ -115,7 +115,7 @@ class Registry:
         addr = feed['agent_address']
         if addr not in self.registered_agents:
             self.registered_agents[addr] = RegisteredAgent(feed)
-        
+
         reg_agent = self.registered_agents[addr]
         publish = op_codes != reg_agent.op_codes
         self.registered_agents[addr].refresh(op_codes=op_codes)
@@ -141,7 +141,6 @@ class Registry:
             msg['data'][field] = op_code
         if msg['data']:
             self.agent.publish_to_feed('agent_operations', msg)
-
 
     @ocs_agent.param('test_mode', default=False, type=bool)
     @inlineCallbacks

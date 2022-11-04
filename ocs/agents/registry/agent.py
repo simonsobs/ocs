@@ -115,7 +115,33 @@ class Registry:
         addr = feed['agent_address']
         if addr not in self.registered_agents:
             self.registered_agents[addr] = RegisteredAgent(feed)
+        
+        reg_agent = self.registered_agents[addr]
+        publish = op_codes != reg_agent.op_codes
         self.registered_agents[addr].refresh(op_codes=op_codes)
+        if publish:
+            self._publish_agent_ops(reg_agent)
+
+    def _publish_agent_ops(self, reg_agent):
+        addr = reg_agent.agent_address
+        msg = {'block_name': addr,
+               'timestamp': time.time(),
+               'data': {}}
+        self.log.info(addr)
+        for op_name, op_code in reg_agent.op_codes.items():
+            field = f'{addr}_{op_name}'
+            field = field.replace('.', '_')
+            field = field.replace('-', '_')
+            field = Feed.enforce_field_name_rules(field)
+            try:
+                Feed.verify_data_field_string(field)
+            except ValueError as e:
+                self.log.warn(f"Improper field name: {field}\n{e}")
+                continue
+            msg['data'][field] = op_code
+        if msg['data']:
+            self.agent.publish_to_feed('agent_operations', msg)
+
 
     @ocs_agent.param('test_mode', default=False, type=bool)
     @inlineCallbacks
@@ -167,23 +193,8 @@ class Registry:
                 k: agent.encoded() for k, agent in self.registered_agents.items()
             }
 
-            for addr, agent in self.registered_agents.items():
-                msg = {'block_name': addr,
-                       'timestamp': time.time(),
-                       'data': {}}
-                for op_name, op_code in agent.op_codes.items():
-                    field = f'{addr}_{op_name}'
-                    field = field.replace('.', '_')
-                    field = field.replace('-', '_')
-                    field = Feed.enforce_field_name_rules(field)
-                    try:
-                        Feed.verify_data_field_string(field)
-                    except ValueError as e:
-                        self.log.warn(f"Improper field name: {field}\n{e}")
-                        continue
-                    msg['data'][field] = op_code
-                if msg['data']:
-                    self.agent.publish_to_feed('agent_operations', msg)
+            for agent in self.registered_agents.values():
+                self._publish_agent_ops(agent)
 
             if params['test_mode']:
                 break

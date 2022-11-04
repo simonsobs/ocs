@@ -537,7 +537,7 @@ class HostManagerManager:
                     result['message'] = (
                         'Manager Process has been running for %i seconds.' %
                         (time.time() - session['start_time']))
-                    result['child_states'] = session['data']['child_states']
+                    result['child_states'] = session['data'].get('child_states', [])
                 else:
                     result['message'] = 'Manager Process is in state: %s' % status_text
             else:

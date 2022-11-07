@@ -127,7 +127,7 @@ class Registry:
         msg = {'block_name': addr,
                'timestamp': time.time(),
                'data': {}}
-        self.log.info(addr)
+        self.log.debug(addr)
         for op_name, op_code in reg_agent.op_codes.items():
             field = f'{addr}_{op_name}'
             field = field.replace('.', '_')

@@ -4,6 +4,7 @@ import time
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep as dsleep
 from ocs.ocs_feed import Feed
+import argparse
 
 
 class RegisteredAgent:
@@ -81,9 +82,10 @@ class Registry:
                 as expired.
     """
 
-    def __init__(self, agent):
+    def __init__(self, agent, args):
         self.log = agent.log
         self.agent = agent
+        self.wait_time = args.wait_time
 
         # Tracking for 'main' Process
         self._run = False
@@ -113,7 +115,32 @@ class Registry:
         addr = feed['agent_address']
         if addr not in self.registered_agents:
             self.registered_agents[addr] = RegisteredAgent(feed)
+
+        reg_agent = self.registered_agents[addr]
+        publish = op_codes != reg_agent.op_codes
         self.registered_agents[addr].refresh(op_codes=op_codes)
+        if publish:
+            self._publish_agent_ops(reg_agent)
+
+    def _publish_agent_ops(self, reg_agent):
+        addr = reg_agent.agent_address
+        msg = {'block_name': addr,
+               'timestamp': time.time(),
+               'data': {}}
+        self.log.debug(addr)
+        for op_name, op_code in reg_agent.op_codes.items():
+            field = f'{addr}_{op_name}'
+            field = field.replace('.', '_')
+            field = field.replace('-', '_')
+            field = Feed.enforce_field_name_rules(field)
+            try:
+                Feed.verify_data_field_string(field)
+            except ValueError as e:
+                self.log.warn(f"Improper field name: {field}\n{e}")
+                continue
+            msg['data'][field] = op_code
+        if msg['data']:
+            self.agent.publish_to_feed('agent_operations', msg)
 
     @ocs_agent.param('test_mode', default=False, type=bool)
     @inlineCallbacks
@@ -154,34 +181,23 @@ class Registry:
         self._run = True
 
         session.set_status('running')
+        last_publish = time.time()
         while self._run:
             yield dsleep(1)
 
+            now = time.time()
             for k, agent in self.registered_agents.items():
-                if time.time() - agent.last_updated > self.agent_timeout:
+                if now - agent.last_updated > self.agent_timeout:
                     agent.expire()
 
             session.data = {
                 k: agent.encoded() for k, agent in self.registered_agents.items()
             }
 
-            for addr, agent in self.registered_agents.items():
-                msg = {'block_name': addr,
-                       'timestamp': time.time(),
-                       'data': {}}
-                for op_name, op_code in agent.op_codes.items():
-                    field = f'{addr}_{op_name}'
-                    field = field.replace('.', '_')
-                    field = field.replace('-', '_')
-                    field = Feed.enforce_field_name_rules(field)
-                    try:
-                        Feed.verify_data_field_string(field)
-                    except ValueError as e:
-                        self.log.warn(f"Improper field name: {field}\n{e}")
-                        continue
-                    msg['data'][field] = op_code
-                if msg['data']:
-                    self.agent.publish_to_feed('agent_operations', msg)
+            if now - last_publish >= self.wait_time:
+                last_publish = now
+                for agent in self.registered_agents.values():
+                    self._publish_agent_ops(agent)
 
             if params['test_mode']:
                 break
@@ -209,13 +225,23 @@ class Registry:
         return True, "'register_agent' is deprecated"
 
 
+def make_parser(parser=None):
+    if parser is None:
+        parser = argparse.ArgumentParser()
+    pgroup = parser.add_argument_group('Agent Options')
+    pgroup.add_argument('--wait-time', type=float, default=30.,
+                        help='Sleep time for main loop')
+    return parser
+
+
 def main(args=None):
+    parser = make_parser()
     args = site_config.parse_args(agent_class='RegistryAgent',
-                                  parser=None,
+                                  parser=parser,
                                   args=args)
 
     agent, runner = ocs_agent.init_site_agent(args)
-    registry = Registry(agent)
+    registry = Registry(agent, args)
 
     agent.register_process('main', registry.main, registry._stop_main, blocking=False, startup=True)
     agent.register_task('register_agent', registry._register_agent, blocking=False)

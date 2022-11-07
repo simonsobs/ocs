@@ -181,19 +181,23 @@ class Registry:
         self._run = True
 
         session.set_status('running')
+        last_publish = time.time()
         while self._run:
-            yield dsleep(self.wait_time)
+            yield dsleep(1)
 
+            now = time.time()
             for k, agent in self.registered_agents.items():
-                if time.time() - agent.last_updated > self.agent_timeout:
+                if now - agent.last_updated > self.agent_timeout:
                     agent.expire()
 
             session.data = {
                 k: agent.encoded() for k, agent in self.registered_agents.items()
             }
 
-            for agent in self.registered_agents.values():
-                self._publish_agent_ops(agent)
+            if now - last_publish >= self.wait_time:
+                last_publish = now
+                for agent in self.registered_agents.values():
+                    self._publish_agent_ops(agent)
 
             if params['test_mode']:
                 break

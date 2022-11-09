@@ -98,32 +98,38 @@ class Publisher:
 
     def process_incoming_data(self):
         """
-        Takes all data from the incoming_data queue, and puts them into
-        provider blocks.
+        Takes all data from the incoming_data queue, and writes them to the
+        InfluxDB.
         """
+        payload = []
+        LOG.debug("Pulling data from queue.")
         while not self.incoming_data.empty():
             data, feed = self.incoming_data.get()
             if feed['agg_params'].get('exclude_influx', False):
                 continue
 
-            LOG.debug("Pulling data from queue.")
-
             # Formatted for writing to InfluxDB
-            payload = self.format_data(data, feed, protocol=self.protocol)
-            try:
-                self.client.write_points(payload,
-                                         batch_size=10000,
-                                         protocol=self.protocol,
-                                         )
-                LOG.debug("wrote payload to influx")
-            except RequestsConnectionError:
-                LOG.error("InfluxDB unavailable, attempting to reconnect.")
-                self.client = InfluxDBClient(host=self.host, port=self.port, gzip=self.gzip)
-                self.client.switch_database(self.db)
-            except InfluxDBClientError as err:
-                LOG.error("InfluxDB Client Error: {e}", e=err)
-            except InfluxDBServerError as err:
-                LOG.error("InfluxDB Server Error: {e}", e=err)
+            payload.extend(self.format_data(data, feed, protocol=self.protocol))
+
+        # Skip trying to write if payload is empty
+        if not payload:
+            return
+
+        try:
+            LOG.debug("payload: {p}", p=payload)
+            self.client.write_points(payload,
+                                     batch_size=10000,
+                                     protocol=self.protocol,
+                                     )
+            LOG.debug("wrote payload to influx")
+        except RequestsConnectionError:
+            LOG.error("InfluxDB unavailable, attempting to reconnect.")
+            self.client = InfluxDBClient(host=self.host, port=self.port, gzip=self.gzip)
+            self.client.switch_database(self.db)
+        except InfluxDBClientError as err:
+            LOG.error("InfluxDB Client Error: {e}", e=err)
+        except InfluxDBServerError as err:
+            LOG.error("InfluxDB Server Error: {e}", e=err)
 
     @staticmethod
     def _format_field_line(field_key, field_value):
@@ -158,6 +164,9 @@ class Publisher:
                 used to structure our influxdb query
             protocol (str):
                 Protocol for writing data. Either 'line' or 'json'.
+
+        Returns:
+            list: Data ready to publish to influxdb, in the specified protocol.
 
         """
         measurement = feed['agent_address']
@@ -200,8 +209,6 @@ class Publisher:
                     )
                 else:
                     LOG.warn(f"Protocol '{protocol}' not supported.")
-
-        LOG.debug("payload: {p}", p=json_body)
 
         return json_body
 

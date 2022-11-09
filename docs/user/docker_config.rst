@@ -48,6 +48,8 @@ components)::
         restart: always
         ports:
           - "8086:8086"
+        environment:
+          - INFLUXDB_HTTP_LOG_ENABLED=false
         volumes:
           - /srv/influxdb:/var/lib/influxdb
 
@@ -220,6 +222,8 @@ Where the separate compose files would look something like::
         restart: always
         ports:
           - "8086:8086"
+        environment:
+          - INFLUXDB_HTTP_LOG_ENABLED=false
         volumes:
           - /srv/influxdb:/var/lib/influxdb
 

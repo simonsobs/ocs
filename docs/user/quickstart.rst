@@ -119,6 +119,8 @@ replaced with the hostname of your computer.
         restart: always
         ports:
           - "8086:8086"
+        environment:
+          - INFLUXDB_HTTP_LOG_ENABLED=false
         volumes:
           - influxdb-storage:/var/lib/influxdb
 

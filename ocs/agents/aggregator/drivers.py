@@ -61,7 +61,7 @@ def g3_cast(data, time=False):
     else:
         dtype = type(data)
     if dtype not in _g3_casts.keys():
-        raise TypeError("g3_cast does not support type {}. Type must"
+        raise TypeError("g3_cast does not support type {}. Type must "
                         "be one of {}".format(dtype, _g3_casts.keys()))
     if is_list:
         if time:

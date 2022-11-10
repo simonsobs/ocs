@@ -33,6 +33,26 @@ def test_passing_float_in_provider_to_frame():
     provider.to_frame(hksess=sess)
 
 
+def test_passing_bool_in_provider_to_frame():
+    # Dummy Provider for testing
+    provider = Provider('test_provider', 'test_sessid', 3, 1)
+    provider.frame_start_time = time.time()
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [time.time()],
+                     'data': {'key1': [True],
+                              'key2': [False]},
+                     }
+            }
+    provider.save_to_block(data)
+
+    # Dummy HKSessionHelper
+    sess = so3g.hk.HKSessionHelper(description="testing")
+    sess.start_time = time.time()
+    sess.session_id = 'test_sessid'
+
+    provider.to_frame(hksess=sess)
+
+
 def test_passing_float_like_str_in_provider_to_frame():
     """Here we test passing a string amongst ints. This shouldn't make it to
     the aggregator, and instead the Aggregator logs should display an error
@@ -364,8 +384,10 @@ def test_g3_cast():
         ([1, 2, 3, 4], core.G3VectorInt),
         ([1., 2., 3.], core.G3VectorDouble),
         (["a", "b", "c"], core.G3VectorString),
+        ([True, False], core.G3VectorBool),
         (3, core.G3Int),
-        ("test", core.G3String)
+        ("test", core.G3String),
+        (True, core.G3Bool),
     ]
     for x, t in correct_tests:
         assert isinstance(g3_cast(x), t)
@@ -374,7 +396,7 @@ def test_g3_cast():
     assert isinstance(g3_cast([1, 2, 3], time=True), core.G3VectorTime)
 
     incorrect_tests = [
-        ['a', 'b', 1, 2], True, [1, 1.0, 2]
+        ['a', 'b', 1, 2], [1, 1.0, 2], {'foo': 'bar'}
     ]
     for x in incorrect_tests:
         with pytest.raises(TypeError):

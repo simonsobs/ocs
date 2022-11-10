@@ -577,7 +577,7 @@ class HostManagerManager:
                 return True, 'Agent has exited and relinquished registrations.'
         return False, 'Agent did not die within %.1f seconds.' % timeout
 
-    def start(self, check=True, timeout=5., up=False, foreground=False):
+    def start(self, check=True, timeout=5., up=None, foreground=False):
         if self.instance_id is None:
             print('\nERROR: cannot "start" HostManager because '
                   'instance_id could not be determined.')
@@ -602,8 +602,10 @@ class HostManagerManager:
                '--site-file', self.site_config.site.source_file,
                '--site-host', host.name,
                '--working-dir', self.working_dir]
-        if up:
+        if up is True:
             cmd.extend(['--initial-state', 'up'])
+        if up is False:
+            cmd.extend(['--initial-state', 'down'])
         if not foreground:
             cmd.extend(['--quiet'])
 
@@ -960,7 +962,7 @@ def main_local(args=None):
             if any([soln == 'agent' for soln, text in supports.analysis]):
                 print('Trying to launch hostmanager agent...')
                 hm = supports.host_manager['ctrl']
-                ok, message = hm.start(up=True, foreground=args.foreground)
+                ok, message = hm.start(foreground=args.foreground)
                 if not ok:
                     raise OcsbowError('Failed to start manager process: %s' % message)
                 supports.update()  # refresh .analysis

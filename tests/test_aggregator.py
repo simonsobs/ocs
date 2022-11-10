@@ -33,6 +33,26 @@ def test_passing_float_in_provider_to_frame():
     provider.to_frame(hksess=sess)
 
 
+def test_passing_bool_in_provider_to_frame():
+    # Dummy Provider for testing
+    provider = Provider('test_provider', 'test_sessid', 3, 1)
+    provider.frame_start_time = time.time()
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [time.time()],
+                     'data': {'key1': [True],
+                              'key2': [False]},
+                     }
+            }
+    provider.save_to_block(data)
+
+    # Dummy HKSessionHelper
+    sess = so3g.hk.HKSessionHelper(description="testing")
+    sess.start_time = time.time()
+    sess.session_id = 'test_sessid'
+
+    provider.to_frame(hksess=sess)
+
+
 def test_passing_float_like_str_in_provider_to_frame():
     """Here we test passing a string amongst ints. This shouldn't make it to
     the aggregator, and instead the Aggregator logs should display an error

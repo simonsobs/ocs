@@ -101,7 +101,6 @@ class Registry:
 
         agg_params = {
             'frame_length': 60,
-            'fresh_time': 10,
         }
         self.agent.register_feed('agent_operations', record=True,
                                  agg_params=agg_params, buffer_time=0)

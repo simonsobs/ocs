@@ -41,6 +41,9 @@ def test_fake_data_after_crossbar_restart(wait_for_crossbar):
     # Set OCS_CONFIG_DIR environment variable
     os.environ['OCS_CONFIG_DIR'] = os.getcwd()
 
+    # give time to reconnect
+    time.sleep(CROSSBAR_SLEEP)
+
     # Check fake data Agent is accessible and producing new data.
     therm_client = OCSClient('fake-data1', args=[])
 
@@ -79,6 +82,9 @@ def test_aggregator_after_crossbar_restart(wait_for_crossbar):
 
     # restart crossbar
     restart_crossbar()
+
+    # give time to reconnect
+    time.sleep(CROSSBAR_SLEEP)
 
     # record current time
     # now = time.time()

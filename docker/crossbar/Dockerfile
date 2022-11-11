@@ -3,10 +3,14 @@
 # https://crossbar.io/docs/Creating-Docker-Images/
 
 # Use ocs base image
-FROM crossbario/crossbar:cpy3-20.8.1
+FROM crossbario/crossbar:cpy-slim-amd64-22.6.1
 
 # Run as root to put config in place and chown
 USER root
+
+# Create crossbar user/group
+RUN groupadd -g 242 crossbar && \
+    useradd -r -l -u 242 -g 242 crossbar
 
 # Copy in config and requirements files
 COPY config.json /ocs/.crossbar/config.json

@@ -462,6 +462,7 @@ def test_session_data_good(mock_agent):
         'g': (np.array([1., 2., math.nan]),
               [1., 2., None]),
     }
+
     def test_task_good(session, args):
         # Populate session.data and exit.
         session.data = {

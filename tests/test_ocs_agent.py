@@ -10,6 +10,10 @@ from unittest.mock import MagicMock
 import pytest
 import pytest_twisted
 
+import json
+import math
+import numpy as np
+
 
 def tfunc(session, a):
     """Test function to call as a mocked OCS Task. We double it as the start
@@ -436,6 +440,74 @@ def test_status_no_session(mock_agent):
     assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2] == {}
+
+
+@pytest_twisted.inlineCallbacks
+def test_session_data_good(mock_agent):
+    """Test that session.data is encoded as expected and can be
+    JSON-serialized.
+
+    """
+    good_data_map = {
+        # key: (input, expected_output)
+        'a': (1, 1),
+        'b': ('string', 'string'),
+        'c': ([1, 2., 'blech'],
+              [1, 2., 'blech']),
+        'd': ([1., 2., math.nan],
+              [1., 2., None]),
+        'e': (np.int64(10), 10),
+        'f': (np.array([10, 20, 30]),
+              [10, 20, 30]),
+        'g': (np.array([1., 2., math.nan]),
+              [1., 2., None]),
+    }
+    def test_task_good(session, args):
+        # Populate session.data and exit.
+        session.data = {
+            k: v_in for k, (v_in, v_out) in good_data_map.items()}
+        return True, 'Task completed successully.'
+
+    mock_agent.register_task('test_task', test_task_good)
+    mock_agent.start('test_task')
+    res = yield mock_agent.wait('test_task', timeout=1)
+
+    print('result:', res)
+    assert res[0] == ocs.OK
+    assert isinstance(res[1], str)
+    assert isinstance(res[2], dict)
+    data = res[2]['data']
+    for k, (v_in, v_out) in good_data_map.items():
+        assert (k in data)
+        assert data[k] == v_out
+
+    json.dumps(data, allow_nan=False)
+
+
+@pytest_twisted.inlineCallbacks
+def test_session_data_bad(mock_agent):
+    """Test that invalid session.data raises an error.
+
+    """
+    bad_data_map = {
+        'fail_a': math.inf,
+        'fail_b': [1., 2., -math.inf],
+        'fail_c': {'x': math.inf},
+    }
+
+    for k, v in bad_data_map.items():
+        # Each of these should fail ...
+        def test_task_bad(session, args):
+            # Populate session.data and exit.
+            session.data = {k: v}
+            return True, 'Task completed successully.'
+        task = 'test_task_' + k
+        mock_agent.register_task(task, test_task_bad)
+        print(f'Failing on {k}={v} ...')
+        with pytest.raises(ValueError):
+            mock_agent.start(task)
+            res = yield mock_agent.wait(task, timeout=1)
+            print(res)
 
 
 #

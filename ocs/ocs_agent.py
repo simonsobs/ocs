@@ -1104,11 +1104,14 @@ class OpSession:
                 return json_safe(data.tolist())
             if isinstance(data, (str, int, bool)):
                 return data
-            if math.isnan(data):
-                return None
-            if not math.isfinite(data):
-                raise ValueError('Session.data cannot store inf/-inf; '
-                                 'please convert to NaN.')
+            if isinstance(data, float):
+                if math.isnan(data):
+                    return None
+                if not math.isfinite(data):
+                    raise ValueError('Session.data cannot store inf/-inf; '
+                                     'please convert to NaN.')
+            # This could still be something weird but json.dumps will
+            # probably reject it!
             return data
 
         return {'session_id': self.session_id,

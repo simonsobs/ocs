@@ -181,7 +181,7 @@ There are some restrictions on what data can be carried in
   JSON, so some containers will be automatically converted into
   JSON-compatible forms.  Specifically note that:
 
-  - dict keys must be strings.
+  - dict keys will be converted to strings.
   - there is no distinction between lists and tuples.
   - there is no (standardized) support for non-finite floats such as
     inf, -inf, or NaN.

@@ -2,6 +2,7 @@ import ocs
 from ocs.ocs_agent import (
     OCSAgent, AgentTask, AgentProcess,
     ParamError, ParamHandler, param,
+    OpSession
 )
 from ocs.base import OpCode
 
@@ -9,6 +10,18 @@ from unittest.mock import MagicMock
 
 import pytest
 import pytest_twisted
+
+import json
+import math
+import numpy as np
+
+
+def create_session(op_name):
+    """Create an OpSession with a mocked app for testing."""
+    mock_app = MagicMock()
+    session = OpSession(1, op_name, app=mock_app)
+
+    return session
 
 
 def tfunc(session, a):
@@ -436,6 +449,45 @@ def test_status_no_session(mock_agent):
     assert res[0] == ocs.OK
     assert isinstance(res[1], str)
     assert res[2] == {}
+
+
+@pytest.mark.parametrize("key,value,expected", [('a', 1, 1),
+                                                ('b', 'string', 'string'),
+                                                ('c', [1, 2., 'blech'], [1, 2., 'blech']),
+                                                ('d', [1., 2., math.nan], [1., 2., None]),
+                                                ('e', np.int64(10), 10),
+                                                ('f', np.array([10, 20, 30]), [10, 20, 30]),
+                                                ('g', np.array([1., 2., math.nan]), [1., 2., None]),
+                                                ('h', {'x': math.nan}, {'x': None})])
+def test_session_data_good(key, value, expected):
+    """Test that session.data is encoded as expected and can be
+    JSON-serialized.
+
+    """
+    session = create_session('test_encoding')
+    session.data = {key: value}
+
+    encoded = session.encoded()
+    print(encoded['data'])
+
+    data = encoded['data']
+    assert (key in data)
+    assert data[key] == expected
+
+    json.dumps(data, allow_nan=False)
+
+
+@pytest.mark.parametrize("key,value", [('fail_a', math.inf),
+                                       ('fail_b', [1., 2., -math.inf]),
+                                       ('fail_c', {'x': math.inf})])
+def test_session_data_bad(key, value):
+    """Test that invalid session.data raises an error."""
+
+    session = create_session('test_encoding')
+    session.data = {key: value}
+
+    with pytest.raises(ValueError):
+        session.encoded()
 
 
 #

@@ -147,6 +147,9 @@ This block formats the latest values for each "channel" into a dictionary and
 stores it in ``session.data``.
 
 
+Structure and Content
+---------------------
+
 The structure of the ``data`` entry is not strictly defined, but
 please observe the following guidelines:
 
@@ -169,6 +172,30 @@ please observe the following guidelines:
     data structure may cause existing clients that make use of the ``session.data``
     object to break. Changes that do take place should be announced in the
     change logs of new OCS versions.
+
+
+There are some restrictions on what data can be carried in
+``session.data``:
+
+- The session.data will ultimately be converted and transported using
+  JSON, so some containers will be automatically converted into
+  JSON-compatible forms.  Specifically note that:
+
+  - dict keys will be converted to strings.
+  - there is no distinction between lists and tuples.
+  - there is no (standardized) support for non-finite floats such as
+    inf, -inf, or NaN.
+
+- If your session.data contains any NaN, they will be converted to
+  None (which is transported as JSON null).
+- If your session.data contains inf/-inf, or other JSON-encodable
+  entities, OCS will raise an error.  To have those transported as
+  None/null, you should convert inf/-inf to NaN before storing the
+  data in session.data.
+- If your session.data includes numpy arrays (or scalars), these will
+  be converted to serializable types automatically using
+  ``numpy.tolist``.
+
 
 Client Access
 -------------

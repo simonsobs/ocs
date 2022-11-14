@@ -457,7 +457,8 @@ def test_status_no_session(mock_agent):
                                                 ('d', [1., 2., math.nan], [1., 2., None]),
                                                 ('e', np.int64(10), 10),
                                                 ('f', np.array([10, 20, 30]), [10, 20, 30]),
-                                                ('g', np.array([1., 2., math.nan]), [1., 2., None])])
+                                                ('g', np.array([1., 2., math.nan]), [1., 2., None]),
+                                                ('h', {'x': math.nan}, {'x': None})])
 def test_session_data_good(key, value, expected):
     """Test that session.data is encoded as expected and can be
     JSON-serialized.

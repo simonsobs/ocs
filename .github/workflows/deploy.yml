@@ -3,6 +3,12 @@ name: Deploy Builds
 on:
   release:
     types: [ released ]
+  push:
+    tags:
+      # v0.X.Y pre-release tags
+      - 'v0.*.*a*'
+      - 'v0.*.*b*'
+      - 'v0.*.*rc*'
 
 jobs:
   test:

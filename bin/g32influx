@@ -116,6 +116,7 @@ class DataLoader:
         Connection to the sqlite3 database
 
     """
+
     def __init__(self, target, database, host='localhost', port=8086,
                  startdate="1970-01-01", enddate="2070-01-01"):
         self.influxclient = InfluxDBClient(host=host, port=port)
@@ -179,8 +180,8 @@ class DataLoader:
                 dt = datetime.datetime.strptime(date_string,
                                                 "%Y-%m-%d-%H-%M-%S.g3")
             except ValueError:
-                logging.debug("%Y-%m-%d-%H-%M-%S.g3 was not the " +
-                              "file datestring format")
+                logging.debug("%Y-%m-%d-%H-%M-%S.g3 was not the "
+                              + "file datestring format")
 
             # Handle new format
             if '-' not in date_string and dt is None:
@@ -196,8 +197,8 @@ class DataLoader:
             elif dt > self.startdate and dt < self.enddate:
                 new_list.append(f)
             else:
-                logging.debug(f"Removing {f} from filelist, " +
-                              "outside of start/end dates.")
+                logging.debug(f"Removing {f} from filelist, "
+                              + "outside of start/end dates.")
 
         return new_list
 
@@ -325,6 +326,7 @@ class SingleFileScanner:
         Timelines within the file as returned by cat.get_fields()
 
     """
+
     def __init__(self, path, db):
         self.path = path
         self.db = db
@@ -420,8 +422,8 @@ class SingleFileScanner:
             if " " in agent_address:
                 raise ValueError(f"Space contained in OCS address {s[0]}.")
             # ff = field[0].split(".feeds.")[1]
-            feed_val = s[1].split(".")[0].replace(" ", "\ ")
-            field_tag = [f.split(".feeds.")[1].split(".")[1].replace(" ", "\ ")
+            feed_val = s[1].split(".")[0].replace(" ", "\\ ")
+            field_tag = [f.split(".feeds.")[1].split(".")[1].replace(" ", "\\ ")
                          for f in field]
 
         # Get the data. Since all the fields belong to the same timeline, their
@@ -470,8 +472,8 @@ class SingleFileScanner:
                 payload = self.format_timeline(timeline)
                 # payload = self.format_field(field)
             except ValueError:
-                logging.error("Unable to format payload properly, possibly " +
-                              "trying to process old .g3 file format...")
+                logging.error("Unable to format payload properly, possibly "
+                              + "trying to process old .g3 file format...")
                 return 2
             # print(f"publishing {field}...")
             try:

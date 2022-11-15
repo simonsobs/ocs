@@ -61,6 +61,8 @@ online at all times. An example compose file would look like::
       restart: always
       ports:
         - "8086:8086"
+      environment:
+        - INFLUXDB_HTTP_LOG_ENABLED=false
       volumes:
         - /srv/influxdb:/var/lib/influxdb
 

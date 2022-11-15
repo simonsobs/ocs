@@ -10,6 +10,11 @@ The Registry Agent tracks all currently running Agents on the OCS network,
 providing the ability to monitor the status of each Agent's Tasks and Processes
 through the :ref:`operation_monitor`.
 
+.. argparse::
+   :module: ocs.agents.registry.agent
+   :func: make_parser
+   :prog: agent.py
+
 Configuration File Examples
 ----------------------------
 
@@ -23,7 +28,9 @@ An example site-config-file block::
 
     { 'agent-class': 'RegistryAgent',
       'instance-id': 'registry',
-      'arguments': []},
+      'arguments': [
+        ['--wait-time', 30]
+      ]},
 
 Docker Compose
 ``````````````
@@ -44,8 +51,8 @@ Description
 -----------
 
 The registry agent is used to keep track of currently running active agents.
-It listens to the heartbeat feeds of all agents on the crossbar server, 
-and keeps track of the last heartbeat time of each agent and whether 
+It listens to the heartbeat feeds of all agents on the crossbar server,
+and keeps track of the last heartbeat time of each agent and whether
 or not each agent has agent has "expired" (gone 5 seconds without a heartbeat).
 
 This check happens in the registry's single "main" process. The session.data
@@ -113,4 +120,3 @@ Supporting APIs
 ---------------
 .. autoclass:: ocs.agents.registry.agent.RegisteredAgent
     :members:
-

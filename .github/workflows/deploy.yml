@@ -3,58 +3,16 @@ name: Deploy Builds
 on:
   release:
     types: [ released ]
+  push:
+    tags:
+      # v0.X.Y pre-release tags
+      - 'v0.*.*a*'
+      - 'v0.*.*b*'
+      - 'v0.*.*rc*'
 
 jobs:
   test:
-    name: pytest with coverage
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Set up Python 3.8 
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8 
-
-    - name: clone ocs
-      uses: actions/checkout@v2
-      # Fetch all history for all tags and branches
-      with:
-        fetch-depth: 0
-
-    - name: Install ocs
-      run: |
-        pip3 install -r requirements.txt
-        pip3 install -e .[so3g]
-
-    # Test (already been run by pytest workflow, but they don't take long...)
-    # Unit Tests
-    - name: Run unit tests
-      working-directory: ./tests
-      run: |
-        COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not integtest'
-
-    # Integration Tests
-    - name: Build images for integration tests
-      run: |
-        docker-compose build ocs ocs-crossbar
-
-    - name: Run integration tests
-      working-directory: ./tests
-      run: |
-        mkdir log
-        COVERAGE_FILE=.coverage.int python3 -m pytest --cov -m 'integtest'
-        ls -la ./log/
-
-    # Coverage
-    - name: Report test coverage
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        mv ./tests/.coverage.* ./
-        pip install coveralls
-        coverage combine
-        coverage report
-        coveralls --service=github
+    uses: ./.github/workflows/pytest.yml
 
   docker:
     name: build and deploy docker images
@@ -63,7 +21,7 @@ jobs:
 
     steps:
     - name: clone ocs
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       # Fetch all history for all tags and branches
       with:
         fetch-depth: 0
@@ -104,12 +62,12 @@ jobs:
 
     steps:
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
 
     - name: clone ocs
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: install build dependencies
       run: |

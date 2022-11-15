@@ -1,0 +1,19 @@
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  # crossbar server Docker image
+  - package-ecosystem: "docker"
+    directory: "/docker/crossbar/"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "BrianJKoopman"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "BrianJKoopman"

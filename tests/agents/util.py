@@ -41,7 +41,7 @@ def generate_data_for_queue():
     data = {'temps': {'block_name': 'test',
                       'data': {'field_0': [1, 2],
                                'field_01': [3, 4]},
-                      'timestamps': [time.time(), time.time()+1]}}
+                      'timestamps': [time.time(), time.time() + 1]}}
     feed = {'agent_address': 'observatory.test-agent1',
             'agg_params': {'frame_length': 60},
             'feed_name': 'test_feed',

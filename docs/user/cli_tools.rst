@@ -74,10 +74,10 @@ For info on how to run, see the help::
 
     $ checkdata -h
     usage: checkdata [-h] [--verbose] [--docker] target
-    
+
     positional arguments:
       target         File or directory to scan.
-    
+
     optional arguments:
       -h, --help     show this help message and exit
       --verbose, -v
@@ -89,25 +89,25 @@ To use ``checkdata`` simply invoke it on the commandline::
 
     $ checkdata /data/15732/
     Scanning |################################| 11/11 Processing |################################| 156/156
-    
+
     LSA22YE
       temperatures: 643.6 s old
-    
+
     LSA22YG
       temperatures: 727.9 s old
-    
+
     LSA22Z2
       temperatures: 310.0 s old
-    
+
     LSA22ZC
       temperatures: 318.9 s old
-    
+
     LSA24R5
       temperatures: 286.6 s old
-    
+
     LSA2761
       temperatures: 355.4 s old
-    
+
     bluefors
       bluefors: 371.3 s old
 
@@ -120,7 +120,7 @@ field within that feed. For more verbose output, throw the ``-v`` flag::
     $ checkdata -v /data/15732/2019-11-08-10-35-29.g3
     Scanning |################################| 1/1
     Processing |################################| 156/156
-    
+
     LSA22YG
       temperatures
       -----------------------------------------------------------------------------------------
@@ -165,13 +165,13 @@ For information on how to run::
 
     $ ./g32influx -h
     usage: g32influx [-h] [--start START] [--end END] [--log LOG] [--logfile LOGFILE] target database host port
-    
+
     positional arguments:
       target                File or directory to scan.
       database              InfluxDB database to publish data to.
       host                  InfluxDB host.
       port                  InfluxDB port.
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       --start START         Set startdate, cutting all files that start before this date.

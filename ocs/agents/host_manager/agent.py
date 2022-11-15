@@ -9,9 +9,11 @@ from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn.twisted.util import sleep as dsleep
 
-import os, sys
+import os
+import sys
 
 VALID_TARGETS = ['up', 'down']
+
 
 class HostManager:
     """
@@ -20,6 +22,7 @@ class HostManager:
     a system boots, it can then be used to start up the rest of OCS on
     that host (either automatically or on request).
     """
+
     def __init__(self, agent, docker_composes=[], docker_compose_bin=None,
                  docker_service_prefix='ocs-'):
         self.agent = agent
@@ -54,10 +57,10 @@ class HostManager:
 
         # Scan for agent scripts in (deprecated) script registry
         for p in hc.agent_paths:
-            if not p in sys.path:
+            if p not in sys.path:
                 sys.path.append(p)
         site_config.scan_for_agents()
-        
+
         # Gather managed items from site config.
         warnings = []
         instances = {}
@@ -101,7 +104,7 @@ class HostManager:
         # Mark containers that have disappeared.
         dead = {}
         for k in self.docker_services:
-            if not k in docker_services:
+            if k not in docker_services:
                 dead[k] = self.docker_services.pop(k)
 
         # Everything else is good.
@@ -144,10 +147,10 @@ class HostManager:
         # First identify items that we were managing that have
         # disappeared from the configs.
         for iid, instance in self.database.items():
-            if (instance['management'] == 'host' and
-                iid not in agent_dict) or \
-               (instance['management'] == 'docker' and
-                instance['agent_script'] not in self.docker_services):
+            if (instance['management'] == 'host'
+                and iid not in agent_dict) or \
+               (instance['management'] == 'docker'
+                    and instance['agent_script'] not in self.docker_services):
                 # Sheesh
                 session.add_message(
                     f'Retiring {instance["full_name"]}, which has disappeared from '
@@ -205,8 +208,8 @@ class HostManager:
                 instance = None
             if instance is not None:
                 # So instance is some kind of actively managed container.
-                if (instance['agent_class'] != cls or
-                    instance['management'] != mgmt):
+                if (instance['agent_class'] != cls
+                        or instance['management'] != mgmt):
                     session.add_message(
                         f'Managed agent "{db_key}" changed agent_class '
                         f'({instance["agent_class"]} -> {cls}) or management '
@@ -223,7 +226,7 @@ class HostManager:
                 if mgmt == 'docker':
                     instance['agent_script'] = srv
                     instance['prot'] = self._get_docker_helper(instance)
-                    if instance['prot'].status[0] == None:
+                    if instance['prot'].status[0] is None:
                         session.add_message(
                             'On startup, detected active container for %s' % iid)
                         # Mark current state as up... by the end
@@ -319,7 +322,7 @@ class HostManager:
         """
         Use the ProcessProtocol to request the Agent instance to exit.
         """
-        prot = self.database[key]['prot'] # Get the ProcessProtocol.
+        prot = self.database[key]['prot']  # Get the ProcessProtocol.
         if prot is None:
             return True, 'Instance was not running.'
         if prot.killed:
@@ -375,7 +378,7 @@ class HostManager:
             addressable[k] = v
 
         for key, state in requests:
-            if not state in VALID_TARGETS:
+            if state not in VALID_TARGETS:
                 session.add_message('Ignoring request for "%s" -> invalid state "%s".' %
                                     (key, state))
                 continue
@@ -497,7 +500,7 @@ class HostManager:
             child_states = []
             for state in self.database.values():
                 child_states.append({_k: state[_k] for _k in
-                                     ['next_action' ,
+                                     ['next_action',
                                       'target_state',
                                       'stability',
                                       'agent_class',

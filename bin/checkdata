@@ -18,9 +18,11 @@ except ImportError:
 
 # print("SO3G_AVAILABLE:", SO3G_AVAILABLE)
 
+
 class PermissionsError(Exception):
     """Permission error for running docker."""
     pass
+
 
 def check_user_in_docker_group():
     """Check if the user running this script is in the docker group."""
@@ -30,11 +32,13 @@ def check_user_in_docker_group():
 
     return bool(pw_name in members)
 
+
 def check_if_root():
     """Check if the user running this script is root."""
     uid = os.geteuid()
 
     return bool(uid == 0)
+
 
 def run_in_docker(target, verbose=0):
     """Run checkdata script from within a docker container.
@@ -83,6 +87,7 @@ def run_in_docker(target, verbose=0):
     # print(string)
     subprocess.run(string)
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('target', help='File or directory to scan.')
@@ -97,6 +102,7 @@ def main():
     else:
         # print('Running on host...')
         checkdata.main(args.target, args.verbose)
+
 
 if __name__ == "__main__":
     main()

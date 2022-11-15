@@ -8,6 +8,7 @@ class TestGetControlClient:
     """Test site_config.get_control_client().
 
     """
+
     def test_wampy_client_type(self):
         """'wampy' client type should raise error."""
         mock_site = MagicMock()

@@ -27,7 +27,7 @@ def timestamp2influxtime(time, protocol):
         t_dt = t_dt.astimezone(tz=timezone.utc)
         influx_t = t_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
     elif protocol == 'line':
-        influx_t = int(time*1e9)  # ns
+        influx_t = int(time * 1e9)  # ns
     return influx_t
 
 
@@ -65,6 +65,7 @@ class Publisher:
             InfluxDB client connection
 
     """
+
     def __init__(self, host, database, incoming_data, port=8086, protocol='line', gzip=False):
         self.host = host
         self.port = port
@@ -97,32 +98,51 @@ class Publisher:
 
     def process_incoming_data(self):
         """
-        Takes all data from the incoming_data queue, and puts them into
-        provider blocks.
+        Takes all data from the incoming_data queue, and writes them to the
+        InfluxDB.
         """
+        payload = []
+        LOG.debug("Pulling data from queue.")
         while not self.incoming_data.empty():
             data, feed = self.incoming_data.get()
             if feed['agg_params'].get('exclude_influx', False):
                 continue
 
-            LOG.debug("Pulling data from queue.")
-
             # Formatted for writing to InfluxDB
-            payload = self.format_data(data, feed, protocol=self.protocol)
-            try:
-                self.client.write_points(payload,
-                                         batch_size=10000,
-                                         protocol=self.protocol,
-                                         )
-                LOG.debug("wrote payload to influx")
-            except RequestsConnectionError:
-                LOG.error("InfluxDB unavailable, attempting to reconnect.")
-                self.client = InfluxDBClient(host=self.host, port=self.port, gzip=self.gzip)
-                self.client.switch_database(self.db)
-            except InfluxDBClientError as err:
-                LOG.error("InfluxDB Client Error: {e}", e=err)
-            except InfluxDBServerError as err:
-                LOG.error("InfluxDB Server Error: {e}", e=err)
+            payload.extend(self.format_data(data, feed, protocol=self.protocol))
+
+        # Skip trying to write if payload is empty
+        if not payload:
+            return
+
+        try:
+            LOG.debug("payload: {p}", p=payload)
+            self.client.write_points(payload,
+                                     batch_size=10000,
+                                     protocol=self.protocol,
+                                     )
+            LOG.debug("wrote payload to influx")
+        except RequestsConnectionError:
+            LOG.error("InfluxDB unavailable, attempting to reconnect.")
+            self.client = InfluxDBClient(host=self.host, port=self.port, gzip=self.gzip)
+            self.client.switch_database(self.db)
+        except InfluxDBClientError as err:
+            LOG.error("InfluxDB Client Error: {e}", e=err)
+        except InfluxDBServerError as err:
+            LOG.error("InfluxDB Server Error: {e}", e=err)
+
+    @staticmethod
+    def _format_field_line(field_key, field_value):
+        """Format key-value pair for InfluxDB line protocol."""
+        # Strings must be in quotes for line protocol
+        if isinstance(field_value, str):
+            line = f'{field_key}="{field_value}"'
+        else:
+            line = f"{field_key}={field_value}"
+        # Don't append 'i' to bool, which is a subclass of int
+        if isinstance(field_value, int) and not isinstance(field_value, bool):
+            line += "i"
+        return line
 
     @staticmethod
     def format_data(data, feed, protocol):
@@ -145,6 +165,9 @@ class Publisher:
             protocol (str):
                 Protocol for writing data. Either 'line' or 'json'.
 
+        Returns:
+            list: Data ready to publish to influxdb, in the specified protocol.
+
         """
         measurement = feed['agent_address']
         feed_tag = feed['feed_name']
@@ -166,13 +189,7 @@ class Publisher:
                 if protocol == 'line':
                     fields_line = []
                     for mk, mv in fields.items():
-                        # Strings must be in quotes for line protocol
-                        if isinstance(mv, str):
-                            f_line = f'{mk}="{mv}"'
-                        else:
-                            f_line = f"{mk}={mv}"
-                        if isinstance(mv, int):
-                            f_line += "i"
+                        f_line = Publisher._format_field_line(mk, mv)
                         fields_line.append(f_line)
 
                     measurement_line = ','.join(fields_line)
@@ -192,8 +209,6 @@ class Publisher:
                     )
                 else:
                     LOG.warn(f"Protocol '{protocol}' not supported.")
-
-        LOG.debug("payload: {p}", p=json_body)
 
         return json_body
 

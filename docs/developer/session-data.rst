@@ -55,7 +55,7 @@ Fake Data Agent as an example, specifically at its primary Process,
 
         """
         ok, msg = self.try_set_job('acq')
-        if not ok: return ok, msg 
+        if not ok: return ok, msg
         session.set_status('running')
 
         if params is None:
@@ -80,16 +80,16 @@ Fake Data Agent as an example, specifically at its primary Process,
                     return 10
 
             now = time.time()
-            delay_time = next_report - now 
+            delay_time = next_report - now
             if delay_time > 0:
                 time.sleep(min(delay_time, 1.))
                 continue
 
             # Safety: if we ever get waaaay behind, reset.
-            if delay_time / reporting_interval < -3: 
+            if delay_time / reporting_interval < -3:
                 self.log.info('Got way behind in reporting: %.1s seconds. '
                               'Dropping fake data.' % delay_time)
-                next_timestamp = now 
+                next_timestamp = now
                 next_report = next_timestamp + reporting_interval
                 continue
 
@@ -100,7 +100,7 @@ Fake Data Agent as an example, specifically at its primary Process,
             next_report += reporting_interval
 
             # This is to handle the (acceptable) case of sample_rate < 0.
-            if (n_data <= 0): 
+            if (n_data <= 0):
                 time.sleep(.1)
                 continue
 
@@ -147,6 +147,9 @@ This block formats the latest values for each "channel" into a dictionary and
 stores it in ``session.data``.
 
 
+Structure and Content
+---------------------
+
 The structure of the ``data`` entry is not strictly defined, but
 please observe the following guidelines:
 
@@ -170,6 +173,30 @@ please observe the following guidelines:
     object to break. Changes that do take place should be announced in the
     change logs of new OCS versions.
 
+
+There are some restrictions on what data can be carried in
+``session.data``:
+
+- The session.data will ultimately be converted and transported using
+  JSON, so some containers will be automatically converted into
+  JSON-compatible forms.  Specifically note that:
+
+  - dict keys will be converted to strings.
+  - there is no distinction between lists and tuples.
+  - there is no (standardized) support for non-finite floats such as
+    inf, -inf, or NaN.
+
+- If your session.data contains any NaN, they will be converted to
+  None (which is transported as JSON null).
+- If your session.data contains inf/-inf, or other JSON-encodable
+  entities, OCS will raise an error.  To have those transported as
+  None/null, you should convert inf/-inf to NaN before storing the
+  data in session.data.
+- If your session.data includes numpy arrays (or scalars), these will
+  be converted to serializable types automatically using
+  ``numpy.tolist``.
+
+
 Client Access
 -------------
 Once your Agent is storing information in the ``session.data`` object you
@@ -177,12 +204,12 @@ likely want to access it via an OCS client. The ``session`` object is returned
 by all :ref:`Operation Methods<op_replies>`, for instance the ``status`` method, as shown in this small example::
 
     from ocs.ocs_client import OCSClient
-    
+
     therm_client = OCSClient('fake-data1')
     therm_client.acq.start()
-    
+
     response = therm_client.acq.status()
-    
+
 After running the client we can examine the data dict stored within the response::
 
     >>> print(response.session.get('data'))

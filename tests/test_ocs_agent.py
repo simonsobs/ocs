@@ -2,6 +2,7 @@ import ocs
 from ocs.ocs_agent import (
     OCSAgent, AgentTask, AgentProcess,
     ParamError, ParamHandler, param,
+    OpSession
 )
 from ocs.base import OpCode
 
@@ -9,6 +10,18 @@ from unittest.mock import MagicMock
 
 import pytest
 import pytest_twisted
+
+import json
+import math
+import numpy as np
+
+
+def create_session(op_name):
+    """Create an OpSession with a mocked app for testing."""
+    mock_app = MagicMock()
+    session = OpSession(1, op_name, app=mock_app)
+
+    return session
 
 
 def tfunc(session, a):
@@ -438,6 +451,45 @@ def test_status_no_session(mock_agent):
     assert res[2] == {}
 
 
+@pytest.mark.parametrize("key,value,expected", [('a', 1, 1),
+                                                ('b', 'string', 'string'),
+                                                ('c', [1, 2., 'blech'], [1, 2., 'blech']),
+                                                ('d', [1., 2., math.nan], [1., 2., None]),
+                                                ('e', np.int64(10), 10),
+                                                ('f', np.array([10, 20, 30]), [10, 20, 30]),
+                                                ('g', np.array([1., 2., math.nan]), [1., 2., None]),
+                                                ('h', {'x': math.nan}, {'x': None})])
+def test_session_data_good(key, value, expected):
+    """Test that session.data is encoded as expected and can be
+    JSON-serialized.
+
+    """
+    session = create_session('test_encoding')
+    session.data = {key: value}
+
+    encoded = session.encoded()
+    print(encoded['data'])
+
+    data = encoded['data']
+    assert (key in data)
+    assert data[key] == expected
+
+    json.dumps(data, allow_nan=False)
+
+
+@pytest.mark.parametrize("key,value", [('fail_a', math.inf),
+                                       ('fail_b', [1., 2., -math.inf]),
+                                       ('fail_c', {'x': math.inf})])
+def test_session_data_bad(key, value):
+    """Test that invalid session.data raises an error."""
+
+    session = create_session('test_encoding')
+    session.data = {key: value}
+
+    with pytest.raises(ValueError):
+        session.encoded()
+
+
 #
 # Tests for the @param decorator
 #
@@ -450,7 +502,7 @@ def test_params_get():
         'float_param': 1e8,
         'numerical_string_param': '145.12',
         'none_param': None,
-        })
+    })
 
     # Basic successes
     params.get('int_param', type=int)
@@ -494,18 +546,20 @@ def test_params_get():
     with pytest.raises(ParamError):
         params.get('string_param', choices=['a', 'b'])
 
+
 def test_params_strays():
     """Test for detection of stray parameters."""
     params = ParamHandler({
         'a': 123,
         'b': 123,
-        })
+    })
     params.get('a')
     params.check_for_strays(ignore=['b'])
     with pytest.raises(ParamError):
         params.check_for_strays()
     params.get('b')
     params.check_for_strays()
+
 
 def test_params_decorator():
     """Test that the decorator is usable."""
@@ -516,12 +570,13 @@ def test_params_decorator():
     # these should not
     with pytest.raises(TypeError):
         @param('a', 12)
-        def test_func(session, params):
+        def test_func2(session, params):
             pass
     with pytest.raises(TypeError):
         @param('a', invalid_keyword='something')
-        def test_func(session, params):
+        def test_func3(session, params):
             pass
+
 
 def test_params_decorated():
     """Test that the decorator actually decorates."""

@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 import os
 
+
 def fake_get_control_client(instance_id, **kwargs):
     """Quick function to return a Client like you'd expect from
     site_config.get_control_client, except it's mocked to have simple get_tasks
@@ -19,7 +20,7 @@ def fake_get_control_client(instance_id, **kwargs):
         'agent_class': 'Mock',
         'instance_hostname': 'testhost',
         'instance_pid': os.getpid(),
-        }
+    }
 
     client.get_tasks = MagicMock(return_value=api['tasks'])
     client.get_processes = MagicMock(return_value=api['processes'])

@@ -1,7 +1,8 @@
 import argparse
 import sys
 import code
-import readline, rlcompleter
+import readline
+import rlcompleter
 import re
 
 try:
@@ -48,33 +49,24 @@ def get_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
     client_sp = parser.add_subparsers(
-        dest='command', metavar='command', help=
-        "Command (\"%(prog)s {command} -h\" for more help)")
+        dest='command', metavar='command', help="Command (\"%(prog)s {command} -h\" for more help)")
 
     # shell
-    p = client_sp.add_parser('shell', help=
-                             "Start an interactive python session with "
+    p = client_sp.add_parser('shell', help="Start an interactive python session with "
                              "an OCSClient instantiated.")
-    p.add_argument('instance_id', nargs='*', help=
-                   "E.g. aggregator or fakedata-1.  Pass more than one to "
+    p.add_argument('instance_id', nargs='*', help="E.g. aggregator or fakedata-1.  Pass more than one to "
                    "get multiple clients.")
-    p.add_argument('--simple', action='store_true', help=
-                   "Do not use ipython for the shell, even if it is "
+    p.add_argument('--simple', action='store_true', help="Do not use ipython for the shell, even if it is "
                    "available.")
 
     # scan
-    p = client_sp.add_parser('scan', help=
-                             "Gather and print list of Agents.")
-    p.add_argument('--details', action='store_true', help=
-                   "List all Operations with their current status OpCode.")
-    p.add_argument('--use-registry', action='store_true', help=
-                   "Query the registry (faster than listening for heartbeats).")
+    p = client_sp.add_parser('scan', help="Gather and print list of Agents.")
+    p.add_argument('--details', action='store_true', help="List all Operations with their current status OpCode.")
+    p.add_argument('--use-registry', action='store_true', help="Query the registry (faster than listening for heartbeats).")
 
     # scan
-    p = client_sp.add_parser('listen', help=
-                             "Subscribe to feed(s) and dump to stdout.")
-    p.add_argument('feed_selector', help=
-                   "Feed name, which can include wildcard matching (double "
+    p = client_sp.add_parser('listen', help="Subscribe to feed(s) and dump to stdout.")
+    p.add_argument('feed_selector', help="Feed name, which can include wildcard matching (double "
                    " ..).  E.g., try 'observatory..feeds.heartbeat'")
 
     return parser
@@ -82,19 +74,22 @@ def get_parser():
 # Note there's a similar function to this in ocsbow ... consider
 # combining effort...
 
+
 def decode_exception(args):
     """Decode exceptions from WAMP http interface."""
     try:
         text, data = args[0][4:6]
-        assert(text.startswith('wamp.') or text.startswith('client_http.'))
-    except Exception as e:
+        assert (text.startswith('wamp.') or text.startswith('client_http.'))
+    except Exception:
         return False, args, str(args)
     return True, text, str(data)
 
+
 def get_instance_id(full_address, args):
     prefix = args.address_root + '.'
-    assert(full_address.startswith(prefix))
+    assert (full_address.startswith(prefix))
     return full_address[len(prefix):]
+
 
 def listen(parser, args):
     if not use_twisted:
@@ -107,9 +102,11 @@ def listen(parser, args):
         def onJoin(self, details):
             topic = feeds
             options = SubscribeOptions(match='wildcard', details=True)
-            sub = yield self.subscribe(self.on_event, topic, options=options)
+            yield self.subscribe(self.on_event, topic, options=options)
+
         def on_event(self, msg, details=None):
             print(f'[{details.topic}] {msg}')
+
         def onDisconnect(self):
             if reactor.running:
                 reactor.stop()
@@ -147,14 +144,17 @@ def scan(parser, args):
             parser.error('The "scan" function requires twisted and autobahn '
                          'unless --use-registry is passed.')
         beats = {}
+
         class Listener(ApplicationSession):
             @defer.inlineCallbacks
             def onJoin(self, details):
                 topic = f'{args.address_root}..feeds.heartbeat'
                 options = SubscribeOptions(match='wildcard', details=True)
-                sub = yield self.subscribe(self.on_event, topic, options=options)
+                yield self.subscribe(self.on_event, topic, options=options)
+
             def on_event(self, msg, details=None):
                 beats[details.topic] = msg
+
             def onDisconnect(self):
                 if reactor.running:
                     reactor.stop()
@@ -187,7 +187,7 @@ def scan(parser, args):
     for addr, data in info.items():
         try:
             instance_id = get_instance_id(addr, args)
-        except:
+        except BaseException:
             instance_id = addr
         print(f'  {instance_id}')
         if args.details:
@@ -195,6 +195,7 @@ def scan(parser, args):
                 vs = base.OpCode(v).name
                 print(f'    {k:20}: {vs}')
     print()
+
 
 def shell(parser, args):
     if len(args.instance_id) == 0:
@@ -220,6 +221,7 @@ def shell(parser, args):
         readline.set_completer(rlcompleter.Completer(vars).complete)
         readline.parse_and_bind("tab: complete")
         code.InteractiveConsole(vars).interact(banner=banner)
+
 
 def main(args=None):
     if args is None:

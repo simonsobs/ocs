@@ -9,6 +9,7 @@
 import argparse
 from ocs import rename
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('target', help='File or directory to process.')
@@ -16,6 +17,7 @@ def main():
     args = parser.parse_args()
 
     rename.main(args.target, args.verbose)
+
 
 if __name__ == "__main__":
     main()

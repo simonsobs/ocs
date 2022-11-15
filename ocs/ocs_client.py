@@ -121,9 +121,9 @@ def _humanized_time(t):
         return '%.6f s' % t
     if abs(t) < 120:
         return '%.1f s' % t
-    if abs(t) < 120*60:
+    if abs(t) < 120 * 60:
         return '%.1f mins' % (t / 60)
-    if abs(t) < 48*3600:
+    if abs(t) < 48 * 3600:
         return '%.1f hrs' % (t / 3600)
     return '%.1f days' % (t / 86400)
 
@@ -174,5 +174,5 @@ class OCSReply(collections.namedtuple('_OCSReply',
         except Exception as e:
             text += ('\n  [session decode failed with exception: %s\n'
                      '  Here is everything in .session:\n %s\n]') \
-                     % (e.args, self.session)
+                % (e.args, self.session)
         return text

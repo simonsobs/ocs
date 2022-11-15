@@ -45,9 +45,9 @@ def test_extra_argv():
 @pytest.mark.parametrize('input_, expected',
                          [(0.1, '0.100000 s'),
                           (2, '2.0 s'),
-                          (120*60-1, '120.0 mins'),
-                          (48*3600-1, '48.0 hrs'),
-                          (48*3600+1, '2.0 days'),
+                          (120 * 60 - 1, '120.0 mins'),
+                          (48 * 3600 - 1, '48.0 hrs'),
+                          (48 * 3600 + 1, '2.0 days'),
                           ])
 def test_humanized_time(input_, expected):
     assert _humanized_time(input_) == expected

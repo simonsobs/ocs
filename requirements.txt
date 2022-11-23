@@ -21,4 +21,4 @@ colorama
 tqdm
 
 # testing
--r requirements/testing.txt
+# -r requirements/testing.txt

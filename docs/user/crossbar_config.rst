@@ -30,8 +30,8 @@ roles of "iocs_agent" and "iocs_controller, and "address_root" of
 For further details on crossbar server configuration, see the crossbar `Router
 Configuration`_ page.
 
-.. _`ocs/docker/crossbar/config.json`: https://github.com/simonsobs/ocs/blob/develop/docker/crossbar/config.json
-.. _`ocs/ocs/support/crossbar_config.json`: https://github.com/simonsobs/ocs/blob/develop/ocs/support/crossbar_config.json
+.. _`ocs/docker/crossbar/config.json`: https://github.com/simonsobs/ocs/blob/main/docker/crossbar/config.json
+.. _`ocs/ocs/support/crossbar_config.json`: https://github.com/simonsobs/ocs/blob/main/ocs/support/crossbar_config.json
 .. _`Router Configuration`: https://crossbar.io/docs/Router-Configuration/
 
 Generating a New Config File

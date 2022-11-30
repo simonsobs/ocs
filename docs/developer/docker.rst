@@ -12,7 +12,7 @@ OCS Base Image
 --------------
 
 The OCS base image is built from the `Dockerfile
-<https://github.com/simonsobs/ocs/blob/develop/Dockerfile>`_ in the root of the
+<https://github.com/simonsobs/ocs/blob/main/Dockerfile>`_ in the root of the
 respository, shown here:
 
 .. literalinclude:: ../../Dockerfile

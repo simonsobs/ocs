@@ -120,7 +120,7 @@ Agent Reference Pages
 Now that you have documented your Agent's Tasks and Processes appropriately we
 need to make the page that will display that documentation. Agent reference
 pages are kept in `ocs/docs/agents/
-<https://github.com/simonsobs/ocs/tree/develop/docs/agents>`_. Each Agent has a
+<https://github.com/simonsobs/ocs/tree/main/docs/agents>`_. Each Agent has a
 separate `.rst` file.  Each Agent reference page must contain:
 
 * Brief description of the Agent

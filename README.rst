@@ -2,12 +2,12 @@
 OCS - Observatory Control System
 ================================
 
-.. image:: https://img.shields.io/github/workflow/status/simonsobs/ocs/Build%20Develop%20Images
-    :target: https://github.com/simonsobs/ocs/actions?query=workflow%3A%22Build+Develop+Images%22
+.. image:: https://img.shields.io/github/workflow/status/simonsobs/ocs/Build%20Test%20Images
+    :target: https://github.com/simonsobs/ocs/actions?query=workflow%3A%22Build+Test+Images%22
     :alt: GitHub Workflow Status
 
-.. image:: https://readthedocs.org/projects/ocs/badge/?version=develop
-    :target: https://ocs.readthedocs.io/en/develop/?badge=develop
+.. image:: https://readthedocs.org/projects/ocs/badge/?version=main
+    :target: https://ocs.readthedocs.io/en/main/?badge=main
     :alt: Documentation Status
 
 .. image:: https://coveralls.io/repos/github/simonsobs/ocs/badge.svg
@@ -20,8 +20,8 @@ OCS - Observatory Control System
    :target: https://pypi.org/project/ocs/
    :alt: PyPI Package
 
-.. image:: https://results.pre-commit.ci/badge/github/simonsobs/ocs/develop.svg
-   :target: https://results.pre-commit.ci/latest/github/simonsobs/ocs/develop
+.. image:: https://results.pre-commit.ci/badge/github/simonsobs/ocs/main.svg
+   :target: https://results.pre-commit.ci/latest/github/simonsobs/ocs/main
    :alt: pre-commit.ci status
 
 Overview
@@ -76,9 +76,9 @@ If you need to install the optional so3g module you can do so via::
 Installing from Source
 ``````````````````````
 
-If you are considering contributing to OCS, or would like to use the
-development branch, you will want to install from source. To do so, clone this
-repository and install using pip::
+If you are considering contributing to OCS, or would like to use an unreleased
+feature, you will want to install from source. To do so, clone this repository
+and install using pip::
 
   $ git clone https://github.com/simonsobs/ocs.git
   $ cd ocs/
@@ -95,11 +95,10 @@ releases will be tagged with their release version, i.e. ``v0.1.0``. These are
 only built on release, and the ``latest`` tag will point to the latest of these
 released tags. These should be considered stable.
 
-Development images will be tagged with the latest released version tag, the
-number of commits ahead of that release, the latest commit hash, and the tag
-``-dev``, i.e.  ``v0.6.0-53-g0e390f6-dev``. These get built on each commit to
-the ``develop`` branch, and are useful for testing and development, but should
-be considered unstable.
+Test images will be tagged with the latest released version tag, the number of
+commits ahead of that release, the latest commit hash, i.e.
+``v0.6.0-53-g0e390f6``. These get built on each commit to the ``main`` branch,
+and are useful for testing and development, but should be considered unstable.
 
 .. _Docker Hub: https://hub.docker.com/u/simonsobs
 
@@ -135,7 +134,7 @@ then use docker run::
 
 For more details see `tests/README.rst <tests_>`_.
 
-.. _tests: https://github.com/simonsobs/ocs/blob/master/tests/README.rst
+.. _tests: https://github.com/simonsobs/ocs/blob/main/tests/README.rst
 
 Example
 -------
@@ -144,18 +143,18 @@ A self contained example, demonstrating the operation of a small observatory
 with a single OCS Agent is contained in `example/miniobs/`_.  See the `readme`_
 in that directory for details.
 
-.. _example/miniobs/: https://github.com/simonsobs/ocs/tree/master/example/miniobs
-.. _readme: https://github.com/simonsobs/ocs/blob/master/example/miniobs/README.rst
+.. _example/miniobs/: https://github.com/simonsobs/ocs/tree/main/example/miniobs
+.. _readme: https://github.com/simonsobs/ocs/blob/main/example/miniobs/README.rst
 
 Contributing
 ------------
 For guidelines on how to contribute to OCS see `CONTRIBUTING.rst`_.
 
-.. _CONTRIBUTING.rst: https://github.com/simonsobs/ocs/blob/master/CONTRIBUTING.rst
+.. _CONTRIBUTING.rst: https://github.com/simonsobs/ocs/blob/main/CONTRIBUTING.rst
 
 License
 --------
 This project is licensed under the BSD 2-Clause License - see the
 `LICENSE.txt`_ file for details.
 
-.. _LICENSE.txt: https://github.com/simonsobs/ocs/blob/master/LICENSE.txt
+.. _LICENSE.txt: https://github.com/simonsobs/ocs/blob/main/LICENSE.txt

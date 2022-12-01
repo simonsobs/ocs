@@ -22,7 +22,7 @@ across the observatory be started or stopped.
 EPILOG = """
 More info for each command is available by adding --help, e.g. "ocsbow up --help".
 
-For more details, see https://ocs.readthedocs.io/en/develop/user/cli_tools.html#ocsbow.
+For more details, see https://ocs.readthedocs.io/en/main/user/cli_tools.html#ocsbow.
 """
 
 # agent_class of the HostManager.
@@ -876,7 +876,7 @@ Or with a target subsystem::
 """
 
 LOCAL_EPILOG = """For more details, see
-https://ocs.readthedocs.io/en/develop/user/cli_tools.html#ocs-local-support."""
+https://ocs.readthedocs.io/en/main/user/cli_tools.html#ocs-local-support."""
 
 
 def get_parser_local():

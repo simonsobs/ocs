@@ -123,9 +123,6 @@ class Registry:
 
     def _publish_agent_ops(self, reg_agent):
         addr = reg_agent.agent_address
-        msg = {'block_name': addr,
-               'timestamp': time.time(),
-               'data': {}}
         self.log.debug(addr)
         for op_name, op_code in reg_agent.op_codes.items():
             field = f'{addr}_{op_name}'
@@ -137,8 +134,9 @@ class Registry:
             except ValueError as e:
                 self.log.warn(f"Improper field name: {field}\n{e}")
                 continue
-            msg['data'][field] = op_code
-        if msg['data']:
+            msg = {'block_name': field,
+                'timestamp': time.time(),
+                'data': dict(field=op_code)}
             self.agent.publish_to_feed('agent_operations', msg)
 
     @ocs_agent.param('test_mode', default=False, type=bool)

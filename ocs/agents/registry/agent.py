@@ -135,8 +135,8 @@ class Registry:
                 self.log.warn(f"Improper field name: {field}\n{e}")
                 continue
             msg = {'block_name': field,
-                'timestamp': time.time(),
-                'data': dict(field=op_code)}
+                   'timestamp': time.time(),
+                   'data': dict(field=op_code)}
             self.agent.publish_to_feed('agent_operations', msg)
 
     @ocs_agent.param('test_mode', default=False, type=bool)

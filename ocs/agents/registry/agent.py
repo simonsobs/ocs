@@ -11,6 +11,9 @@ class RegisteredAgent:
     """
         Contains data about registered agents.
 
+        Args:
+            feed (dict): Encoded :class:`ocs.ocs_feed.Feed`.
+
         Attributes:
             expired (bool):
                 True if agent has not been updated in Registry.agent_timeout seconds.
@@ -122,6 +125,12 @@ class Registry:
             self._publish_agent_ops(reg_agent)
 
     def _publish_agent_ops(self, reg_agent):
+        """Publish a registered agent's OpCodes.
+
+        Args:
+            reg_agent (RegisteredAgent): The registered agent.
+
+        """
         addr = reg_agent.agent_address
         msg = {'block_name': addr,
                'timestamp': time.time(),

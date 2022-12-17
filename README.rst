@@ -2,7 +2,7 @@
 OCS - Observatory Control System
 ================================
 
-.. image:: https://img.shields.io/github/workflow/status/simonsobs/ocs/Build%20Test%20Images
+.. image:: https://img.shields.io/github/actions/workflow/status/simonsobs/ocs/develop.yml?branch=main
     :target: https://github.com/simonsobs/ocs/actions?query=workflow%3A%22Build+Test+Images%22
     :alt: GitHub Workflow Status
 

@@ -1,9 +1,10 @@
 import time
+import pytest
 import pytest_twisted
 
 from agents.util import create_session, create_agent_fixture
 
-from ocs.agents.registry.agent import Registry, make_parser
+from ocs.agents.registry.agent import RegisteredAgent, Registry, make_parser
 
 parser = make_parser()
 args = parser.parse_args(['--wait-time', '0.1'])
@@ -93,3 +94,31 @@ def test_registry_register_agent(agent):
     agent_data = {'agent_address': 'observatory.test_agent'}
     res = agent._register_agent(session, agent_data)
     assert res[0] is True
+
+
+def test_registry_handles_changed_agent_ops(agent):
+    """If an agent's op_codes change while the registry is running, for
+    instance an operation is added, this causes an exception to be raised, as
+    the Block structure has changed, which is disallowed. See [1] or [2].
+
+    [1] - https://github.com/simonsobs/ocs/issues/254
+    [2] - https://github.com/simonsobs/ocs/issues/311
+
+    """
+    # Only need 'agent_address' and 'op_codes' attributes for test
+    feed = {'agent_address': 'observatory.registry',
+            'agg_params': None,
+            'feed_name': 'test',
+            'address': None,
+            'record': True,
+            'session_id': None,
+            'agent_class': 'Registry'}
+    reg_agent = RegisteredAgent(feed)
+    reg_agent.op_codes = {'op_name': 1}
+
+    agent._publish_agent_ops(reg_agent)
+
+    # Add a new op to the registered agent
+    reg_agent.op_codes = {'op_name': 1, 'new_op': 1}
+    with pytest.raises(Exception):
+        agent._publish_agent_ops(reg_agent)

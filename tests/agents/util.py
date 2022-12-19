@@ -2,7 +2,7 @@ import time
 import pytest
 from unittest import mock
 
-from ocs.ocs_agent import OpSession
+from ocs.ocs_agent import OCSAgent, OpSession
 
 import txaio
 txaio.use_twisted()
@@ -13,11 +13,16 @@ def create_agent_fixture(agent_class, agent_kwargs={}):
 
     @pytest.fixture
     def agent():
-        mock_agent = mock.MagicMock()
+        site_args = mock.MagicMock()
+        site_args.log_dir = '/tmp/'
+        config = mock.MagicMock()
+        mock_agent = OCSAgent(config, site_args)
+
         log = txaio.make_logger()
         txaio.start_logging(level='debug')
         mock_agent.log = log
         log.info('Initialized mock OCSAgent')
+
         agent_instance = agent_class(mock_agent, **agent_kwargs)
 
         return agent_instance

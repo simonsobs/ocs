@@ -1,5 +1,4 @@
 import time
-import pytest
 import pytest_twisted
 
 from agents.util import create_session, create_agent_fixture
@@ -120,5 +119,4 @@ def test_registry_handles_changed_agent_ops(agent):
 
     # Add a new op to the registered agent
     reg_agent.op_codes = {'op_name': 1, 'new_op': 1}
-    with pytest.raises(Exception):
-        agent._publish_agent_ops(reg_agent)
+    agent._publish_agent_ops(reg_agent)

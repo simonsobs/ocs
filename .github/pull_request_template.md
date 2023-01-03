@@ -24,4 +24,3 @@
 - [ ] My code follows the code style of this project.
 - [ ] My change requires a change to the documentation.
 - [ ] I have updated the documentation accordingly.
-- [ ] Unless I am preparing a release, I have opened this PR onto the `develop` branch.

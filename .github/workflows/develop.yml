@@ -1,8 +1,8 @@
-name: Build Develop Images
+name: Build Test Images
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ main ]
     paths-ignore:
       - 'docs/**'
       - '**.rst'
@@ -15,7 +15,7 @@ jobs:
     uses: ./.github/workflows/pytest.yml
 
   build:
-    name: build and deploy dev images
+    name: build and deploy test images
     needs: test
     runs-on: ubuntu-latest
 
@@ -37,11 +37,11 @@ jobs:
         username: ${{ secrets.REGISTRY_USER }}
         password: ${{ secrets.REGISTRY_PASSWORD }}
 
-    - name: Build and push development docker image
+    - name: Build and push test docker images
       env:
         DOCKERHUB_ORG: "simonsobs"
       run: |
-        export DOCKER_TAG=`git describe --tags --always`-dev
+        export DOCKER_TAG=`git describe --tags --always`
         echo "${DOCKER_TAG}"
 
         # Tag all images for upload to the registry

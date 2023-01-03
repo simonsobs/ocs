@@ -11,6 +11,9 @@ class RegisteredAgent:
     """
         Contains data about registered agents.
 
+        Args:
+            feed (dict): Encoded :class:`ocs.ocs_feed.Feed`.
+
         Attributes:
             expired (bool):
                 True if agent has not been updated in Registry.agent_timeout seconds.
@@ -122,6 +125,12 @@ class Registry:
             self._publish_agent_ops(reg_agent)
 
     def _publish_agent_ops(self, reg_agent):
+        """Publish a registered agent's OpCodes.
+
+        Args:
+            reg_agent (RegisteredAgent): The registered agent.
+
+        """
         addr = reg_agent.agent_address
         self.log.debug(addr)
         for op_name, op_code in reg_agent.op_codes.items():
@@ -159,18 +168,30 @@ class Registry:
             lifetime of the Registry. For instance, this might look like::
 
                 >>> response.session['data']
-                {'observatory.aggregator':
-                    {'expired': False,
-                     'last_updated': 1583179794.5175,
-                     'time_expired': None},
-                 'observatory.faker1':
-                    {'expired': False,
-                     'last_updated': 1583179795.072248,
-                     'time_expired': None},
-                 'observatory.faker2':
-                    {'expired': True,
-                     'last_updated': 1583179777.0211036,
-                     'time_expired': 1583179795.3862052}}
+                {
+                  "observatory.aggregator": {
+                    "expired": False,
+                    "time_expired": None,
+                    "last_updated": 1669925713.4082503,
+                    "op_codes": {
+                      "record": 3
+                    },
+                    "agent_class": "AggregatorAgent",
+                    "agent_address": "observatory.aggregator"
+                  },
+                  "observatory.fake-hk-agent-01": {
+                    "expired": False,
+                    "time_expired": None,
+                    "last_updated": 1669925945.7575383,
+                    "op_codes": {
+                      "acq": 3,
+                      "set_heartbeat": 1,
+                      "delay_task": 1
+                    },
+                    "agent_class": "FakeDataAgent",
+                    "agent_address": "observatory.fake-hk-agent-01"
+                  }
+                }
 
         """
 

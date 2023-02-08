@@ -831,7 +831,7 @@ class OCSAgent(ApplicationSession):
             d2 = threads.deferToThread(stopper, session, params)
             d2.addCallback(_callback).addErrback(_errback)
         else:
-            # Assume the stopper returns a deferred (and will soon run
+            # Assume the stopper returns a Deferred (and will soon run
             # in the reactor).
             d2 = stopper(session, params)
             if not isinstance(d2, Deferred):
@@ -841,8 +841,13 @@ class OCSAgent(ApplicationSession):
                 # going to break much to have them run in the reactor.
                 # Change this to an error after all Agents have been
                 # updated for a while.
-                print(f'WARNING: {op_type} {op_name} needs to be '
-                      'registered with stopper_blocking=True.')
+                print(f'WARNING: {op_type} {op_name} did not return '
+                      'a Deferred. If the stopper is meant to be run '
+                      'in a worker thread, the op should be registered '
+                      'with stopper_blocking=True (Process) or '
+                      'aborter_blocking=True (Task).  If the stopper '
+                      'can safely run in the reactor, it should be '
+                      'modified to return a Deferred.')
             else:
                 d2.addCallback(_callback).addErrback(_errback)
 

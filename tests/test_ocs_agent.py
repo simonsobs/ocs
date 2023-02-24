@@ -50,6 +50,7 @@ def mock_agent():
     """
     mock_config = MagicMock()
     mock_site_args = MagicMock()
+    mock_site_args.working_dir = "./"
     mock_site_args.log_dir = "./"
     a = OCSAgent(mock_config, mock_site_args, address='test.address')
     return a

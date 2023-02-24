@@ -41,8 +41,8 @@ class HostManager:
         Returns:
           agent_dict (dict): Maps instance-id to a dict describing the
             agent config.  The config is as contained in
-            HostConfig.instances but where 'instance-id',
-            'agent-class', and 'manage' are all guaranteed populated
+            HostConfig.instances but where 'instance-id', 'agent-class'
+            or 'agent-exe', and 'manage' are all guaranteed populated
             (and manage is one of ['yes', 'no', 'docker']).
           warnings: A list of strings, each of which corresponds to
             some problem found in the config.
@@ -54,6 +54,10 @@ class HostManager:
         self.site_config_file = site.source_file
         self.host_name = hc.name
         self.working_dir = hc.working_dir
+        self.wamp_url = site.hub.data['wamp_server']
+        self.wamp_realm = site.hub.data['wamp_realm']
+        self.address_root = site.hub.data['address_root']
+        self.log_dir = hc.log_dir
 
         # Scan for agent scripts in (deprecated) script registry
         for p in hc.agent_paths:
@@ -72,7 +76,7 @@ class HostManager:
                 continue
             # Make sure 'manage' is set, and valid.
             default_manage = 'no' \
-                if inst['agent-class'] == 'HostManager' else 'yes'
+                if 'agent-class' in inst and inst['agent-class'] == 'HostManager' else 'yes'
             inst['manage'] = inst.get('manage', default_manage)
             if inst['manage'] not in ['yes', 'no', 'docker']:
                 warnings.append(
@@ -80,6 +84,17 @@ class HostManager:
                     f'for instance_id={inst["instance-id"]}.')
                 continue
             instances[inst['instance-id']] = inst
+            # Make sure either 'agent-class' or 'agent-exe' is set, but not both
+            if 'agent-class' not in inst and 'agent-exe' not in inst:
+                warnings.append(
+                    f'Configuration problem, neither agent-class nor agent-exe is set'
+                    f'for instance_id={inst["instance-id"]}.')
+                continue
+            if inst.get('agent-class') is not None and inst.get('agent-exe') is not None:
+                warnings.append(
+                    f'Configuration problem, both agent-class and agent-exe are set'
+                    f'for instance_id={inst["instance-id"]}.')
+                continue
         returnValue((instances, warnings))
         yield
 
@@ -169,13 +184,13 @@ class HostManager:
         docker_nonagents = list(self.docker_services.keys())
 
         for iid, hinst in agent_dict.items():
-            srv = self.docker_service_prefix + iid
-            cls = hinst['agent-class']
-            mgmt = 'host'
-            if srv in docker_nonagents:
-                docker_nonagents.remove(srv)
-                cls += '[d]'
-                mgmt = 'docker'
+            record = dict(hinst)
+            record['srv'] = self.docker_service_prefix + iid
+            record['mgmt'] = 'host'
+            if record['srv'] in docker_nonagents:
+                docker_nonagents.remove(record['srv'])
+                record['agent-class'] += '[d]'
+                record['mgmt'] = 'docker'
                 if hinst['manage'] != 'docker':
                     session.add_message(
                         f'The agent config for instance-id='
@@ -185,7 +200,7 @@ class HostManager:
                     retire(iid)
                     continue
             else:
-                srv = None
+                record['srv'] = None
                 if hinst['manage'] == 'no':
                     continue
                 if hinst['manage'] == 'docker':
@@ -195,36 +210,48 @@ class HostManager:
                         f'in config.  Dropping.')
                     retire(iid)
                     continue
-            new_managed.append((iid, iid, srv, cls, mgmt))
+            record['db_key'] = iid
+            new_managed.append(record)
 
         for srv in docker_nonagents:
-            new_managed.append((srv, srv, srv, '[docker]', 'docker'))
+            new_managed.append({'db_key': srv, 'instance-id': srv, 'srv': srv,
+                                'agent-class': '[docker]', 'mgmt': 'docker'})
 
         # Compare new managed items to stuff already in our database.
-        for db_key, iid, srv, cls, mgmt in new_managed:
+        for record in new_managed:
+            db_key = record['db_key']
             instance = self.database.get(db_key, None)
             if instance is not None and \
                instance['management'] == 'retired':
                 instance = None
             if instance is not None:
                 # So instance is some kind of actively managed container.
-                if (instance['agent_class'] != cls
-                        or instance['management'] != mgmt):
+                if (instance['agent_class'] != record.get('agent-class')
+                        or instance['agent_exe'] != record.get('agent-exe')
+                        or instance['management'] != record.get('mgmt')):
                     session.add_message(
                         f'Managed agent "{db_key}" changed agent_class '
-                        f'({instance["agent_class"]} -> {cls}) or management '
-                        f'({instance["management"]} -> {mgmt}) and is being '
+                        f'({instance["agent_class"]} -> {record.get("agent-class")}) or agent_exe '
+                        f'({instance["agent_exe"]} -> {record.get("agent-exe")}) or management '
+                        f'({instance["management"]} -> {record.get("mgmt")}) and is being '
                         f'reset!')
                     instance = None
             if instance is None:
+                if record.get("agent-class") is not None:
+                    full_name=(f'{record["agent-class"]}:{record["db_key"]}')
+                else:
+                    full_name=(f'{record["agent-exe"]}:{record["db_key"]}')
                 instance = hm_utils.ManagedInstance.init(
-                    management=mgmt,
-                    instance_id=iid,
-                    agent_class=cls,
-                    full_name=(f'{cls}:{db_key}'),
+                    management=record.get("mgmt"),
+                    instance_id=record.get("instance-id"),
+                    agent_class=record.get("agent-class"),
+                    agent_exe=record.get("agent-exe"),
+                    full_name=full_name,
+                    agent_arguments=record.get("arguments"),
+                    write_logs=record.get("write-logs", False)
                 )
-                if mgmt == 'docker':
-                    instance['agent_script'] = srv
+                if record['mgmt'] == 'docker':
+                    instance['agent_script'] = record['srv']
                     instance['prot'] = self._get_docker_helper(instance)
                     if instance['prot'].status[0] is None:
                         session.add_message(
@@ -237,15 +264,17 @@ class HostManager:
                 else:
                     # Check for the agent class in the plugin system;
                     # then check the (deprecated) agent script registry.
-                    if cls in agent_plugins:
-                        session.add_message(f'Found plugin for "{cls}"')
+                    if record.get("agent-exe") is not None:
+                        pass
+                    elif record.get("agent-class") in agent_plugins:
+                        session.add_message(f'Found plugin for "{record.get("agent-class")}"')
                         instance['agent_script'] = '__plugin__'
-                    elif cls in site_config.agent_script_reg:
-                        session.add_message(f'Found launcher script for "{cls}"')
-                        instance['agent_script'] = site_config.agent_script_reg[cls]
+                    elif record.get("agent-class") in site_config.agent_script_reg:
+                        session.add_message(f'Found launcher script for "{record.get("agent-class")}"')
+                        instance['agent_script'] = site_config.agent_script_reg[record.get("agent-class")]
                     else:
                         session.add_message(f'No plugin (nor launcher script) '
-                                            f'found for agent_class "{cls}"!')
+                                            f'found for agent_class "{record.get("agent-class")}"!')
                 session.add_message(f'Tracking {instance["full_name"]}')
                 self.database[db_key] = instance
         yield warnings
@@ -303,18 +332,28 @@ class HostManager:
             prot = self._get_docker_helper(instance)
         else:
             iid = instance['instance_id']
-            pyth = sys.executable
-            script = instance['agent_script']
-            if script == '__plugin__':
-                cmd = [pyth, '-m', 'ocs.agent_cli']
+            if instance.get('agent_script') is not None:
+                pyth = sys.executable
+                script = instance['agent_script']
+                if script == '__plugin__':
+                    cmd = [pyth, '-m', 'ocs.agent_cli']
+                else:
+                    cmd = [pyth, script]
+                cmd.extend([
+                    '--instance-id', iid,
+                    '--site-file', self.site_config_file,
+                    '--site-host', self.host_name,
+                    '--working-dir', self.working_dir])
+            elif instance.get('agent_exe') is not None:
+                cmd = [instance['agent_exe'], '--instance-id', self.address_root+'.'+iid,
+                       '--wamp-url', self.wamp_url, '--wamp-realm', self.wamp_realm]
+                if "agent_arguments" in instance:
+                    cmd.extend(instance["agent_arguments"])
+            if instance['write_logs']:
+                log_file_path = self.log_dir+'/'+self.address_root+'.'+iid+".log"
             else:
-                cmd = [pyth, script]
-            cmd.extend([
-                '--instance-id', iid,
-                '--site-file', self.site_config_file,
-                '--site-host', self.host_name,
-                '--working-dir', self.working_dir])
-            prot = hm_utils.AgentProcessHelper(iid, cmd)
+                log_file_path = None
+            prot = hm_utils.AgentProcessHelper(iid, cmd, log_file=log_file_path)
         prot.up()
         instance['prot'] = prot
 

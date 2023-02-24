@@ -229,6 +229,12 @@ class InstanceConfig:
             the Agent instance, as a way of finding the right
             InstanceConfig.
 
+        ``agent-exe`` (str, optional)
+            The Agent executable.  This
+            may be matched against the agent_exe name provided by
+            the Agent instance, as a way of finding the right
+            InstanceConfig.
+
         ``arguments`` (list, optional):
             A list of arguments that should be passed back to the
             agent.  Historically the arguments have been grouped into
@@ -250,6 +256,10 @@ class InstanceConfig:
         self.manage = self.data.get('manage')
         if self.manage is None:
             self.manage = "yes"
+        if 'agent-class' not in self.data:
+            self.data['agent-class'] = None
+        if 'agent-exe' not in self.data:
+            self.data['agent-exe'] = None
         return self
 
 
@@ -391,7 +401,7 @@ def add_arguments(parser=None):
     return parser
 
 
-def get_config(args, agent_class=None):
+def get_config(args, agent_class=None, agent_exe=None):
     """
     Args:
         args: The argument object returned by
@@ -400,13 +410,15 @@ def get_config(args, agent_class=None):
             in this object.
         agent_class: Class name passed in to match against the list of
             device classes in each host's list.
+        agent_exe: Executable path or name passed in to match against the list of
+            agent executables in each host's list.
 
     Special values accepted for agent_class:
     - '*control*': do not insist on matching host or device.
     - '*host*': do not insist on matching device (but do match host).
 
     Returns:
-        The tuple (site_config, host_config, device_config).
+        The tuple (site_config, host_config, instance_config).
     """
     if args.site == 'none':
         return (None, None, None)
@@ -480,13 +492,23 @@ def get_config(args, agent_class=None):
                 instance_config = InstanceConfig.from_dict(
                     dev, parent=host_config)
                 break
-    else:
+    elif agent_class is not None:
         # Use the agent_class to figure it out...
         for dev in host_config.instances:
-            if dev['agent-class'] == agent_class:
+            if 'agent-class' in dev and dev['agent-class'] == agent_class:
                 if instance_config is not None:
                     raise RuntimeError(
                         f"Multiple matches found for agent-class={agent_class}"
+                        " ... you probably need to pass --instance-id=")
+                instance_config = InstanceConfig.from_dict(
+                    dev, parent=host_config)
+    elif agent_exe is not None:
+        # Use the agent_exe to figure it out...
+        for dev in host_config.instances:
+            if 'agent-exe' in dev and dev['agent-exe'] == agent_exe:
+                if instance_config is not None:
+                    raise RuntimeError(
+                        f"Multiple matches found for agent-exe={agent_exe}"
                         " ... you probably need to pass --instance-id=")
                 instance_config = InstanceConfig.from_dict(
                     dev, parent=host_config)
@@ -657,7 +679,7 @@ def scan_for_agents(do_registration=True):
     return items
 
 
-def parse_args(agent_class=None, parser=None, args=None):
+def parse_args(agent_class=None, agent_exe=None, parser=None, args=None):
     """
     Function to parse site-config and agent arguments. This function takes
     site, host, and instance arguments into account by making sure the instance
@@ -670,6 +692,11 @@ def parse_args(agent_class=None, parser=None, args=None):
         agent_class (str, optional):
             Name of the Agent class.  This
             may be matched against the agent_class name provided by
+            the Agent instance, as a way of finding the right
+            InstanceConfig.
+        agent_exe (str, optional):
+            Name of the Agent executable.  This
+            may be matched against the agent_exe name provided by
             the Agent instance, as a way of finding the right
             InstanceConfig.
         parser (argparse.ArgumentParser, optional):
@@ -705,7 +732,7 @@ def parse_args(agent_class=None, parser=None, args=None):
 
     pre_args, _ = pre_parser.parse_known_args(args=args)
 
-    site, host, instance = get_config(pre_args, agent_class=agent_class)
+    site, host, instance = get_config(pre_args, agent_class=agent_class, agent_exe=agent_exe)
 
     if instance is not None:
         # When the user omits instance_id, it can still be matched,
@@ -743,7 +770,9 @@ def parse_args(agent_class=None, parser=None, args=None):
     add_site_attributes(args, site, host=host)
 
     # Add agent_class attribute.
-    if not hasattr(args, 'agent_class'):
+    if not hasattr(args, 'agent_class') and agent_class is not None:
         setattr(args, 'agent_class', agent_class)
+    if not hasattr(args, 'agent_exe') and agent_exe is not None:
+        setattr(args, 'agent_exe', agent_exe)
 
     return args

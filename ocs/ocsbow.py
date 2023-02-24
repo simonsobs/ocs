@@ -200,7 +200,7 @@ def get_status(args, site_config, restrict_hosts=None):
             if inst.get('manage') is None:
                 inst['manage'] = 'yes'
             inst.update(blank_state)
-            if inst['agent-class'] == HOSTMANAGER_CLASS:
+            if 'agent-class' in inst and inst['agent-class'] == HOSTMANAGER_CLASS:
                 sort_order = 0
                 hms.append(HostManagerManager(
                     args, site_config, instance_id=inst['instance-id']))
@@ -235,7 +235,7 @@ def get_status(args, site_config, restrict_hosts=None):
             for cinfo in info['child_states']:
                 this_id = cinfo['instance_id']
                 # Watch for [d] suffix, and steal it.
-                if cinfo['agent_class'].endswith('[d]'):
+                if cinfo.get('agent_class') is not None and cinfo['agent_class'].endswith('[d]'):
                     agent_info[this_id]['agent-class'] = cinfo['agent_class']
                 if this_id in found:
                     output['warnings'].append(
@@ -282,23 +282,37 @@ def print_status(args, site_config):
 
     for hstat in status['hosts']:
         header = {'instance-id': '[instance-id]',
-                  'agent-class': '[agent-class]',
+                  'agent': '[agent]',
                   'current': '[state]',
                   'target': '[target]'}
-        field_widths = {'instance-id': 30,
-                        'agent-class': 20}
+        field_widths = {'instance-id': 20,
+                        'agent-class': 20,
+                        'agent-exe': 20}
         if len(hstat['agent_info']):
-            field_widths = {k: max(v0, max([len(v[k])
+            field_widths = {k: max(v0, max([len(v[k]) if k in v and v[k] is not None else 0
                                             for v in hstat['agent_info'].values()]))
                             for k, v0 in field_widths.items()}
-        fmt = '  {instance-id:%i} {agent-class:%i} {current:>10} {target:>10}' % (
-            field_widths['instance-id'], field_widths['agent-class'])
+            field_widths['agent'] = max(field_widths['agent-class'], field_widths['agent-exe'])
+            del field_widths['agent-class']
+            del field_widths['agent-exe']
+        fmt = '  {instance-id:%i} {agent:%i} {current:>10} {target:>10}' % (
+            field_widths['instance-id'], field_widths['agent'])
         header = fmt.format(**header)
         print('-' * len(header))
         print(f'Host: {hstat["host_name"]}\n')
         print(header)
-        for v in hstat['agent_info'].values():
-            print(fmt.format(**v))
+        class FindAgentType(dict):
+            def __missing__(self, key):
+                if key == 'agent':
+                    if 'agent-class' in self:
+                        return self['agent-class']
+                    if 'agent-exe' in self:
+                        return self['agent-exe']
+                raise KeyError
+        hdata = sorted([FindAgentType(v) for v in hstat['agent_info'].values()],
+                       key=lambda i: i['instance-id'])
+        for v in hdata:
+            print(fmt.format_map(v))
         print()
 
     if len(status['warnings']):
@@ -814,9 +828,9 @@ def main(args=None):
         status = get_status(args, site_config)
         for host_data in status['hosts']:
             active_hms = [v for v in host_data['agent_info'].values()
-                          if v['agent-class'] == HOSTMANAGER_CLASS]
+                          if v.get('agent-class') == HOSTMANAGER_CLASS]
             others = [v for v in host_data['agent_info'].values()
-                      if v['agent-class'] != HOSTMANAGER_CLASS]
+                      if v.get('agent-class') != HOSTMANAGER_CLASS]
             for inst in active_hms:
                 if args.all or inst['instance-id'] in args.instance:
                     hms.append(inst)

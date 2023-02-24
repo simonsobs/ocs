@@ -9,7 +9,7 @@ services:
   # Crossbar Server
   # --------------------------------------------------------------------------
   crossbar:
-    image: ocs-crossbar
+    image: simonsobs/ocs-crossbar
     container_name: "ocs-tests-crossbar"
     ports:
       - "18001:18001" # expose for OCS
@@ -22,7 +22,7 @@ services:
   # OCS Components
   # --------------------------------------------------------------------------
   fake-data1:
-    image: ocs
+    image: simonsobs/ocs
     container_name: "ocs-tests-fake-data-agent"
     hostname: ocs-docker
     volumes:
@@ -33,7 +33,7 @@ services:
       - SITE_HTTP=http://ocs-tests-crossbar:18001/call
 
   ocs-aggregator:
-    image: ocs
+    image: simonsobs/ocs
     hostname: ocs-docker
     volumes:
       - ./default.yaml:/config/default.yaml:ro

@@ -5,6 +5,10 @@ import versioneer
 with open("README.rst", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+so3g_etxras = ["so3g"]
+dev_extras = ["pytest", "pytest_twisted", "pytest-docker-compose", "pytest-cov", "coverage"]
+dev_extras.extend(so3g_etxras)
+
 setup(name='ocs',
       description='Observatory Control System',
       long_description=long_description,
@@ -50,6 +54,7 @@ setup(name='ocs',
           'numpy',
       ],
       extras_require={
-          "so3g": ["so3g"],
+          "so3g": so3g_etxras,
+          "dev": dev_extras,
       },
       )

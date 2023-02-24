@@ -238,9 +238,9 @@ class HostManager:
                     instance = None
             if instance is None:
                 if record.get("agent-class") is not None:
-                    full_name=(f'{record["agent-class"]}:{record["db_key"]}')
+                    full_name = (f'{record["agent-class"]}:{record["db_key"]}')
                 else:
-                    full_name=(f'{record["agent-exe"]}:{record["db_key"]}')
+                    full_name = (f'{record["agent-exe"]}:{record["db_key"]}')
                 instance = hm_utils.ManagedInstance.init(
                     management=record.get("mgmt"),
                     instance_id=record.get("instance-id"),
@@ -345,12 +345,12 @@ class HostManager:
                     '--site-host', self.host_name,
                     '--working-dir', self.working_dir])
             elif instance.get('agent_exe') is not None:
-                cmd = [instance['agent_exe'], '--instance-id', self.address_root+'.'+iid,
+                cmd = [instance['agent_exe'], '--instance-id', self.address_root + '.' + iid,
                        '--wamp-url', self.wamp_url, '--wamp-realm', self.wamp_realm]
                 if "agent_arguments" in instance:
                     cmd.extend(instance["agent_arguments"])
             if instance['write_logs']:
-                log_file_path = self.log_dir+'/'+self.address_root+'.'+iid+".log"
+                log_file_path = self.log_dir + '/' + self.address_root + '.' + iid + ".log"
             else:
                 log_file_path = None
             prot = hm_utils.AgentProcessHelper(iid, cmd, log_file=log_file_path)

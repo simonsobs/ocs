@@ -301,6 +301,7 @@ def print_status(args, site_config):
         print('-' * len(header))
         print(f'Host: {hstat["host_name"]}\n')
         print(header)
+
         class FindAgentType(dict):
             def __missing__(self, key):
                 if key == 'agent':

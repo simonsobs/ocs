@@ -224,7 +224,7 @@ class AgentProcessHelper(protocol.ProcessProtocol):
         self.cmd = cmd
         self.lines = {'stderr': [],
                       'stdout': []}
-        self.log_file = open(log_file,"ab") if log_file is not None else None
+        self.log_file = open(log_file, "ab") if log_file is not None else None
 
     def up(self):
         reactor.spawnProcess(self, self.cmd[0], self.cmd[:], env=os.environ)

@@ -195,7 +195,7 @@ class HostManager:
                     session.add_message(
                         f'The agent config for instance-id='
                         f'{iid} was matched to docker service '
-                        f'{srv}, but config does not specify '
+                        f'{record["srv"]}, but config does not specify '
                         f'manage:docker! Dropping both.')
                     retire(iid)
                     continue

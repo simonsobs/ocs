@@ -172,6 +172,9 @@ def main(args=None):
 
         # Determine agent-class from instance-id
         (site_, host_, instance) = site_config.get_config(args)
+        print("site:", site_)
+        print("host:", host_)
+        print("instance:", instance)
         agent_class = instance.data['agent-class']
 
         # Import agent's entrypoint and execute
@@ -183,6 +186,7 @@ def main(args=None):
         mod = importlib.import_module(_module)
 
     start = getattr(mod, entrypoint)  # This is the start function.
+    print('Args before start:', post_args)  # mostly to debug, but also useful
     start(args=post_args)
 
 

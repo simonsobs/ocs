@@ -16,6 +16,11 @@ class SiteConfig:
         self.hub = None
         self.source_file = None
 
+    def __str__(self):
+        return f"hosts: {self.hosts}\n" + \
+            f"hub: {self.hub}\n" + \
+            f"source_file: {self.source_file}"
+
     @classmethod
     def from_dict(cls, data):
         """Args:
@@ -70,6 +75,13 @@ class HostConfig:
         self.agent_paths = []
         self.log_dir = None
         self.working_dir = os.getcwd()
+
+    def __str__(self):
+        return f"instances: {self.instances}\n" + \
+            f"name: {self.name}\n" + \
+            f"agent_paths: {self.agent_paths}\n" + \
+            f"log_dir: {self.log_dir}\n" + \
+            f"working_dir: {self.working_dir}"
 
     @classmethod
     def from_dict(cls, data, parent=None, name=None):
@@ -203,6 +215,9 @@ class HubConfig:
     def summary(self):
         return summarize_dict(self.data)
 
+    def __str__(self):
+        return "data:" + self.summary()
+
 
 class InstanceConfig:
     def __init__(self):
@@ -251,6 +266,11 @@ class InstanceConfig:
         if self.manage is None:
             self.manage = "yes"
         return self
+
+    def __str__(self):
+        return f"data: {self.data}\n" + \
+            f"arguments: {self.arguments}\n" + \
+            f"manage: {self.manage}"
 
 
 def summarize_dict(d):

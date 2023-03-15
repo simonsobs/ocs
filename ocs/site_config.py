@@ -47,6 +47,7 @@ class SiteConfig:
 
         """
         self = cls()
+        self.data = data
         for k, v in data.get('hosts', {}).items():
             assert (k not in self.hosts)  # duplicate host name in config file!
             self.hosts[k] = HostConfig.from_dict(v, parent=self, name=k)
@@ -61,6 +62,10 @@ class SiteConfig:
         self = cls.from_dict(data)
         self.source_file = filename
         return self
+
+    def __repr__(self):
+        repr_ = f'SiteConfig.from_dict({self.data})'
+        return repr_
 
 
 class HostConfig:
@@ -111,6 +116,11 @@ class HostConfig:
         self.log_dir = data.get('log-dir', None)
         return self
 
+    def __repr__(self):
+        repr_ = f'HostConfig.from_dict({self.data}, ' \
+            f'name={self.name})'
+        return repr_
+
 
 class CrossbarConfig:
     @classmethod
@@ -134,6 +144,7 @@ class CrossbarConfig:
         if data is None:
             return None
         self = cls()
+        self.data = data
         self.parent = parent
         self.binary = data.get('bin', shutil.which('crossbar'))
         self.cbdir = data.get('config-dir')
@@ -160,6 +171,10 @@ class CrossbarConfig:
 
     def __eq__(self, other):
         return self.binary == other.binary and self.cbdir == other.cbdir
+
+    def __repr__(self):
+        repr_ = f'CrossbarConfig.from_dict({self.data})'
+        return repr_
 
 
 class HubConfig:
@@ -201,6 +216,9 @@ class HubConfig:
 
     def summary(self):
         return summarize_dict(self.data)
+
+    def __repr__(self):
+        return f"HubConfig.from_dict({self.data})"
 
 
 class InstanceConfig:
@@ -250,6 +268,9 @@ class InstanceConfig:
         if self.manage is None:
             self.manage = "yes"
         return self
+
+    def __repr__(self):
+        return f"InstanceConfig.from_dict({self.data})"
 
 
 def summarize_dict(d):
@@ -308,6 +329,10 @@ class ArgContainer:
             arg_list.extend(v)
 
         return arg_list
+
+    def __repr__(self):
+        args = str(self.to_list())
+        return f'ArgContainer({args})'
 
 
 def add_arguments(parser=None):

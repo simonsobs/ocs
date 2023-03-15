@@ -1,7 +1,70 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ocs.site_config import get_control_client, CrossbarConfig
+import yaml
+
+from ocs.site_config import (ArgContainer, CrossbarConfig, HostConfig,
+                             HubConfig, InstanceConfig, SiteConfig,
+                             get_control_client)
+
+# Used for testing all Config objects
+HUB_CFG = {'wamp_server': 'ws://127.0.0.1:18001/ws',
+           'wamp_http': 'http://127.0.0.1:18001/call',
+           'wamp_realm': 'test_realm',
+           'address_root': 'observatory'}
+CROSSBAR_CFG = {'config-dir': '/simonsobs/ocs/dot_crossbar/',
+                'bin': '/path/to/crossbar'}
+INSTANCE_CFG = {'agent-class': 'FakeDataAgent',
+                'instance-id': 'fake-data1',
+                'arguments': ['--mode', 'acq',
+                              '--num-channels', '16',
+                              '--sample-rate', '5',
+                              '--frame-length', '10'],
+                'manage': None}
+HOST_1_NAME = 'ocs-docker'
+HOST_1_CFG = {'log-dir': '/simonsobs/log/ocs/',
+              'crossbar': CROSSBAR_CFG,
+              'agent-paths': ['/path/to/ocs/agents/'],
+              'agent-instances': [INSTANCE_CFG]}
+SITE_CFG = {'hub': HUB_CFG,
+            'hosts': {HOST_1_NAME: HOST_1_CFG}}
+
+
+def test_site_config_from_yaml(tmp_path):
+    cfg_file = tmp_path / "default.yaml"
+    with open(cfg_file, 'w') as f:
+        yaml.dump(SITE_CFG, f)
+    cfg = SiteConfig.from_yaml(cfg_file)
+    assert cfg.data == SITE_CFG
+
+
+def test_crossbar_config_from_dict():
+    cfg = CrossbarConfig.from_dict(CROSSBAR_CFG)
+    assert cfg.data == CROSSBAR_CFG
+
+
+def test_hub_config_from_dict():
+    cfg = HubConfig.from_dict(HUB_CFG)
+    assert cfg.data == HUB_CFG
+
+
+def test_host_config_from_dict():
+    cfg = HostConfig.from_dict(HOST_1_CFG, name=HOST_1_NAME)
+    assert cfg.data == HOST_1_CFG
+    assert cfg.name == HOST_1_NAME
+    assert cfg.crossbar == CrossbarConfig.from_dict(CROSSBAR_CFG)
+
+
+def test_instance_config_from_dict():
+    cfg = InstanceConfig.from_dict(INSTANCE_CFG)
+    assert cfg.data == INSTANCE_CFG
+
+
+def test_arg_container_update():
+    arg1 = ArgContainer(['--arg1', 'foo', '--arg2', 'bar'])
+    arg2 = ArgContainer(['--arg2', 'baz'])
+    arg1.update(arg2)
+    assert arg1.to_list() == ['--arg1', 'foo', '--arg2', 'baz']
 
 
 class TestGetControlClient:

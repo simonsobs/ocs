@@ -48,6 +48,7 @@ setup(name='ocs',
           'PyYAML',
           'influxdb',
           'numpy',
+          'importlib_metadata;python_version<"3.10"',
       ],
       extras_require={
           "so3g": ["so3g"],

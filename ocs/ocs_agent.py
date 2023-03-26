@@ -16,6 +16,7 @@ from autobahn.twisted.util import sleep as dsleep
 from autobahn.wamp.exception import ApplicationError, TransportLost
 from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
+from . import access
 
 import json
 import math
@@ -108,6 +109,8 @@ class OCSAgent(ApplicationSession):
         self.subscribed_topics = set()
         self.realm_joined = False
         self.first_time_startup = True
+
+        self.rules = None
 
         # Attach the logger.
         log_dir, log_file = site_args.log_dir, None
@@ -265,17 +268,17 @@ class OCSAgent(ApplicationSession):
             'processes': list(self.processes.keys())
         }
 
-    def _ops_handler(self, action, op_name, params=None, timeout=None):
+    def _ops_handler(self, action, op_name, params=None, timeout=None, credentials=None):
         if action == 'start':
-            return self.start(op_name, params=params)
+            return self.start(op_name, params=params, credentials=credentials)
         if action == 'stop':
-            return self.stop(op_name, params=params)
+            return self.stop(op_name, params=params, credentials=credentials)
         if action == 'abort':
-            return self.abort(op_name, params=params)
+            return self.abort(op_name, params=params, credentials=credentials)
         if action == 'wait':
-            return self.wait(op_name, timeout=timeout)
+            return self.wait(op_name, timeout=timeout, credentials=credentials)
         if action == 'status':
-            return self.status(op_name)
+            return self.status(op_name, credentials=credentials)
         return (ocs.ERROR, 'No implementation for "%s"' % op_name, {})
 
     def _gather_sessions(self, parent):
@@ -367,7 +370,8 @@ class OCSAgent(ApplicationSession):
                            + 'crossbar server likely unreachable.')
 
     def register_task(self, name, func, aborter=None, blocking=True,
-                      aborter_blocking=None, startup=False):
+                      aborter_blocking=None, startup=False,
+                      min_privs=0):
         """Register a Task for this agent.
 
         Args:
@@ -390,6 +394,8 @@ class OCSAgent(ApplicationSession):
                 launched on startup.  If the ``startup`` argument is a
                 dictionary, this is passed to the Operation's start
                 function.
+            min_privs (int): Minimum privilege level required to start
+                or abort this operation (1, 2, 3).  See Access Control.
 
         Notes:
 
@@ -403,13 +409,14 @@ class OCSAgent(ApplicationSession):
         """
         self.tasks[name] = AgentTask(
             func, blocking=blocking, aborter=aborter,
-            aborter_blocking=aborter_blocking)
+            aborter_blocking=aborter_blocking,
+            min_privs=min_privs)
         self.sessions[name] = None
         if startup is not False:
             self.startup_ops.append(('task', name, startup))
 
     def register_process(self, name, start_func, stop_func, blocking=True,
-                         stopper_blocking=None, startup=False):
+                         stopper_blocking=None, startup=False, min_privs=0):
         """Register a Process for this agent.
 
         Args:
@@ -432,6 +439,8 @@ class OCSAgent(ApplicationSession):
                 launched on startup.  If the ``startup`` argument is a
                 dictionary, this is passed to the Operation's start
                 function.
+            min_privs (int): Minimum privilege level required to start
+                or stop this operation (1, 2, 3).  See Access Control.
 
         Notes:
             The functions start_func and stop_func will be called with
@@ -444,7 +453,8 @@ class OCSAgent(ApplicationSession):
         """
         self.processes[name] = AgentProcess(
             start_func, stop_func, blocking=blocking,
-            stopper_blocking=stopper_blocking)
+            stopper_blocking=stopper_blocking,
+            min_privs=min_privs)
         self.sessions[name] = None
         if startup is not False:
             self.startup_ops.append(('process', name, startup))
@@ -637,7 +647,7 @@ class OCSAgent(ApplicationSession):
     Agent's Operations.  Some methods are valid on Processs, some on
     Tasks, and some on both."""
 
-    def start(self, op_name, params=None):
+    def start(self, op_name, params=None, credentials=None):
         """
         Launch an operation.  Note that successful return of this function
         does not mean that the operation is running; it only means
@@ -676,6 +686,14 @@ class OCSAgent(ApplicationSession):
                 op = self.processes[op_name]
                 msg = 'Started process "%s".' % op_name
 
+            # Check access.
+            cred_level = access.get_creds(credentials, self.rules,
+                                          op_name=op_name, action='start')
+            if cred_level.value < op.min_privs.value:
+                return (ocs.ERROR,
+                        access.rejection_message(cred_level, op.min_privs),
+                        {})
+
             # Pre-process params?
             if hasattr(op.launcher, '_ocs_prescreen'):
                 try:
@@ -708,7 +726,7 @@ class OCSAgent(ApplicationSession):
             return (ocs.ERROR, 'No task or process called "%s"' % op_name, {})
 
     @inlineCallbacks
-    def wait(self, op_name, timeout=None):
+    def wait(self, op_name, timeout=None, credentials=None):
         """Wait for the specified Operation to become idle, or for timeout
         seconds to elapse.  If timeout==None, the timeout is disabled
         and the function will not return until the Operation
@@ -773,7 +791,7 @@ class OCSAgent(ApplicationSession):
             return (ocs.TIMEOUT, 'Operation "%s" still running; wait timed out.' % op_name,
                     session.encoded())
 
-    def _stop_helper(self, stop_type, op_name, params):
+    def _stop_helper(self, stop_type, op_name, params, credentials):
         """Common stopper/aborter code for Process stop and Task
         abort.
 
@@ -782,6 +800,7 @@ class OCSAgent(ApplicationSession):
           op_name (str): the op_name.
           params (dict or None): Params to be passed to stopper
             function.
+          credentials: Credentials of the client.
 
         """
         print(f'{stop_type} called for {op_name}')
@@ -805,6 +824,13 @@ class OCSAgent(ApplicationSession):
            (stop_type == 'abort' and op_type == 'process'):
             return (ocs.ERROR, f'Cannot "{stop_type}" "{op_name}" because '
                     'it is a "{op_type}".', {})
+
+        cred_level = access.get_creds(credentials, self.rules,
+                                      op_name=op_name, action=stop_type)
+        if cred_level.value < op.min_privs.value:
+            return (ocs.ERROR,
+                    access.rejection_message(cred_level, op.min_privs),
+                    {})
 
         session = self.sessions.get(op_name)
         if session is None:
@@ -854,7 +880,7 @@ class OCSAgent(ApplicationSession):
         return (ocs.OK, f'Requested {stop_type} on {op_type} {op_name}".',
                 session.encoded())
 
-    def stop(self, op_name, params=None):
+    def stop(self, op_name, params=None, credentials=None):
         """
         Initiate a Process stop routine.
 
@@ -867,9 +893,9 @@ class OCSAgent(ApplicationSession):
 
           ocs.OK: the Process stop routine has been launched.
         """
-        return self._stop_helper('stop', op_name, params)
+        return self._stop_helper('stop', op_name, params, credentials)
 
-    def abort(self, op_name, params=None):
+    def abort(self, op_name, params=None, credentials=None):
         """
         Initiate a Task abort routine.
 
@@ -883,9 +909,9 @@ class OCSAgent(ApplicationSession):
           ocs.OK: the Process stop routine has been launched.
 
         """
-        return self._stop_helper('abort', op_name, params)
+        return self._stop_helper('abort', op_name, params, credentials)
 
-    def status(self, op_name, params=None):
+    def status(self, op_name, params=None, credentials=None):
         """
         Get an Operation's session data.
 
@@ -910,7 +936,7 @@ class OCSAgent(ApplicationSession):
 
 class AgentTask:
     def __init__(self, launcher, blocking=None, aborter=None,
-                 aborter_blocking=None):
+                 aborter_blocking=None, min_privs=0):
         self.launcher = launcher
         self.blocking = blocking
         self.aborter = aborter
@@ -918,6 +944,7 @@ class AgentTask:
             aborter_blocking = blocking
         self.aborter_blocking = aborter_blocking
         self.docstring = launcher.__doc__
+        self.min_privs = access.AccessLevel(max(1, min_privs))
 
     def encoded(self):
         """Dict of static info for API self-description."""
@@ -926,11 +953,13 @@ class AgentTask:
             'abortable': (self.aborter is not None),
             'docstring': self.docstring,
             'op_type': 'task',
+            'min_privs': self.min_privs.encode(),
         }
 
 
 class AgentProcess:
-    def __init__(self, launcher, stopper, blocking=None, stopper_blocking=None):
+    def __init__(self, launcher, stopper, blocking=None, stopper_blocking=None,
+                 min_privs=0):
         self.launcher = launcher
         self.stopper = stopper
         self.blocking = blocking
@@ -938,6 +967,7 @@ class AgentProcess:
             stopper_blocking = blocking
         self.stopper_blocking = stopper_blocking
         self.docstring = launcher.__doc__
+        self.min_privs = access.AccessLevel(max(1, min_privs))
 
     def encoded(self):
         """Dict of static info for API self-description."""
@@ -945,6 +975,7 @@ class AgentProcess:
             'blocking': self.blocking,
             'docstring': self.docstring,
             'op_type': 'process',
+            'min_privs': self.min_privs.encode(),
         }
 
 

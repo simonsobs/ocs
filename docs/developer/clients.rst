@@ -192,6 +192,30 @@ OCSReply is a namedtuple. The elements of the tuple are:
     docstring for :func:`ocs.ocs_agent.OpSession.encoded` and the Data
     Access section on :ref:`session_data`.
 
+
+.. _clients_passwords:
+
+Passwords and Credentials
+`````````````````````````
+
+When :ref:`Access Control<access_control_user>` has been configured,
+clients will need to provide passwords to access some Agent
+functionality.  Use the ``privs`` argument, when instantiating a
+client, to cause the client to use a password::
+
+  # Use access password
+  client = OCSClient('agent-instance-id', privs='my-secret-password')
+
+Alternatively, a specific access level can be requested, as an integer::
+
+  # Get credential level 3
+  client = OCSClient('agent-instance-id', privs=3)
+
+For that to work, an OCS passwords file must be available.  See
+:func:`ocs.access.client_get_password` for a discussion of how to set
+up the OCS password file.
+
+
 Examples
 ````````
 

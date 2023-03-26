@@ -23,3 +23,4 @@ following pages:
     docker_config
     crossbar_config
     centralized_management
+    access_control

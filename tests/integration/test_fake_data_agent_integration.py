@@ -14,11 +14,12 @@ from integration.util import (
 from integration.util import docker_compose_file  # noqa: F401
 
 AGENT_PATH = '../ocs/agents/fake_data/agent.py'
+AGENT_ID = 'fake-data-local'
 
 wait_for_crossbar = create_crossbar_fixture()
 run_agent = create_agent_runner_fixture(
-    AGENT_PATH, 'fake_data')
-client = create_client_fixture('fake-data-local')
+    AGENT_PATH, 'fake_data', ['--instance-id', AGENT_ID])
+client = create_client_fixture(AGENT_ID)
 
 
 @pytest.mark.integtest
@@ -51,7 +52,7 @@ def test_fake_data_agent_acq(wait_for_crossbar, run_agent, client):
 run_agent_acq = create_agent_runner_fixture(
     AGENT_PATH,
     'fake_data',
-    args=['--mode', 'acq'])
+    args=['--instance-id', AGENT_ID, '--mode', 'acq'])
 
 
 @pytest.mark.integtest

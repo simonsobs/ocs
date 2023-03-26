@@ -6,4 +6,5 @@ agents = {
     'FakeDataAgent': {'module': 'ocs.agents.fake_data.agent', 'entry_point': 'main'},
     'InfluxDBAgent': {'module': 'ocs.agents.influxdb_publisher.agent', 'entry_point': 'main'},
     'BarebonesAgent': {'module': 'ocs.agents.barebones.agent', 'entry_point': 'main'},
+    'AccessDirector': {'module': 'ocs.agents.access_director.agent', 'entry_point': 'main'},
 }

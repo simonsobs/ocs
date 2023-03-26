@@ -1,0 +1,15 @@
+passwords:
+  - default: true
+    password_1: ""
+    password_2: "a"
+    password_4: "superuser"
+
+distrib_hashfunc: md5
+
+exclusive_access_blocks:
+  - name: test-grant
+    grants:
+      - agent_class: "FakeDataAgent"
+        instance_id: "fake-data*,!fake-data-orama"
+        cred_level: 2
+        lockout_levels: [1,2,3]

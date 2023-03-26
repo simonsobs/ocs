@@ -30,6 +30,7 @@ write OCS Agents or Clients.
     :caption: Agent Reference
     :maxdepth: 3
 
+    agents/access_director
     agents/aggregator
     agents/barebones
     agents/influxdb_publisher
@@ -48,6 +49,7 @@ write OCS Agents or Clients.
     developer/clients
     developer/data
     developer/writing-plugins
+    developer/access_control
     developer/docker
     developer/testing
 

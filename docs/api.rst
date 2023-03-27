@@ -88,6 +88,14 @@ ocs.agent_cli
 
 .. _ocs_base_api:
 
+ocs.access
+----------
+
+.. automodule:: ocs.access
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 ocs.base
 --------
 

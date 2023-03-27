@@ -110,7 +110,10 @@ class OCSAgent(ApplicationSession):
         self.realm_joined = False
         self.first_time_startup = True
 
-        self.rules = None
+        self.rules = {
+            'password-2': 'fake-pw-2',
+            'password-3': 'fake-pw-3',
+        }
 
         # Attach the logger.
         log_dir, log_file = site_args.log_dir, None

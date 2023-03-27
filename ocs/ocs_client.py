@@ -2,10 +2,10 @@ import collections
 import time
 
 import ocs
-from ocs import site_config
+from ocs import site_config, access
 
 
-def _get_op(op_type, name, encoded, client):
+def _get_op(op_type, name, encoded, client, password):
     """Factory for generating matched operations. This will make sure
     op.start's docstring is the docstring of the operation.
 
@@ -16,21 +16,26 @@ def _get_op(op_type, name, encoded, client):
             :class:`ocs.ocs_agent.AgentProcess` dictionary.
         client (ControlClient): Client object, which will be used to issue the
             requests for operation actions.
+        password (str): Client credentials (a password).
 
     """
     class MatchedOp:
         def start(self, **kwargs):
-            return OCSReply(*client.request('start', name, params=kwargs))
+            return OCSReply(*client.request('start', name, params=kwargs,
+                                            credentials=password))
 
         def wait(self, timeout=None):
-            return OCSReply(*client.request('wait', name, timeout=timeout))
+            return OCSReply(*client.request('wait', name, timeout=timeout,
+                                            credentials=password))
 
         def status(self):
-            return OCSReply(*client.request('status', name))
+            return OCSReply(*client.request('status', name,
+                                            credentials=password))
 
     class MatchedTask(MatchedOp):
         def abort(self):
-            return OCSReply(*client.request('abort', name))
+            return OCSReply(*client.request('abort', name,
+                                            credentials=password))
 
         def __call__(self, **kw):
             """Runs self.start(**kw) and, if that succeeds, self.wait()."""
@@ -41,7 +46,8 @@ def _get_op(op_type, name, encoded, client):
 
     class MatchedProcess(MatchedOp):
         def stop(self):
-            return OCSReply(*client.request('stop', name))
+            return OCSReply(*client.request('stop', name,
+                                            credentials=password))
 
         def __call__(self):
             """Equivalent to self.status()."""
@@ -83,7 +89,7 @@ class OCSClient:
 
     """
 
-    def __init__(self, instance_id, **kwargs):
+    def __init__(self, instance_id, privs=None, **kwargs):
         """
         Args:
             instance_id (str): Instance id for agent to run
@@ -104,13 +110,16 @@ class OCSClient:
         self.instance_id = instance_id
         self._api = self._client.get_api()
 
+        self._password = access.get_client_password(
+            privs, self._api['agent_class'], instance_id)
+
         for name, _, encoded in self._api['tasks']:
             setattr(self, _opname_to_attr(name),
-                    _get_op('task', name, encoded, self._client))
+                    _get_op('task', name, encoded, self._client, self._password))
 
         for name, _, encoded in self._api['processes']:
             setattr(self, _opname_to_attr(name),
-                    _get_op('process', name, encoded, self._client))
+                    _get_op('process', name, encoded, self._client, self._password))
 
     def __repr__(self):
         return f"OCSClient('{self.instance_id}')"

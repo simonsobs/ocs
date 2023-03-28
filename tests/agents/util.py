@@ -8,16 +8,19 @@ import txaio
 txaio.use_twisted()
 
 
-def create_agent_fixture(agent_class, agent_kwargs={}):
+def create_agent_fixture(agent_class, agent_kwargs={}, site_args={}):
     """Create a fixture for a given Agent."""
 
     @pytest.fixture
     def agent():
-        site_args = mock.MagicMock()
-        site_args.log_dir = '/tmp/'
-        site_args.access_policy = None
+        _site_args = mock.MagicMock()
+        _site_args.log_dir = '/tmp/'
+        _site_args.access_policy = None
+        for k, v in site_args.items():
+            setattr(_site_args, k, v)
+
         config = mock.MagicMock()
-        mock_agent = OCSAgent(config, site_args)
+        mock_agent = OCSAgent(config, _site_args)
 
         log = txaio.make_logger()
         txaio.start_logging(level='debug')

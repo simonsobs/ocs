@@ -75,7 +75,7 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
     return run_agent
 
 
-def create_client_fixture(instance_id, timeout=30):
+def create_client_fixture(instance_id, timeout=30, privs=None):
     """Create the fixture that provides tests a Client object.
 
     Parameters:
@@ -85,6 +85,7 @@ def create_client_fixture(instance_id, timeout=30):
             between attempts. This is useful if it takes some time for the
             Agent to start accepting connections, which varies depending on the
             Agent.
+        privs (str or int): privs argument for OCSClient constructor.
 
     """
     @pytest.fixture()
@@ -96,7 +97,7 @@ def create_client_fixture(instance_id, timeout=30):
 
         while attempts < timeout:
             try:
-                client = OCSClient(instance_id)
+                client = OCSClient(instance_id, privs=privs)
                 return client
             except RuntimeError as e:
                 print(f"Caught error: {e}")

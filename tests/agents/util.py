@@ -15,6 +15,7 @@ def create_agent_fixture(agent_class, agent_kwargs={}):
     def agent():
         site_args = mock.MagicMock()
         site_args.log_dir = '/tmp/'
+        site_args.access_policy = None
         config = mock.MagicMock()
         mock_agent = OCSAgent(config, site_args)
 

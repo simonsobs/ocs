@@ -65,7 +65,7 @@ def test_opname_to_attr(input_, expected):
 class TestGetOp:
     def test_invalid_op_type(self):
         with pytest.raises(ValueError):
-            _get_op('not_valid', 'name', MagicMock(), MagicMock())
+            _get_op('not_valid', 'name', MagicMock(), MagicMock(), '')
 
     def mock_client(self, session_name, response_code):
         """Mock a ControlClient object that has a predefined request response for
@@ -96,7 +96,7 @@ class TestGetOp:
         client = self.mock_client(op_name, response_code)
         encoded_task = {'blocking': True,
                         'docstring': 'Example docstring'}
-        task = _get_op(op_type, op_name, encoded_task, client)
+        task = _get_op(op_type, op_name, encoded_task, client, '')
 
         return (client, task)
 
@@ -111,45 +111,52 @@ class TestGetOp:
     def test_task_abort(self, client_task):
         client, task = client_task
         print(task.abort())
-        client.request.assert_called_with('abort', 'task_name')
+        client.request.assert_called_with('abort', 'task_name', credentials='')
 
     def test_task_start(self, client_task):
         client, task = client_task
         print(task.start())
         assert task.start.__doc__ == 'Example docstring'
-        client.request.assert_called_with('start', 'task_name', params={})
+        client.request.assert_called_with('start', 'task_name', params={},
+                                          credentials='')
 
     def test_task_wait(self, client_task):
         client, task = client_task
         print(task.wait())
-        client.request.assert_called_with('wait', 'task_name', timeout=None)
+        client.request.assert_called_with('wait', 'task_name', timeout=None,
+                                          credentials='')
 
     def test_task_status(self, client_task):
         client, task = client_task
         print(task.status())
-        client.request.assert_called_with('status', 'task_name')
+        client.request.assert_called_with('status', 'task_name',
+                                          credentials='')
 
     def test_task_call(self):
         client, task = self._client_operation('task', 'task_name', ocs.OK)
         print(task())
         # equivalent to 'start' + 'wait', but we can only check the last call
-        client.request.assert_called_with('wait', 'task_name', timeout=None)
+        client.request.assert_called_with('wait', 'task_name', timeout=None,
+                                          credentials='')
 
     def test_task_call_w_error(self):
         client, task = self._client_operation('task', 'task_name', ocs.ERROR)
         print(task())
         # error skips the 'wait' call after 'start'
-        client.request.assert_called_with('start', 'task_name', params={})
+        client.request.assert_called_with('start', 'task_name', params={},
+                                          credentials='')
 
     def test_process_stop(self, client_process):
         client, process = client_process
         print(process.stop())
-        client.request.assert_called_with('stop', 'process_name')
+        client.request.assert_called_with('stop', 'process_name',
+                                          credentials='')
 
     def test_process_call(self, client_process):
         client, process = client_process
         print(process())
-        client.request.assert_called_with('status', 'process_name')
+        client.request.assert_called_with('status', 'process_name',
+                                          credentials='')
 
 
 class TestOCSClient:

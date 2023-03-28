@@ -7,6 +7,7 @@ import os
 import yaml
 from enum import Enum
 
+
 class CredLevel(Enum):
     """The credential level of a client."""
     BLOCKED = 0
@@ -14,8 +15,10 @@ class CredLevel(Enum):
     ADVANCED = 2
     FULL = 3
     SUPERUSER = 4
+
     def encode(self):
         return f'{self.value}-{self.name}'
+
 
 class AccessLevel(Enum):
     """The minimum credential level that is required to access an
@@ -30,13 +33,79 @@ class AccessLevel(Enum):
     BASIC = 1
     ADVANCED = 2
     FULL = 3
+
     def encode(self):
         return f'{self.value}-{self.name}'
+
+
+def get_policy_default(policy):
+    """Get the default access rules, based on a "policy" string
+    (probably from the --access-policy Agent argument).
+
+    The policy dict has the form::
+
+      {
+        'policy': <policy_name>
+        'password-2': <password-detail>,
+        'password-3': <password-detail>,
+      }
+
+    The password-detail blocks look like this::
+
+      {
+        'hash': <hash type>
+        'value': <hashed password>
+      }
+
+    The policy_name will be either "director", or "override".  In the
+    case of directory, the hash type is "blocked" and "value" is not
+    present.  In the case of "override", the hash is "none" and the
+    value is the clear text password.
+
+    """
+    if policy is None or policy == '':
+        return {}
+    policy, args = policy.split(':', 1)
+
+    if policy == 'director':
+        return {
+            'policy': 'director',
+            'password-2': {'hash': 'blocked'},
+            'password-3': {'hash': 'blocked'},
+        }
+    elif policy == 'override':
+        pws = args.split(',')
+        return {
+            'policy': 'override',
+            'password-2': {
+                'hash': 'none',
+                'value': pws[0],
+            },
+            'password-3': {
+                'hash': 'none',
+                'value': pws[1],
+            },
+        }
+    else:
+        raise ValueError(f'Invalid policy "{policy}"')
+    return {}
+
+
+def no_hash(x):
+    return x
+
 
 def get_creds(credentials, rules, op_name=None, action=None):
     """Based on the current access control rules, and the credentials
     provided by the client, determine what credential level this
     client has.
+
+    Args:
+      credentials (str): the password (unhashed) supplied by the
+        client.
+      rules (dict): the access rules dict.
+      op_name (str): the operation being accessed.
+      action (str): the action being called on the operation.
 
     Returns:
       A CredLevel.
@@ -44,20 +113,34 @@ def get_creds(credentials, rules, op_name=None, action=None):
     """
     if credentials is None or credentials == '':
         return CredLevel(1)
+
     for k, level in [('password-2', CredLevel(2)),
                      ('password-3', CredLevel(3))]:
-        if credentials == rules.get(k):
+        rule = rules.get(k, {'hash': 'blocked'})
+        if rule['hash'] == 'blocked':
+            continue
+
+        if rule['hash'] == 'none':
+            hashfunc = no_hash
+        else:
+            print(f'Warning: invalid hash function {rule["hash"]}')
+            continue
+
+        if hashfunc(credentials) == rule['value']:
             return level
+
     return CredLevel(1)
+
 
 def rejection_message(cred_level: CredLevel, access_level: AccessLevel):
     """Get a helpful message about what privs are needed to access a
     resource protected at access_level.
 
     """
-    assert(cred_level.value < access_level.value)
+    assert cred_level.value < access_level.value
     return 'The action requires privileges %s but the client has only %s' % (
         access_level.encode(), cred_level.encode())
+
 
 def get_client_password(privs, agent_class, instance_id):
     """Determine the best client password to use.  This may lead to
@@ -78,7 +161,6 @@ def get_client_password(privs, agent_class, instance_id):
       "credentials=..." argument of the _ops_handler).
 
     Notes:
-
       If privs is a string, then this password is used directly and no
       inspection of config files is performend.
 
@@ -135,7 +217,7 @@ def get_client_password(privs, agent_class, instance_id):
         privs = 1
     if not isinstance(privs, int):
         raise ValueError("privs argument should be int or str.")
-        assert(1 <= privs <= 3)
+        assert 1 <= privs <= 3
 
     if privs == 1:
         return ''
@@ -151,7 +233,7 @@ def get_client_password(privs, agent_class, instance_id):
         _a = row.get('agent-class')
         _i = row.get('instance-id')
         if (_d is not None) or (
-                (_a is None or _a == agent_class) and \
+                (_a is None or _a == agent_class) and
                 (_i is None or _i == instance_id)):
             if 'password-2' in row and privs <= 2:
                 return row['password-2']

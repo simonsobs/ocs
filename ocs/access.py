@@ -233,8 +233,8 @@ def get_client_password(privs, agent_class, instance_id):
         _a = row.get('agent-class')
         _i = row.get('instance-id')
         if (_d is not None) or (
-                (_a is None or _a == agent_class) and
-                (_i is None or _i == instance_id)):
+                (_a is None or _a == agent_class)
+                and (_i is None or _i == instance_id)):
             if 'password-2' in row and privs <= 2:
                 return row['password-2']
             if 'password-3' in row and privs <= 3:

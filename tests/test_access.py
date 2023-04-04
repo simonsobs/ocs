@@ -9,7 +9,7 @@ from ocs import access
 
 def test_access_enums():
     """Instantiate and stringify all access enums."""
-    for i in [1,2,3]:
+    for i in [1, 2, 3]:
         access.CredLevel(i).encode()
         access.AccessLevel(i).encode()
     for i in [0, 4]:

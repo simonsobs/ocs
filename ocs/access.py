@@ -95,14 +95,14 @@ def no_hash(x):
     return x
 
 
-def get_creds(credentials, rules, op_name=None, action=None):
-    """Based on the current access control rules, and the credentials
+def get_creds(password, rules, op_name=None, action=None):
+    """Based on the current access control rules, and the password
     provided by the client, determine what credential level this
     client has.
 
     Args:
-      credentials (str): the password (unhashed) supplied by the
-        client.
+
+      password (str): the password (unhashed) supplied by the client.
       rules (dict): the access rules dict.
       op_name (str): the operation being accessed.
       action (str): the action being called on the operation.
@@ -111,7 +111,7 @@ def get_creds(credentials, rules, op_name=None, action=None):
       A CredLevel.
 
     """
-    if credentials is None or credentials == '':
+    if password is None or password == '':
         return CredLevel(1)
 
     for k, level in [('password-2', CredLevel(2)),
@@ -126,7 +126,7 @@ def get_creds(credentials, rules, op_name=None, action=None):
             print(f'Warning: invalid hash function {rule["hash"]}')
             continue
 
-        if hashfunc(credentials) == rule['value']:
+        if hashfunc(password) == rule['value']:
             return level
 
     return CredLevel(1)
@@ -143,8 +143,8 @@ def rejection_message(cred_level: CredLevel, access_level: AccessLevel):
 
 
 def get_client_password(privs, agent_class, instance_id):
-    """Determine the best client password to use.  This may lead to
-    inspection of OCS password files.
+    """For OCSClient use -- determine the best client password to use.
+    This may lead to inspection of OCS password files.
 
     Args:
       privs (str or int): Either a string representing a password to
@@ -158,7 +158,7 @@ def get_client_password(privs, agent_class, instance_id):
     Returns:
       A string representing the password to use in all requests the
       client makes (these are passed to the agent in the
-      "credentials=..." argument of the _ops_handler).
+      "password=..." argument of the _ops_handler).
 
     Notes:
       If privs is a string, then this password is used directly and no
@@ -223,11 +223,11 @@ def get_client_password(privs, agent_class, instance_id):
         return ''
 
     if os.getenv('OCS_PASSWORDS_FILE'):
-        cred_file = os.getenv('OCS_PASSWORDS_FILE')
+        pw_file = os.getenv('OCS_PASSWORDS_FILE')
     else:
-        cred_file = os.path.expanduser('~/.ocs-passwords.yaml')
+        pw_file = os.path.expanduser('~/.ocs-passwords.yaml')
 
-    creds = yaml.safe_load(open(cred_file, 'rb'))
+    creds = yaml.safe_load(open(pw_file, 'rb'))
     for row in creds:
         _d = row.get('default')
         _a = row.get('agent-class')

@@ -269,17 +269,17 @@ class OCSAgent(ApplicationSession):
             'processes': list(self.processes.keys())
         }
 
-    def _ops_handler(self, action, op_name, params=None, timeout=None, credentials=None):
+    def _ops_handler(self, action, op_name, params=None, timeout=None, password=None):
         if action == 'start':
-            return self.start(op_name, params=params, credentials=credentials)
+            return self.start(op_name, params=params, password=password)
         if action == 'stop':
-            return self.stop(op_name, params=params, credentials=credentials)
+            return self.stop(op_name, params=params, password=password)
         if action == 'abort':
-            return self.abort(op_name, params=params, credentials=credentials)
+            return self.abort(op_name, params=params, password=password)
         if action == 'wait':
-            return self.wait(op_name, timeout=timeout, credentials=credentials)
+            return self.wait(op_name, timeout=timeout, password=password)
         if action == 'status':
-            return self.status(op_name, credentials=credentials)
+            return self.status(op_name, password=password)
         return (ocs.ERROR, 'No implementation for "%s"' % op_name, {})
 
     def _gather_sessions(self, parent):
@@ -648,7 +648,7 @@ class OCSAgent(ApplicationSession):
     Agent's Operations.  Some methods are valid on Processs, some on
     Tasks, and some on both."""
 
-    def start(self, op_name, params=None, credentials=None):
+    def start(self, op_name, params=None, password=None):
         """
         Launch an operation.  Note that successful return of this function
         does not mean that the operation is running; it only means
@@ -688,7 +688,7 @@ class OCSAgent(ApplicationSession):
                 msg = 'Started process "%s".' % op_name
 
             # Check access.
-            cred_level = access.get_creds(credentials, self.rules,
+            cred_level = access.get_creds(password, self.rules,
                                           op_name=op_name, action='start')
             if cred_level.value < op.min_privs.value:
                 return (ocs.ERROR,
@@ -727,7 +727,7 @@ class OCSAgent(ApplicationSession):
             return (ocs.ERROR, 'No task or process called "%s"' % op_name, {})
 
     @inlineCallbacks
-    def wait(self, op_name, timeout=None, credentials=None):
+    def wait(self, op_name, timeout=None, password=None):
         """Wait for the specified Operation to become idle, or for timeout
         seconds to elapse.  If timeout==None, the timeout is disabled
         and the function will not return until the Operation
@@ -792,7 +792,7 @@ class OCSAgent(ApplicationSession):
             return (ocs.TIMEOUT, 'Operation "%s" still running; wait timed out.' % op_name,
                     session.encoded())
 
-    def _stop_helper(self, stop_type, op_name, params, credentials):
+    def _stop_helper(self, stop_type, op_name, params, password):
         """Common stopper/aborter code for Process stop and Task
         abort.
 
@@ -801,7 +801,7 @@ class OCSAgent(ApplicationSession):
           op_name (str): the op_name.
           params (dict or None): Params to be passed to stopper
             function.
-          credentials: Credentials of the client.
+          password: Password of the client.
 
         """
         print(f'{stop_type} called for {op_name}')
@@ -826,7 +826,7 @@ class OCSAgent(ApplicationSession):
             return (ocs.ERROR, f'Cannot "{stop_type}" "{op_name}" because '
                     'it is a "{op_type}".', {})
 
-        cred_level = access.get_creds(credentials, self.rules,
+        cred_level = access.get_creds(password, self.rules,
                                       op_name=op_name, action=stop_type)
         if cred_level.value < op.min_privs.value:
             return (ocs.ERROR,
@@ -881,7 +881,7 @@ class OCSAgent(ApplicationSession):
         return (ocs.OK, f'Requested {stop_type} on {op_type} {op_name}".',
                 session.encoded())
 
-    def stop(self, op_name, params=None, credentials=None):
+    def stop(self, op_name, params=None, password=None):
         """
         Initiate a Process stop routine.
 
@@ -894,9 +894,9 @@ class OCSAgent(ApplicationSession):
 
           ocs.OK: the Process stop routine has been launched.
         """
-        return self._stop_helper('stop', op_name, params, credentials)
+        return self._stop_helper('stop', op_name, params, password)
 
-    def abort(self, op_name, params=None, credentials=None):
+    def abort(self, op_name, params=None, password=None):
         """
         Initiate a Task abort routine.
 
@@ -910,9 +910,9 @@ class OCSAgent(ApplicationSession):
           ocs.OK: the Process stop routine has been launched.
 
         """
-        return self._stop_helper('abort', op_name, params, credentials)
+        return self._stop_helper('abort', op_name, params, password)
 
-    def status(self, op_name, params=None, credentials=None):
+    def status(self, op_name, params=None, password=None):
         """
         Get an Operation's session data.
 

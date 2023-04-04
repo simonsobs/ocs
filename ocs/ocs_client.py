@@ -16,26 +16,26 @@ def _get_op(op_type, name, encoded, client, password):
             :class:`ocs.ocs_agent.AgentProcess` dictionary.
         client (ControlClient): Client object, which will be used to issue the
             requests for operation actions.
-        password (str): Client credentials (a password).
+        password (str): Client-supplied password.
 
     """
     class MatchedOp:
         def start(self, **kwargs):
             return OCSReply(*client.request('start', name, params=kwargs,
-                                            credentials=password))
+                                            password=password))
 
         def wait(self, timeout=None):
             return OCSReply(*client.request('wait', name, timeout=timeout,
-                                            credentials=password))
+                                            password=password))
 
         def status(self):
             return OCSReply(*client.request('status', name,
-                                            credentials=password))
+                                            password=password))
 
     class MatchedTask(MatchedOp):
         def abort(self):
             return OCSReply(*client.request('abort', name,
-                                            credentials=password))
+                                            password=password))
 
         def __call__(self, **kw):
             """Runs self.start(**kw) and, if that succeeds, self.wait()."""
@@ -47,7 +47,7 @@ def _get_op(op_type, name, encoded, client, password):
     class MatchedProcess(MatchedOp):
         def stop(self):
             return OCSReply(*client.request('stop', name,
-                                            credentials=password))
+                                            password=password))
 
         def __call__(self):
             """Equivalent to self.status()."""

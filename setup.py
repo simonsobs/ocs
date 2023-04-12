@@ -49,6 +49,7 @@ setup(name='ocs',
           'influxdb',
           'numpy',
           'importlib_metadata;python_version<"3.10"',
+          'setproctitle',
       ],
       extras_require={
           "so3g": ["so3g"],

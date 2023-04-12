@@ -1,6 +1,7 @@
 import argparse
 import importlib
 import os
+import setproctitle
 import sys
 import warnings
 
@@ -181,6 +182,10 @@ def main(args=None):
         entrypoint = agent_info.get("entry_point", "main")
 
         mod = importlib.import_module(_module)
+
+        title = f'ocs-agent:{instance.data["instance-id"]}'
+        print(f'Renaming this process to: "{title}"')
+        setproctitle.setproctitle(title)
 
     start = getattr(mod, entrypoint)  # This is the start function.
     start(args=post_args)

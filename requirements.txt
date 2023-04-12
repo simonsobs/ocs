@@ -3,6 +3,7 @@ twisted
 deprecation
 PyYAML
 importlib_metadata
+setproctitle
 
 # InfluxDB Publisher
 influxdb

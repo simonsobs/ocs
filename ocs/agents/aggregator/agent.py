@@ -57,7 +57,7 @@ class AggregatorAgent:
         # If this ends up being too much data, we can add a tag '.record'
         # at the end of the address of recorded feeds, and filter by that.
         self.agent.subscribe_on_start(self._enqueue_incoming_data,
-                                      'observatory..feeds.',
+                                      f'{args.address_root}..feeds.',
                                       options={'match': 'wildcard'})
 
         record_on_start = (args.initial_state == 'record')

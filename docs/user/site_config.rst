@@ -35,7 +35,6 @@ instances (running two different classes of agent):
     wamp_http: http://10.10.10.3:8001/call
     wamp_realm: test_realm
     address_root: observatory
-    registry_agent: observatory.registry
 
   hosts:
 

@@ -190,10 +190,6 @@ class HubConfig:
             ``observatory`` or ``detlab``.  (Command line override:
             ``--address-root``.)
 
-        ``registry_address`` (optional): The address of the OCS Registry
-            Agent.  See :ref:`registry`.  (Command line override:
-            ``--registry-address``.)
-
         """
         self = cls()
         self.parent = parent
@@ -385,7 +381,7 @@ def add_arguments(parser=None):
     group.add_argument('--instance-id', help="""Look in the SCF for Agent-instance specific configuration options,
        and use those to launch the Agent.""")
     group.add_argument('--address-root', help="""Override the site default address root.""")
-    group.add_argument('--registry-address', help="""Override the site default registry address.""")
+    group.add_argument('--registry-address', help="""Deprecated.""")
     group.add_argument('--log-dir', help="""Set the logging directory.""")
     group.add_argument('--working-dir', help="""Propagate the working directory.""")
     return parser
@@ -466,9 +462,6 @@ def get_config(args, agent_class=None):
     if args.site_realm is not None:
         site_config.hub.data['wamp_realm'] = args.site_realm
 
-    if args.registry_address is not None:
-        site_config.hub.data['registry_address'] = args.registry_address
-
     # Identify our agent-instance.
     instance_config = None
     if no_dev_match:
@@ -515,8 +508,6 @@ def add_site_attributes(args, site, host=None):
         args.site_realm = site.hub.data['wamp_realm']
     if args.address_root is None:
         args.address_root = site.hub.data['address_root']
-    if args.registry_address is None:
-        args.registry_address = site.hub.data.get('registry_address')
     if (args.log_dir is None) and (host is not None):
         args.log_dir = host.log_dir
 

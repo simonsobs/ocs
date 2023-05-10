@@ -601,9 +601,6 @@ def main(args=None):
             os.dup2(null, stream.fileno())
         os.close(null)
 
-    # To reduce "try again" noise, don't tell Registry about HostManager.
-    args.registry_address = 'none'
-
     agent, runner = ocs_agent.init_site_agent(args)
 
     docker_composes = []

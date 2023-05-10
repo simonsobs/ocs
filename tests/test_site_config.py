@@ -28,8 +28,7 @@ class TestGetControlClient:
         mock_site = MagicMock()
         mock_site.hub.data = {'wamp_http': 'http://127.0.0.1:8001',
                               'wamp_realm': 'test_realm',
-                              'address_root': 'observatory',
-                              'registry_address': 'observatory.registry'}
+                              'address_root': 'observatory'}
 
         get_control_client('test', site=mock_site, client_type=None)
 
@@ -40,8 +39,7 @@ class TestGetControlClient:
         """
         mock_site = MagicMock()
         mock_site.hub.data = {'wamp_realm': 'test_realm',
-                              'address_root': 'observatory',
-                              'registry_address': 'observatory.registry'}
+                              'address_root': 'observatory'}
 
         with pytest.raises(ValueError):
             get_control_client('test', site=mock_site, client_type=None)

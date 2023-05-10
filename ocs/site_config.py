@@ -187,8 +187,8 @@ class HubConfig:
 
         ``address_root`` (required): The base address to be used by
             all OCS Agents.  This is normally something simple like
-            ``observatory`` or ``detlab.system1``.  (Command line
-            override: ``--address-root``.)
+            ``observatory`` or ``detlab``.  (Command line override:
+            ``--address-root``.)
 
         ``registry_address`` (optional): The address of the OCS Registry
             Agent.  See :ref:`registry`.  (Command line override:

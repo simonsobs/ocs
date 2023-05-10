@@ -90,7 +90,9 @@ to register a feed so that it will be recorded by the aggregator.
 Unregistered providers will automatically be added when they send data,
 and stale providers will be removed if no data is received in a specified
 time period.
-To do this, the aggregator monitors all feeds in the ``observatory`` namespace to find
+
+To do this, the aggregator monitors all feeds in the namespace defined
+by the `{address_root}` prefix to find
 feeds that should be recorded.  If the aggregator receives data from a feed
 registered with ``record=True``, it will automatically add that feed as a
 Provider, and will start putting incoming data into frames every ``frame_length``

@@ -50,7 +50,7 @@ class InfluxDBAgent:
         self.loop_time = 1
 
         self.agent.subscribe_on_start(self._enqueue_incoming_data,
-                                      'observatory..feeds.',
+                                      f'{args.address_root}..feeds.',
                                       options={'match': 'wildcard'})
 
         record_on_start = (args.initial_state == 'record')

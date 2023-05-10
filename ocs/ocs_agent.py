@@ -4,7 +4,7 @@ import txaio
 txaio.use_twisted()
 
 from twisted.internet import reactor, task, threads
-from twisted.internet.defer import inlineCallbacks, Deferred, DeferredList, FirstError
+from twisted.internet.defer import inlineCallbacks, Deferred, DeferredList, FirstError, maybeDeferred
 from twisted.internet.error import ReactorNotRunning
 
 from twisted.python import log
@@ -196,8 +196,13 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call.start(1.0)  # Calls the hearbeat every second
 
         # Subscribe to startup_subs
+        def _subscribe_fail(*args, **kwargs):
+            self.log.error('Failed to subscribe to a feed or feed pattern; possible configuration problem.')
+            self.log.error(str(args) + str(kwargs))
+            self.leave()
+
         for sub in self.startup_subs:
-            self.subscribe(**sub)
+            maybeDeferred(self.subscribe, **sub).addErrback(_subscribe_fail)
 
         # Now do the startup activities, only the first time we join
         if self.first_time_startup:

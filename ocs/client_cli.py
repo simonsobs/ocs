@@ -62,8 +62,7 @@ def get_parser():
     # scan
     p = client_sp.add_parser('scan', help="Gather and print list of Agents.")
     p.add_argument('--details', action='store_true', help="List all Operations with their current status OpCode.")
-    p.add_argument('--use-registry', nargs='?', const='registry', help=
-                   "Query the registry (faster than listening for heartbeats). "
+    p.add_argument('--use-registry', nargs='?', const='registry', help="Query the registry (faster than listening for heartbeats). "
                    "Pass the registry instance_id as an argument (default to 'registry').")
 
     # scan

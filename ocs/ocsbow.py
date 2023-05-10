@@ -156,16 +156,32 @@ def crossbar_test(args, site_config):
         '%s._crossbar_check_' % site.hub.data['address_root'],
         url=site.hub.data['wamp_http'], realm=site.hub.data['wamp_realm'])
     try:
+        # This is not expected to succeed, but the different errors
+        # tell us different things...
         client.call(client.agent_addr)
     except client_http.ControlClientError as ccex:
         suberr = ccex.args[0][4]
-        if suberr == 'client_http.error.connection_error':
-            ok, msg = False, 'http bridge not found at {wamp_http}.'
-        elif suberr == 'wamp.error.no_such_procedure':
-            ok, msg = True, 'http bridge reached at {wamp_http}.'
+        if suberr == 'wamp.error.no_such_procedure':
+            # This indicates we got through to the bridge, it liked
+            # the realm and our address_root.  Return True.
+            ok, msg = True, 'http bridge reached at {wamp_http}.'.format(**site.hub.data)
+        elif suberr == 'client_http.error.connection_error':
+            # Possibly crossbar server is not running.
+            ok, msg = False, 'http bridge not found at {wamp_http}.'.format(**site.hub.data)
+        elif suberr == 'wamp.error.not_authorized':
+            # This is likely a configuration issue, print a banner and reraise it.
+            print('***** crossbar / ocs configuration mismatch *****')
+            print('The exception here indicates a likely configuration mismatch issue')
+            print('with the crossbar server and OCS.  Specifically, the WAMP realm and')
+            print('the OCS address_root must match between the site config file')
+            print('and the crossbar config.')
+            print('*****\n')
+            raise ccex
         else:
-            ok, msg = True, 'unexpected bridge connection problem; raised %s' % (str(ccex))
-    return ok, msg.format(**site.hub.data)
+            # I think this case hasn't been encountered much.
+            print('***** unhandled error case *****\n')
+            raise ccex
+    return ok, msg
 
 
 def get_status(args, site_config, restrict_hosts=None):

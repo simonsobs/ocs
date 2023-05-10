@@ -97,6 +97,7 @@ class InfluxDBAgent:
                               port=self.args.port,
                               protocol=self.args.protocol,
                               gzip=self.args.gzip,
+                              operate_callback=lambda: self.aggregate,
                               )
 
         session.set_status('running')

@@ -10,13 +10,13 @@
             },
             "realms": [
                 {
-                    "name": "test_realm",
+                    "name": "{realm}",
                     "roles": [
                         {
                             "name": "iocs_agent",
                             "permissions": [
                                 {
-                                    "uri": "observatory.",
+                                    "uri": "{address_root}.",
                                     "match": "prefix",
                                     "allow": {
                                         "call": true,
@@ -36,7 +36,7 @@
                             "name": "iocs_controller",
                             "permissions": [
                                 {
-                                    "uri": "observatory.",
+                                    "uri": "{address_root}.",
                                     "match": "prefix",
                                     "allow": {
                                         "call": true,
@@ -60,7 +60,7 @@
 		    "type": "web",
                     "endpoint": {
                         "type": "tcp",
-                        "port": 8001
+                        "port": {port}
                     },
 		    "paths": {
 			"ws": {
@@ -81,7 +81,7 @@
 			},
 			"call": {
 			    "type": "caller",
-			    "realm": "test_realm",
+			    "realm": "{realm}",
 			    "role": "iocs_controller",
 			    "options": {
 				}

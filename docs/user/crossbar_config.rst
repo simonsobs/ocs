@@ -80,22 +80,46 @@ Running with Docker
 We recommend running crossbar within a Docker container. We build the
 ``simonsobs/ocs-crossbar`` container from the official `crossbar.io Docker
 image`_, specifically the cpy3 version. Bundled within the container is a
-simple OCS configuration that should work with the configuration
-recommendations in this documentation.
+simple crossbar configuration file template with defaults that are
+compatible with examples in this documentation.
 
-If changes need to be made, then you will need to generate your own
-configuration file as described above. To use a modified configuration in the
-container you can either:
+To adjust the crossbar configuration in the container, you can either:
 
-- Edit the default configuration file and rebuild the Docker image
+- Edit the default configuration file template and rebuild the Docker image
+- Use environment variables to alter the most basic settings
 - Mount the new configuration file over ``/ocs/.crossbar/config.json`` with the
   proper permissions
 
 .. _`crossbar.io Docker image`: https://hub.docker.com/r/crossbario/crossbar
 
+Environment variables in ocs-crossbar
+-------------------------------------
+The following environment variables can be set, to affect the
+generation of the crossbar configuration file when the container
+starts up:
+
+- OCS_ADDRESS_ROOT (default "observatory"): the base URI for OCS
+  entities (this needs to match the `address_root` set in the SCF).
+- OCS_CROSSBAR_REALM (default "test_realm"): the WAMP realm to
+  configure for OCS.
+- OCS_CROSSBAR_PORT (default 8001): the port on which crossbar will
+  accept requests.
+
+Here is an example of a docker-compose entry that overrides the
+OCS_ADDRESS_ROOT::
+
+      crossbar:
+        image: simonsobs/ocs-crossbar:latest
+        ports:
+          - "127.0.0.1:8001:8001" # expose for OCS
+        environment:
+          - PYTHONUNBUFFERED=1
+          - OCS_ADDRESS_ROOT=laboratory
+
 Rebuilding the Docker Image
 ---------------------------
-To rebuild the Docker image after modifying ``ocs/docker/config.json`` run::
+To rebuild the Docker image after modifying
+``ocs/docker/config.json.template`` run::
 
     $ docker build -t ocs-crossbar .
 
@@ -104,7 +128,7 @@ You should then update your configuration to use the new, local,
 
 Bind Mounting the Configuration
 -------------------------------
-To instead mount the new configuration into the pre-built image, first chown
+To instead mount a new configuration into the pre-built image, first chown
 your file to be owned by user and group 242 (the default crossbar UID/GID),
 then mount it appropriately in your docker-compose file. Here we assume you
 put the configuration in the directory ``./dot_crossbar/``::
@@ -114,10 +138,10 @@ put the configuration in the directory ``./dot_crossbar/``::
 Your docker-compose service should then be configured like::
 
     crossbar:
-    image: simonsobs/ocs-crossbar
-    ports:
-      - "8001:8001" # expose for OCS
-    volumes:
-      - ./dot_crossbar:/ocs/.crossbar
-    environment:
-         - PYTHONUNBUFFERED=1
+      image: simonsobs/ocs-crossbar
+      ports:
+        - "8001:8001" # expose for OCS
+      volumes:
+        - ./dot_crossbar:/ocs/.crossbar
+      environment:
+           - PYTHONUNBUFFERED=1

@@ -415,9 +415,11 @@ def generate_crossbar_config(cm, site_config):
                 print(line, end='')
             print('\n')
             print('To adopt the new config, remove %s and re-run me.' % cb_filename)
+        print()
     else:
         open(cb_filename, 'w').write(config_text)
         print('Wrote %s' % cb_filename)
+        print()
 
 
 class CrossbarManager:
@@ -805,6 +807,15 @@ class LocalSupports:
                                   'running, but should start if you run "ocs-local-support start".'))
         self.analysis = solutions
 
+    def fail_on_missing_crossbar_config(self):
+        """Check if crossbar is managed by this config.  If not, print
+        error message and exit(1)."""
+        if not self.crossbar['manage']:
+            print('Error!  Crossbar config file not set.\n\n'
+                  'To start crossbar or to generate a config file, the site '
+                  'config file must have a "crossbar" entry; see docs.\n')
+            sys.exit(1)
+
 
 def main(args=None):
     args, site_config = get_args_and_site_config(args)
@@ -969,8 +980,10 @@ def main_local(args=None):
                 print('Trouble!')
                 for text in fatals:
                     print(_term_format(text, '    ', 4))
+                sys.exit(1)
 
             if any([soln == 'crossbar' for soln, text in supports.analysis]):
+                supports.fail_on_missing_crossbar_config()
                 print('Trying to start crossbar...')
                 supports.crossbar['ctrl'].action('start', foreground=args.foreground)
                 supports.update()  # refresh .analysis
@@ -1011,5 +1024,6 @@ def main_local(args=None):
                     print('No running crossbar detected, system is already "down".')
 
         elif action == 'generate_crossbar_config':
+            supports.fail_on_missing_crossbar_config()
             cm = supports.crossbar['ctrl']
             generate_crossbar_config(cm, site_config)

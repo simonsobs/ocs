@@ -36,8 +36,9 @@ Configuration`_ page.
 
 Generating a New Config File
 ----------------------------
-``ocsbow`` can be used to generate a default configuration file, based on
-options in your OSC file, which can then be modified if needed.
+``ocs-local-support`` can be used to generate a default configuration
+file, based on options in your SCF, which can then be modified if
+needed.
 
 First, we make sure our ``OCS_CONFIG_DIR`` environment variable is set::
 
@@ -53,7 +54,7 @@ that)::
 This directory needs to be configured as your crossbar 'config-dir' in your
 ocs-site-config file. Now we can generate the config::
 
-    $ ocsbow crossbar generate_config
+    $ ocs-local-support generate_crossbar_config
     The crossbar config-dir is set to:
       ./dot_crossbar/
     Using
@@ -68,9 +69,10 @@ modifications needed for your deployment.
 
 .. note::
 
-    The crossbar 'config-dir' block and the 'agent-instance' block defining the
-    'HostManager' Agent are both required for the system you are running ocsbow
-    on. Be sure to add these to your SCF if they do not exist.
+    The crossbar 'config-dir' block and the 'agent-instance' block
+    defining the 'HostManager' Agent are both required for the system
+    you are running `ocs-local-support` on. Be sure to add these to
+    your SCF if they do not exist.
 
 Running with Docker
 ===================

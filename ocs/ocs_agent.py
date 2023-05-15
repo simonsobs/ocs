@@ -171,9 +171,16 @@ class OCSAgent(ApplicationSession):
         try:
             yield self.register(self._ops_handler, self.agent_address + '.ops')
             yield self.register(self._management_handler, self.agent_address)
-        except ApplicationError:
-            self.log.error('Failed to register basic handlers @ %s; '
-                           'agent probably running already.' % self.agent_address)
+        except ApplicationError as e:
+            self.log.error('Failed to register basic handlers!  '
+                           'Error: {error}', error=e)
+            if e.error == 'wamp.error.not_authorized':
+                self.log.error('Are the WAMP realm and OCS address_root consistent '
+                               'in OCS site config and crossbar config.json?')
+            elif e.error == 'wamp.error.procedure_already_exists':
+                self.log.error('Is this agent already running? '
+                               'agent_address="{agent_address}"',
+                               agent_address=self.agent_address)
             self.leave()
             return
 

@@ -62,7 +62,8 @@ def get_parser():
     # scan
     p = client_sp.add_parser('scan', help="Gather and print list of Agents.")
     p.add_argument('--details', action='store_true', help="List all Operations with their current status OpCode.")
-    p.add_argument('--use-registry', action='store_true', help="Query the registry (faster than listening for heartbeats).")
+    p.add_argument('--use-registry', nargs='?', const='registry', help="Query the registry (faster than listening for heartbeats). "
+                   "Pass the registry instance_id as an argument (default to 'registry').")
 
     # scan
     p = client_sp.add_parser('listen', help="Subscribe to feed(s) and dump to stdout.")
@@ -122,9 +123,7 @@ def scan(parser, args):
         parser.error('Unable to find the OCS config; set OCS_CONFIG_DIR?')
 
     if args.use_registry:
-        reg_addr = args.registry_address
-        if reg_addr is None:
-            reg_addr = 'registry'
+        reg_addr = f'{args.address_root}.{args.use_registry}'
         try:
             c = OCSClient(get_instance_id(reg_addr, args), args=args)
         except RuntimeError as e:

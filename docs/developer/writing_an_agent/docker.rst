@@ -84,7 +84,6 @@ the BarbonesAgent config to the ``ocs-docker`` host.:
       wamp_http: http://localhost:8001/call
       wamp_realm: test_realm
       address_root: observatory
-      registry_address: observatory.registry
 
     hosts:
 

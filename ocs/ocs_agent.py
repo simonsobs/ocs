@@ -4,7 +4,7 @@ import txaio
 txaio.use_twisted()
 
 from twisted.internet import reactor, task, threads
-from twisted.internet.defer import inlineCallbacks, Deferred, DeferredList, FirstError
+from twisted.internet.defer import inlineCallbacks, Deferred, DeferredList, FirstError, maybeDeferred
 from twisted.internet.error import ReactorNotRunning
 
 from twisted.python import log
@@ -171,9 +171,16 @@ class OCSAgent(ApplicationSession):
         try:
             yield self.register(self._ops_handler, self.agent_address + '.ops')
             yield self.register(self._management_handler, self.agent_address)
-        except ApplicationError:
-            self.log.error('Failed to register basic handlers @ %s; '
-                           'agent probably running already.' % self.agent_address)
+        except ApplicationError as e:
+            self.log.error('Failed to register basic handlers!  '
+                           'Error: {error}', error=e)
+            if e.error == 'wamp.error.not_authorized':
+                self.log.error('Are the WAMP realm and OCS address_root consistent '
+                               'in OCS site config and crossbar config.json?')
+            elif e.error == 'wamp.error.procedure_already_exists':
+                self.log.error('Is this agent already running? '
+                               'agent_address="{agent_address}"',
+                               agent_address=self.agent_address)
             self.leave()
             return
 
@@ -196,8 +203,13 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call.start(1.0)  # Calls the hearbeat every second
 
         # Subscribe to startup_subs
+        def _subscribe_fail(*args, **kwargs):
+            self.log.error('Failed to subscribe to a feed or feed pattern; possible configuration problem.')
+            self.log.error(str(args) + str(kwargs))
+            self.leave()
+
         for sub in self.startup_subs:
-            self.subscribe(**sub)
+            maybeDeferred(self.subscribe, **sub).addErrback(_subscribe_fail)
 
         # Now do the startup activities, only the first time we join
         if self.first_time_startup:

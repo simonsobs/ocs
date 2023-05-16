@@ -98,7 +98,7 @@ class Registry:
         self.agent_timeout = 5.0  # Removes agent after 5 seconds of no heartbeat.
 
         self.agent.subscribe_on_start(
-            self._register_heartbeat, 'observatory..feeds.heartbeat',
+            self._register_heartbeat, f'{args.address_root}..feeds.heartbeat',
             options={'match': 'wildcard'}
         )
 

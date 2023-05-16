@@ -108,11 +108,11 @@ class DataChecker:
             {FEED1:
                 {"fields":
                    {FIELD1:
-                       {'full_name': 'observatory.INSTANCE_ID.feeds.FEED.FIELD',
+                       {'full_name': 'ADDRESS_ROOT.INSTANCE_ID.feeds.FEED.FIELD',
                         't_last': float,
                         'v_last': float},
                     FIELD2:
-                       {'full_name': 'observatory.INSTANCE_ID.feeds.FEED.FIELD',
+                       {'full_name': 'ADDRESS_ROOT.INSTANCE_ID.feeds.FEED.FIELD',
                         't_last': float,
                         'v_last': float}
                     },

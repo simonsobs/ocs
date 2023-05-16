@@ -51,6 +51,9 @@ class Publisher:
             Protocol for writing data. Either 'line' or 'json'.
         gzip (bool, optional):
             compress influxdb requsts with gzip
+        operate_callback (callable, optional):
+            Function to call to see if failed connections should be
+            retried (to prevent a thread from locking).
 
     Attributes:
         host (str):
@@ -66,7 +69,8 @@ class Publisher:
 
     """
 
-    def __init__(self, host, database, incoming_data, port=8086, protocol='line', gzip=False):
+    def __init__(self, host, database, incoming_data, port=8086, protocol='line',
+                 gzip=False, operate_callback=None):
         self.host = host
         self.port = port
         self.db = database
@@ -88,6 +92,9 @@ class Publisher:
                 LOG.error("Connection error, attempting to reconnect to DB.")
                 self.client = InfluxDBClient(host=self.host, port=self.port, gzip=gzip)
                 time.sleep(1)
+            if operate_callback and not operate_callback():
+                break
+
         db_names = [x['name'] for x in db_list]
 
         if self.db not in db_names:

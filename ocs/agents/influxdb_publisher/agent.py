@@ -50,7 +50,7 @@ class InfluxDBAgent:
         self.loop_time = 1
 
         self.agent.subscribe_on_start(self._enqueue_incoming_data,
-                                      'observatory..feeds.',
+                                      f'{args.address_root}..feeds.',
                                       options={'match': 'wildcard'})
 
         record_on_start = (args.initial_state == 'record')
@@ -97,6 +97,7 @@ class InfluxDBAgent:
                               port=self.args.port,
                               protocol=self.args.protocol,
                               gzip=self.args.gzip,
+                              operate_callback=lambda: self.aggregate,
                               )
 
         session.set_status('running')

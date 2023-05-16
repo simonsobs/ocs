@@ -35,7 +35,6 @@ instances (running two different classes of agent):
     wamp_http: http://10.10.10.3:8001/call
     wamp_realm: test_realm
     address_root: observatory
-    registry_agent: observatory.registry
 
   hosts:
 
@@ -115,6 +114,18 @@ instances (running two different classes of agent):
 The `hub` section defines the connection parameters for the crossbar server.
 This entire section will likely remain unchanged, except for the
 ``wamp_server`` and ``wamp_http`` IP addresses.
+
+The `address_root` setting determines the leading token in all agent
+and feed addresses on the crossbar network.  While "observatory" is
+the default, it can be changed as long as the crossbar configuration
+is also updated to permit operations on the `{address_root}.` uri.
+
+.. warning::
+   The hub settings must match the crossbar configuration.  If you
+   change `wamp_realm` or `address_root`, especially, be sure to
+   update your crossbar configuration accordingly.  (If using the
+   ocs-crossbar docker image, this can be done through environment
+   variables in the ``docker-compose.yaml`` file.)
 
 Under `hosts` we have defined a three hosts, `host-1`, `host-1-docker`, and
 `host-2`. This configuration example shows a mix of Agents running directly on

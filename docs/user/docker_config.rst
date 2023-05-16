@@ -61,7 +61,7 @@ components)::
         ports:
           - "127.0.0.1:8001:8001" # expose for OCS
         environment:
-             - PYTHONUNBUFFERED=1
+          - PYTHONUNBUFFERED=1
 
       # --------------------------------------------------------------------------
       # OCS Agents
@@ -242,7 +242,7 @@ Where the separate compose files would look something like::
         ports:
           - "127.0.0.1:8001:8001" # expose for OCS
         environment:
-             - PYTHONUNBUFFERED=1
+          - PYTHONUNBUFFERED=1
 
 ::
 

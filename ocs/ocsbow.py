@@ -156,16 +156,32 @@ def crossbar_test(args, site_config):
         '%s._crossbar_check_' % site.hub.data['address_root'],
         url=site.hub.data['wamp_http'], realm=site.hub.data['wamp_realm'])
     try:
+        # This is not expected to succeed, but the different errors
+        # tell us different things...
         client.call(client.agent_addr)
     except client_http.ControlClientError as ccex:
         suberr = ccex.args[0][4]
-        if suberr == 'client_http.error.connection_error':
-            ok, msg = False, 'http bridge not found at {wamp_http}.'
-        elif suberr == 'wamp.error.no_such_procedure':
-            ok, msg = True, 'http bridge reached at {wamp_http}.'
+        if suberr == 'wamp.error.no_such_procedure':
+            # This indicates we got through to the bridge, it liked
+            # the realm and our address_root.  Return True.
+            ok, msg = True, 'http bridge reached at {wamp_http}.'.format(**site.hub.data)
+        elif suberr == 'client_http.error.connection_error':
+            # Possibly crossbar server is not running.
+            ok, msg = False, 'http bridge not found at {wamp_http}.'.format(**site.hub.data)
+        elif suberr == 'wamp.error.not_authorized':
+            # This is likely a configuration issue, print a banner and reraise it.
+            print('***** crossbar / ocs configuration mismatch *****')
+            print('The exception here indicates a likely configuration mismatch issue')
+            print('with the crossbar server and OCS.  Specifically, the WAMP realm and')
+            print('the OCS address_root must match between the site config file')
+            print('and the crossbar config.')
+            print('*****\n')
+            raise ccex
         else:
-            ok, msg = True, 'unexpected bridge connection problem; raised %s' % (str(ccex))
-    return ok, msg.format(**site.hub.data)
+            # I think this case hasn't been encountered much.
+            print('***** unhandled error case *****\n')
+            raise ccex
+    return ok, msg
 
 
 def get_status(args, site_config, restrict_hosts=None):
@@ -399,9 +415,11 @@ def generate_crossbar_config(cm, site_config):
                 print(line, end='')
             print('\n')
             print('To adopt the new config, remove %s and re-run me.' % cb_filename)
+        print()
     else:
         open(cb_filename, 'w').write(config_text)
         print('Wrote %s' % cb_filename)
+        print()
 
 
 class CrossbarManager:
@@ -789,6 +807,15 @@ class LocalSupports:
                                   'running, but should start if you run "ocs-local-support start".'))
         self.analysis = solutions
 
+    def fail_on_missing_crossbar_config(self):
+        """Check if crossbar is managed by this config.  If not, print
+        error message and exit(1)."""
+        if not self.crossbar['manage']:
+            print('Error!  Crossbar config file not set.\n\n'
+                  'To start crossbar or to generate a config file, the site '
+                  'config file must have a "crossbar" entry; see docs.\n')
+            sys.exit(1)
+
 
 def main(args=None):
     args, site_config = get_args_and_site_config(args)
@@ -953,8 +980,10 @@ def main_local(args=None):
                 print('Trouble!')
                 for text in fatals:
                     print(_term_format(text, '    ', 4))
+                sys.exit(1)
 
             if any([soln == 'crossbar' for soln, text in supports.analysis]):
+                supports.fail_on_missing_crossbar_config()
                 print('Trying to start crossbar...')
                 supports.crossbar['ctrl'].action('start', foreground=args.foreground)
                 supports.update()  # refresh .analysis
@@ -995,5 +1024,6 @@ def main_local(args=None):
                     print('No running crossbar detected, system is already "down".')
 
         elif action == 'generate_crossbar_config':
+            supports.fail_on_missing_crossbar_config()
             cm = supports.crossbar['ctrl']
             generate_crossbar_config(cm, site_config)

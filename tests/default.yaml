@@ -5,7 +5,6 @@ hub:
   wamp_http: http://127.0.0.1:18001/call
   wamp_realm: test_realm
   address_root: observatory
-  registry_address: observatory.registry
 
 hosts:
 

@@ -503,12 +503,14 @@ def test_params_get():
         'float_param': 1e8,
         'numerical_string_param': '145.12',
         'none_param': None,
+        'tuple_param': [20., 120.],  # gets cast to list by json conversion
     })
 
     # Basic successes
     params.get('int_param', type=int)
     params.get('string_param', type=str)
     params.get('float_param', type=float)
+    params.get('tuple_param', type=tuple)
 
     # Tricky successes
     params.get('int_param', type=float)

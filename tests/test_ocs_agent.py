@@ -43,6 +43,12 @@ def tfunc_raise(session, a):
     return tfunc(session, a)
 
 
+@param('test', default=1)
+def tfunc_param_dec(session, a):
+    """tfunc but decorated with @ocs_agent.param."""
+    return True, 'Task completed successfully'
+
+
 @pytest.fixture
 def mock_agent():
     """Test fixture to setup a mocked OCSAgent.
@@ -259,6 +265,19 @@ def test_start_unregistered_task(mock_agent):
     assert res[0] == ocs.ERROR
     assert isinstance(res[1], str)
     assert res[2] == {}
+
+
+def test_start_task_none_params(mock_agent):
+    """Test passing params=None to task decorated with @param that has set
+    defaults.
+
+    See issue: https://github.com/simonsobs/ocs/issues/251
+
+    """
+    mock_agent.register_task('test_task', tfunc_param_dec)
+    res = mock_agent.start('test_task', params=None)
+    print(res)
+    assert res[0] == ocs.OK
 
 
 # Wait

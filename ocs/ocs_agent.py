@@ -1304,6 +1304,8 @@ class ParamHandler:
     """
 
     def __init__(self, params):
+        if params is None:
+            params = {}
         self._params = params
         self._checked = set()
 
@@ -1374,11 +1376,7 @@ class ParamHandler:
 
         """
         self._checked.add(key)
-        if self._params is None and not isinstance(default, ParamError):
-            self._params = {}  # avoid attribute error in check_for_strays
-            value = default
-        else:
-            value = self._params.get(key, None)
+        value = self._params.get(key, None)
         is_unset = value is None and \
             (treat_none_as_missing or key not in self._params)
         if is_unset:

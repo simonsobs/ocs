@@ -1389,6 +1389,9 @@ class ParamHandler:
                 # Free cast from int to float.
                 if type is float and isinstance(value, int):
                     value = float(value)
+                # Fix type after json conversion
+                if type is tuple and isinstance(value, list) and cast in [tuple, None]:
+                    value = tuple(value)
                 if not isinstance(value, type):
                     raise ParamError(f"Param '{key}'={value} is not of required type ({type})")
             if choices is not None:

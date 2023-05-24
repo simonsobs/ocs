@@ -694,10 +694,10 @@ class OCSAgent(ApplicationSession):
                     handler = ParamHandler(params)
                     params = handler.batch(op.launcher._ocs_prescreen)
                 except ParamError as err:
-                    self.log.error(f"Caught ParamError during start call: {err}")
+                    self.log.error("Caught ParamError during start call: {err}", err=err)
                     return (ocs.ERROR, err.msg, {})
                 except Exception as err:
-                    self.log.error(f"Caught Exception during start call: {err}")
+                    self.log.error("Caught Exception during start call: {err}", err=err)
                     return (ocs.ERROR, f'CRASH: during param pre-processing: {str(err)}', {})
 
             # Mark as started.

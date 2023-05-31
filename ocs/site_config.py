@@ -362,6 +362,10 @@ def add_arguments(parser=None):
     ``--working-dir=...``:
         Propagate the working directory.
 
+    ``--crossbar-timeout=...``:
+        Length of time in seconds that the Agent will try to reconnect to the
+        crossbar server before shutting down.
+
     """
     if parser is None:
         parser = argparse.ArgumentParser()
@@ -384,6 +388,9 @@ def add_arguments(parser=None):
     group.add_argument('--registry-address', help="""Deprecated.""")
     group.add_argument('--log-dir', help="""Set the logging directory.""")
     group.add_argument('--working-dir', help="""Propagate the working directory.""")
+    group.add_argument('--crossbar-timeout', type=int, default=10, help="""Length of time in seconds
+       that the Agent will try to reconnect to the crossbar server before
+       shutting down.""")
     return parser
 
 

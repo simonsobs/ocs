@@ -158,6 +158,9 @@ class CrossbarConfig:
             'config-dir': self.cbdir,
         })
 
+    def __eq__(self, other):
+        return self.binary == other.binary and self.cbdir == other.cbdir
+
 
 class HubConfig:
     @classmethod

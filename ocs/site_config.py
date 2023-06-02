@@ -11,139 +11,136 @@ import deprecation
 
 
 class SiteConfig:
-    def __init__(self):
+    """A container for loading and storing the entire site configuration.
+
+    The configuration dictionary should have the following elements:
+
+    ``hub`` (required)
+        Describes what WAMP server and realm Agents and Clients
+        should use.
+
+    ``hosts`` (required)
+        A dictionary of HostConfig descriptions.  The keys in this
+        dictionary can be real host names on the network,
+        pseudo-host names, or the special value "localhost".
+
+    A HostConfig marked for "localhost" will match any host that
+    does not have an exact match in the hosts dictionary.  This
+    should normally be used only in single-host test systems or
+    examples.
+
+    Client programs will normally (i.e., by default) try to load
+    the HostConfig associated with the system hostname (that which
+    is returned by socket.gethostname()). But this can be
+    overridden easily, for example by using the ``--site-host``
+    command line argument.  It is thus quite reasonable to use the
+    hosts dictionary to hold a set of useful configurations
+    indexed by a user-specified string (a pseudo-host).
+
+    Args:
+        data (dict): The configuration dictionary.
+
+    """
+
+    def __init__(self, data):
         self.hosts = {}
         self.hub = None
         self.source_file = None
-
-    @classmethod
-    def from_dict(cls, data):
-        """Args:
-            data: The configuration dictionary.
-
-        The configuration dictionary should have the following elements:
-
-        ``hub`` (required)
-            Describes what WAMP server and realm Agents and Clients
-            should use.
-
-        ``hosts`` (required)
-            A dictionary of HostConfig descriptions.  The keys in this
-            dictionary can be real host names on the network,
-            pseudo-host names, or the special value "localhost".
-
-        A HostConfig marked for "localhost" will match any host that
-        does not have an exact match in the hosts dictionary.  This
-        should normally be used only in single-host test systems or
-        examples.
-
-        Client programs will normally (i.e., by default) try to load
-        the HostConfig associated with the system hostname (that which
-        is returned by socket.gethostname()). But this can be
-        overridden easily, for example by using the ``--site-host``
-        command line argument.  It is thus quite reasonable to use the
-        hosts dictionary to hold a set of useful configurations
-        indexed by a user-specified string (a pseudo-host).
-
-        """
-        self = cls()
         self.data = data
         for k, v in data.get('hosts', {}).items():
             assert (k not in self.hosts)  # duplicate host name in config file!
-            self.hosts[k] = HostConfig.from_dict(v, parent=self, name=k)
-        self.hub = HubConfig.from_dict(data['hub'], parent=self)
-        return self
+            self.hosts[k] = HostConfig(v, parent=self, name=k)
+        self.hub = HubConfig(data['hub'], parent=self)
 
     @classmethod
     def from_yaml(cls, filename):
+        """Load the site config from yaml file.
+
+        Args:
+            filename (str): Path to configuration file.
+
+        """
         filename = os.path.abspath(filename)
         with open(filename) as f:
             data = yaml.safe_load(f)
-        self = cls.from_dict(data)
-        self.source_file = filename
-        return self
+        cfg = SiteConfig(data)
+        cfg.source_file = filename
+        return cfg
 
     def __repr__(self):
-        repr_ = f'SiteConfig.from_dict({self.data})'
+        repr_ = f'SiteConfig({self.data})'
         return repr_
 
 
 class HostConfig:
-    def __init__(self, name=None):
-        self.instances = []
-        self.name = name
-        self.agent_paths = []
-        self.log_dir = None
-        self.working_dir = os.getcwd()
+    """A container for storing the configuration for a single host.
 
-    @classmethod
-    def from_dict(cls, data, parent=None, name=None):
-        """Args:
-            data: The configuration dictionary.
-            parent: the SiteConfig from which this data was extracted
-                (this is stored as self.parent, but not used).
+    The configuration dictionary should have the following elements:
 
-        The configuration dictionary should have the following elements:
+    ``agent-instances`` (required)
+        A list of AgentConfig descriptions.
 
-        ``agent-instances`` (required)
-            A list of AgentConfig descriptions.
+    ``agent-paths`` (optional)
+        A list of additional paths where OCS is permitted to
+        search for Agent plugin modules.
 
-        ``agent-paths`` (optional)
-            A list of additional paths where OCS is permitted to
-            search for Agent plugin modules.
+    ``crossbar`` (optional)
+        Settings to assist with starting / stopping / monitoring a
+        crossbar server running on this host.  There is a single
+        crossbar server for an OCS network and thus this entry
+        should be defined for at most one of the hosts in the site
+        config file.  Note that setting this to None (or null)
+        will disable host crossbar control, while setting it to an
+        empty dictionary, {}, will enable local host crossbar
+        control with default settings.
 
-        ``crossbar`` (optional)
-            Settings to assist with starting / stopping / monitoring a
-            crossbar server running on this host.  There is a single
-            crossbar server for an OCS network and thus this entry
-            should be defined for at most one of the hosts in the site
-            config file.  Note that setting this to None (or null)
-            will disable host crossbar control, while setting it to an
-            empty dictionary, {}, will enable local host crossbar
-            control with default settings.
+    ``log-dir`` (optional)
+        Path at which to write log files.  Relative paths will be
+        interpreted relative to the "working directory"; see
+        --working-dir command line option.
 
-        ``log-dir`` (optional)
-            Path at which to write log files.  Relative paths will be
-            interpreted relative to the "working directory"; see
-            --working-dir command line option.
-        """
-        self = cls(name=name)
-        self.parent = parent
+    Args:
+        data (dict): The configuration dictionary.
+        parent (ocs.site_config.SiteConfig): The SiteConfig from which this
+            data was extracted (this is stored as self.parent, but not used.)
+        name (str): The hostname for the host.
+
+    """
+
+    def __init__(self, data, parent=None, name=None):
         self.data = data
+        self.parent = parent
+        self.name = name
         self.instances = data['agent-instances']
         self.agent_paths = data.get('agent-paths', [])
-        self.crossbar = CrossbarConfig.from_dict(data.get('crossbar'))
+        self.crossbar = CrossbarConfig(data.get('crossbar'))
         self.log_dir = data.get('log-dir', None)
-        return self
+        self.working_dir = os.getcwd()
 
     def __repr__(self):
-        repr_ = f'HostConfig.from_dict({self.data}, ' \
-            f'name={self.name})'
+        repr_ = f'HostConfig({self.data}, name={self.name})'
         return repr_
 
 
 class CrossbarConfig:
-    @classmethod
-    def from_dict(cls, data, parent=None):
-        """Args:
-            data: The configuration dictionary, or None.
-            parent: the HostConfig from which this data was extracted
-                (this is stored as self.parent, but not used).
+    """A container for storing the crossbar configuration.
 
-        The configuration dictionary should have the following elements:
+    The configuration dictionary should have the following elements:
 
-        ``config-dir`` (optional): Location of crossbar config.json;
-            this gets passed to ``--cbdir``, if specified..
+    ``config-dir`` (optional): Location of crossbar config.json;
+        this gets passed to ``--cbdir``, if specified..
 
-        ``bin`` (optional): The path to the crossbar executable.
-            This defaults to shutil.which('crossbar').
+    ``bin`` (optional): The path to the crossbar executable.
+        This defaults to shutil.which('crossbar').
 
-        If data is None, returns None.  Otherwise returns a
-        CrossbarConfig object.
-        """
-        if data is None:
-            return None
-        self = cls()
+    Args:
+        data (dict): The configuration dictionary.
+        parent (ocs.site_config.HostConfig): The HostConfig from which this
+            data was extracted (this is stored as self.parent, but not used.)
+
+    """
+
+    def __init__(self, data, parent=None):
         self.data = data
         self.parent = parent
         self.binary = data.get('bin', shutil.which('crossbar'))
@@ -152,7 +149,6 @@ class CrossbarConfig:
             self.cbdir_args = []
         else:
             self.cbdir_args = ['--cbdir', self.cbdir]
-        return self
 
     def get_cmd(self, cmd):
         if self.binary is None:
@@ -173,104 +169,101 @@ class CrossbarConfig:
         return self.binary == other.binary and self.cbdir == other.cbdir
 
     def __repr__(self):
-        repr_ = f'CrossbarConfig.from_dict({self.data})'
+        repr_ = f'CrossbarConfig({self.data})'
         return repr_
 
 
 class HubConfig:
-    @classmethod
-    def from_dict(cls, data, parent=None):
-        """Args:
-            data: The configuration dictionary.
-            parent: the SiteConfig from which this data was extracted
-                (this is stored as self.parent, but not used).
+    """A container for storing the Hub configuration.
 
-        The configuration dictionary should have the following elements:
+    The configuration dictionary should have the following elements:
 
-        ``wamp_server`` (required): URL to the WAMP router's websocket
-            access point for ocs.  E.g., ``ws://host-2:8001/ws``.
-            WAMP routers can have multiple access points, with
-            different protocols, security layers, and permissions.
-            (Command line override: ``--site-hub``.)
+    ``wamp_server`` (required): URL to the WAMP router's websocket
+        access point for ocs.  E.g., ``ws://host-2:8001/ws``.
+        WAMP routers can have multiple access points, with
+        different protocols, security layers, and permissions.
+        (Command line override: ``--site-hub``.)
 
-        ``wamp_http`` (optional): URL to the WAMP router's http bridge
-            interface.  This is the best interface for simple clients
-            to use.  E.g., ``http://host-2:8001/call``.
+    ``wamp_http`` (optional): URL to the WAMP router's http bridge
+        interface.  This is the best interface for simple clients
+        to use.  E.g., ``http://host-2:8001/call``.
 
-        ``wamp_realm`` (required): The WAMP realm to use.  WAMP
-            clients operating in a particular realm are isolated from
-            clients connected to other realms.  Example and test code
-            will often use ``debug_realm`` here.  (Command line
-            override: ``--site-realm``.)
+    ``wamp_realm`` (required): The WAMP realm to use.  WAMP
+        clients operating in a particular realm are isolated from
+        clients connected to other realms.  Example and test code
+        will often use ``debug_realm`` here.  (Command line
+        override: ``--site-realm``.)
 
-        ``address_root`` (required): The base address to be used by
-            all OCS Agents.  This is normally something simple like
-            ``observatory`` or ``detlab``.  (Command line override:
-            ``--address-root``.)
+    ``address_root`` (required): The base address to be used by
+        all OCS Agents.  This is normally something simple like
+        ``observatory`` or ``detlab``.  (Command line override:
+        ``--address-root``.)
 
-        """
-        self = cls()
+    Args:
+        data (dict): The configuration dictionary.
+        parent (ocs.site_config.SiteConfig): The SiteConfig from which this
+            data was extracted (this is stored as self.parent, but not used.)
+
+    """
+
+    def __init__(self, data, parent=None):
         self.parent = parent
         self.data = data
-        return self
 
     def summary(self):
         return summarize_dict(self.data)
 
     def __repr__(self):
-        return f"HubConfig.from_dict({self.data})"
+        return f"HubConfig({self.data})"
 
 
 class InstanceConfig:
-    def __init__(self):
-        self.arguments = []
+    """A container for storing an individual agent instance's configuration.
 
-    @classmethod
-    def from_dict(cls, data, parent=None):
-        """Args:
-            data: The configuration dictionary.
-            parent: the HostConfig from which this data was extracted
-                (this is stored as self.parent, but not used).
+    The configuration dictionary should have the following elements:
 
-        The configuration dictionary should have the following elements:
+    ``instance-id`` (str, required)
+        This string is used to set the Agent instance's base
+        address.  This may also be matched against the instance-id
+        provided by the Agent instance, as a way of finding the
+        right InstanceConfig.
 
-        ``instance-id`` (str, required)
-            This string is used to set the Agent instance's base
-            address.  This may also be matched against the instance-id
-            provided by the Agent instance, as a way of finding the
-            right InstanceConfig.
+    ``agent-class`` (str, optional)
+        Name of the Agent class.  This
+        may be matched against the agent_class name provided by
+        the Agent instance, as a way of finding the right
+        InstanceConfig.
 
-        ``agent-class`` (str, optional)
-            Name of the Agent class.  This
-            may be matched against the agent_class name provided by
-            the Agent instance, as a way of finding the right
-            InstanceConfig.
+    ``arguments`` (list, optional):
+        A list of arguments that should be passed back to the
+        agent.  Historically the arguments have been grouped into
+        into key value pairs, e.g. [['--key1', 'value'],
+        ['--key2', 'value']] but these days whatever you passed in
+        gets flattened to a single list (i.e. that is equivalent
+        to ['--key1', 'value', '--key2', 'value'].
 
-        ``arguments`` (list, optional):
-            A list of arguments that should be passed back to the
-            agent.  Historically the arguments have been grouped into
-            into key value pairs, e.g. [['--key1', 'value'],
-            ['--key2', 'value']] but these days whatever you passed in
-            gets flattened to a single list (i.e. that is equivalent
-            to ['--key1', 'value', '--key2', 'value'].
+    ``manage`` (str, optional):
+        A string to help HostManager decide how to manage this
+        agent.  Value should be one of ["yes", "no", "docker"]
+        (default is "yes").
 
-        ``manage`` (str, optional):
-            A string to help HostManager decide how to manage this
-            agent.  Value should be one of ["yes", "no", "docker"]
-            (default is "yes").
+    Args:
+        data (dict): The configuration dictionary.
+        parent (ocs.site_config.HostConfig): The HostConfig from which this
+            data was extracted (this is stored as self.parent, but not used.)
 
-        """
-        self = cls()
-        self.parent = parent
+    """
+
+    def __init__(self, data, parent=None):
         self.data = data
+        self.parent = parent
         self.arguments = self.data.get('arguments', [])
         self.manage = self.data.get('manage')
         if self.manage is None:
             self.manage = "yes"
-        return self
 
     def __repr__(self):
-        return f"InstanceConfig.from_dict({self.data})"
+        return f"InstanceConfig({self.data})"
 
 
 def summarize_dict(d):
@@ -498,8 +491,7 @@ def get_config(args, agent_class=None):
         # Find the config for this instance-id.
         for dev in host_config.instances:
             if dev['instance-id'] == args.instance_id:
-                instance_config = InstanceConfig.from_dict(
-                    dev, parent=host_config)
+                instance_config = InstanceConfig(dev, parent=host_config)
                 break
     else:
         # Use the agent_class to figure it out...
@@ -509,8 +501,7 @@ def get_config(args, agent_class=None):
                     raise RuntimeError(
                         f"Multiple matches found for agent-class={agent_class}"
                         " ... you probably need to pass --instance-id=")
-                instance_config = InstanceConfig.from_dict(
-                    dev, parent=host_config)
+                instance_config = InstanceConfig(dev, parent=host_config)
     if instance_config is None and not no_dev_match:
         raise RuntimeError("Could not find matching device description.")
     return collections.namedtuple('SiteConfig', ['site', 'host', 'instance'])(site_config, host_config, instance_config)

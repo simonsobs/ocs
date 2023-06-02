@@ -38,25 +38,25 @@ def test_site_config_from_yaml(tmp_path):
     assert cfg.data == SITE_CFG
 
 
-def test_crossbar_config_from_dict():
-    cfg = CrossbarConfig.from_dict(CROSSBAR_CFG)
+def test_crossbar_config():
+    cfg = CrossbarConfig(CROSSBAR_CFG)
     assert cfg.data == CROSSBAR_CFG
 
 
-def test_hub_config_from_dict():
-    cfg = HubConfig.from_dict(HUB_CFG)
+def test_hub_config():
+    cfg = HubConfig(HUB_CFG)
     assert cfg.data == HUB_CFG
 
 
-def test_host_config_from_dict():
-    cfg = HostConfig.from_dict(HOST_1_CFG, name=HOST_1_NAME)
+def test_host_config():
+    cfg = HostConfig(HOST_1_CFG, name=HOST_1_NAME)
     assert cfg.data == HOST_1_CFG
     assert cfg.name == HOST_1_NAME
-    assert cfg.crossbar == CrossbarConfig.from_dict(CROSSBAR_CFG)
+    assert cfg.crossbar == CrossbarConfig(CROSSBAR_CFG)
 
 
-def test_instance_config_from_dict():
-    cfg = InstanceConfig.from_dict(INSTANCE_CFG)
+def test_instance_config():
+    cfg = InstanceConfig(INSTANCE_CFG)
     assert cfg.data == INSTANCE_CFG
 
 
@@ -111,17 +111,17 @@ class TestGetControlClient:
         crossbar_found = MagicMock(return_value="someplace/bin/crossbar")
         with patch("shutil.which", crossbar_found), \
                 patch("os.path.exists", MagicMock(return_value=True)):
-            config = CrossbarConfig.from_dict({})
+            config = CrossbarConfig({})
             assert config.binary == "someplace/bin/crossbar"
 
         # CrossbarConfig should only raise errors if someone tries to
         # use the invalid config.
         crossbar_not_found = MagicMock(return_value=None)
         with patch("shutil.which", crossbar_not_found):
-            config = CrossbarConfig.from_dict({})
+            config = CrossbarConfig({})
         with pytest.raises(RuntimeError):
             config.get_cmd('start')
 
-        config = CrossbarConfig.from_dict({"bin": "not/a/valid/path/to/crossbar"})
+        config = CrossbarConfig({"bin": "not/a/valid/path/to/crossbar"})
         with pytest.raises(RuntimeError):
             config.get_cmd('start')

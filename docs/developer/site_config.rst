@@ -53,41 +53,39 @@ about the site configuration file, please refer to :ref:`ocs_site_config_file`.
 SiteConfig
 ----------
 At root level, the configuration file should encode a SiteConfig
-object. The structure is described in the ``from_dict`` method of
-the SiteConfig class:
+object. The structure is described in the docstring of the SiteConfig class:
 
 .. autoclass:: ocs.site_config.SiteConfig
-    :members: from_dict
+    :members:
     :noindex:
 
 The ``hub`` information is used by all Agent and Control Clients, on
-all hosts, to connect to the OCS WAMP router.  This WAMP router
-(probably crossbar) usually has its own configuration file.  The
-settings in SCF ``hub`` block are parsed by the ``from_dict`` method
-of the HubConfig class:
+all hosts, to connect to the OCS WAMP router. This WAMP router
+(probably crossbar) usually has its own configuration file. The
+settings in SCF ``hub`` block are parsed by the HubConfig class:
 
 .. autoclass:: ocs.site_config.HubConfig
-    :members: from_dict
+    :members:
     :noindex:
 
 HostConfig
 ----------
 
-The structure of HostConfig encoding is described in the ``from_dict``
-method of the HostConfig class:
+The structure of HostConfig encoding is described in the docstring of the
+HostConfig class:
 
 .. autoclass:: ocs.site_config.HostConfig
-    :members: from_dict
+    :members:
     :noindex:
 
 To allow ocs to manipulate the ``crossbar`` router (e.g. if you want
 to easily start and stop it using ``ocsbow``), then the ``crossbar``
 variable should be defined, with (at least) an empty dictionary.  The
-details of the options are described in the ``from_dict`` method of
-the CrossbarConfig class:
+details of the options are described in the docstring of the CrossbarConfig
+class:
 
 .. autoclass:: ocs.site_config.CrossbarConfig
-    :members: from_dict
+    :members:
     :noindex:
 
 The significance of ``agent-paths`` is described more in
@@ -96,11 +94,11 @@ The significance of ``agent-paths`` is described more in
 InstanceConfig
 --------------
 
-The structure of InstanceConfig encoding is described in the
-``from_dict`` method of the InstanceConfig class:
+The structure of InstanceConfig encoding is described in the docstring of the
+InstanceConfig class:
 
 .. autoclass:: ocs.site_config.InstanceConfig
-    :members: from_dict
+    :members:
     :noindex:
 
 .. _parse_args:

@@ -370,27 +370,28 @@ def add_arguments(parser=None):
     if parser is None:
         parser = argparse.ArgumentParser()
     group = parser.add_argument_group('Site Config Options')
-    group.add_argument('--site', help="""Instead of the default site, use the configuration for the
-       specified site.  The configuration is loaded from
-       ``$OCS_CONFIG_DIR/{site}.yaml``.  If ``--site=none``, the
-       site_config facility will not be used at all.""")
-    group.add_argument('--site-file', help="""Instead of the default site config, use the specified file.  Full
-       path must be specified.""")
-    group.add_argument('--site-host', help="""Override the OCS determination of what host this instance is
-       running on, and instead use the configuration for the indicated
-       host.""")
-    group.add_argument('--site-hub', help="""Override the ocs hub url (wamp_server).""")
-    group.add_argument('--site-http', help="""Override the ocs hub http url (wamp_http).""")
-    group.add_argument('--site-realm', help="""Override the ocs hub realm (wamp_realm).""")
-    group.add_argument('--instance-id', help="""Look in the SCF for Agent-instance specific configuration options,
-       and use those to launch the Agent.""")
-    group.add_argument('--address-root', help="""Override the site default address root.""")
-    group.add_argument('--registry-address', help="""Deprecated.""")
-    group.add_argument('--log-dir', help="""Set the logging directory.""")
-    group.add_argument('--working-dir', help="""Propagate the working directory.""")
-    group.add_argument('--crossbar-timeout', type=int, default=10, help="""Length of time in seconds
-       that the Agent will try to reconnect to the crossbar server before
-       shutting down.""")
+    group.add_argument('--site', help="Instead of the default site, use the "
+                       "configuration for the specified site.  The configuration is loaded "
+                       "from ``$OCS_CONFIG_DIR/{site}.yaml``.  If ``--site=none``, the "
+                       "site_config facility will not be used at all.")
+    group.add_argument('--site-file', help="Instead of the default site config, "
+                       "use the specified file. Full path must be specified.")
+    group.add_argument('--site-host', help="Override the OCS determination of "
+                       "what host this instance is running on, and instead use the "
+                       "configuration for the indicated host.")
+    group.add_argument('--site-hub', help="Override the ocs hub url (wamp_server).")
+    group.add_argument('--site-http', help="Override the ocs hub http url (wamp_http).")
+    group.add_argument('--site-realm', help="Override the ocs hub realm (wamp_realm).")
+    group.add_argument('--instance-id', help="Look in the SCF for "
+                       "Agent-instance specific configuration options, and use those to launch "
+                       "the Agent.")
+    group.add_argument('--address-root', help="Override the site default address root.")
+    group.add_argument('--registry-address', help="Deprecated.")
+    group.add_argument('--log-dir', help="Set the logging directory.")
+    group.add_argument('--working-dir', help="Propagate the working directory.")
+    group.add_argument('--crossbar-timeout', type=int, default=10, help="Length of time in seconds "
+                       "that the Agent will try to reconnect to the crossbar server before "
+                       "shutting down. Note this is set per Agent in an instance's arguments list.")
     return parser
 
 

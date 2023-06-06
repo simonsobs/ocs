@@ -362,6 +362,9 @@ def add_arguments(parser=None):
     ``--working-dir=...``:
         Propagate the working directory.
 
+    ``--access-policy=...``:
+        Set the Access Control policy.
+
     """
     if parser is None:
         parser = argparse.ArgumentParser()
@@ -384,6 +387,7 @@ def add_arguments(parser=None):
     group.add_argument('--registry-address', help="""Deprecated.""")
     group.add_argument('--log-dir', help="""Set the logging directory.""")
     group.add_argument('--working-dir', help="""Propagate the working directory.""")
+    group.add_argument('--access-policy', help="""Set Access Control policy.""")
     return parser
 
 

@@ -286,6 +286,13 @@ def main(args=None):
 
     agent, runner = ocs_agent.init_site_agent(args)
 
+    # If user specifies an Access Policy, we will make "delay_task"
+    # require "Advanced" access to help with testing.
+    if args.access_policy is None:
+        min_privs = 1
+    else:
+        min_privs = 2
+
     fdata = FakeDataAgent(agent,
                           num_channels=args.num_channels,
                           sample_rate=args.sample_rate,
@@ -296,7 +303,8 @@ def main(args=None):
                            blocking=False, startup=startup)
     agent.register_task('set_heartbeat', fdata.set_heartbeat)
     agent.register_task('delay_task', fdata.delay_task, blocking=False,
-                        aborter=fdata._abort_delay_task)
+                        aborter=fdata._abort_delay_task,
+                        min_privs=min_privs)
 
     runner.run(agent, auto_reconnect=True)
 

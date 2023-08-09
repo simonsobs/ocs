@@ -1,6 +1,6 @@
 pytest
 pytest-cov
 docker
-pytest-docker-compose
+pytest-docker
 pytest-twisted
 so3g

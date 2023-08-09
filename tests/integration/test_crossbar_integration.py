@@ -8,9 +8,7 @@ from ocs.ocs_client import OCSClient
 from so3g import hk
 
 from integration.util import create_crossbar_fixture, restart_crossbar
-
-pytest_plugins = ("docker_compose",)
-
+from integration.util import docker_compose_file  # noqa: F401
 
 wait_for_crossbar = create_crossbar_fixture()
 
@@ -177,3 +175,6 @@ def test_proper_agent_shutdown_on_lost_transport(wait_for_crossbar):
 
     fake_data_container = client.containers.get('ocs-tests-fake-data-agent')
     assert fake_data_container.status == "exited"
+
+    # Restart crossbar, else docker plugin loses track of it
+    crossbar_container.start()

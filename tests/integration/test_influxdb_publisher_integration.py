@@ -11,8 +11,7 @@ from ocs.testing import (
 from integration.util import (
     create_crossbar_fixture
 )
-
-pytest_plugins = ("docker_compose")
+from integration.util import docker_compose_file  # noqa: F401
 
 wait_for_crossbar = create_crossbar_fixture()
 run_agent = create_agent_runner_fixture(

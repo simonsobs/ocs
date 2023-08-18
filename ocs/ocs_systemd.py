@@ -28,6 +28,7 @@ Description=OCS HostManager{host_detail}
 ExecStart={cmd}
 User={service_user}
 Restart=always
+RestartSec=10s
 {environment_lines}
 
 [Install]

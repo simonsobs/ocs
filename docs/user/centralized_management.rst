@@ -476,6 +476,7 @@ should look something like this::
   ExecStart=/home/ocs/git/ocs-site-configs/my-lab/launcher-hm-server5.sh
   User=ocs
   Restart=always
+  RestartSec=10s
 
   [Install]
   WantedBy=multi-user.target

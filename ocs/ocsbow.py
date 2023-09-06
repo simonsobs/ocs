@@ -673,6 +673,15 @@ class HostManagerManager:
                 err, msg, session = \
                     self.client.manager.start(**params)
             else:
+                known_children = [cs.get('instance_id')
+                                  for cs in session['data']['child_states']]
+                targets_not_found = [t for t in targets if t not in known_children]
+                if len(targets_not_found):
+                    print('Warning, some targets not known to HostManager: ')
+                    print(f'  {targets_not_found}')
+                    print('Requesting reload_config.')
+                    params['reload_config'] = True
+
                 err, msg, session = \
                     self.client.update.start(**params)
 
@@ -870,6 +879,9 @@ def main(args=None):
             if iid not in clients:
                 clients[iid] = HostManagerManager(args, site_config, iid)
             return clients[iid]
+
+        if len(hms) == 0 and len(agents) == 0:
+            print(f'No targets found matching "{args.instance}"')
 
         for hm in hms:
             print(f'  {args.command} hostmanager {hm["instance-id"]} all')

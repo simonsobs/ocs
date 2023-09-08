@@ -53,6 +53,8 @@ def get_parser():
         listed in the local copy of the site config).""")
     p.add_argument('--host', '-H', default=None, action='append',
                    help='Limit hosts that are displayed.')
+    p.add_argument('--reload-config', '-r', default=None, action='store_true',
+                   help='Request each HM to reprocess the site config file.')
 
     # common args for up and down
     target_parser = argparse.ArgumentParser(add_help=False)
@@ -184,7 +186,7 @@ def crossbar_test(args, site_config):
     return ok, msg
 
 
-def get_status(args, site_config, restrict_hosts=None):
+def get_status(args, site_config, restrict_hosts=None, reload_config=False):
     """Assemble a detailed description of the site configuration, that
     goes somewhat beyond what's in the site config by querying each
     HostManager it finds to identify docker-based or other secret
@@ -204,6 +206,8 @@ def get_status(args, site_config, restrict_hosts=None):
     }
 
     all_instance_ids = []
+    warn_reloads = False
+    warn_consistency = False
 
     # Loop over hosts found in the SCF ...
     for host_name, host_data in site.hosts.items():
@@ -263,6 +267,17 @@ def get_status(args, site_config, restrict_hosts=None):
                 continue
             agent_info[iid] = inst
             all_instance_ids.append(iid)
+
+        # Are we supposed to refresh_config these?
+        if reload_config and len(hms):
+            print('Requesting config reloads ...')
+            for hm in hms:
+                if hm.reload_config():
+                    print(f'  Ok on {hm.instance_id}.')
+                else:
+                    print(f'  !! Failed on {hm.instance_id}.')
+                    warn_reloads = True
+            print()
 
         # Now loop through HostManagers and see what they know
         for hm in hms:
@@ -335,7 +350,6 @@ def get_status(args, site_config, restrict_hosts=None):
                     inst['current'] = cinfo['next_action']
 
         # Populate the agent-class-show.
-        warn_consistency = False
         for k, v in agent_info.items():
             a, b = v['agent-class-note'], v['agent-class-hm']
             v['agent-class-show'] = a
@@ -353,6 +367,10 @@ def get_status(args, site_config, restrict_hosts=None):
             'hostmanager_count': len(hms),
             'agent_info': agent_info})
 
+    if warn_reloads:
+        output['warnings'].append(
+            '***WARNING -- failed to request reload_config on some HostManagers.')
+
     if warn_consistency:
         output['warnings'].append(
             '***WARNING -- where agent-class value contains a slash (/) it '
@@ -366,7 +384,8 @@ def get_status(args, site_config, restrict_hosts=None):
 def print_status(args, site_config):
     site, host, instance = site_config
 
-    status = get_status(args, site_config, restrict_hosts=args.host)
+    status = get_status(args, site_config, restrict_hosts=args.host,
+                        reload_config=args.reload_config)
 
     print('ocs status')
     print('----------')
@@ -727,6 +746,12 @@ class HostManagerManager:
             return False, 'Agent did not register within %.1f seconds.' % timeout
         return True, 'Agent launched.'
 
+    def reload_config(self):
+        # Request a config reload.  Returns True if the request
+        # succeeded.
+        err, msg, session = self.client.update(reload_config=True)
+        return (err == ocs.OK) and session['success']
+
     def agent_control(self, request, targets):
         try:
             # In all cases, make sure process is running.
@@ -919,6 +944,7 @@ def main(args=None):
     if args.command is None:
         args.command = 'status'
         args.host = None
+        args.reload_config = None
 
     if args.command == 'config':
         print_config(args, site_config)

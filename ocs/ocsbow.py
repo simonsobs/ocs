@@ -203,37 +203,72 @@ def get_status(args, site_config, restrict_hosts=None):
         'warnings': [],
     }
 
-    # Loop over hosts ...
+    all_instance_ids = []
+
+    # Loop over hosts found in the SCF ...
     for host_name, host_data in site.hosts.items():
         if restrict_hosts is not None and host_name not in restrict_hosts:
             continue
         hms = []
         agent_info = {}
-        blank_state = {'current': '?',
-                       'target': '?'}
+        sort_order = ['hm', 'yes', 'no', 'docker', 'other']
+
+        # Loop over agent instances described in the SCF for this host.
+        # This should result in agent_info entries with keys:
+        # - instance-id  (already present)
+        # - agent-class  (already present)
+        # - manage       (may be present)
+        # - sort-token
+        # - agent-class-note (includes modifiers such as [d])
+        # - agent-class-hm (agent-class-note from HM placeholder)
+        # - current (current state place-holder for HM)
+        # - target (target state place-holder for HM)
+
         for idx, inst in enumerate(host_data.instances):
             inst = inst.copy()
+
+            # Fill in defaults ...
             if inst.get('manage') is None:
                 inst['manage'] = 'yes'
-            inst.update(blank_state)
+            inst.update({
+                'agent-class-note': inst['agent-class'],
+                'agent-class-hm': '?',
+                'current': '?',
+                'target': '?',
+                'sort-token': sort_order[-1],
+            })
+
+            # Set sort-token and record HMs.
             if inst['agent-class'] == HOSTMANAGER_CLASS:
-                sort_order = 0
+                inst['manage'] = 'hm'
                 hms.append(HostManagerManager(
                     args, site_config, instance_id=inst['instance-id']))
-            else:
-                sort_order = ['x', 'yes', 'no', 'docker'].index(inst['manage'])
+            if inst['manage'] in sort_order:
+                inst['sort-token'] = inst['manage']
+
+            # Modify agent-class name to get table-ready version; this
+            # should be the same string HM status returns, later.
+            if inst['manage'] == 'docker':
+                inst['agent-class-note'] += '[d]'
+            elif inst['manage'] in ['hm', 'no']:
+                # Mark as "unmanaged"; hotwire -hm value to match.
+                inst['agent-class-note'] += '[unman]'
+                inst['agent-class-hm'] = inst['agent-class-note']
+
             iid = inst['instance-id']
-            if iid in agent_info:
+            if iid in all_instance_ids:
                 output['warnings'].append(
                     f'***WARNING -- site config contains multiple entries '
                     f'with instance-id={iid}; ignoring all but first.')
                 continue
-            agent_info[iid] = (sort_order, idx, iid, inst)
+            agent_info[iid] = inst
+            all_instance_ids.append(iid)
 
-        order = [v[2] for v in sorted(agent_info.values())]
-        agent_info = {k: agent_info[k][3] for k in order}
+        # Now loop through HostManagers and see what they know
         for hm in hms:
             info = hm.status()
+
+            # Stow some info about the HostMan itself...
             cinfo = {
                 'target': 'n/a',
             }
@@ -247,37 +282,84 @@ def get_status(args, site_config, restrict_hosts=None):
                 cinfo['current'] = '?'
             agent_info[hm.instance_id].update(cinfo)
 
+            # Enrich agent_info using HostManager records.  This
+            # updates (perhaps):
+            # - next_action
+            # - target_state
+            # - class_name_display
+            #
+            # Generally one of three things can happen:
+            #
+            # 1. The HM instance-id is matched to the SCF, and the
+            #    agent_class / execution method (docker etc) agree.
+            # 2. The HM instance-id is matched to SCF, but with
+            #    different class/method.
+            # 3. The HM reports an instance-id that is not known to
+            #    the SCF (or at least not on this host).
+            #
+            # In the latter two cases, the agent-class-show will
+            # display the two discrepant values, between /, with a '?'
+            # for a missing thing.
+
             found = []
             for cinfo in info['child_states']:
                 this_id = cinfo['instance_id']
-                # Watch for [d] suffix, and steal it.
-                if cinfo['agent_class'].endswith('[d]'):
-                    agent_info[this_id]['agent-class'] = cinfo['agent_class']
                 if this_id in found:
                     output['warnings'].append(
-                        f'***WARNING -- HostManager reports multiple states '
-                        f'for instance-id={this_id}; ignoring all but first.')
+                        f'***WARNING -- HostManager {hm.instance_id}reports '
+                        f'multiple states for instance-id={this_id}; '
+                        'ignoring all but first.')
                     continue
                 found.append(this_id)
-                if this_id not in agent_info:
-                    # Secret agent!
-                    agent_info[this_id] = {
+
+                if this_id in agent_info:
+                    inst = agent_info[this_id]
+                    inst['agent-class-hm'] = cinfo['agent_class']
+                else:
+                    # Create a record for this unknown instance.
+                    inst = {
                         'instance-id': this_id,
-                        'agent-class': '[docker]',
+                        'agent-class': '?',
+                        'agent-class-note': '?',
+                        'agent-class-hm': cinfo['agent_class'],
                         'manage': 'yes',
+                        'sort-token': 'yes',
                     }
-                    agent_info[this_id].update(blank_state)
+                    agent_info[this_id] = inst
+
+                inst['target'] = cinfo['target_state']
                 if cinfo['next_action'] != 'down' and \
                    cinfo['stability'] <= 0.5:
-                    cinfo['next_action'] = 'unstable'
-                agent_info[this_id].update({
-                    'current': cinfo['next_action'],
-                    'target': cinfo['target_state']
-                })
+                    inst['current'] = 'unstable'
+                else:
+                    inst['current'] = cinfo['next_action']
+
+        # Populate the agent-class-show.
+        warn_consistency = False
+        for k, v in agent_info.items():
+            a, b = v['agent-class-note'], v['agent-class-hm']
+            v['agent-class-show'] = a
+            if a != b:
+                v['agent-class-show'] = '%s/%s' % (a, b)
+                warn_consistency = True
+
+        # Sort the agent_info dict.
+        sorted_keys = sorted([(sort_order.index(v['sort-token']), k)
+                              for k, v in agent_info.items()])
+        agent_info = {k: agent_info[k] for _, k in sorted_keys}
+
         output['hosts'].append({
             'host_name': host_name,
             'hostmanager_count': len(hms),
             'agent_info': agent_info})
+
+    if warn_consistency:
+        output['warnings'].append(
+            '***WARNING -- where agent-class value contains a slash (/) it '
+            'indicates an inconsistency between the local Site Config '
+            '(pre-slash) and HostManager reported (post-slash) Agent '
+            'Class values.')
+
     return output
 
 
@@ -298,17 +380,17 @@ def print_status(args, site_config):
 
     for hstat in status['hosts']:
         header = {'instance-id': '[instance-id]',
-                  'agent-class': '[agent-class]',
+                  'agent-class-show': '[agent-class]',
                   'current': '[state]',
                   'target': '[target]'}
-        field_widths = {'instance-id': 30,
-                        'agent-class': 20}
+        field_widths = {'instance-id': 20,
+                        'agent-class-show': 30}
         if len(hstat['agent_info']):
             field_widths = {k: max(v0, max([len(v[k])
                                             for v in hstat['agent_info'].values()]))
                             for k, v0 in field_widths.items()}
-        fmt = '  {instance-id:%i} {agent-class:%i} {current:>10} {target:>10}' % (
-            field_widths['instance-id'], field_widths['agent-class'])
+        fmt = '  {instance-id:%i} {agent-class-show:%i} {current:>10} {target:>10}' % (
+            field_widths['instance-id'], field_widths['agent-class-show'])
         header = fmt.format(**header)
         print('-' * len(header))
         print(f'Host: {hstat["host_name"]}\n')
@@ -321,6 +403,7 @@ def print_status(args, site_config):
         print('Important Notes:')
         for w in status['warnings']:
             print('  ' + w)
+        print()
 
 
 def print_config(args, site_config):

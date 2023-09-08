@@ -375,33 +375,48 @@ def parse_docker_state(docker_compose_file, docker_compose_bin=None):
 
     # Run docker inspect.
     for cont_id in cont_ids:
-        out, err, code = yield utils.getProcessOutputAndValue(
-            'docker', ['inspect', cont_id], env=os.environ)
-        if code != 0 and 'No such object' in err.decode('utf8'):
-            # This is likely due to a race condition where some
-            # container was brought down since we ran docker-compose.
-            # Just drop the entry.
-            print(f'(no such object: {cont_id}')
+        try:
+            info = yield _inspectContainer(cont_id, docker_compose_file)
+        except RuntimeError as e:
+            raise e
+        if info is None:
             continue
-        elif code != 0:
-            raise RuntimeError(
-                f'Trouble running "docker inspect %s".\n'
-                f'stdout: {out}\n  stderr {err}')
-        # Reconcile config against docker-compose ...
-        info = yaml.safe_load(out)[0]
-        config = info['Config']['Labels']
-        _dc_file = os.path.join(config['com.docker.compose.project.working_dir'],
-                                config['com.docker.compose.project.config_files'])
-        if not os.path.samefile(docker_compose_file, _dc_file):
-            raise RuntimeError("Consistency problem: container started from "
-                               "some other compose file?\n%s\n%s" % (docker_compose_file, _dc_file))
-        service = config['com.docker.compose.service']
+        service = info.pop('service')
         if service not in summary:
             raise RuntimeError("Consistency problem: image does not self-report "
                                "as a listed service? (%s)" % (service))
-        summary[service].update({
-            'running': info['State']['Running'],
-            'exit_code': info['State'].get('ExitCode', 127),
-            'container_found': True,
-        })
+        summary[service].update(info)
+
     return summary
+
+
+@inlineCallbacks
+def _inspectContainer(cont_id, docker_compose_file):
+    """Run docker inspect on cont_id, return dict with the results."""
+    out, err, code = yield utils.getProcessOutputAndValue(
+        'docker', ['inspect', cont_id], env=os.environ)
+    if code != 0 and 'No such object' in err.decode('utf8'):
+        # This is likely due to a race condition where some
+        # container was brought down since we ran docker-compose.
+        # Return None to indicate this -- caller should just ignore for now.
+        print(f'(no such object: {cont_id}')
+        return None
+    elif code != 0:
+        raise RuntimeError(
+            f'Trouble running "docker inspect {cont_id}".\n'
+            f'stdout: {out}\n  stderr {err}')
+    # Reconcile config against docker-compose ...
+    info = yaml.safe_load(out)[0]
+    config = info['Config']['Labels']
+    _dc_file = os.path.join(config['com.docker.compose.project.working_dir'],
+                            config['com.docker.compose.project.config_files'])
+    if not os.path.samefile(docker_compose_file, _dc_file):
+        raise RuntimeError("Consistency problem: container started from "
+                           "some other compose file?\n%s\n%s" % (docker_compose_file, _dc_file))
+    service = config['com.docker.compose.service']
+    return {
+        'service': service,
+        'running': info['State']['Running'],
+        'exit_code': info['State'].get('ExitCode', 127),
+        'container_found': True,
+    }

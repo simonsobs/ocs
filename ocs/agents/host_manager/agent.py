@@ -28,7 +28,6 @@ class HostManager:
         self.agent = agent
         self.running = False
         self.database = {}  # key is instance_id (or docker service name).
-        self.docker_services = {}  # key is service name.
         self.docker_composes = docker_composes
         self.docker_compose_bin = docker_compose_bin
         self.docker_service_prefix = docker_service_prefix
@@ -85,13 +84,14 @@ class HostManager:
 
     @inlineCallbacks
     def _update_docker_services(self):
-        """Parse the docker-compose.yaml files and update the internal cache
-        of docker service information.
+        """Parse the docker-compose.yaml files and return the current
+        status of all services.  For any services matching
+        self.database entries, the corresponding DockerContainerHelper
+        is updated with the new info.
 
         Returns:
-          dead (dict): a dict of service entries that were removed
-            from self.docker_services because they are nolonger
-            configured in any compose file.
+          docker_services (dict): state information for all detected
+            services, keyed by the service name.
 
         """
         # Read services from all docker-compose files.
@@ -101,15 +101,20 @@ class HostManager:
                 compose, docker_compose_bin=self.docker_compose_bin)
             docker_services.update(services)
 
-        # Remove containers that have disappeared.
-        dead_keys = [k for k in self.docker_services
-                     if k not in docker_services]
-        dead = {k: self.docker_services.pop(k)
-                for k in dead_keys}
-
-        # Everything else is good.
-        self.docker_services.update(docker_services)
-        returnValue(dead)
+        # Update all docker things in the database.
+        for instance in self.database.values():
+            # If an instance is explicitly marked for 'docker', it
+            # will only have a 'prot' if it has recently been matched
+            # to a docker service from some compose file.
+            service_name = instance.get('agent_script')
+            service_data = docker_services.get(service_name)
+            if instance['management'] == 'docker' and service_data is not None:
+                if instance['prot'] is None:
+                    instance['prot'] = hm_utils.DockerContainerHelper(service_data)
+                else:
+                    instance['prot'].update(service_data)
+                # If not -- this is a retirement, I guess.
+        returnValue(docker_services)
 
     @inlineCallbacks
     def _reload_config(self, session):
@@ -127,11 +132,13 @@ class HostManager:
           will be deleted from the database when that state is
           reached.
         """
-        # Parse the site config and compose files.
+        # Parse the site config.
         agent_dict, warnings = yield self._get_local_instances()
         for w in warnings:
             session.add_message(w)
-        yield self._update_docker_services()
+
+        # Read the compose files and query container states.
+        docker_services = yield self._update_docker_services()
 
         # Get agent class list from modern plugin system.
         agent_plugins = agent_cli.build_agent_list()
@@ -150,7 +157,7 @@ class HostManager:
             if (instance['management'] == 'host'
                 and iid not in agent_dict) or \
                (instance['management'] == 'docker'
-                    and instance['agent_script'] not in self.docker_services):
+                    and instance['agent_script'] not in docker_services):
                 # Sheesh
                 session.add_message(
                     f'Retiring {instance["full_name"]}, which has disappeared from '
@@ -166,14 +173,14 @@ class HostManager:
         # kinds of thing.  Store tuples:
         #   (db_key, instance_id, service_name, agent_class, management)
         new_managed = []
-        docker_nonagents = list(self.docker_services.keys())
+        services_to_process = list(docker_services.keys())
 
         for iid, hinst in agent_dict.items():
             srv = self.docker_service_prefix + iid
             cls = hinst['agent-class']
             mgmt = 'host'
-            if srv in docker_nonagents:
-                docker_nonagents.remove(srv)
+            if srv in services_to_process:
+                services_to_process.remove(srv)
                 cls += '[d]'
                 mgmt = 'docker'
                 if hinst['manage'] != 'docker':
@@ -197,7 +204,7 @@ class HostManager:
                     continue
             new_managed.append((iid, iid, srv, cls, mgmt))
 
-        for srv in docker_nonagents:
+        for srv in services_to_process:
             new_managed.append((srv, srv, srv, '[docker]', 'docker'))
 
         # Compare new managed items to stuff already in our database.
@@ -225,7 +232,8 @@ class HostManager:
                 )
                 if mgmt == 'docker':
                     instance['agent_script'] = srv
-                    instance['prot'] = self._get_docker_helper(instance)
+                    instance['prot'] = hm_utils.DockerContainerHelper(docker_services[srv])
+                    print(instance)
                     if instance['prot'].status[0] is None:
                         session.add_message(
                             'On startup, detected active container for %s' % iid)
@@ -250,36 +258,6 @@ class HostManager:
                 self.database[db_key] = instance
         yield warnings
 
-    @inlineCallbacks
-    def _check_docker_states(self):
-        """Scan the docker-compose files, again, and update the database
-        information ('running' state, most importantly) for all
-        services.
-
-        It is the policy of this function to ignore things that are
-        odd rather than deal with them somehow.
-
-        """
-        # Dict of database entries, indexed by docker service name.
-        docker_managed = {info['agent_script']: info
-                          for info in self.database.values()
-                          if info['management'] == 'docker'}
-        for compose in self.docker_composes:
-            services = yield hm_utils.parse_docker_state(
-                compose, docker_compose_bin=self.docker_compose_bin)
-            for k, info in services.items():
-                db = docker_managed.get(k)
-                if db is not None:
-                    if db['prot'] is None:
-                        db['prot'] = self._get_docker_helper(db)
-                    db['prot'].update(info)
-
-    def _get_docker_helper(self, instance):
-        service_name = instance['agent_script']
-        return hm_utils.DockerContainerHelper(
-            self.docker_services[service_name],
-            docker_compose_bin=self.docker_compose_bin)
-
     def _launch_instance(self, instance):
         """Launch an Agent instance (whether 'host' or 'docker' managed) using
         hm_utils.
@@ -300,7 +278,7 @@ class HostManager:
 
         """
         if instance['management'] == 'docker':
-            prot = self._get_docker_helper(instance)
+            prot = instance['prot']
         else:
             iid = instance['instance_id']
             pyth = sys.executable
@@ -463,7 +441,7 @@ class HostManager:
         while self.running or any_jobs:
 
             if time.time() >= next_docker_update:
-                yield self._check_docker_states()
+                yield self._update_docker_services()
                 next_docker_update = time.time() + 2
 
             sleep_times = [1.]

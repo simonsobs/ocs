@@ -126,7 +126,6 @@ def resolve_child_state(db):
         elif db['next_action'] == 'start':
             messages.append(
                 'Requested launch for {full_name}'.format(**db))
-            db['prot'] = None
             actions['launch'] = True
             db['next_action'] = 'wait_start'
             now = time.time()
@@ -281,12 +280,10 @@ def _run_docker_compose(args, docker_compose_bin=None):
 
 
 class DockerContainerHelper:
-
     """Class for managing the docker container associated with some
     service.  Provides some of the same interface as
-    AgentProcessHelper in HostManager agent.  Pass in a service
-    description dict (such as the ones returned by
-    parse_docker_state).
+    AgentProcessHelper.  Pass in a service description dict (such as
+    the ones returned by parse_docker_state).
 
     """
 
@@ -378,9 +375,11 @@ def parse_docker_state(docker_compose_file, docker_compose_bin=None):
         try:
             info = yield _inspectContainer(cont_id, docker_compose_file)
         except RuntimeError as e:
-            raise e
+            print(f'Warning, failed to inspect container {cont_id}; {e}.')
+            continue
         if info is None:
             continue
+
         service = info.pop('service')
         if service not in summary:
             raise RuntimeError("Consistency problem: image does not self-report "

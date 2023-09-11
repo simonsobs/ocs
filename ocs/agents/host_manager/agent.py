@@ -101,11 +101,11 @@ class HostManager:
                 compose, docker_compose_bin=self.docker_compose_bin)
             docker_services.update(services)
 
-        # Mark containers that have disappeared.
-        dead = {}
-        for k in self.docker_services:
-            if k not in docker_services:
-                dead[k] = self.docker_services.pop(k)
+        # Remove containers that have disappeared.
+        dead_keys = [k for k in self.docker_services
+                     if k not in docker_services]
+        dead = {k: self.docker_services.pop(k)
+                for k in dead_keys}
 
         # Everything else is good.
         self.docker_services.update(docker_services)

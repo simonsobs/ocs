@@ -14,16 +14,20 @@ class ManagedInstance(dict):
     Properties that must be set explicitly by user:
 
     - 'management' (str): Either 'host', 'docker', or 'retired'.
-    - 'agent_class' (str): The agent class.  This will have special
-      value 'docker' if the instance corresponds to a docker-compose
-      service that has not been matched to a site_config entry.
+    - 'agent_class' (str): The agent class name, which may include a
+      suffix ([d] or [d?]) if the agent is managed through Docker.
+      For instances corresponding to docker services that do not have
+      a corresponding SCF entry, the value here will be '[docker]'.
     - 'instance_id' (str): The agent instance-id, or the docker
       service name if the instance is an unmatched docker-compose
       service.
-    - 'full_name' (str): instance_id:agent_class
+    - 'full_name' (str): agent_class:instance_id
 
     Properties that are given a default value by init function:
 
+    - 'operable' (bool): indicates whether the instance can be
+      manipulated (whether calls to up/down should be expected to
+      work).
     - 'agent_script' (str): Path to the launcher script (if host
       system managed).  If docker-managed, this is the service name.
     - 'prot': The twisted ProcessProtocol object (if host system
@@ -46,6 +50,7 @@ class ManagedInstance(dict):
         # Note some core things are not included.
         self = cls({
             'agent_script': None,
+            'operable': False,
             'prot': None,
             'next_action': 'down',
             'target_state': 'down',
@@ -85,11 +90,17 @@ def resolve_child_state(db):
     # State machine.
     prot = db['prot']
 
+    # If the entry is not "operable", send next_action to '?' and
+    # don't try to do anything else.
+
+    if not db['operable']:
+        db['next_action'] = '?'
+
     # The uninterruptible transition state(s) are most easily handled
     # in the same way regardless of target state.
 
     # Transitional: wait_start, which bridges from start -> up.
-    if db['next_action'] == 'wait_start':
+    elif db['next_action'] == 'wait_start':
         if prot is not None:
             messages.append('Launched {full_name}'.format(**db))
             db['next_action'] = 'up'
@@ -131,7 +142,10 @@ def resolve_child_state(db):
             now = time.time()
             db['at'] = now + 1.
         elif db['next_action'] == 'up':
-            stat, t = prot.status
+            if prot is None:
+                stat, t = 0, None
+            else:
+                stat, t = prot.status
             if stat is not None:
                 messages.append('Detected exit of {full_name} '
                                 'with code {stat}.'.format(stat=stat, **db))
@@ -306,6 +320,7 @@ class DockerContainerHelper:
             self.status = None, time.time()
         else:
             self.status = service['exit_code'], time.time()
+            self.killed = False
 
     def up(self):
         self.d = _run_docker_compose(
@@ -398,7 +413,7 @@ def _inspectContainer(cont_id, docker_compose_file):
         # This is likely due to a race condition where some
         # container was brought down since we ran docker-compose.
         # Return None to indicate this -- caller should just ignore for now.
-        print(f'(no such object: {cont_id}')
+        print(f'(_inspectContainer: warning, no such object: {cont_id}')
         return None
     elif code != 0:
         raise RuntimeError(

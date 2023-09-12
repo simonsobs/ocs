@@ -47,9 +47,11 @@ class SiteConfig:
 
         """
         self = cls()
-        for k, v in data.get('hosts', {}).items():
-            assert (k not in self.hosts)  # duplicate host name in config file!
-            self.hosts[k] = HostConfig.from_dict(v, parent=self, name=k)
+        hosts = data.get('hosts')
+        if hosts:
+            for k, v in hosts.items():
+                assert (k not in self.hosts)  # duplicate host name in config file!
+                self.hosts[k] = HostConfig.from_dict(v, parent=self, name=k)
         self.hub = HubConfig.from_dict(data['hub'], parent=self)
         return self
 

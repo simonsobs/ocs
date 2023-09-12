@@ -49,7 +49,7 @@ class HostManager:
             agent config.  The config is as contained in
             HostConfig.instances but where 'instance-id',
             'agent-class', and 'manage' are all guaranteed populated
-            (and manage is one of ['yes', 'no', 'docker']).
+            (and manage is a valid full description, e.g. "host/down").
           warnings: A list of strings, each of which corresponds to
             some problem found in the config.
 
@@ -87,15 +87,18 @@ class HostManager:
                     f'Configuration problem, instance-id={inst["instance-id"]} '
                     f'has multiple entries.  Ignoring repeats.')
                 continue
-            # Make sure 'manage' is set, and valid.
-            default_manage = 'no' \
-                if inst['agent-class'] == 'HostManager' else 'yes'
-            inst['manage'] = inst.get('manage', default_manage)
-            if inst['manage'] not in ['yes', 'no', 'docker']:
-                warnings.append(
-                    f'Configuration problem, invalid manage={inst["manage"]} '
-                    f'for instance_id={inst["instance-id"]}.')
-                continue
+            if inst['agent-class'] == 'HostManager':
+                inst['manage'] = 'ignore'
+            else:
+                # Make sure 'manage' is set, and valid.
+                inst['manage'] = inst.get('manage', None)
+                try:
+                    inst['manage'] = site_config.InstanceConfig._MANAGE_MAP[inst['manage']]
+                except KeyError:
+                    warnings.append(
+                        f'Configuration problem, invalid manage={inst["manage"]} '
+                        f'for instance_id={inst["instance-id"]}.')
+                    continue
             instances[inst['instance-id']] = inst
         returnValue((True, instances, warnings))
         yield
@@ -249,7 +252,7 @@ class HostManager:
         # non-agents.
         for iid, instance in self.database.items():
             if instance['agent_class'] != NONAGENT_DOCKER and (
-                    iid not in agent_dict or agent_dict[iid].get('manage') == 'no'):
+                    iid not in agent_dict or agent_dict[iid].get('manage') == 'ignore'):
                 session.add_message(
                     f'Retiring {instance["full_name"]}, which has disappeared from '
                     f'configuration file(s) or has manage:no.')
@@ -258,15 +261,14 @@ class HostManager:
         # Create / update entries for every agent in the host
         # description, unless it is explicitly marked as ignore.
         for iid, hinst in agent_dict.items():
-            if hinst['manage'] == 'no':
+            if hinst['manage'] == 'ignore':
                 continue
 
             cls = hinst['agent-class']
             srv = None  # The expected docker service name, if any
-            if hinst['manage'] == 'yes':
-                mgmt = 'host'
-            else:
-                mgmt = 'docker'
+
+            mgmt, start_state = hinst['manage'].split('/')
+            if mgmt == 'docker':
                 cls = _clsname_tool(cls, '[d?]')
                 srv = self.docker_service_prefix + iid
 
@@ -305,6 +307,7 @@ class HostManager:
                     agent_class=cls,
                     full_name=_full_name(cls, iid),
                 )
+                instance['target_state'] = start_state
                 self.database[iid] = instance
 
         # Get agent class list from modern plugin system.

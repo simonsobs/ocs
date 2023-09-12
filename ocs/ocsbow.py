@@ -215,7 +215,7 @@ def get_status(args, site_config, restrict_hosts=None, reload_config=False):
             continue
         hms = []
         agent_info = {}
-        sort_order = ['hm', 'yes', 'no', 'docker', 'other']
+        sort_order = ['hm', 'host', 'docker', 'ignore', 'other']
 
         # Loop over agent instances described in the SCF for this host.
         # This should result in agent_info entries with keys:
@@ -232,8 +232,13 @@ def get_status(args, site_config, restrict_hosts=None, reload_config=False):
             inst = inst.copy()
 
             # Fill in defaults ...
-            if inst.get('manage') is None:
-                inst['manage'] = 'yes'
+            try:
+                inst['manage'] = ocs.site_config.InstanceConfig \
+                                                ._MANAGE_MAP[inst.get('manage')]
+            except KeyError:
+                # Not a known 'manage' setting.
+                pass
+
             inst.update({
                 'agent-class-note': inst['agent-class'],
                 'agent-class-hm': '?',
@@ -247,14 +252,17 @@ def get_status(args, site_config, restrict_hosts=None, reload_config=False):
                 inst['manage'] = 'hm'
                 hms.append(HostManagerManager(
                     args, site_config, instance_id=inst['instance-id']))
-            if inst['manage'] in sort_order:
-                inst['sort-token'] = inst['manage']
+            _st = inst['manage'].split('/')[0]  # hm, host, docker, ignore
+            if _st in sort_order:
+                inst['sort-token'] = _st
 
             # Modify agent-class name to get table-ready version; this
             # should be the same string HM status returns, later.
-            if inst['manage'] == 'docker':
+            if inst['sort-token'] == 'docker':
                 inst['agent-class-note'] += '[d]'
-            elif inst['manage'] in ['hm', 'no']:
+            elif inst['sort-token'] == 'hm':
+                inst['agent-class-hm'] = inst['agent-class-note']
+            elif inst['sort-token'] in ['ignore', 'other']:
                 # Mark as "unmanaged"; hotwire -hm value to match.
                 inst['agent-class-note'] += '[unman]'
                 inst['agent-class-hm'] = inst['agent-class-note']
@@ -332,13 +340,16 @@ def get_status(args, site_config, restrict_hosts=None, reload_config=False):
                     inst['agent-class-hm'] = cinfo['agent_class']
                 else:
                     # Create a record for this unknown instance.
+                    _m = 'host'
+                    if '[d' in cinfo['agent_class']:
+                        _m = 'docker'
                     inst = {
                         'instance-id': this_id,
                         'agent-class': '?',
                         'agent-class-note': '?',
                         'agent-class-hm': cinfo['agent_class'],
-                        'manage': 'yes',
-                        'sort-token': 'yes',
+                        'manage': _m,
+                        'sort-token': _m,
                     }
                     agent_info[this_id] = inst
 
@@ -968,7 +979,7 @@ def main(args=None):
             for inst in others:
                 if inst['instance-id'] not in args.instance:
                     continue
-                if inst['manage'] not in ['yes', 'docker']:
+                if inst['sort-token'] not in ['host', 'docker']:
                     raise OcsbowError(
                         "Cannot perform action on '%s', as it is not "
                         "configured as a managed Agent." % inst['instance-id'])

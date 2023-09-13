@@ -58,6 +58,4 @@ Agent API
 Supporting APIs
 ---------------
 
-.. automethod:: ocs.agents.host_manager.agent.HostManager._process_target_states
-
 .. automethod:: ocs.agents.host_manager.agent.HostManager._reload_config

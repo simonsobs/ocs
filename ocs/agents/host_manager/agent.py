@@ -206,21 +206,21 @@ class HostManager:
 
     @inlineCallbacks
     def _reload_config(self, session):
-        """
-        Notes:
-          First, the site config file is parsed and used to update the
-          internal database of child instances.  Any previously
-          unknown child Agent is added to the internal tracking
-          database, and assigned a target_state of "down".  Any
-          previously known child Agent instance is not modified in the
-          tracking database (unless a specific request is given,
-          through ``requests``).  If any child Agent instances in the
-          internal database appear to have been removed from the site
-          config, then they are set to have target_state "down" and
-          will be deleted from the database when that state is
-          reached.
-        """
+        """This helper function is called by both the ``manager``
+        Process at startup, and the ``update`` Task.
 
+        The Site Config File is parsed and used to update the internal
+        database of child instances.  Any previously unknown child
+        Agent is added to the internal tracking database, and assigned
+        whatever target state is specified for that instance.  Any
+        previously known child Agent instance is not modified.
+
+        If any child Agent instances in the internal database appear
+        to have been removed from the SCF, then they are set to have
+        target_state "down" and will be deleted from the database when
+        that state is reached.
+
+        """
         def retire(db_key):
             instance = self.database.get(db_key, None)
             if instance is None:
@@ -392,49 +392,13 @@ class HostManager:
         return True, 'Kill requested.'
 
     def _process_target_states(self, session, requests=[]):
-        """Update the child Agent target states.  The manager Process will
-        then try to maintain those states.  This function is used both
-        for first-time init of the manager Process, but also for
-        setting new target states while the manager Process is
-        running.
-
-        Arguments:
-          session: The operation session object (for logging).
-          requests (list): Default is [].  Each entry must be a tuple
-            of the form (instance_id, target_state).  The instance_id
-            must be a string that matches an item in the current
-            database, or be the string 'all', which will match all
-            items in the current database.  The target_state must be
-            'up' or 'down'.
-          reload_config (bool): Default is True.  If True, the site
-            config file and docker-compose files are reparsed in order
-            to (re-)populate the database of child Agent instances.
-
-        Examples:
-
-          ::
-
-            _process_target_states(session, requests=[('thermo1', 'down')])
-            _process_target_states(session, requests=[('all', 'up')])
-
-        Notes:
-          State update requests in the ``requests`` list are processed
-          in order.  For example, if the requests were [('all', 'up'),
-          ('data1', 'down')].  This would result in setting all known
-          children to have target_state "up", except for "data1" which
-          would be given target state of "down".
+        """This is a helper function for parsing target_state change
+        requests; see the update Task.
 
         """
         # Special requests will target specific instance_id; make a map for that.
-        addressable = {}
-        for k, v in self.database.items():
-            if v['management'] == 'retired':
-                continue
-            if k in addressable:
-                session.add_message('Internal state problem; multiple agents '
-                                    'with instance_id=%s' % k[1])
-                continue
-            addressable[k] = v
+        addressable = {k: v for k, v in self.database.items()
+                       if v['management'] != 'retired'}
 
         for key, state in requests:
             if state not in VALID_TARGETS:
@@ -461,19 +425,26 @@ class HostManager:
         from a client, the Process will launch or terminate child
         Agents.
 
+        Args:
+
+          requests (list): List of agent instance target state
+            requests; e.g. [('instance1', 'down')].  See description
+            in :meth:`update` Task.
+          reload_config (bool): When starting up, discard any cached
+            database of tracked agents and rescan the Site Config
+            File.  This is mostly for debugging.
+
         Notes:
 
           If an Agent process exits unexpectedly, it will be
           relaunched within a few seconds.
 
-          Prior to starting the management loop, this function
-          (re-)parses the site config and docker compose files (unless
-          ``reload_config`` is False).  It passes ``requests`` to the
-          ``_update_target_states`` function; please see that
-          docstring for formatting.
+          When this Process is started (or restarted), the list of
+          tracked agents and their status is completely reset, and the
+          Site Config File is read in.
 
           Once this process is running, the target states for managed
-          Agents can be manipulated through the ``update`` task.
+          Agents can be manipulated through the :meth:`update` task.
 
           Note that when a stop is requested on this Process, all
           managed Agents will be moved to the "down" state and an
@@ -498,13 +469,19 @@ class HostManager:
               {'next_action': 'up',
                'target_state': 'up',
                'stability': 1.0,
-               'agent_class': 'FakeDataAgent',
+               'agent_class': 'FakeDataAgent[d]',
                'instance_id': 'faker6'},
               ],
             }
 
           If you are looking for the "current state", it's called
           "next_action" here.
+
+          The agent_class may include a suffix [d] or [d?], indicating
+          that the agent is configured to run within a docker
+          container.  (The question mark indicates that the
+          HostManager cannot actually identify the docker-compose
+          service associated with the agent description in the SCF.)
 
         """
         self.config_parse_status = {}
@@ -589,14 +566,43 @@ class HostManager:
     def update(self, session, params):
         """update(requests=[], reload_config=False)
 
-        **Task** - Update the manager process' child Agent parameters.
+        **Task** - Update the target state for any subset of the
+        managed agent instances.  Optionally, trigger a full reload of
+        the Site Config File first.
 
-        This Task will fail if the manager Process is not running.
+        Args:
+          requests (list): Default is [].  Each entry must be a tuple
+            of the form ``(instance_id, target_state)``.  The
+            ``instance_id`` must be a string that matches an item in
+            the current list of tracked agent instances, or be the
+            string 'all', which will match all items being tracked.
+            The ``target_state`` must be 'up' or 'down'.
+          reload_config (bool): Default is True.  If True, the site
+            config file and docker-compose files are reparsed in order
+            to (re-)populate the database of child Agent instances.
 
-        If ``reload_config`` is True, the management agent
-        configuration will be reloaded by ``_reload_config``.  Then
-        the ``requests`` are passed to ``_process_target_states``.
-        See those docstrings for more info.
+        Examples:
+          ::
+
+            update(requests=[('thermo1', 'down')])
+            update(requests=[('all', 'up')])
+
+
+        Notes:
+          Starting and stopping agent instances is handled by the
+          :meth:`manager` Process; if that Process is not running then
+          no action is taken by this Task and it will exit with an
+          error.
+
+          The entries in the ``requests`` list are processed in order.
+          For example, if the requests were [('all', 'up'), ('data1',
+          'down')].  This would result in setting all known children
+          to have target_state "up", except for "data1" which would be
+          given target state of "down".
+
+          If ``reload_config`` is True, the Site Config File will be
+          reloaded (as described in :meth:`_reload_config`) before
+          any of the requests are processed.
 
         """
         if not self.running:
@@ -644,7 +650,7 @@ def make_parser(parser=None):
     pgroup = parser.add_argument_group('Agent Options')
     pgroup.add_argument('--initial-state', default=None,
                         choices=['up', 'down'],
-                        help="Sets the target state for managed agents, "
+                        help="Force a single target state for all agents, "
                         "on start-up.")
     pgroup.add_argument('--docker-compose', default=None,
                         help="Comma-separated list of docker-compose files "

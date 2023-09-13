@@ -98,8 +98,7 @@ block would become:
          'arguments': [['--serial-number', 'LSA22BB'],
                        ['--mode', 'acq']]},
         {'agent-class': 'HostManager',
-         'instance-id': 'hm-host-1',
-         'arguments': [['--initial-state', 'up']],
+         'instance-id': 'hm-host-1'},
         },
       ]
     }
@@ -205,9 +204,14 @@ in ocsbow or ocs-web, will show up as simply "[docker]".
 Advanced host config
 ~~~~~~~~~~~~~~~~~~~~
 
-In some cases you might want to temporarily exclude an agent from
-HostManager control.  You can do this by setting ``'manage':
-'no'``.
+The ``manage`` setting in the instance description can be used to
+fine-tune the treatment of each Agent instance by HostManager.  For
+example, to exclude an instance from HostManager tracking and control,
+specify ``'manage': 'ignore'``.  It is also possible to specify that
+certain instances should not be started automatically (for example
+``"host/down"`` or ``"docker/down"``).  For information on the
+available settings for "manage", see the description in
+:meth:`ocs.site_config.InstanceConfig.from_dict`.
 
 It is possible to mix host- and docker-based agents in a single host
 config block, and control them all with a single HostManager instance.
@@ -291,18 +295,28 @@ The agent in host-1-docker has the annotation [d] beside its class
 name, indicating this is an agent managed through a docker container.
 (The docker service name, in this example, would be ocs-LSARR00.)
 
+If an Agent has been configured with ``'manage': 'ignore'``, it will
+be marked with suffix ``[unman]`` and will have question marks in the
+state and target fields, e.g.::
+
+    [instance-id]        [agent-class]                     [state]   [target]
+    registry             RegistryAgent[unman]                    ?          ?
+
+If the SCF seen by ocsbow and the information in HostManager are not
+in agreement, then the agent-class will include two values, connected
+with a slash.  For example, if the local SCF expects the instance to
+be managed through docker, but the HostManager reports it running on
+the host, then the line might look like this::
+
+    [instance-id]        [agent-class]                             [state]   [target]
+    LSARR00              Lakeshore372Agent[d]/Lakeshore372Agent         up         up
+
 A managed docker container that has not been associated with a
-specific agent will show up with agent-class "[docker]" and an
-instance-id corresponding to the service name; for example::
+specific instance will show up with agent-class "?/[docker]" and an
+instance-id corresponding to the service name.  For example::
 
-    [instance-id]                  [agent-class]           [state]   [target]
-    influxdb                       [docker]                     up         up
-
-Note that if an Agent has been configured with ``'manage': 'no'``, it
-will show with question marks in the state and target fields, e.g.::
-
-    [instance-id]                  [agent-class]           [state]   [target]
-    registry                       RegistryAgent                 ?          ?
+    [instance-id]        [agent-class]                     [state]   [target]
+    influxdb             ?/[docker]                             up         up
 
 
 ``state`` and ``target``
@@ -312,7 +326,9 @@ The ``state`` column shows whether the Agent is currently running
 (``up``) or not (``down``).  This column may also show the value
 ``unstable``, which indicates that an Agent keeps restarting (this
 usually indicates a code, configuration, or hardware error that is
-causing the agent to crash shortly after start-up).
+causing the agent to crash shortly after start-up).  The value may
+also be ``?``, indicating that the agent is marked to be run through
+Docker, but no corresponding docker service has been identified.
 
 For the non-HostManager agents, the ``target`` column shows the state
 that HostManager will try to achieve for that Agent.  So if

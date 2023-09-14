@@ -70,6 +70,7 @@ class HostConfig:
         self.agent_paths = []
         self.log_dir = None
         self.working_dir = os.getcwd()
+        self.crossbar_timeout = None
 
     @classmethod
     def from_dict(cls, data, parent=None, name=None):
@@ -109,6 +110,7 @@ class HostConfig:
         self.agent_paths = data.get('agent-paths', [])
         self.crossbar = CrossbarConfig.from_dict(data.get('crossbar'))
         self.log_dir = data.get('log-dir', None)
+        self.crossbar_timeout = data.get('crossbar_timeout', 10)
         return self
 
 
@@ -389,7 +391,7 @@ def add_arguments(parser=None):
     group.add_argument('--registry-address', help="Deprecated.")
     group.add_argument('--log-dir', help="Set the logging directory.")
     group.add_argument('--working-dir', help="Propagate the working directory.")
-    group.add_argument('--crossbar-timeout', type=int, default=10, help="Length of time in seconds "
+    group.add_argument('--crossbar-timeout', type=int, help="Length of time in seconds "
                        "that the Agent will try to reconnect to the crossbar server before "
                        "shutting down. Note this is set per Agent in an instance's arguments list.")
     return parser
@@ -518,6 +520,8 @@ def add_site_attributes(args, site, host=None):
         args.address_root = site.hub.data['address_root']
     if (args.log_dir is None) and (host is not None):
         args.log_dir = host.log_dir
+    if (args.crossbar_timeout is None) and (host is not None):
+        args.crossbar_timeout = host.crossbar_timeout
 
 
 @deprecation.deprecated(deprecated_in='v0.6.0',

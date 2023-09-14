@@ -225,6 +225,7 @@ class OCSAgent(ApplicationSession):
 
         self.realm_joined = True
 
+    @inlineCallbacks
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
         if self.heartbeat_call is not None:
@@ -232,7 +233,7 @@ class OCSAgent(ApplicationSession):
 
         # Normal shutdown
         if details.reason == "wamp.close.normal":
-            self._stop_all_running_sessions()
+            yield self._stop_all_running_sessions()
 
         self.disconnect()
 
@@ -240,9 +241,10 @@ class OCSAgent(ApplicationSession):
         self.subscribed_topics = set()
         self.realm_joined = False
 
+    @inlineCallbacks
     def _shutdown(self):
         # Stop all sessions and then stop the reactor
-        self._stop_all_running_sessions()
+        yield self._stop_all_running_sessions()
         try:
             self.log.info('stopping reactor')
             reactor.stop()
@@ -258,9 +260,10 @@ class OCSAgent(ApplicationSession):
         timeout = self.site_args.crossbar_timeout
 
         # Define signal handlers to interrupt during wait for reconnection
+        @inlineCallbacks
         def signal_handler(sig, frame):
             self.log.info('caught {signal}!', signal=signal.Signals(sig).name)
-            self._shutdown()
+            yield self._shutdown()
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
@@ -295,7 +298,7 @@ class OCSAgent(ApplicationSession):
             yield dsleep(delay)
 
         # Shutdown after timeout expires
-        self._shutdown()
+        yield self._shutdown()
 
     """The methods below provide OCS framework support."""
 

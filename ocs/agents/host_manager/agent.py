@@ -345,7 +345,7 @@ class HostManager:
                     '--site-host', self.host_name,
                     '--working-dir', self.working_dir])
             elif instance.get('agent_exe') is not None:
-                cmd = [instance['agent_exe'], '--instance-id', self.address_root + '.' + iid,
+                cmd = [instance['agent_exe'], '--address', self.address_root + '.' + iid,
                        '--wamp-url', self.wamp_url, '--wamp-realm', self.wamp_realm]
                 if "agent_arguments" in instance:
                     cmd.extend(instance["agent_arguments"])

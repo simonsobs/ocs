@@ -270,11 +270,7 @@ class OCSAgent(ApplicationSession):
 
         # Wait forever
         if timeout == 0:
-            while True:
-                if self.realm_joined:
-                    return
-
-                yield dsleep(1)
+            return
 
         # compute_delay(attempts): Delay in seconds given number of attempts
         # Twisted has an exponential backoff interval that prevents flooding

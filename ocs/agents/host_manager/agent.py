@@ -349,7 +349,7 @@ class HostManager:
                        '--wamp-url', self.wamp_url, '--wamp-realm', self.wamp_realm]
                 if "agent_arguments" in instance:
                     cmd.extend(instance["agent_arguments"])
-            if instance['write_logs']:
+            if instance['write_logs'] and self.log_dir is not None:
                 log_file_path = self.log_dir + '/' + self.address_root + '.' + iid + ".log"
             else:
                 log_file_path = None

@@ -38,13 +38,35 @@ def test_host_manager_agent_manager(wait_for_crossbar, run_agent, client):
                 return v
         raise ValueError
 
-    target = 'fake-data-local'
+    # Check whether managed agents are getting to their requested
+    # initial state.  The expectations here are matched to manage:
+    # settings in default.yaml.  We check the "up" ones first, because
+    # once we've waited for those to come up we've probably waited
+    # long enough to ensure the 'down' ones aren't going to also come
+    # up unexpectedly.
 
-    state = find_child(resp, target)
-    assert (state['target_state'] == 'down')
-    assert (state['next_action'] == 'down')
+    timeout = time.time() + 10
+    for target, is_managed, init_state in [
+            ('registry', True, 'up'),
+            ('influxagent-local', True, 'up'),
+            ('fake-data-local', True, 'down'),
+            ('aggregator-local', False, None),
+    ]:
+        print(f'Waiting for {target} ...')
+        if is_managed:
+            while time.time() < timeout:
+                resp = client.manager.status()
+                state = find_child(resp, target)
+                if state['next_action'] == init_state:
+                    break
+                time.sleep(.5)
+            assert state['target_state'] == init_state
+        else:
+            with pytest.raises(ValueError):
+                state = find_child(resp, target)
 
     # Start it up
+    target = 'fake-data-local'
     resp = client.update(requests=[(target, 'up')])
     print(resp)
 

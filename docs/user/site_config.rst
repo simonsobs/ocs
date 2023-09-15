@@ -180,6 +180,50 @@ and Control Clients (see below).
     If you're proceeding in the same terminal don't forget to source your
     ``.bashrc`` file.
 
+Crossbar Connection Timeout
+---------------------------
+If an Agent loses connection to the crossbar server it will be unable to
+publish any values to its Feeds. By default, the Agent stays online for 10
+seconds, waiting to remake the connection to crossbar. If it fails to do so, it
+will stop all running processes and shutdown.
+
+There may be instances where you would like the Agent to continue running its
+Processes, even if the connection to crossbar is lost for some amount of time
+or indefinitely. For these cases there is the ``crossbar-timeout`` argument.
+This can be set at the Host level, at the individual Agent level, passed on the
+commandline, or set via an environment variable. Setting the timeout to 0
+disabled the timeout, allowing the Agent to run indefinitely without a crossbar
+connection.
+
+.. note::
+    A crossbar connection is still required for initial startup of the Agent.
+
+To set at the host level:
+
+.. code-block:: yaml
+
+  hosts:
+    host-1: {
+
+      # Set timeout to 20 seconds for all Agents on this host
+      'crossbar-timeout': 20,
+
+      'agent-instances': [
+        # crossbar timeout set to 30 seconds
+        {'agent-class': 'Lakeshore240Agent',
+         'instance-id': 'thermo1',
+         'arguments': [['--serial-number', 'LSA11AA'],
+                       ['--mode', 'idle'],
+                       ['--crossbar-timeout', 30]]},
+        # crossbar timeout disabled
+        {'agent-class': 'Lakeshore240Agent',
+         'instance-id': 'thermo2',
+         'arguments': [['--serial-number', 'LSA22BB'],
+                       ['--mode', 'acq'],
+                       ['--crossbar-timeout', 0]]},
+      ]
+    }
+
 Commandline Arguments
 =====================
 There are several built in commandline arguments that can be passed to Agents

@@ -248,7 +248,7 @@ class HostManager:
                     agent_exe=record.get("agent-exe"),
                     full_name=full_name,
                     agent_arguments=record.get("arguments"),
-                    write_logs=record.get("write-logs", False)
+                    write_logs=record.get("write-logs", True)
                 )
                 if record['mgmt'] == 'docker':
                     instance['agent_script'] = record['srv']

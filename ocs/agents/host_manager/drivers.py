@@ -17,6 +17,8 @@ class ManagedInstance(dict):
     - 'agent_class' (str): The agent class.  This will have special
       value 'docker' if the instance corresponds to a docker-compose
       service that has not been matched to a site_config entry.
+    - 'agent_exe' (str): The agent executable. This setting is mutually
+      exclusive with 'agent_class'.
     - 'instance_id' (str): The agent instance-id, or the docker
       service name if the instance is an unmatched docker-compose
       service.
@@ -214,7 +216,7 @@ def stability_factor(times, window=120):
 
 
 class AgentProcessHelper(protocol.ProcessProtocol):
-    def __init__(self, instance_id, cmd):
+    def __init__(self, instance_id, cmd, log_file=None):
         super().__init__()
         self.status = None, None
         self.killed = False
@@ -222,6 +224,7 @@ class AgentProcessHelper(protocol.ProcessProtocol):
         self.cmd = cmd
         self.lines = {'stderr': [],
                       'stdout': []}
+        self.log_file = open(log_file, "ab") if log_file is not None else None
 
     def up(self):
         reactor.spawnProcess(self, self.cmd[0], self.cmd[:], env=os.environ)
@@ -260,13 +263,19 @@ class AgentProcessHelper(protocol.ProcessProtocol):
     def processExited(self, status):
         # print('%s.status:' % self.instance_id, status)
         self.status = status, time.time()
+        if self.log_file is not None:
+            self.log_file.flush()
 
     def outReceived(self, data):
+        if self.log_file is not None:
+            self.log_file.write(data)
         self.lines['stdout'].extend(data.decode('utf8').split('\n'))
         if len(self.lines['stdout']) > 100:
             self.lines['stdout'] = self.lines['stdout'][-100:]
 
     def errReceived(self, data):
+        if self.log_file is not None:
+            self.log_file.write(data)
         self.lines['stderr'].extend(data.decode('utf8').split('\n'))
         if len(self.lines['stderr']) > 100:
             self.lines['stderr'] = self.lines['stderr'][-100:]

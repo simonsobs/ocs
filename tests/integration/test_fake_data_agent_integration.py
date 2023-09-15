@@ -11,10 +11,9 @@ from ocs.testing import (
 from integration.util import (
     create_crossbar_fixture,
 )
+from integration.util import docker_compose_file  # noqa: F401
 
 AGENT_PATH = '../ocs/agents/fake_data/agent.py'
-
-pytest_plugins = ("docker_compose")
 
 wait_for_crossbar = create_crossbar_fixture()
 run_agent = create_agent_runner_fixture(

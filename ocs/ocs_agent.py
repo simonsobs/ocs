@@ -157,6 +157,15 @@ class OCSAgent(ApplicationSession):
     """
 
     def onConnect(self):
+        # Define signal handlers
+        @inlineCallbacks
+        def signal_handler(sig, frame):
+            self.log.info('caught {signal}!', signal=signal.Signals(sig).name)
+            yield self._shutdown()
+
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
         self.log.info('transport connected')
         self.join(self.config.realm)
 
@@ -258,15 +267,6 @@ class OCSAgent(ApplicationSession):
 
         # Wait to see if we reconnect before stopping the reactor
         timeout = self.site_args.crossbar_timeout
-
-        # Define signal handlers to interrupt during wait for reconnection
-        @inlineCallbacks
-        def signal_handler(sig, frame):
-            self.log.info('caught {signal}!', signal=signal.Signals(sig).name)
-            yield self._shutdown()
-
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
 
         # Wait forever
         if timeout == 0:

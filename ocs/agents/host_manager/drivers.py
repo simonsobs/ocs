@@ -234,8 +234,6 @@ class AgentProcessHelper(protocol.ProcessProtocol):
         # race condition, but it could be worse.
         if self.status[0] is None:
             reactor.callFromThread(self.transport.signalProcess, 'INT')
-        if self.log_file is not None:
-            self.log_file.flush()
 
     # See https://twistedmatrix.com/documents/current/core/howto/process.html
     #
@@ -265,6 +263,8 @@ class AgentProcessHelper(protocol.ProcessProtocol):
     def processExited(self, status):
         # print('%s.status:' % self.instance_id, status)
         self.status = status, time.time()
+        if self.log_file is not None:
+            self.log_file.flush()
 
     def outReceived(self, data):
         if self.log_file is not None:

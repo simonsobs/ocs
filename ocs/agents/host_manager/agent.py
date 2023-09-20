@@ -577,7 +577,7 @@ class HostManager:
             the current list of tracked agent instances, or be the
             string 'all', which will match all items being tracked.
             The ``target_state`` must be 'up' or 'down'.
-          reload_config (bool): Default is True.  If True, the site
+          reload_config (bool): Default is False.  If True, the site
             config file and docker-compose files are reparsed in order
             to (re-)populate the database of child Agent instances.
 
@@ -586,6 +586,7 @@ class HostManager:
 
             update(requests=[('thermo1', 'down')])
             update(requests=[('all', 'up')])
+            update(reload_config=True)
 
 
         Notes:
@@ -603,6 +604,11 @@ class HostManager:
           If ``reload_config`` is True, the Site Config File will be
           reloaded (as described in :meth:`_reload_config`) before
           any of the requests are processed.
+
+          Managed docker-compose.yaml files are reparsed, continously,
+          by the manager process -- no specific action is taken with
+          those in this Task.  Note that adding/changing the list of
+          docker-compose.yaml files requires restarting the agent.
 
         """
         if not self.running:

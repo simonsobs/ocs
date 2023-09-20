@@ -47,9 +47,11 @@ class SiteConfig:
 
         """
         self = cls()
-        for k, v in data.get('hosts', {}).items():
-            assert (k not in self.hosts)  # duplicate host name in config file!
-            self.hosts[k] = HostConfig.from_dict(v, parent=self, name=k)
+        hosts = data.get('hosts')
+        if hosts:
+            for k, v in hosts.items():
+                assert (k not in self.hosts)  # duplicate host name in config file!
+                self.hosts[k] = HostConfig.from_dict(v, parent=self, name=k)
         self.hub = HubConfig.from_dict(data['hub'], parent=self)
         return self
 
@@ -201,6 +203,29 @@ class HubConfig:
 
 
 class InstanceConfig:
+
+    _MANAGE_MAP = {
+        # Fundamental states
+        'host/up': 'host/up',
+        'host/down': 'host/down',
+        'docker/up': 'docker/up',
+        'docker/down': 'docker/down',
+        'ignore': 'ignore',
+
+        # Aliases for deprecated yes / no.
+        'yes': 'host/up',
+        'no': 'ignore',
+
+        # Non-deprecated aliases.
+        'docker': 'docker/up',
+        'host': 'host/up',
+        'up': 'host/up',
+        'down': 'host/down',
+
+        # Default.
+        None: 'host/up',
+    }
+
     def __init__(self):
         self.arguments = []
 
@@ -234,9 +259,43 @@ class InstanceConfig:
             to ['--key1', 'value', '--key2', 'value'].
 
         ``manage`` (str, optional):
-            A string to help HostManager decide how to manage this
-            agent.  Value should be one of ["yes", "no", "docker"]
-            (default is "yes").
+            A string describing how a HostManager should manage this
+            agent.  See notes.
+
+        Notes:
+
+            The ``manage`` value is only relevant if a HostManager is
+            configured to operate on the host.  In that case, the
+            HostManager's treatment of the agent instance depends on
+            the value of ``manage``:
+
+            - "ignore": HostManager will not attempt to manage the
+              agent instance.
+            - "host/up": HostManager will manage the agent instance,
+              launching it on the host system.  On startup, the
+              instance will be set to target_state "up" (i.e. the
+              HostManager will try to start it).
+            - "host/down": like host/up, but HostManager will not
+              start up the agent instance until explicitly requested
+              to do.
+            - "docker/up": HostManager will manage the agent instance
+              through Docker.  On Startup, the instance will be set to
+              target_state "up".
+            - "docker/down": Like docker/up, but the instance will be
+              forced to target_state "down" on startup.
+
+            In earlier versions of OCS, the acceptable values were
+            "yes", "no", and "docker".  Those were equivalent to
+            current values of "host/down", "ignore", and "docker/down".
+
+            Those values are still accepted, but note that "yes" and
+            "docker" are now equivalent to "host/up" and "docker/up".
+
+            The following abbreviated values are also accepted:
+
+            - "host": same as "host/up"
+            - "up": same as "host/up"
+            - "down": same as "host/down"
 
         """
         self = cls()
@@ -244,8 +303,7 @@ class InstanceConfig:
         self.data = data
         self.arguments = self.data.get('arguments', [])
         self.manage = self.data.get('manage')
-        if self.manage is None:
-            self.manage = "yes"
+        self.manage = self._MANAGE_MAP.get(self.manage, self.manage)
         return self
 
 

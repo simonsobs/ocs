@@ -67,8 +67,7 @@ structure.
         #       on the host
         'agent-instances': [
           {'agent-class': 'HostManager',
-           'instance-id': 'hm-1',
-           'arguments': ['--initial-state', 'up']},
+           'instance-id': 'hm-1'},
         ]
       }
 

@@ -14,16 +14,20 @@ class ManagedInstance(dict):
     Properties that must be set explicitly by user:
 
     - 'management' (str): Either 'host', 'docker', or 'retired'.
-    - 'agent_class' (str): The agent class.  This will have special
-      value 'docker' if the instance corresponds to a docker-compose
-      service that has not been matched to a site_config entry.
+    - 'agent_class' (str): The agent class name, which may include a
+      suffix ([d] or [d?]) if the agent is managed through Docker.
+      For instances corresponding to docker services that do not have
+      a corresponding SCF entry, the value here will be '[docker]'.
     - 'instance_id' (str): The agent instance-id, or the docker
       service name if the instance is an unmatched docker-compose
       service.
-    - 'full_name' (str): instance_id:agent_class
+    - 'full_name' (str): agent_class:instance_id
 
     Properties that are given a default value by init function:
 
+    - 'operable' (bool): indicates whether the instance can be
+      manipulated (whether calls to up/down should be expected to
+      work).
     - 'agent_script' (str): Path to the launcher script (if host
       system managed).  If docker-managed, this is the service name.
     - 'prot': The twisted ProcessProtocol object (if host system
@@ -46,6 +50,7 @@ class ManagedInstance(dict):
         # Note some core things are not included.
         self = cls({
             'agent_script': None,
+            'operable': False,
             'prot': None,
             'next_action': 'down',
             'target_state': 'down',
@@ -85,11 +90,17 @@ def resolve_child_state(db):
     # State machine.
     prot = db['prot']
 
+    # If the entry is not "operable", send next_action to '?' and
+    # don't try to do anything else.
+
+    if not db['operable']:
+        db['next_action'] = '?'
+
     # The uninterruptible transition state(s) are most easily handled
     # in the same way regardless of target state.
 
     # Transitional: wait_start, which bridges from start -> up.
-    if db['next_action'] == 'wait_start':
+    elif db['next_action'] == 'wait_start':
         if prot is not None:
             messages.append('Launched {full_name}'.format(**db))
             db['next_action'] = 'up'
@@ -126,13 +137,15 @@ def resolve_child_state(db):
         elif db['next_action'] == 'start':
             messages.append(
                 'Requested launch for {full_name}'.format(**db))
-            db['prot'] = None
             actions['launch'] = True
             db['next_action'] = 'wait_start'
             now = time.time()
             db['at'] = now + 1.
         elif db['next_action'] == 'up':
-            stat, t = prot.status
+            if prot is None:
+                stat, t = 0, None
+            else:
+                stat, t = prot.status
             if stat is not None:
                 messages.append('Detected exit of {full_name} '
                                 'with code {stat}.'.format(stat=stat, **db))
@@ -281,12 +294,10 @@ def _run_docker_compose(args, docker_compose_bin=None):
 
 
 class DockerContainerHelper:
-
     """Class for managing the docker container associated with some
     service.  Provides some of the same interface as
-    AgentProcessHelper in HostManager agent.  Pass in a service
-    description dict (such as the ones returned by
-    parse_docker_state).
+    AgentProcessHelper.  Pass in a service description dict (such as
+    the ones returned by parse_docker_state).
 
     """
 
@@ -309,6 +320,7 @@ class DockerContainerHelper:
             self.status = None, time.time()
         else:
             self.status = service['exit_code'], time.time()
+            self.killed = False
 
     def up(self):
         self.d = _run_docker_compose(
@@ -375,33 +387,50 @@ def parse_docker_state(docker_compose_file, docker_compose_bin=None):
 
     # Run docker inspect.
     for cont_id in cont_ids:
-        out, err, code = yield utils.getProcessOutputAndValue(
-            'docker', ['inspect', cont_id], env=os.environ)
-        if code != 0 and 'No such object' in err.decode('utf8'):
-            # This is likely due to a race condition where some
-            # container was brought down since we ran docker-compose.
-            # Just drop the entry.
-            print(f'(no such object: {cont_id}')
+        try:
+            info = yield _inspectContainer(cont_id, docker_compose_file)
+        except RuntimeError as e:
+            print(f'Warning, failed to inspect container {cont_id}; {e}.')
             continue
-        elif code != 0:
-            raise RuntimeError(
-                f'Trouble running "docker inspect %s".\n'
-                f'stdout: {out}\n  stderr {err}')
-        # Reconcile config against docker-compose ...
-        info = yaml.safe_load(out)[0]
-        config = info['Config']['Labels']
-        _dc_file = os.path.join(config['com.docker.compose.project.working_dir'],
-                                config['com.docker.compose.project.config_files'])
-        if not os.path.samefile(docker_compose_file, _dc_file):
-            raise RuntimeError("Consistency problem: container started from "
-                               "some other compose file?\n%s\n%s" % (docker_compose_file, _dc_file))
-        service = config['com.docker.compose.service']
+        if info is None:
+            continue
+
+        service = info.pop('service')
         if service not in summary:
             raise RuntimeError("Consistency problem: image does not self-report "
                                "as a listed service? (%s)" % (service))
-        summary[service].update({
-            'running': info['State']['Running'],
-            'exit_code': info['State'].get('ExitCode', 127),
-            'container_found': True,
-        })
+        summary[service].update(info)
+
     return summary
+
+
+@inlineCallbacks
+def _inspectContainer(cont_id, docker_compose_file):
+    """Run docker inspect on cont_id, return dict with the results."""
+    out, err, code = yield utils.getProcessOutputAndValue(
+        'docker', ['inspect', cont_id], env=os.environ)
+    if code != 0 and 'No such object' in err.decode('utf8'):
+        # This is likely due to a race condition where some
+        # container was brought down since we ran docker-compose.
+        # Return None to indicate this -- caller should just ignore for now.
+        print(f'(_inspectContainer: warning, no such object: {cont_id}')
+        return None
+    elif code != 0:
+        raise RuntimeError(
+            f'Trouble running "docker inspect {cont_id}".\n'
+            f'stdout: {out}\n  stderr {err}')
+    # Reconcile config against docker-compose ...
+    info = yaml.safe_load(out)[0]
+    config = info['Config']['Labels']
+    _dc_file = os.path.join(config['com.docker.compose.project.working_dir'],
+                            config['com.docker.compose.project.config_files'])
+    if not os.path.samefile(docker_compose_file, _dc_file):
+        raise RuntimeError("Consistency problem: container started from "
+                           "some other compose file?\n%s\n%s" % (docker_compose_file, _dc_file))
+    service = config['com.docker.compose.service']
+    return {
+        'service': service,
+        'running': info['State']['Running'],
+        'exit_code': info['State'].get('ExitCode', 127),
+        'container_found': True,
+    }

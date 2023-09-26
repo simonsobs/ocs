@@ -11,7 +11,7 @@ from urllib.error import URLError
 from ocs.ocs_client import OCSClient
 
 
-SIGINT_TIMEOUT = 5
+SIGINT_TIMEOUT = 10
 
 
 def create_agent_runner_fixture(agent_path, agent_name, args=None):

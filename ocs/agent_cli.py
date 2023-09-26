@@ -24,7 +24,8 @@ To start an Agent, run::
 ``ocs-agent-cli`` will also inspect environment variables for commonly passed
 arguments to facilitate configuration within Docker containers. Supported
 arguments include, ``--instance-id`` as ``INSTANCE_ID``, ``--site-hub`` as
-``SITE_HUB``, and ``--site-http`` as ``SITE_HTTP``.
+``SITE_HUB``, ``--site-http`` as ``SITE_HTTP``, and ``--crossbar-timeout`` as
+``CROSSBAR_TIMEOUT``.
 
 ``ocs-agent-cli`` relies on the Agent being run belonging to an OCS Plugin. If
 the Agent is not an OCS Plugin it can be run directly using both the
@@ -44,6 +45,10 @@ def _get_parser():
     parser.add_argument('--instance-id', default=None, help="Agent unique instance-id. E.g. 'aggregator' or 'fakedata-1'.")
     parser.add_argument('--site-hub', default=None, help="Site hub address.")
     parser.add_argument('--site-http', default=None, help="Site HTTP address.")
+    # Default set in site_config.py within add_arguments()
+    parser.add_argument('--crossbar-timeout', type=int, help="Length of time in seconds "
+                        "that the Agent will try to reconnect to the crossbar server before "
+                        "shutting down. Disable the timeout by setting to 0.")
 
     # Not passed through to Agent
     parser.add_argument('--agent', default=None, help="Path to non-plugin OCS Agent.")
@@ -133,14 +138,15 @@ def main(args=None):
     # Format is {"arg name within argparse": "ENVIRONMENT VARIABLE NAME"}
     # E.g. --my-new-arg should be {"my_new_arg": "MY_NEW_ARG"}
     optional_env = {"site_hub": "SITE_HUB",
-                    "site_http": "SITE_HTTP"}
+                    "site_http": "SITE_HTTP",
+                    "crossbar_timeout": "CROSSBAR_TIMEOUT"}
 
     for _name, _var in optional_env.items():
         # Args passed on cli take priority
         _arg = vars(pre_args)[_name]
         _flag = f"--{_name}".replace('_', '-')
         if _arg is not None:
-            post_args.extend([_flag, _arg])
+            post_args.extend([_flag, str(_arg)])
             continue
 
         # Get from ENV if not passed w/flag

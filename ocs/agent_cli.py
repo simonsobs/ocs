@@ -48,7 +48,7 @@ def _get_parser():
     # Default set in site_config.py within add_arguments()
     parser.add_argument('--crossbar-timeout', type=int, help="Length of time in seconds "
                         "that the Agent will try to reconnect to the crossbar server before "
-                        "shutting down.")
+                        "shutting down. Disable the timeout by setting to 0.")
 
     # Not passed through to Agent
     parser.add_argument('--agent', default=None, help="Path to non-plugin OCS Agent.")

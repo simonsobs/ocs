@@ -32,6 +32,7 @@ arguments are:
   - ``SITE_HOST``, for ``--site-host``
   - ``SITE_HUB``, for ``--site-hub``
   - ``SITE_HTTP``, for ``--site-http``
+  - ``CROSSBAR_TIMEOUT``, for ``--crossbar-timeout``
 
 
 ``ocs-agent-cli`` relies on the Agent being run belonging to an OCS Plugin. If
@@ -53,6 +54,10 @@ def _get_parser():
     parser.add_argument('--site-hub', default=None, help="Site hub address.")
     parser.add_argument('--site-http', default=None, help="Site HTTP address.")
     parser.add_argument('--site-host', default=None, help="Declare the host the instance is configured in.")
+    # Default set in site_config.py within add_arguments()
+    parser.add_argument('--crossbar-timeout', type=int, help="Length of time in seconds "
+                        "that the Agent will try to reconnect to the crossbar server before "
+                        "shutting down. Disable the timeout by setting to 0.")
 
     # Not passed through to Agent
     parser.add_argument('--agent', default=None, help="Path to non-plugin OCS Agent.")
@@ -144,6 +149,7 @@ def main(args=None):
     optional_env = {"site_hub": "SITE_HUB",
                     "site_http": "SITE_HTTP",
                     "site_host": "SITE_HOST",
+                    "crossbar_timeout": "CROSSBAR_TIMEOUT",
                     }
 
     for _name, _var in optional_env.items():
@@ -151,7 +157,7 @@ def main(args=None):
         _arg = vars(pre_args)[_name]
         _flag = f"--{_name}".replace('_', '-')
         if _arg is not None:
-            post_args.extend([_flag, _arg])
+            post_args.extend([_flag, str(_arg)])
             continue
 
         # Get from ENV if not passed w/flag

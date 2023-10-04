@@ -3,6 +3,7 @@ import ocs
 import txaio
 txaio.use_twisted()
 
+from twisted.application.internet import backoffPolicy
 from twisted.internet import reactor, task, threads
 from twisted.internet.defer import inlineCallbacks, Deferred, DeferredList, FirstError, maybeDeferred
 from twisted.internet.error import ReactorNotRunning
@@ -21,6 +22,7 @@ import json
 import math
 import time
 import datetime
+import signal
 import socket
 import os
 from ocs import client_t
@@ -135,6 +137,7 @@ class OCSAgent(ApplicationSession):
     @inlineCallbacks
     def _stop_all_running_sessions(self):
         """Stops all currently running sessions."""
+        self.log.info('Stopping all running sessions')
         for session in self.sessions:
             if self.sessions[session] is not None:
                 self.log.info("Stopping session {sess}", sess=session)
@@ -154,6 +157,15 @@ class OCSAgent(ApplicationSession):
     """
 
     def onConnect(self):
+        # Define signal handlers
+        @inlineCallbacks
+        def signal_handler(sig, frame):
+            self.log.info('caught {signal}!', signal=signal.Signals(sig).name)
+            yield self._shutdown()
+
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
         self.log.info('transport connected')
         self.join(self.config.realm)
 
@@ -222,6 +234,7 @@ class OCSAgent(ApplicationSession):
 
         self.realm_joined = True
 
+    @inlineCallbacks
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
         if self.heartbeat_call is not None:
@@ -229,7 +242,7 @@ class OCSAgent(ApplicationSession):
 
         # Normal shutdown
         if details.reason == "wamp.close.normal":
-            self._stop_all_running_sessions()
+            yield self._stop_all_running_sessions()
 
         self.disconnect()
 
@@ -238,29 +251,50 @@ class OCSAgent(ApplicationSession):
         self.realm_joined = False
 
     @inlineCallbacks
-    def onDisconnect(self):
-        self.log.info('transport disconnected')
-
-        # Wait to see if we reconnect before stopping the reactor
-        timeout = 10
-        disconnected_at = time.time()
-        while time.time() - disconnected_at < timeout:
-            # successful reconnection
-            if self.realm_joined:
-                self.log.info('realm rejoined')
-                return
-
-            time_left = timeout - (time.time() - disconnected_at)
-            self.log.info('waiting for reconnect for {} more seconds'.format(time_left))
-            yield dsleep(1)
-
-        # shutdown after timeout expires
-        self._stop_all_running_sessions()
+    def _shutdown(self):
+        # Stop all sessions and then stop the reactor
+        yield self._stop_all_running_sessions()
         try:
             self.log.info('stopping reactor')
             reactor.stop()
         except ReactorNotRunning:
             pass
+
+    @inlineCallbacks
+    def onDisconnect(self):
+        self.log.info('transport disconnected')
+        self.log.info('waiting for reconnection')
+
+        # Wait to see if we reconnect before stopping the reactor
+        timeout = self.site_args.crossbar_timeout
+
+        # Wait forever
+        if timeout == 0:
+            return
+
+        # compute_delay(attempts): Delay in seconds given number of attempts
+        # Twisted has an exponential backoff interval that prevents flooding
+        # reconnect attempts. We follow that roughly for checking the Agent has
+        # reconnected to crossbar up to a 30 second delay.
+        compute_delay = backoffPolicy(maxDelay=30.0)
+
+        # Disconnect after timeout
+        disconnected_at = time.time()
+        attempt = 0
+        while time.time() - disconnected_at < timeout:
+            attempt += 1  # twisted also starts at 1 attempt
+
+            # successful reconnection
+            if self.realm_joined:
+                return
+
+            time_left = timeout - (time.time() - disconnected_at)
+            self.log.info('waiting at least {} more seconds before giving up'.format(time_left))
+            delay = compute_delay(attempt)
+            yield dsleep(delay)
+
+        # Shutdown after timeout expires
+        yield self._shutdown()
 
     """The methods below provide OCS framework support."""
 

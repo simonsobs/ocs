@@ -104,6 +104,10 @@ Environment variables used to configure the Agent are listed in the following ta
    * - ``INSTANCE_ID``
      - ``--instance-id``
      - Agent instance-id, e.g. ``aggregator``
+   * - ``SITE_HOST``
+     - ``--site-host``
+     - Hostname to use when looking up the instance configuration in
+       the Site Config File, e.g. ``host1``.
    * - ``SITE_HUB``
      - ``--site-hub``
      - WAMP server address, e.g. ``ws://10.10.10.10:8001/ws``

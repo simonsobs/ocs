@@ -21,11 +21,19 @@ To start an Agent, run::
 
   ocs-agent-cli --instance-id INSTANCE_ID
 
-``ocs-agent-cli`` will also inspect environment variables for commonly passed
-arguments to facilitate configuration within Docker containers. Supported
-arguments include, ``--instance-id`` as ``INSTANCE_ID``, ``--site-hub`` as
-``SITE_HUB``, ``--site-http`` as ``SITE_HTTP``, and ``--crossbar-timeout`` as
-``CROSSBAR_TIMEOUT``.
+``ocs-agent-cli`` will also inspect environment variables for commonly
+passed arguments to facilitate configuration within Docker containers.
+Those environment variables, if defined and non-trivial, will be
+passed to the agent script unless they are overridden explicitly on
+the ``ocs-agent-cli`` command line.  The environment variables and
+arguments are:
+
+  - ``INSTANCE_ID``, will be the default value for ``--instance-id``
+  - ``SITE_HOST``, for ``--site-host``
+  - ``SITE_HUB``, for ``--site-hub``
+  - ``SITE_HTTP``, for ``--site-http``
+  - ``CROSSBAR_TIMEOUT``, for ``--crossbar-timeout``
+
 
 ``ocs-agent-cli`` relies on the Agent being run belonging to an OCS Plugin. If
 the Agent is not an OCS Plugin it can be run directly using both the
@@ -45,6 +53,7 @@ def _get_parser():
     parser.add_argument('--instance-id', default=None, help="Agent unique instance-id. E.g. 'aggregator' or 'fakedata-1'.")
     parser.add_argument('--site-hub', default=None, help="Site hub address.")
     parser.add_argument('--site-http', default=None, help="Site HTTP address.")
+    parser.add_argument('--site-host', default=None, help="Declare the host the instance is configured in.")
     # Default set in site_config.py within add_arguments()
     parser.add_argument('--crossbar-timeout', type=int, help="Length of time in seconds "
                         "that the Agent will try to reconnect to the crossbar server before "
@@ -139,7 +148,9 @@ def main(args=None):
     # E.g. --my-new-arg should be {"my_new_arg": "MY_NEW_ARG"}
     optional_env = {"site_hub": "SITE_HUB",
                     "site_http": "SITE_HTTP",
-                    "crossbar_timeout": "CROSSBAR_TIMEOUT"}
+                    "site_host": "SITE_HOST",
+                    "crossbar_timeout": "CROSSBAR_TIMEOUT",
+                    }
 
     for _name, _var in optional_env.items():
         # Args passed on cli take priority

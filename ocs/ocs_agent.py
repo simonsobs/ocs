@@ -214,18 +214,17 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0)  # Calls the hearbeat every second
 
+        # Subscribe to startup_subs
+        def _subscribe_fail(*args, **kwargs):
+            self.log.error('Failed to subscribe to a feed or feed pattern; possible configuration problem.')
+            self.log.error(str(args) + str(kwargs))
+            self.leave()
+
+        for sub in self.startup_subs:
+            maybeDeferred(self.subscribe, **sub).addErrback(_subscribe_fail)
+
         # Now do the startup activities, only the first time we join
         if self.first_time_startup:
-            # Subscribe to startup_subs
-            def _subscribe_fail(*args, **kwargs):
-                self.log.error('Failed to subscribe to a feed or feed pattern; possible configuration problem.')
-                self.log.error(str(args) + str(kwargs))
-                self.leave()
-
-            for sub in self.startup_subs:
-                maybeDeferred(self.subscribe, **sub).addErrback(_subscribe_fail)
-
-            # Launch startup ops
             for op_type, op_name, op_params in self.startup_ops:
                 self.log.info('startup-op: launching %s' % op_name)
                 if op_params is True:

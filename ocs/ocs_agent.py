@@ -108,6 +108,7 @@ class OCSAgent(ApplicationSession):
         self.startup_ops = []  # list of (op_type, op_name, op_params)
         self.startup_subs = []  # list of dicts with params for subscribe call
         self.subscribed_topics = set()
+        self.subscriptions = []  # autobahn.wamp.request.Subscription objects
         self.realm_joined = False
         self.first_time_startup = True
 
@@ -172,6 +173,12 @@ class OCSAgent(ApplicationSession):
     def onChallenge(self, challenge):
         self.log.info('authentication challenge received')
 
+    def _store_subscription(self, subscription, *args, **kwargs):
+        print('STORING SUBSCRIPTIONS')
+        print(subscription)
+        print(*args)
+        print(*kwargs)
+
     @inlineCallbacks
     def onJoin(self, details):
         self.log.info('session joined: {x}', x=details)
@@ -221,7 +228,8 @@ class OCSAgent(ApplicationSession):
             self.leave()
 
         for sub in self.startup_subs:
-            maybeDeferred(self.subscribe, **sub).addErrback(_subscribe_fail)
+            d = maybeDeferred(self.subscribe, **sub).addErrback(_subscribe_fail)
+            d.addCallback(self._store_subscription)
 
         # Now do the startup activities, only the first time we join
         if self.first_time_startup:
@@ -615,8 +623,9 @@ class OCSAgent(ApplicationSession):
             if options is not None:
                 options = SubscribeOptions(**options)
             self.subscribed_topics.add(topic)
-            return super().subscribe(handler, topic=topic,
-                                     options=options)
+            sub = super().subscribe(handler, topic=topic,
+                                    options=options)
+            return sub
         else:
             self.log.warn("Topic {} is already subscribed.".format(topic))
             return False

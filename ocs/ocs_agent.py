@@ -174,10 +174,20 @@ class OCSAgent(ApplicationSession):
         self.log.info('authentication challenge received')
 
     def _store_subscription(self, subscription, *args, **kwargs):
+        # print('UNSUBBING FROM OLD SUBSCRIPTIONS')
+        # for sub in self.subscriptions:
+        #    sub.unsubscribe()
+
         print('STORING SUBSCRIPTIONS')
+        self.subscriptions.append(subscription)
         print(subscription)
         print(*args)
         print(*kwargs)
+        print('Printing all subscriptions')
+        for sub in self.subscriptions:
+            print(sub)
+        print(self.subscriptions)
+        print(self.subscribed_topics)
 
     @inlineCallbacks
     def onJoin(self, details):

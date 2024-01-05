@@ -109,6 +109,7 @@ class OCSAgent(ApplicationSession):
         self.startup_subs = []  # list of dicts with params for subscribe call
         self.subscribed_topics = set()
         self.subscriptions = []  # autobahn.wamp.request.Subscription objects
+        self.details = None
         self.realm_joined = False
         self.first_time_startup = True
 
@@ -231,15 +232,26 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0)  # Calls the hearbeat every second
 
-        # Subscribe to startup_subs
-        def _subscribe_fail(*args, **kwargs):
-            self.log.error('Failed to subscribe to a feed or feed pattern; possible configuration problem.')
-            self.log.error(str(args) + str(kwargs))
-            self.leave()
+        # check details to see if crossbar is the same one, i.e. just network interruption
+        print('DETAILS', details)
+        print('DETAILS TYPE', type(details))
+        print('DETAILS DIR', dir(details))
+        # import pdb; pdb.set_trace()
+        same_crossbar = False
+        if self.details:
+            print('details check', details.authextra.get('x_cb_node') == self.details.authextra.get('x_cb_node'))
+            same_crossbar = details.authextra.get('x_cb_node') == self.details.authextra.get('x_cb_node')
 
-        for sub in self.startup_subs:
-            d = maybeDeferred(self.subscribe, **sub).addErrback(_subscribe_fail)
-            d.addCallback(self._store_subscription)
+        if not same_crossbar:
+            # Subscribe to startup_subs
+            def _subscribe_fail(*args, **kwargs):
+                self.log.error('Failed to subscribe to a feed or feed pattern; possible configuration problem.')
+                self.log.error(str(args) + str(kwargs))
+                self.leave()
+
+            for sub in self.startup_subs:
+                d = maybeDeferred(self.subscribe, **sub).addErrback(_subscribe_fail)
+                d.addCallback(self._store_subscription)
 
         # Now do the startup activities, only the first time we join
         if self.first_time_startup:
@@ -250,7 +262,16 @@ class OCSAgent(ApplicationSession):
                 self.start(op_name, op_params)
             self.first_time_startup = False
 
+        print('Printing all subscriptions')
+        for sub in self.subscriptions:
+            print(sub)
+
         self.realm_joined = True
+
+        # cache crossbar session details
+        self.details = details
+
+        print('end of onJoin')
 
     @inlineCallbacks
     def onLeave(self, details):

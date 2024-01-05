@@ -181,8 +181,6 @@ class OCSAgent(ApplicationSession):
         print('STORING SUBSCRIPTIONS')
         self.subscriptions.append(subscription)
         print(subscription)
-        print(*args)
-        print(*kwargs)
         print('Printing all subscriptions')
         for sub in self.subscriptions:
             print(sub)
@@ -231,6 +229,24 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0)  # Calls the hearbeat every second
 
+        # Remove old subscriptions
+        print('UNSUBBING FROM OLD SUBSCRIPTIONS')
+        subs_to_remove = []
+        for sub in self.subscriptions:
+            print(f'before unsub of {sub}')
+            try:
+                sub.unsubscribe()
+            except Exception as e:
+                print(f"Subscription {sub} no longer active, removing.")
+                print(e)
+                subs_to_remove.append(sub)
+            print('after unsub')
+
+        # for sub in subs_to_remove:
+        #    self.subscriptions.remove(sub)
+        self.subscriptions = []
+        self.subscribed_topics = set()
+
         # Subscribe to startup_subs
         def _subscribe_fail(*args, **kwargs):
             self.log.error('Failed to subscribe to a feed or feed pattern; possible configuration problem.')
@@ -238,7 +254,8 @@ class OCSAgent(ApplicationSession):
             self.leave()
 
         for sub in self.startup_subs:
-            d = maybeDeferred(self.subscribe, **sub).addErrback(_subscribe_fail)
+            d = maybeDeferred(self.subscribe, **sub)
+            d.addErrback(_subscribe_fail)
             d.addCallback(self._store_subscription)
 
         # Now do the startup activities, only the first time we join

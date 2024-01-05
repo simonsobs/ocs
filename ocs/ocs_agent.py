@@ -176,11 +176,17 @@ class OCSAgent(ApplicationSession):
     def _store_subscription(self, subscription, *args, **kwargs):
         self.subscriptions.append(subscription)
 
+    def _unsub_error(self, *args, **kwargs):
+        # This just swallows an wamp.error.no_such_subscription exception
+        # It is always generated when unsubscribing from stale subscriptions
+        pass
+
     def _unsubscribe_all(self):
         for sub in self.subscriptions:
             self.log.debug('Unsubscribing {sub}', sub=sub)
             try:
-                sub.unsubscribe()
+                d = sub.unsubscribe()
+                d.addErrback(self._unsub_error)
             except Exception as e:
                 self.log.error('Error encountered when unsubscribing {sub}:', sub=sub)
                 self.log.error('{error}', error=e)

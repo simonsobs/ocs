@@ -174,18 +174,19 @@ class OCSAgent(ApplicationSession):
         self.log.info('authentication challenge received')
 
     def _store_subscription(self, subscription, *args, **kwargs):
-        # print('UNSUBBING FROM OLD SUBSCRIPTIONS')
-        # for sub in self.subscriptions:
-        #    sub.unsubscribe()
-
-        print('STORING SUBSCRIPTIONS')
         self.subscriptions.append(subscription)
-        print(subscription)
-        print('Printing all subscriptions')
+
+    def _unsubscribe_all(self):
         for sub in self.subscriptions:
-            print(sub)
-        print(self.subscriptions)
-        print(self.subscribed_topics)
+            self.log.debug('Unsubscribing {sub}', sub=sub)
+            try:
+                sub.unsubscribe()
+            except Exception as e:
+                self.log.error('Error encountered when unsubscribing {sub}:', sub=sub)
+                self.log.error('{error}', error=e)
+
+        self.subscriptions = []
+        self.subscribed_topics = set()
 
     @inlineCallbacks
     def onJoin(self, details):
@@ -230,22 +231,7 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call.start(1.0)  # Calls the hearbeat every second
 
         # Remove old subscriptions
-        print('UNSUBBING FROM OLD SUBSCRIPTIONS')
-        subs_to_remove = []
-        for sub in self.subscriptions:
-            print(f'before unsub of {sub}')
-            try:
-                sub.unsubscribe()
-            except Exception as e:
-                print(f"Subscription {sub} no longer active, removing.")
-                print(e)
-                subs_to_remove.append(sub)
-            print('after unsub')
-
-        # for sub in subs_to_remove:
-        #    self.subscriptions.remove(sub)
-        self.subscriptions = []
-        self.subscribed_topics = set()
+        self._unsubscribe_all()
 
         # Subscribe to startup_subs
         def _subscribe_fail(*args, **kwargs):
@@ -255,8 +241,8 @@ class OCSAgent(ApplicationSession):
 
         for sub in self.startup_subs:
             d = maybeDeferred(self.subscribe, **sub)
-            d.addErrback(_subscribe_fail)
             d.addCallback(self._store_subscription)
+            d.addErrback(_subscribe_fail)
 
         # Now do the startup activities, only the first time we join
         if self.first_time_startup:
@@ -650,9 +636,8 @@ class OCSAgent(ApplicationSession):
             if options is not None:
                 options = SubscribeOptions(**options)
             self.subscribed_topics.add(topic)
-            sub = super().subscribe(handler, topic=topic,
-                                    options=options)
-            return sub
+            return super().subscribe(handler, topic=topic,
+                                     options=options)
         else:
             self.log.warn("Topic {} is already subscribed.".format(topic))
             return False

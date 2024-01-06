@@ -108,6 +108,7 @@ class OCSAgent(ApplicationSession):
         self.startup_ops = []  # list of (op_type, op_name, op_params)
         self.startup_subs = []  # list of dicts with params for subscribe call
         self.subscribed_topics = set()
+        self.subscriptions = []  # autobahn.wamp.request.Subscription objects
         self.realm_joined = False
         self.first_time_startup = True
 
@@ -172,6 +173,27 @@ class OCSAgent(ApplicationSession):
     def onChallenge(self, challenge):
         self.log.info('authentication challenge received')
 
+    def _store_subscription(self, subscription, *args, **kwargs):
+        self.subscriptions.append(subscription)
+
+    def _unsub_error(self, *args, **kwargs):
+        # This just swallows an wamp.error.no_such_subscription exception
+        # It is always generated when unsubscribing from stale subscriptions
+        pass
+
+    def _unsubscribe_all(self):
+        for sub in self.subscriptions:
+            self.log.debug('Unsubscribing {sub}', sub=sub)
+            try:
+                d = sub.unsubscribe()
+                d.addErrback(self._unsub_error)
+            except Exception as e:
+                self.log.error('Error encountered when unsubscribing {sub}:', sub=sub)
+                self.log.error('{error}', error=e)
+
+        self.subscriptions = []
+        self.subscribed_topics = set()
+
     @inlineCallbacks
     def onJoin(self, details):
         self.log.info('session joined: {x}', x=details)
@@ -214,6 +236,9 @@ class OCSAgent(ApplicationSession):
         self.heartbeat_call = task.LoopingCall(heartbeat)
         self.heartbeat_call.start(1.0)  # Calls the hearbeat every second
 
+        # Remove old subscriptions
+        self._unsubscribe_all()
+
         # Subscribe to startup_subs
         def _subscribe_fail(*args, **kwargs):
             self.log.error('Failed to subscribe to a feed or feed pattern; possible configuration problem.')
@@ -221,7 +246,9 @@ class OCSAgent(ApplicationSession):
             self.leave()
 
         for sub in self.startup_subs:
-            maybeDeferred(self.subscribe, **sub).addErrback(_subscribe_fail)
+            d = maybeDeferred(self.subscribe, **sub)
+            d.addCallback(self._store_subscription)
+            d.addErrback(_subscribe_fail)
 
         # Now do the startup activities, only the first time we join
         if self.first_time_startup:

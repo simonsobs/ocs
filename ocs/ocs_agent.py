@@ -1067,7 +1067,7 @@ class OpSession:
 
     """
 
-    def __init__(self, session_id, op_name, status='starting', log_status=True,
+    def __init__(self, session_id, op_name, status='starting',
                  app=None, purge_policy=None):
         # Note that some data members are used internally, while others are
         # communicated over WAMP to Agent control clients.
@@ -1083,7 +1083,7 @@ class OpSession:
         self.status = None
 
         # This has to be the last call since it depends on init...
-        self.set_status(status, log_status=log_status, timestamp=self.start_time)
+        self.set_status(status, timestamp=self.start_time)
 
         # Set up the log message purge.
         self.purge_policy = {
@@ -1228,14 +1228,12 @@ class OpSession:
         else:
             return OpCode.FAILED
 
-    def set_status(self, status, timestamp=None, log_status=True):
+    def set_status(self, status, timestamp=None):
         """Update the OpSession status and possibly post a message about it.
 
         Args:
             status (string): New value for status (see below).
             timestamp (float): timestamp for the operation.
-            log_status (bool): Determines whether change is logged in
-                message buffer.
 
         The possible values for status are:
 
@@ -1268,24 +1266,24 @@ class OpSession:
         if not in_reactor_context():
             return threads.blockingCallFromThread(reactor,
                                                   self.set_status, status,
-                                                  timestamp=timestamp,
-                                                  log_status=log_status)
+                                                  timestamp=timestamp)
         # Sanity check the status value.
         from_index = SESSION_STATUS_CODES.index(self.status)  # current status valid?
         to_index = SESSION_STATUS_CODES.index(status)        # new status valid?
         assert (to_index >= from_index)  # Only forward moves in status are permitted.
 
-        log_status = log_status and (to_index > from_index)
+        if to_index == from_index:
+            return
 
         self.status = status
         if status == 'done':
             self.end_time = timestamp
-        if log_status:
-            try:
-                self.add_message('Status is now "%s".' % status, timestamp=timestamp)
-            except (TransportLost, Disconnected):
-                self.app.log.error('setting session status to "{s}" failed. '
-                                   + 'transport lost or disconnected', s=status)
+
+        try:
+            self.add_message('Status is now "%s".' % status, timestamp=timestamp)
+        except (TransportLost, Disconnected):
+            self.app.log.error('setting session status to "{s}" failed. '
+                               + 'transport lost or disconnected', s=status)
 
     def add_message(self, message, timestamp=None):
         """Add a log message to the OpSession messages buffer.

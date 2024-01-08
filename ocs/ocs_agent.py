@@ -432,13 +432,6 @@ class OCSAgent(ApplicationSession):
         if q == 'get_agent_class':
             return self.class_name
 
-    def publish_status(self, message, session):
-        try:
-            self.publish(self.agent_address + '.feed', session.encoded())
-        except TransportLost:
-            self.log.error('Unable to publish status. TransportLost. '
-                           + 'crossbar server likely unreachable.')
-
     def register_task(self, name, func, aborter=None, blocking=True,
                       aborter_blocking=None, startup=False):
         """Register a Task for this agent.
@@ -683,8 +676,7 @@ class OCSAgent(ApplicationSession):
     def _handle_task_return_val(self, *args, **kw):
         try:
             (ok, message), session = args
-            # Add message to queue but don't publish -- set_status will publish.
-            session.add_message(message, publish_now=False)
+            session.add_message(message)
             session.success = ok
             session.set_status('done')
         except BaseException:
@@ -699,7 +691,7 @@ class OCSAgent(ApplicationSession):
                 message = 'ERROR: {}'.format(ex.getErrorMessage())
             else:
                 message = 'CRASH: %s' % str(ex)
-            session.add_message(message, publish_now=False)
+            session.add_message(message)
             session.success = False
             session.set_status('done')
         except BaseException:
@@ -1278,7 +1270,7 @@ class OpSession:
                 self.app.log.error('setting session status to "{s}" failed. '
                                    + 'transport lost or disconnected', s=status)
 
-    def add_message(self, message, timestamp=None, publish_now=True):
+    def add_message(self, message, timestamp=None):
         """Add a log message to the OpSession messages buffer.
 
         Args:
@@ -1286,9 +1278,6 @@ class OpSession:
             timestamp (float): timestamp to tag the message.  The
                 default, which is None, will cause the timestamp to be
                 computed here and should be used in most cases.
-            publish_now (bool): if True, publish_status is called to
-                alert any listeners of the new log message.
-                Otherwise, it isn't.
 
         """
         if timestamp is None:
@@ -1297,8 +1286,6 @@ class OpSession:
             return reactor.callFromThread(self.add_message, message,
                                           timestamp=timestamp)
         self.messages.append((timestamp, message))
-        if publish_now:
-            self.app.publish_status('Message', self)
         # Make the app log this message, too.  The op_name and
         # session_id are an important provenance prefix.
         self.app.log.info('%s:%i %s' % (self.op_name, self.session_id, message))

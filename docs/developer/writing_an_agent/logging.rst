@@ -96,8 +96,6 @@ Our Agent in full now looks like this:
                      "timestamp":1600448753.9288929}
 
             """
-            session.set_status('running')
-
             # Initialize the counter
             self._count=True
             counter = 0
@@ -139,9 +137,6 @@ Our Agent in full now looks like this:
                      'last_updated': 1660249321.8729222}
 
             """
-            # Set operations status to 'running'
-            session.set_status('running')
-
             # Log the text provided to the Agent logs
             self.log.info(f"{params['text']}")
 

@@ -26,9 +26,6 @@ here:
                  'last_updated': 1660249321.8729222}
 
         """
-        # Set operations status to 'running'
-        session.set_status('running')
-
         # Print the text provided
         print(f"{params['text']}")
 
@@ -181,9 +178,6 @@ Our full Agent so far should look like this:
                      'last_updated': 1660249321.8729222}
 
             """
-            # Set operations status to 'running'
-            session.set_status('running')
-
             # Print the text provided
             print(f"{params['text']}")
 

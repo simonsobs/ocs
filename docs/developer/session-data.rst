@@ -56,7 +56,6 @@ Fake Data Agent as an example, specifically at its primary Process,
         """
         ok, msg = self.try_set_job('acq')
         if not ok: return ok, msg
-        session.set_status('running')
 
         if params is None:
             params = {}

@@ -128,8 +128,6 @@ Our Agent in full now looks like this:
                           f"is held by {self.lock.job}")
                     return False
 
-                session.set_status('running')
-
                 # Initialize last release time for lock
                 last_release = time.time()
 
@@ -196,9 +194,6 @@ Our Agent in full now looks like this:
                     self.log.warn("Lock could not be acquired because it " +
                                   f"is held by {self.lock.job}")
                     return False
-
-                # Set operations status to 'running'
-                session.set_status('running')
 
                 # Log the text provided to the Agent logs
                 self.log.info(f"{params['text']}")

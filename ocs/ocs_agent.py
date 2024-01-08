@@ -683,8 +683,9 @@ class OCSAgent(ApplicationSession):
     def _handle_task_return_val(self, *args, **kw):
         try:
             (ok, message), session = args
+            # Add message to queue but don't publish -- set_status will publish.
+            session.add_message(message, publish_now=False)
             session.success = ok
-            session.add_message(message)
             session.set_status('done')
         except BaseException:
             print('Failed to decode _handle_task_return_val args:',
@@ -698,7 +699,7 @@ class OCSAgent(ApplicationSession):
                 message = 'ERROR: {}'.format(ex.getErrorMessage())
             else:
                 message = 'CRASH: %s' % str(ex)
-            session.add_message(message)
+            session.add_message(message, publish_now=False)
             session.success = False
             session.set_status('done')
         except BaseException:
@@ -1277,7 +1278,7 @@ class OpSession:
                 self.app.log.error('setting session status to "{s}" failed. '
                                    + 'transport lost or disconnected', s=status)
 
-    def add_message(self, message, timestamp=None):
+    def add_message(self, message, timestamp=None, publish_now=True):
         """Add a log message to the OpSession messages buffer.
 
         Args:
@@ -1285,6 +1286,9 @@ class OpSession:
             timestamp (float): timestamp to tag the message.  The
                 default, which is None, will cause the timestamp to be
                 computed here and should be used in most cases.
+            publish_now (bool): if True, publish_status is called to
+                alert any listeners of the new log message.
+                Otherwise, it isn't.
 
         """
         if timestamp is None:
@@ -1293,7 +1297,8 @@ class OpSession:
             return reactor.callFromThread(self.add_message, message,
                                           timestamp=timestamp)
         self.messages.append((timestamp, message))
-        self.app.publish_status('Message', self)
+        if publish_now:
+            self.app.publish_status('Message', self)
         # Make the app log this message, too.  The op_name and
         # session_id are an important provenance prefix.
         self.app.log.info('%s:%i %s' % (self.op_name, self.session_id, message))

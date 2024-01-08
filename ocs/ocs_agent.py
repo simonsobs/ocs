@@ -1249,13 +1249,19 @@ class OpSession:
         The only valid transitions are forward in the sequence
         [starting, running, stopping, done]; i.e. it is forbidden for
         the status of an OpSession to move from stopping to running.
+
+        If this function is called from a worker thread, it will be
+        scheduled to run in the reactor, and will block until that is
+        complete.
+
         """
         if timestamp is None:
             timestamp = time.time()
         if not in_reactor_context():
-            return reactor.callFromThread(self.set_status, status,
-                                          timestamp=timestamp,
-                                          log_status=log_status)
+            return threads.blockingCallFromThread(reactor,
+                                                  self.set_status, status,
+                                                  timestamp=timestamp,
+                                                  log_status=log_status)
         # Sanity check the status value.
         from_index = SESSION_STATUS_CODES.index(self.status)  # current status valid?
         to_index = SESSION_STATUS_CODES.index(status)        # new status valid?

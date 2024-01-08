@@ -51,14 +51,18 @@ class FakeDataAgent:
     # Process functions.
 
     @ocs_agent.param('test_mode', default=False, type=bool)
+    @ocs_agent.param('degradation_period', default=None, type=float)
     def acq(self, session, params):
-        """acq(test_mode=False)
+        """acq(test_mode=False, degradation_period=None)
 
         **Process** - Acquire data and write to the feed.
 
         Parameters:
             test_mode (bool, optional): Run the acq Process loop only once.
                 This is meant only for testing. Default is False.
+            degradation_period (float, optional): If set, then
+              alternately mark self as degraded / not degraded with
+              this period (in seconds).
 
         Notes:
             The most recent fake values are stored in the session data object in
@@ -88,6 +92,12 @@ class FakeDataAgent:
         reporting_interval = 1.
         next_report = next_timestamp + reporting_interval
 
+        is_degraded = False
+        next_deg_flip = None
+        if params['degradation_period'] is not None:
+            next_deg_flip = 0
+        session.data['degraded'] = is_degraded
+
         self.log.info("Starting acquisition")
 
         while True:
@@ -100,6 +110,12 @@ class FakeDataAgent:
                     return 10
 
             now = time.time()
+
+            if next_deg_flip is not None and now > next_deg_flip:
+                is_degraded = not is_degraded
+                next_deg_flip = now + params['degradation_period']
+                session.data['degraded'] = is_degraded
+
             delay_time = next_report - now
             if delay_time > 0:
                 time.sleep(min(delay_time, 1.))

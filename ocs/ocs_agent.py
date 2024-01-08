@@ -759,16 +759,11 @@ class OCSAgent(ApplicationSession):
             self.next_session_id += 1
             self.sessions[op_name] = session
 
-            # Launch differently depending on whether op intends to
-            # block or not.
-            if op.blocking:
-                # Launch, soon, in a blockable worker thread.
-                session.d = threads.deferToThread(op.launcher, session, params)
-            else:
-                # Launch, soon, in the main reactor thread.
-                session.d = task.deferLater(reactor, 0, op.launcher, session, params)
+            # Schedule op to run (in worker thread or reactor)
+            session.d = op.launch_deferred(session, params)
             session.d.addCallback(self._handle_task_return_val, session)
             session.d.addErrback(self._handle_task_error, session)
+
             return (ocs.OK, msg, session.encoded())
 
         else:
@@ -976,7 +971,27 @@ class OCSAgent(ApplicationSession):
             return (ocs.ERROR, 'No task or process called "%s"' % op_name, {})
 
 
-class AgentTask:
+class AgentOp:
+    def launch_deferred(self, session, params):
+        """Launch the operation using the launcher function, either in
+        a worker thread (self.blocking) or in the reactor (not
+        self.blocking).  Return a Deferred.  Prior to executing the
+        operation code, set session state to "running".
+
+        """
+        def _running_wrapper(session, params):
+            session.set_status('running')
+            return self.launcher(session, params)
+
+        if self.blocking:
+            # Launch, soon, in a blockable worker thread.
+            return threads.deferToThread(_running_wrapper, session, params)
+        else:
+            # Launch, soon, in the main reactor thread.
+            return task.deferLater(reactor, 0, _running_wrapper, session, params)
+
+
+class AgentTask(AgentOp):
     def __init__(self, launcher, blocking=None, aborter=None,
                  aborter_blocking=None):
         self.launcher = launcher
@@ -997,7 +1012,7 @@ class AgentTask:
         }
 
 
-class AgentProcess:
+class AgentProcess(AgentOp):
     def __init__(self, launcher, stopper, blocking=None, stopper_blocking=None):
         self.launcher = launcher
         self.stopper = stopper
@@ -1259,6 +1274,8 @@ class OpSession:
         from_index = SESSION_STATUS_CODES.index(self.status)  # current status valid?
         to_index = SESSION_STATUS_CODES.index(status)        # new status valid?
         assert (to_index >= from_index)  # Only forward moves in status are permitted.
+
+        log_status = log_status and (to_index > from_index)
 
         self.status = status
         if status == 'done':

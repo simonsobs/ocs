@@ -1220,9 +1220,14 @@ class OpSession:
         """
         if self.status is None:
             return OpCode.NONE
-        elif self.status in ['starting', 'running', 'stopping']:
+        elif self.status in ['starting', 'stopping']:
             return {'starting': OpCode.STARTING, 'running': OpCode.RUNNING,
                     'stopping': OpCode.STOPPING}[self.status]
+        elif self.status == 'running':
+            if self.data.get('degraded', False):
+                return OpCode.DEGRADED
+            else:
+                return OpCode.RUNNING
         elif self.success:
             return OpCode.SUCCEEDED
         else:

@@ -80,7 +80,6 @@ class FakeDataAgent:
         ok, msg = self.try_set_job('acq')
         if not ok:
             return ok, msg
-        session.set_status('running')
 
         T = [.100 for c in self.channel_names]
         block = ocs_feed.Block('temps', self.channel_names)
@@ -170,7 +169,6 @@ class FakeDataAgent:
         # This process runs entirely in the reactor, as does its stop function.
         session.data = {'counter': 0,
                         'last_update': time.time()}
-        session.set_status('running')
         while session.status == 'running':
             yield dsleep(1)
             session.data['last_update'] = time.time()
@@ -233,7 +231,6 @@ class FakeDataAgent:
 
         session.data = {'requested_delay': delay,
                         'delay_so_far': 0}
-        session.set_status('running')
         t0 = time.time()
         while session.status == 'running':
             session.data['delay_so_far'] = time.time() - t0

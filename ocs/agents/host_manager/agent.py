@@ -491,7 +491,6 @@ class HostManager:
         }
 
         self.running = True
-        session.set_status('running')
 
         if params['reload_config']:
             self.database = {}
@@ -613,7 +612,6 @@ class HostManager:
         """
         if not self.running:
             return False, 'Manager process is not running; params not updated.'
-        session.set_status('running')
         if params['reload_config']:
             yield self._reload_config(session)
         self._process_target_states(session, params['requests'])
@@ -621,7 +619,6 @@ class HostManager:
 
     @inlineCallbacks
     def die(self, session, params):
-        session.set_status('running')
         if not self.running:
             session.add_message('Manager process is not running.')
         else:

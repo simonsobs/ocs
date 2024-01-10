@@ -1074,6 +1074,7 @@ class OpSession:
 
         self.messages = []  # entries are time-ordered (timestamp, text).
         self.data = {}      # Operation-specific data structures.
+        self.degraded = False
         self.session_id = session_id
         self.op_name = op_name
         self.start_time = time.time()
@@ -1125,11 +1126,15 @@ class OpSession:
         op_name : str
           The OCS Operation name.
         op_code : int
-          The OpCode, which combines information from status and
-          success; see :class:`ocs.base.OpCode`.
+          The OpCode, which combines information from status, success,
+          and degraded; see :class:`ocs.base.OpCode`.
         status : str
           The Operation run status (e.g. 'starting', 'done', ...).
           See :data:`ocs.ocs_agent.SESSION_STATUS_CODES`.
+        degraded: bool
+          A boolean flag (defaults to False) that an operation may set
+          to indicate that it is not achieving its primary function
+          (e.g. if it cannot establish connection to hardware).
         success : bool or None
           If the Operation Session has completed (`status == 'done'`),
           this indicates that the Operation was deemed successful.
@@ -1206,6 +1211,7 @@ class OpSession:
                 'op_name': self.op_name,
                 'op_code': self.op_code.value,
                 'status': self.status,
+                'degraded': self.degraded,
                 'success': self.success,
                 'start_time': self.start_time,
                 'end_time': self.end_time,
@@ -1220,14 +1226,15 @@ class OpSession:
         """
         if self.status is None:
             return OpCode.NONE
-        elif self.status in ['starting', 'stopping']:
-            return {'starting': OpCode.STARTING, 'running': OpCode.RUNNING,
-                    'stopping': OpCode.STOPPING}[self.status]
+        elif self.status == 'starting':
+            return OpCode.STARTING
         elif self.status == 'running':
-            if self.data.get('degraded', False):
+            if self.degraded:
                 return OpCode.DEGRADED
             else:
                 return OpCode.RUNNING
+        elif self.status == 'stopping':
+            return OpCode.STOPPING
         elif self.success:
             return OpCode.SUCCEEDED
         else:

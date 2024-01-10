@@ -92,11 +92,9 @@ class FakeDataAgent:
         reporting_interval = 1.
         next_report = next_timestamp + reporting_interval
 
-        is_degraded = False
         next_deg_flip = None
         if params['degradation_period'] is not None:
             next_deg_flip = 0
-        session.data['degraded'] = is_degraded
 
         self.log.info("Starting acquisition")
 
@@ -112,9 +110,8 @@ class FakeDataAgent:
             now = time.time()
 
             if next_deg_flip is not None and now > next_deg_flip:
-                is_degraded = not is_degraded
+                session.degraded = not session.degraded
                 next_deg_flip = now + params['degradation_period']
-                session.data['degraded'] = is_degraded
 
             delay_time = next_report - now
             if delay_time > 0:

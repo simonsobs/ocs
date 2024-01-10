@@ -44,9 +44,8 @@ class OpCode(Enum):
     - If the session.status == "done" then the op_code will be
       assigned a value of either SUCCEEDED or FAILED based on
       session.success.
-    - If the session.status == "running", and the session.data
-      contains a key "degraded" that evaluate to True, then the
-      op_code will be DEGRADED rather than RUNNING.
+    - If the session.status == "running", and session.degraded is
+      True, then the op_code will be DEGRADED rather than RUNNING.
 
     """
 

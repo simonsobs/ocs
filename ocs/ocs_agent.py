@@ -432,13 +432,6 @@ class OCSAgent(ApplicationSession):
         if q == 'get_agent_class':
             return self.class_name
 
-    def publish_status(self, message, session):
-        try:
-            self.publish(self.agent_address + '.feed', session.encoded())
-        except TransportLost:
-            self.log.error('Unable to publish status. TransportLost. '
-                           + 'crossbar server likely unreachable.')
-
     def register_task(self, name, func, aborter=None, blocking=True,
                       aborter_blocking=None, startup=False):
         """Register a Task for this agent.
@@ -683,8 +676,8 @@ class OCSAgent(ApplicationSession):
     def _handle_task_return_val(self, *args, **kw):
         try:
             (ok, message), session = args
-            session.success = ok
             session.add_message(message)
+            session.success = ok
             session.set_status('done')
         except BaseException:
             print('Failed to decode _handle_task_return_val args:',
@@ -766,16 +759,11 @@ class OCSAgent(ApplicationSession):
             self.next_session_id += 1
             self.sessions[op_name] = session
 
-            # Launch differently depending on whether op intends to
-            # block or not.
-            if op.blocking:
-                # Launch, soon, in a blockable worker thread.
-                session.d = threads.deferToThread(op.launcher, session, params)
-            else:
-                # Launch, soon, in the main reactor thread.
-                session.d = task.deferLater(reactor, 0, op.launcher, session, params)
+            # Schedule op to run (in worker thread or reactor)
+            session.d = op.launch_deferred(session, params)
             session.d.addCallback(self._handle_task_return_val, session)
             session.d.addErrback(self._handle_task_error, session)
+
             return (ocs.OK, msg, session.encoded())
 
         else:
@@ -983,7 +971,27 @@ class OCSAgent(ApplicationSession):
             return (ocs.ERROR, 'No task or process called "%s"' % op_name, {})
 
 
-class AgentTask:
+class AgentOp:
+    def launch_deferred(self, session, params):
+        """Launch the operation using the launcher function, either in
+        a worker thread (self.blocking) or in the reactor (not
+        self.blocking).  Return a Deferred.  Prior to executing the
+        operation code, set session state to "running".
+
+        """
+        def _running_wrapper(session, params):
+            session.set_status('running')
+            return self.launcher(session, params)
+
+        if self.blocking:
+            # Launch, soon, in a blockable worker thread.
+            return threads.deferToThread(_running_wrapper, session, params)
+        else:
+            # Launch, soon, in the main reactor thread.
+            return task.deferLater(reactor, 0, _running_wrapper, session, params)
+
+
+class AgentTask(AgentOp):
     def __init__(self, launcher, blocking=None, aborter=None,
                  aborter_blocking=None):
         self.launcher = launcher
@@ -1004,7 +1012,7 @@ class AgentTask:
         }
 
 
-class AgentProcess:
+class AgentProcess(AgentOp):
     def __init__(self, launcher, stopper, blocking=None, stopper_blocking=None):
         self.launcher = launcher
         self.stopper = stopper
@@ -1059,13 +1067,14 @@ class OpSession:
 
     """
 
-    def __init__(self, session_id, op_name, status='starting', log_status=True,
+    def __init__(self, session_id, op_name, status='starting',
                  app=None, purge_policy=None):
         # Note that some data members are used internally, while others are
         # communicated over WAMP to Agent control clients.
 
         self.messages = []  # entries are time-ordered (timestamp, text).
         self.data = {}      # Operation-specific data structures.
+        self.degraded = False
         self.session_id = session_id
         self.op_name = op_name
         self.start_time = time.time()
@@ -1075,7 +1084,7 @@ class OpSession:
         self.status = None
 
         # This has to be the last call since it depends on init...
-        self.set_status(status, log_status=log_status, timestamp=self.start_time)
+        self.set_status(status, timestamp=self.start_time)
 
         # Set up the log message purge.
         self.purge_policy = {
@@ -1117,11 +1126,15 @@ class OpSession:
         op_name : str
           The OCS Operation name.
         op_code : int
-          The OpCode, which combines information from status and
-          success; see :class:`ocs.base.OpCode`.
+          The OpCode, which combines information from status, success,
+          and degraded; see :class:`ocs.base.OpCode`.
         status : str
           The Operation run status (e.g. 'starting', 'done', ...).
           See :data:`ocs.ocs_agent.SESSION_STATUS_CODES`.
+        degraded: bool
+          A boolean flag (defaults to False) that an operation may set
+          to indicate that it is not achieving its primary function
+          (e.g. if it cannot establish connection to hardware).
         success : bool or None
           If the Operation Session has completed (`status == 'done'`),
           this indicates that the Operation was deemed successful.
@@ -1198,6 +1211,7 @@ class OpSession:
                 'op_name': self.op_name,
                 'op_code': self.op_code.value,
                 'status': self.status,
+                'degraded': self.degraded,
                 'success': self.success,
                 'start_time': self.start_time,
                 'end_time': self.end_time,
@@ -1212,22 +1226,26 @@ class OpSession:
         """
         if self.status is None:
             return OpCode.NONE
-        elif self.status in ['starting', 'running', 'stopping']:
-            return {'starting': OpCode.STARTING, 'running': OpCode.RUNNING,
-                    'stopping': OpCode.STOPPING}[self.status]
+        elif self.status == 'starting':
+            return OpCode.STARTING
+        elif self.status == 'running':
+            if self.degraded:
+                return OpCode.DEGRADED
+            else:
+                return OpCode.RUNNING
+        elif self.status == 'stopping':
+            return OpCode.STOPPING
         elif self.success:
             return OpCode.SUCCEEDED
         else:
             return OpCode.FAILED
 
-    def set_status(self, status, timestamp=None, log_status=True):
+    def set_status(self, status, timestamp=None):
         """Update the OpSession status and possibly post a message about it.
 
         Args:
             status (string): New value for status (see below).
             timestamp (float): timestamp for the operation.
-            log_status (bool): Determines whether change is logged in
-                message buffer.
 
         The possible values for status are:
 
@@ -1249,27 +1267,35 @@ class OpSession:
         The only valid transitions are forward in the sequence
         [starting, running, stopping, done]; i.e. it is forbidden for
         the status of an OpSession to move from stopping to running.
+
+        If this function is called from a worker thread, it will be
+        scheduled to run in the reactor, and will block until that is
+        complete.
+
         """
         if timestamp is None:
             timestamp = time.time()
         if not in_reactor_context():
-            return reactor.callFromThread(self.set_status, status,
-                                          timestamp=timestamp,
-                                          log_status=log_status)
+            return threads.blockingCallFromThread(reactor,
+                                                  self.set_status, status,
+                                                  timestamp=timestamp)
         # Sanity check the status value.
         from_index = SESSION_STATUS_CODES.index(self.status)  # current status valid?
         to_index = SESSION_STATUS_CODES.index(status)        # new status valid?
         assert (to_index >= from_index)  # Only forward moves in status are permitted.
 
+        if to_index == from_index:
+            return
+
         self.status = status
         if status == 'done':
             self.end_time = timestamp
-        if log_status:
-            try:
-                self.add_message('Status is now "%s".' % status, timestamp=timestamp)
-            except (TransportLost, Disconnected):
-                self.app.log.error('setting session status to "{s}" failed. '
-                                   + 'transport lost or disconnected', s=status)
+
+        try:
+            self.add_message('Status is now "%s".' % status, timestamp=timestamp)
+        except (TransportLost, Disconnected):
+            self.app.log.error('setting session status to "{s}" failed. '
+                               + 'transport lost or disconnected', s=status)
 
     def add_message(self, message, timestamp=None):
         """Add a log message to the OpSession messages buffer.
@@ -1287,7 +1313,6 @@ class OpSession:
             return reactor.callFromThread(self.add_message, message,
                                           timestamp=timestamp)
         self.messages.append((timestamp, message))
-        self.app.publish_status('Message', self)
         # Make the app log this message, too.  The op_name and
         # session_id are an important provenance prefix.
         self.app.log.info('%s:%i %s' % (self.op_name, self.session_id, message))

@@ -19,7 +19,8 @@ def test_fake_data_set_heartbeat(agent):
 
 def test_fake_data_acq(agent):
     session = create_session('acq')
-    params = {'test_mode': True}
+    params = {'test_mode': True,
+              'degradation_period': None}
     res = agent.acq(session, params=params)
     assert res[0] is True
 

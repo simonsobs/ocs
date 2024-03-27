@@ -337,8 +337,17 @@ class ArgContainer:
 
         cur_key = '__positional__'
         self.arg_dict[cur_key] = []
+
+        def is_new_arg(arg):
+            if arg[0] != '-':
+                return False
+            # Check that first character after '-' is not a digit
+            if not arg.strip('-')[0].isalpha():
+                return False
+            return True
+
         for arg in args:
-            if arg[0] == '-':
+            if is_new_arg(arg):
                 cur_key = arg
                 self.arg_dict[cur_key] = []
             else:

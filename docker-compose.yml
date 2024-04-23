@@ -15,12 +15,3 @@ services:
     build: ./docker/crossbar/
     depends_on:
       - "ocs"
-
-  # --------------------------------------------------------------------------
-  # The ocs utility docker
-  # --------------------------------------------------------------------------
-  ocs-util:
-    image: "ocs-util"
-    build: ./docker/ocs-util/
-    depends_on:
-      - "ocs"

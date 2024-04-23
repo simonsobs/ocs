@@ -24,7 +24,6 @@ write OCS Agents or Clients.
     user/logging
     user/ocs_web
     user/cli_tools
-    user/ocs_util
 
 
 .. toctree::

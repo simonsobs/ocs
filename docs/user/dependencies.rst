@@ -29,7 +29,7 @@ Other Dependencies
 * `crossbar.io`_ - An implementation of a WAMP router.
 * Docker_ - Containerization software used for deploying several SO written
   packages.
-* `Docker Compose`_ - CLI tool for running multi-container Docker
+* `Docker Compose`_ - Docker plugin for running multi-container Docker
   applications.
 
 Crossbar may be installed via pip if it will be used without Docker; if it

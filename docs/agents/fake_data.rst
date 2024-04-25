@@ -36,7 +36,7 @@ Docker Compose
 ``````````````
 
 The Fake Data Agent can also be run in a Docker container. An example
-docker-compose service configuration is shown here::
+docker compose service configuration is shown here::
 
     fake-data1:
         image: simonsobs/ocs:latest

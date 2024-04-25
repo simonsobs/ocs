@@ -33,7 +33,7 @@ fully configured, the system provides the following functionality:
     processes so that it can monitor their states more easily.  For
     Agents running in docker containers, HostManager takes charge of
     the implicated containers and there will be conflicts if users
-    also try to use ``docker-compose`` to restart containers.
+    also try to use ``docker compose`` to restart containers.
 
 The main components of this system are:
 
@@ -134,7 +134,7 @@ Config for docker pseudo-hosts
 
 Considering the Example Config from :ref:`ocs_site_config_file`, the
 host ``host-1-docker`` describes agents that are launched in
-containers using ``docker-compose``.  For HostManager to best manage
+containers using ``docker compose``.  For HostManager to best manage
 these agents, a HostManager should be described in this same host
 config block.  The HostManager won't run in a docker container -- it
 will run on the host system.  In this case the HostManager should have
@@ -179,7 +179,7 @@ of the host-1 block.)
 .. note::
 
    The HostManager process must be running as a user with sufficient
-   privileges to run ``docker`` and ``docker-compose``.  Usually that
+   privileges to run ``docker`` and ``docker compose``.  Usually that
    means that the user must be root, or must be in the "docker" user
    group.  The recommendation is that you add the :ref:`OCS user
    <create_ocs_user>` to the docker group (see
@@ -336,7 +336,7 @@ that HostManager will try to achieve for that Agent.  So if
 restarting the Agent if it crashes or otherwise terminates.  If
 ``target=down`` then the HostManager will stop the Agent and not
 restart it.  (Note that in the case of Agents in docker containers,
-the HostManager will use docker and docker-compose to monitor the
+the HostManager will use docker and docker compose to monitor the
 state of containers, and request start or stop in order to match the
 target state.)
 

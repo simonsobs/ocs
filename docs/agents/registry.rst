@@ -35,7 +35,7 @@ An example site-config-file block::
 Docker Compose
 ``````````````
 
-An example docker-compose configuration::
+An example docker compose configuration::
 
     ocs-registry:
         image: simonsobs/ocs:latest

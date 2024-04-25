@@ -158,9 +158,9 @@ Running
 -------
 
 Now that the system is configured, we can start it with a single
-``docker-compose`` command::
+``docker compose`` command::
 
-    $ sudo -E docker-compose up -d
+    $ sudo -E docker compose up -d
     Creating network "ocs-site-configs_default" with the default driver
     Creating ocs-site-configs_ocs-influx-publisher_1 ... done
     Creating ocs-site-configs_grafana_1              ... done
@@ -226,7 +226,7 @@ Shutdown
 --------
 If you'd just like to shutdown the example you can run::
 
-    $ sudo docker-compose down
+    $ sudo docker compose down
 
 This will shutdown and remove all the containers.
 
@@ -247,4 +247,4 @@ And remove them with::
 If you would like to totally remove all trace of your OCS instance, including
 the storage volumes, run::
 
-    $ sudo docker-compose down --volumes
+    $ sudo docker compose down --volumes

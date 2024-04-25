@@ -39,7 +39,7 @@ An example site-config-file block::
 Docker Compose
 ``````````````
 
-An example docker-compose configuration::
+An example docker compose configuration::
 
     ocs-template:
         image: simonsobs/ocs-template-agent:latest

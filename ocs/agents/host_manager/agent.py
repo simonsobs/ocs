@@ -27,13 +27,12 @@ class HostManager:
     that host (either automatically or on request).
     """
 
-    def __init__(self, agent, docker_composes=[], docker_compose_bin=None,
+    def __init__(self, agent, docker_composes=[],
                  docker_service_prefix='ocs-'):
         self.agent = agent
         self.running = False
         self.database = {}  # key is instance_id (or docker service name).
         self.docker_composes = docker_composes
-        self.docker_compose_bin = docker_compose_bin
         self.docker_service_prefix = docker_service_prefix
 
     @inlineCallbacks
@@ -119,8 +118,7 @@ class HostManager:
         docker_services = {}
         for compose in self.docker_composes:
             try:
-                services = yield hm_utils.parse_docker_state(
-                    compose, docker_compose_bin=self.docker_compose_bin)
+                services = yield hm_utils.parse_docker_state(compose)
                 this_ok = True
                 this_msg = f'Successfully parsed {compose} and its service states.'
             except Exception as e:
@@ -690,12 +688,8 @@ def main(args=None):
     docker_composes = []
     if args.docker_compose:
         docker_composes = args.docker_compose.split(',')
-        docker_compose_bin = args.docker_compose_bin
-        if args.docker_compose_bin is not None:
-            docker_compose_bin = os.path.join(os.getcwd(), docker_compose_bin)
 
     host_manager = HostManager(agent, docker_composes=docker_composes,
-                               docker_compose_bin=args.docker_compose_bin,
                                docker_service_prefix=args.docker_service_prefix)
 
     startup_params = {}

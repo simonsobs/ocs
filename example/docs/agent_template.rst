@@ -42,10 +42,13 @@ Docker Compose
 An example docker-compose configuration::
 
     ocs-template:
-        image: simonsobs/ocs-template-agent:latest
+        image: simonsobs/ocs:latest
         hostname: ocs-docker
         environment:
           - LOGLEVEL=info
+          - INSTANCE_ID=template
+          - SITE_HUB=ws://10.10.10.2:8001/ws
+          - SITE_HTTP=http://10.10.10.2:8001/call
         volumes:
           - ${OCS_CONFIG_DIR}:/config
 

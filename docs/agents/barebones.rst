@@ -27,7 +27,7 @@ available arguments::
 Docker Compose
 ``````````````
 
-An example docker-compose configuration::
+An example docker compose configuration::
 
     ocs-barebones-1:
         image: simonsobs/ocs:latest

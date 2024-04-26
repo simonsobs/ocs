@@ -125,7 +125,7 @@ separate `.rst` file.  Each Agent reference page must contain:
 
 * Brief description of the Agent
 * Example ocs-site-config configuration block
-* Example docker-compose configuration block (if Agent is dockerized)
+* Example docker compose configuration block (if Agent is dockerized)
 * Agent API reference
 
 Reference pages can also include:

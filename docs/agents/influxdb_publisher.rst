@@ -39,7 +39,7 @@ Add an InfluxDBAgent to your OCS configuration file::
 Docker Compose
 ``````````````
 
-Add the InfluxDB Publisher Agent container to your docker-compose file::
+Add the InfluxDB Publisher Agent container to your docker compose file::
 
   ocs-influxdb-publisher:
     image: simonsobs/ocs:latest
@@ -50,7 +50,7 @@ Add the InfluxDB Publisher Agent container to your docker-compose file::
       - ${OCS_CONFIG_DIR}:/config:ro
 
 You will also need an instance of InfluxDB running somewhere on your network.
-This likely should go in a separate docker-compose file so that it remains
+This likely should go in a separate docker compose file so that it remains
 online at all times. An example compose file would look like::
 
   version: '3.7'
@@ -72,9 +72,9 @@ online at all times. An example compose file would look like::
         name: ocs-net
 
 .. note::
-    This separate docker-compose file setup depends on having a docker network
-    that connects your various docker-compose files. On a single-node setup
-    this can be accomplished with the network settings above in each docker-compose
+    This separate docker compose file setup depends on having a docker network
+    that connects your various docker compose files. On a single-node setup
+    this can be accomplished with the network settings above in each docker compose
     file.
 
     You then need to create the docker network with::

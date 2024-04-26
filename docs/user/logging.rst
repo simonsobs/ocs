@@ -86,7 +86,7 @@ the logging driver in the Docker daemon configuration. For more details see the
 .. note::
     Once the loki logging driver is installed and configured access to logs
     should still be accessible via ``docker logs``, however it is no longer
-    available via ``docker-compose logs``. You will instead see a warning::
+    available via ``docker compose logs``. You will instead see a warning::
 
         WARNING: no logs are available with the 'loki' log driver
 

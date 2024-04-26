@@ -53,7 +53,7 @@ this to your Agent use::
         # Start logging
         txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
-Then, in your docker-compose configuration file you can set the log level by
+Then, in your docker compose configuration file you can set the log level by
 adding the environment block to your Agent's configuration::
 
     environment:

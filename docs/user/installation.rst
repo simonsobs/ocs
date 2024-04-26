@@ -45,8 +45,8 @@ install see the `Docker Compose`_ documentation.
 
 When complete you should be able to run::
 
-    $ docker-compose --version
-    docker-compose version 1.22.0, build 1719ceb
+    $ docker compose version
+    Docker Compose version v2.25.0
 
 .. note::
 

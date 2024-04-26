@@ -50,7 +50,7 @@ OCS components are available on `Dockerhub <https://hub.docker.com/u/simonsobs>`
 For more information about Docker we refer here to the Docker documentation:
 
 * `Docker Documentation <https://docs.docker.com/>`_ - General Docker documentation.
-* `docker-compose Documentation <https://docs.docker.com/compose/>`_ - docker-compose, for running multi-container applications like OCS.
+* `Docker Compose Documentation <https://docs.docker.com/compose/>`_ - Docker Compose, for running multi-container applications like OCS.
 
 We will cover basic use of docker and associated commands in the context of
 running OCS throughout the guide, but for more details on these and additional

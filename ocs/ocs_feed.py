@@ -242,6 +242,7 @@ class Feed:
             # Publish message immediately
             try:
                 self.agent.publish(self.address, (message, self.encoded()))
+                self.message_idx += 1
             except TransportLost:
                 self.agent.log.error('Could not publish to Feed. TransportLost. '
                                      + 'crossbar server likely unreachable.')

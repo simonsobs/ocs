@@ -102,6 +102,7 @@ class Feed:
         self.feed_name = feed_name
         self.record = record
         self.agg_params = agg_params
+        self.message_idx = 0
 
         self.buffer_time = buffer_time
         self.buffer_start_time = None
@@ -119,7 +120,8 @@ class Feed:
             "address": self.address,
             "record": self.record,
             "session_id": self.agent.agent_session_id,
-            "agent_class": self.agent.class_name
+            "agent_class": self.agent.class_name,
+            'message_idx': self.message_idx,
         }
 
     def flush_buffer(self):
@@ -136,6 +138,7 @@ class Feed:
                     {k: b.encoded() for k, b in self.blocks.items() if b.timestamps},
                     self.encoded()
                 ))
+                self.message_idx += 1
             except TransportLost:
                 self.agent.log.error('Could not publish to Feed. TransportLost. '
                                      + 'crossbar server likely unreachable.')

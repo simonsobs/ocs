@@ -174,6 +174,7 @@ class Provider:
         self.frame_length = frame_length
         self.prov_id = prov_id
         self.log = txaio.make_logger()
+        self.last_message_idx = None
 
         self.blocks = {}
 
@@ -315,7 +316,7 @@ class Provider:
 
         return new_data
 
-    def save_to_block(self, data):
+    def save_to_block(self, data, message_idx=None):
         """Saves a list of data points into blocks. A block will be created
         for any new block_name.
 
@@ -335,9 +336,16 @@ class Provider:
             These must match -- in this instance both the word 'test'.
 
         Args:
-            data (dict): data dictionary from incoming data queue
-
+            data (dict):
+                data dictionary from incoming data queue
+            message_idx (int, optional):
+                message index for the incoming data. If a message index is repeated, the data will be ignored.
         """
+        if message_idx is not None:
+            if message_idx == self.last_message_idx: # Ignore duplicate messages
+                return
+            self.last_message_idx = message_idx
+
         self.refresh()
 
         if self.frame_start_time is None:
@@ -597,7 +605,8 @@ class Aggregator:
                 pid = self.add_provider(address, sessid, **prov_kwargs)
 
             prov = self.providers[pid]
-            prov.save_to_block(data)
+            message_idx = feed.get('message_idx', None)
+            prov.save_to_block(data, message_idx=message_idx)
 
     def add_provider(self, prov_address, prov_sessid, **prov_kwargs):
         """

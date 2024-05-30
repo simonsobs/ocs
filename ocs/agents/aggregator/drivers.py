@@ -342,7 +342,7 @@ class Provider:
                 message index for the incoming data. If a message index is repeated, the data will be ignored.
         """
         if message_idx is not None:
-            if message_idx == self.last_message_idx: # Ignore duplicate messages
+            if message_idx == self.last_message_idx:  # Ignore duplicate messages
                 return
             self.last_message_idx = message_idx
 

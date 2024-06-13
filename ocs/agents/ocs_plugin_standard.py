@@ -14,6 +14,7 @@ for n, f in [
         ('HostManager', 'host_manager/agent.py'),
         ('FakeDataAgent', 'fake_data/agent.py'),
         ('InfluxDBAgent', 'influxdb_publisher/agent.py'),
+        ('InfluxDBAgentv2', 'influxdb_publisher_v2/agent.py'),
         ('BarebonesAgent', 'barebones/agent.py'),
 ]:
     ocs.site_config.register_agent_class(n, os.path.join(root, f))

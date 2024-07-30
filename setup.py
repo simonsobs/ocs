@@ -56,7 +56,7 @@ setup(name='ocs',
           'deprecation',
           'PyYAML',
           'influxdb',
-          'numpy',
+          'numpy<2.0',  # pin until 2.0 is supported in so3g
           'importlib_metadata;python_version<"3.10"',
           'setproctitle',
       ],

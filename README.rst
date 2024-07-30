@@ -2,27 +2,8 @@
 OCS - Observatory Control System
 ================================
 
-.. image:: https://img.shields.io/github/actions/workflow/status/simonsobs/ocs/develop.yml?branch=main
-    :target: https://github.com/simonsobs/ocs/actions?query=workflow%3A%22Build+Test+Images%22
-    :alt: GitHub Workflow Status
-
-.. image:: https://readthedocs.org/projects/ocs/badge/?version=main
-    :target: https://ocs.readthedocs.io/en/main/?badge=main
-    :alt: Documentation Status
-
-.. image:: https://coveralls.io/repos/github/simonsobs/ocs/badge.svg
-    :target: https://coveralls.io/github/simonsobs/ocs
-
-.. image:: https://img.shields.io/badge/dockerhub-latest-blue
-    :target: https://hub.docker.com/r/simonsobs/ocs/tags
-
-.. image:: https://img.shields.io/pypi/v/ocs
-   :target: https://pypi.org/project/ocs/
-   :alt: PyPI Package
-
-.. image:: https://results.pre-commit.ci/badge/github/simonsobs/ocs/main.svg
-   :target: https://results.pre-commit.ci/latest/github/simonsobs/ocs/main
-   :alt: pre-commit.ci status
+| |pypi| |versions| |docker| |license|
+| |tests| |pre-commit| |coverage| |docs|
 
 Overview
 --------
@@ -158,3 +139,33 @@ This project is licensed under the BSD 2-Clause License - see the
 `LICENSE.txt`_ file for details.
 
 .. _LICENSE.txt: https://github.com/simonsobs/ocs/blob/main/LICENSE.txt
+
+
+.. |coverage| image:: https://coveralls.io/repos/github/simonsobs/ocs/badge.svg
+    :target: https://coveralls.io/github/simonsobs/ocs
+
+.. |docker| image:: https://img.shields.io/badge/dockerhub-latest-blue
+    :target: https://hub.docker.com/r/simonsobs/ocs/tags
+
+.. |docs| image:: https://readthedocs.org/projects/ocs/badge/?version=main
+    :target: https://ocs.readthedocs.io/en/main/?badge=main
+    :alt: Documentation Status
+
+.. |license| image:: https://img.shields.io/pypi/l/ocs
+    :target: LICENSE.txt
+    :alt: PyPI - License
+
+.. |pre-commit| image:: https://results.pre-commit.ci/badge/github/simonsobs/ocs/main.svg
+    :target: https://results.pre-commit.ci/latest/github/simonsobs/ocs/main
+    :alt: pre-commit.ci status
+
+.. |pypi| image:: https://img.shields.io/pypi/v/ocs
+    :target: https://pypi.org/project/ocs/
+    :alt: PyPI Package
+
+.. |tests| image:: https://img.shields.io/github/actions/workflow/status/simonsobs/ocs/develop.yml?branch=main
+    :target: https://github.com/simonsobs/ocs/actions?query=workflow%3A%22Build+Test+Images%22
+    :alt: GitHub Workflow Status
+
+.. |versions| image:: https://img.shields.io/pypi/pyversions/ocs
+    :alt: PyPI - Python Version

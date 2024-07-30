@@ -53,7 +53,6 @@ You will also need an instance of InfluxDB running somewhere on your network.
 This likely should go in a separate docker compose file so that it remains
 online at all times. An example compose file would look like::
 
-  version: '3.7'
   services:
     influxdb:
       image: "influxdb:1.7"

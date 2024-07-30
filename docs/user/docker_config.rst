@@ -25,7 +25,6 @@ section of this documentation. An example `docker-compose.yaml` file looks
 something like this (note this does not contain all possibly configured
 components)::
 
-    version: '3.7'
     volumes:
       grafana-storage:
 
@@ -210,7 +209,6 @@ different configuration files in separate directories, for instance::
 Where the separate compose files would look something like::
 
     # influxdb/docker-compose.yml
-    version: '3.7'
     networks:
       default:
         external:
@@ -230,7 +228,6 @@ Where the separate compose files would look something like::
 ::
 
     # crossbar/docker-compose.yml
-    version: '3.7'
     networks:
       default:
         external:
@@ -247,7 +244,6 @@ Where the separate compose files would look something like::
 ::
 
     # web/docker-compose.yml
-    version: '3.7'
     networks:
       default:
         external:
@@ -266,7 +262,6 @@ Where the separate compose files would look something like::
 ::
 
     # docker-compose.yml
-    version: '3.7'
     networks:
       default:
         external:

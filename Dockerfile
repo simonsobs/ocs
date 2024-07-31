@@ -30,11 +30,16 @@ RUN apt-get update && apt-get install -y \
     git \
     python3 \
     python3-pip \
+    python3-virtualenv \
     python-is-python3 \
     vim
 
+# Setup virtualenv
+RUN python -m virtualenv /opt/venv/
+ENV PATH="/opt/venv/bin:$PATH"
+
 # Install init system
-RUN pip3 install dumb-init
+RUN python -m pip install dumb-init
 
 # Copy in and install requirements
 # This will leverage the cache for rebuilds when modifying OCS, avoiding
@@ -42,13 +47,13 @@ RUN pip3 install dumb-init
 COPY requirements/ /app/ocs/requirements
 COPY requirements.txt /app/ocs/requirements.txt
 WORKDIR /app/ocs/
-RUN pip3 install -r requirements.txt
+RUN python -m pip install -r requirements.txt
 
 # Copy the current directory contents into the container at /app
 COPY . /app/ocs/
 
 # Install ocs
-RUN pip3 install .
+RUN python3 -m pip install .
 
 # Reset workdir to avoid local imports
 WORKDIR /

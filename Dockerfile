@@ -54,7 +54,7 @@ RUN python -m pip install -r requirements.txt
 COPY . /app/ocs/
 
 # Install ocs
-RUN python3 -m pip install .
+RUN python -m pip install .
 
 # Reset workdir to avoid local imports
 WORKDIR /

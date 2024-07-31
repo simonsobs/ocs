@@ -37,7 +37,6 @@ use Docker Compose a separate docker-compose.yml file allows you to keep the
 service running all the time even if you bring down your OCS containers. An
 example Compose file looks like::
 
-    version: '3.7'
     volumes:
       loki-storage:
 

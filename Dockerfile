@@ -37,6 +37,7 @@ RUN apt-get update && apt-get install -y \
 # Setup virtualenv
 RUN python -m virtualenv /opt/venv/
 ENV PATH="/opt/venv/bin:$PATH"
+RUN python -m pip install -U pip
 
 # Install init system
 RUN python -m pip install dumb-init

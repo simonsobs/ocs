@@ -2,7 +2,11 @@
 # A container setup with an installation of ocs.
 
 # Use ubuntu base image
-FROM simonsobs/so3g:v0.1.3-13-g5471f0d
+FROM ubuntu:22.04
+
+# Set timezone to UTC
+ENV TZ=Etc/UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Set locale
 ENV LANG C.UTF-8
@@ -22,8 +26,11 @@ ENV OCS_CONFIG_DIR=/config
 ENV PYTHONUNBUFFERED=1
 
 # Install python and pip
-RUN apt-get update && apt-get install -y python3 \
+RUN apt-get update && apt-get install -y \
+    git \
+    python3 \
     python3-pip \
+    python-is-python3 \
     vim
 
 # Install init system

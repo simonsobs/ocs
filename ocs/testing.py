@@ -6,6 +6,7 @@ import subprocess
 import coverage.data
 import urllib.request
 
+from threading import Timer
 from urllib.error import URLError
 
 from ocs.ocs_client import OCSClient
@@ -14,7 +15,7 @@ from ocs.ocs_client import OCSClient
 SIGINT_TIMEOUT = 10
 
 
-def create_agent_runner_fixture(agent_path, agent_name, args=None):
+def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
     """Create a pytest fixture for running a given OCS Agent.
 
     Parameters:
@@ -22,6 +23,9 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
             i.e. '../agents/fake_data/fake_data_agent.py'
         agent_name (str): Short, unique name for the agent
         args (list): Additional CLI arguments to add when starting the Agent
+        timeout (float): Timeout in seconds, after which the agent process will
+            be killed. This typically indicates a crash within the agent.
+            Defaults to 60 seconds.
 
     """
     @pytest.fixture()
@@ -41,6 +45,8 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      preexec_fn=os.setsid)
+        timer = Timer(timeout, agentproc.send_signal, args=[signal.SIGINT])
+        timer.start()
 
         def raise_subprocess(msg):
             stdout, stderr = agentproc.stdout.read(), agentproc.stderr.read()
@@ -55,6 +61,9 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
 
         yield
 
+        # stop timer
+        timer.cancel()
+
         # shutdown Agent
         agentproc.send_signal(signal.SIGINT)
 
@@ -63,6 +72,8 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
         except subprocess.TimeoutExpired:
             raise_subprocess('Agent did not terminate within '
                              f'{SIGINT_TIMEOUT} seconds on SIGINT.')
+
+        raise_subprocess('test timeout')
 
         # report coverage
         agentcov = coverage.data.CoverageData(

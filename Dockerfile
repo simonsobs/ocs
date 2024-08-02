@@ -2,7 +2,11 @@
 # A container setup with an installation of ocs.
 
 # Use ubuntu base image
-FROM simonsobs/so3g:v0.1.3-13-g5471f0d
+FROM ubuntu:22.04
+
+# Set timezone to UTC
+ENV TZ=Etc/UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Set locale
 ENV LANG C.UTF-8
@@ -22,12 +26,21 @@ ENV OCS_CONFIG_DIR=/config
 ENV PYTHONUNBUFFERED=1
 
 # Install python and pip
-RUN apt-get update && apt-get install -y python3 \
+RUN apt-get update && apt-get install -y \
+    git \
+    python3 \
     python3-pip \
+    python3-virtualenv \
+    python-is-python3 \
     vim
 
+# Setup virtualenv
+RUN python -m virtualenv /opt/venv/
+ENV PATH="/opt/venv/bin:$PATH"
+RUN python -m pip install -U pip
+
 # Install init system
-RUN pip3 install dumb-init
+RUN python -m pip install dumb-init
 
 # Copy in and install requirements
 # This will leverage the cache for rebuilds when modifying OCS, avoiding
@@ -35,13 +48,13 @@ RUN pip3 install dumb-init
 COPY requirements/ /app/ocs/requirements
 COPY requirements.txt /app/ocs/requirements.txt
 WORKDIR /app/ocs/
-RUN pip3 install -r requirements.txt
+RUN python -m pip install -r requirements.txt
 
 # Copy the current directory contents into the container at /app
 COPY . /app/ocs/
 
 # Install ocs
-RUN pip3 install .
+RUN python -m pip install .
 
 # Reset workdir to avoid local imports
 WORKDIR /

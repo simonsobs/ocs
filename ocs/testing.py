@@ -43,7 +43,7 @@ class AgentRunner:
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      preexec_fn=os.setsid)
-        self.timer = Timer(timeout, self.proc.send_signal, args=[signal.SIGINT])
+        self.timer = Timer(timeout, self.interrupt)
         self.timer.start()
 
         # Wait briefly then make sure subprocess hasn't already exited.
@@ -56,7 +56,7 @@ class AgentRunner:
         self.timer.cancel()
 
         # shutdown Agent
-        self.proc.send_signal(signal.SIGINT)
+        self.interrupt()
 
         try:
             self.proc.communicate(timeout=SIGINT_TIMEOUT)
@@ -67,7 +67,7 @@ class AgentRunner:
         self.raise_subprocess('test timeout')
 
     def interrupt(self):
-        pass
+        self.proc.send_signal(signal.SIGINT)
 
     def read_output(self):
         pass

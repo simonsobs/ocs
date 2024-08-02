@@ -11,8 +11,75 @@ from urllib.error import URLError
 
 from ocs.ocs_client import OCSClient
 
+# Agent is run as subprocess
+# Fixture checks that agent starts up properly after 1 second, raises an error with stdout/stderr printed if it doesn't
+# agent is sent a SIGINT at end of tests (after `yield`
+# fixture blocks (with `communicate()` for 10 seconds waiting for shutdown -- raises error with stdout/stderr printout if it fails to exit
+# coverage is reported
+
 
 SIGINT_TIMEOUT = 10
+
+
+class AgentRunner:
+    def __init__(self, agent_path, agent_name, args):
+        self.env = os.environ.copy()
+        self.env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
+        self.env['OCS_CONFIG_DIR'] = os.getcwd()
+        self.cmd = ['coverage', 'run',
+                    '--rcfile=./.coveragerc',
+                    agent_path,
+                    '--site-file',
+                    './default.yaml']
+        if args is not None:
+            self.cmd.extend(args)
+        self.proc = None
+        self.timer = None
+        self.agent_name = agent_name
+
+    def run(self, timeout):
+        self.proc = subprocess.Popen(self.cmd,
+                                     env=self.env,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE,
+                                     preexec_fn=os.setsid)
+        self.timer = Timer(timeout, self.proc.send_signal, args=[signal.SIGINT])
+        self.timer.start()
+
+        # Wait briefly then make sure subprocess hasn't already exited.
+        time.sleep(1)
+        if self.proc.poll() is not None:
+            self.raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
+
+    def shutdown(self):
+        # stop timer
+        self.timer.cancel()
+
+        # shutdown Agent
+        self.proc.send_signal(signal.SIGINT)
+
+        try:
+            self.proc.communicate(timeout=SIGINT_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            self.raise_subprocess('Agent did not terminate within '
+                                  f'{SIGINT_TIMEOUT} seconds on SIGINT.')
+
+        self.raise_subprocess('test timeout')
+
+    def interrupt(self):
+        pass
+
+    def read_output(self):
+        pass
+
+    def cleanup(self):
+        pass
+
+    def raise_subprocess(self, msg):
+        stdout, stderr = self.proc.stdout.read(), self.proc.stderr.read()
+        print(f'Here is stdout from {self.agent_name}:\n{stdout}')
+        print(f'Here is stderr from {self.agent_name}:\n{stderr}')
+        raise RuntimeError(msg)
 
 
 def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
@@ -30,50 +97,12 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
     """
     @pytest.fixture()
     def run_agent(cov):
-        env = os.environ.copy()
-        env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
-        env['OCS_CONFIG_DIR'] = os.getcwd()
-        cmd = ['coverage', 'run',
-               '--rcfile=./.coveragerc',
-               agent_path,
-               '--site-file',
-               './default.yaml']
-        if args is not None:
-            cmd.extend(args)
-        agentproc = subprocess.Popen(cmd,
-                                     env=env,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     preexec_fn=os.setsid)
-        timer = Timer(timeout, agentproc.send_signal, args=[signal.SIGINT])
-        timer.start()
-
-        def raise_subprocess(msg):
-            stdout, stderr = agentproc.stdout.read(), agentproc.stderr.read()
-            print(f'Here is stdout from {agent_name}:\n{stdout}')
-            print(f'Here is stderr from {agent_name}:\n{stderr}')
-            raise RuntimeError(msg)
-
-        # Wait briefly then make sure subprocess hasn't already exited.
-        time.sleep(1)
-        if agentproc.poll() is not None:
-            raise_subprocess(f"Agent failed to startup, cmd: {cmd}")
+        runner = AgentRunner(agent_path, agent_name, args)
+        runner.run(timeout=timeout)
 
         yield
 
-        # stop timer
-        timer.cancel()
-
-        # shutdown Agent
-        agentproc.send_signal(signal.SIGINT)
-
-        try:
-            agentproc.communicate(timeout=SIGINT_TIMEOUT)
-        except subprocess.TimeoutExpired:
-            raise_subprocess('Agent did not terminate within '
-                             f'{SIGINT_TIMEOUT} seconds on SIGINT.')
-
-        raise_subprocess('test timeout')
+        runner.shutdown()
 
         # report coverage
         agentcov = coverage.data.CoverageData(

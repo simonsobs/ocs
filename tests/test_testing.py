@@ -7,7 +7,7 @@
 from ocs.testing import AgentRunner
 
 
-def test_agent_runner(tmpdir):
+def test_agent_runner():
     runner = AgentRunner('../ocs/agents/fake_data/agent.py', 'fake_data', args=None)
     runner.run(timeout=10)
     runner.shutdown()

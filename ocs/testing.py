@@ -6,7 +6,7 @@ import subprocess
 import coverage.data
 import urllib.request
 
-from threading import Timer
+from threading import Thread, Timer
 from urllib.error import URLError
 
 from ocs.ocs_client import OCSClient
@@ -26,7 +26,8 @@ class AgentRunner:
         self.env = os.environ.copy()
         self.env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
         self.env['OCS_CONFIG_DIR'] = os.getcwd()
-        self.cmd = ['coverage', 'run',
+        self.cmd = ['coverage',
+                    'run',
                     '--rcfile=./.coveragerc',
                     agent_path,
                     '--site-file',
@@ -34,8 +35,18 @@ class AgentRunner:
         if args is not None:
             self.cmd.extend(args)
         self.proc = None
-        self.timer = None
+        self.timers = {'run': None,
+                       'interrupt': None}
         self.agent_name = agent_name
+        self.comm_thread = None
+
+    def _communicate(self):
+        # this actually needs to happen in another thread, since it's going to
+        # block and we need to yield after this
+        try:
+            self.proc.communicate()
+        finally:
+            self.cleanup()
 
     def run(self, timeout):
         self.proc = subprocess.Popen(self.cmd,
@@ -43,42 +54,53 @@ class AgentRunner:
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      preexec_fn=os.setsid)
-        self.timer = Timer(timeout, self.interrupt)
-        self.timer.start()
+        # the function this calls needs to call read_output and show the output
+        self.timers['run'] = Timer(timeout, self.interrupt)
+        self.timers['run'].start()
 
         # Wait briefly then make sure subprocess hasn't already exited.
         time.sleep(1)
         if self.proc.poll() is not None:
             self.raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
 
+        self.comm_thread = Thread(target=self._communicate)
+        self.comm_thread.start()
+
     def shutdown(self):
-        # stop timer
-        self.timer.cancel()
+        # wrap up comm thread
+        self.comm_thread.join()
 
         # shutdown Agent
         self.interrupt()
 
+        interrupt_timer = Timer(SIGINT_TIMEOUT, self.interrupt)
+        interrupt_timer.start()
+
         try:
             self.proc.communicate(timeout=SIGINT_TIMEOUT)
+            interrupt_timer.cancel()
         except subprocess.TimeoutExpired:
             self.raise_subprocess('Agent did not terminate within '
                                   f'{SIGINT_TIMEOUT} seconds on SIGINT.')
-
-        self.raise_subprocess('test timeout')
 
     def interrupt(self):
         self.proc.send_signal(signal.SIGINT)
 
     def read_output(self):
-        pass
-
-    def cleanup(self):
-        pass
-
-    def raise_subprocess(self, msg):
         stdout, stderr = self.proc.stdout.read(), self.proc.stderr.read()
         print(f'Here is stdout from {self.agent_name}:\n{stdout}')
         print(f'Here is stderr from {self.agent_name}:\n{stderr}')
+        return stdout, stderr
+
+    def cleanup(self):
+        # Cancel all timers
+        for timer in self.timers.values():
+            if timer is not None:
+                timer.cancel()
+
+    def raise_subprocess(self, msg):
+        self.read_output()
+        self.cleanup()
         raise RuntimeError(msg)
 
 

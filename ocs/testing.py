@@ -54,7 +54,6 @@ class AgentRunner:
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      preexec_fn=os.setsid)
-        # the function this calls needs to call read_output and show the output
         self.timers['run'] = Timer(timeout, self.interrupt)
         self.timers['run'].start()
 
@@ -67,24 +66,21 @@ class AgentRunner:
         self.comm_thread.start()
 
     def shutdown(self):
-        # wrap up comm thread
-        self.comm_thread.join()
-
         # shutdown Agent
         self.interrupt()
 
-        interrupt_timer = Timer(SIGINT_TIMEOUT, self.interrupt)
+        _error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
+        interrupt_timer = Timer(SIGINT_TIMEOUT, self.interrupt, kwargs={'msg': _error})
         interrupt_timer.start()
 
-        try:
-            self.proc.communicate(timeout=SIGINT_TIMEOUT)
-            interrupt_timer.cancel()
-        except subprocess.TimeoutExpired:
-            self._raise_subprocess('Agent did not terminate within '
-                                   f'{SIGINT_TIMEOUT} seconds on SIGINT.')
+        # wrap up comm thread
+        self.comm_thread.join()
+        interrupt_timer.cancel()
 
-    def interrupt(self):
+    def interrupt(self, msg=None):
         self.proc.send_signal(signal.SIGINT)
+        self._read_output()
+        self._raise_subprocess(msg)
 
     def _send_sigint(self):
         self.proc.send_signal(signal.SIGINT)
@@ -102,7 +98,6 @@ class AgentRunner:
                 timer.cancel()
 
     def _raise_subprocess(self, msg):
-        self._read_output()
         self._cleanup()
         raise RuntimeError(msg)
 

@@ -46,7 +46,7 @@ class AgentRunner:
         try:
             self.proc.communicate()
         finally:
-            self.cleanup()
+            self._cleanup()
 
     def run(self, timeout):
         self.proc = subprocess.Popen(self.cmd,
@@ -61,7 +61,7 @@ class AgentRunner:
         # Wait briefly then make sure subprocess hasn't already exited.
         time.sleep(1)
         if self.proc.poll() is not None:
-            self.raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
+            self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
 
         self.comm_thread = Thread(target=self._communicate)
         self.comm_thread.start()
@@ -80,27 +80,30 @@ class AgentRunner:
             self.proc.communicate(timeout=SIGINT_TIMEOUT)
             interrupt_timer.cancel()
         except subprocess.TimeoutExpired:
-            self.raise_subprocess('Agent did not terminate within '
-                                  f'{SIGINT_TIMEOUT} seconds on SIGINT.')
+            self._raise_subprocess('Agent did not terminate within '
+                                   f'{SIGINT_TIMEOUT} seconds on SIGINT.')
 
     def interrupt(self):
         self.proc.send_signal(signal.SIGINT)
 
-    def read_output(self):
+    def _send_sigint(self):
+        self.proc.send_signal(signal.SIGINT)
+
+    def _read_output(self):
         stdout, stderr = self.proc.stdout.read(), self.proc.stderr.read()
         print(f'Here is stdout from {self.agent_name}:\n{stdout}')
         print(f'Here is stderr from {self.agent_name}:\n{stderr}')
         return stdout, stderr
 
-    def cleanup(self):
+    def _cleanup(self):
         # Cancel all timers
         for timer in self.timers.values():
             if timer is not None:
                 timer.cancel()
 
-    def raise_subprocess(self, msg):
-        self.read_output()
-        self.cleanup()
+    def _raise_subprocess(self, msg):
+        self._read_output()
+        self._cleanup()
         raise RuntimeError(msg)
 
 

@@ -38,11 +38,12 @@ class AgentRunner:
                     './default.yaml']
         if args is not None:
             self.cmd.extend(args)
+
         self.proc = None
         self.timers = {'run': None,
                        'interrupt': None}
         self.agent_name = agent_name
-        self.comm_thread = None
+        self._comm_thread = None
 
     def _communicate(self):
         # this actually needs to happen in another thread, since it's going to
@@ -66,8 +67,8 @@ class AgentRunner:
         if self.proc.poll() is not None:
             self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
 
-        self.comm_thread = Thread(target=self._communicate)
-        self.comm_thread.start()
+        self._comm_thread = Thread(target=self._communicate)
+        self._comm_thread.start()
 
     def shutdown(self):
         # shutdown Agent
@@ -78,7 +79,7 @@ class AgentRunner:
         interrupt_timer.start()
 
         # wrap up comm thread
-        self.comm_thread.join()
+        self._comm_thread.join()
         interrupt_timer.cancel()
 
     def interrupt(self, msg=None):

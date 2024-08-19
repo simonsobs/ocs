@@ -26,7 +26,11 @@ class AgentRunner:
         self.env = os.environ.copy()
         self.env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
         self.env['OCS_CONFIG_DIR'] = os.getcwd()
-        self.cmd = ['coverage',
+        # running unbuffered (-u) is important for getting agent stdout/stderr
+        self.cmd = ['python',
+                    '-u',
+                    '-m',
+                    'coverage',
                     'run',
                     '--rcfile=./.coveragerc',
                     agent_path,

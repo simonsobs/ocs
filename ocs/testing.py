@@ -49,6 +49,7 @@ class AgentRunner:
         # this actually needs to happen in another thread, since it's going to
         # block and we need to yield after this
         try:
+            # TODO: We should grab stdout/stderr from here instead of from self.proc.stdout.read()
             self.proc.communicate()
         finally:
             self._cleanup()

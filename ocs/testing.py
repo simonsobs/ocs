@@ -26,10 +26,9 @@ class AgentRunner:
         self.env = os.environ.copy()
         self.env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
         self.env['OCS_CONFIG_DIR'] = os.getcwd()
-        # self.cmd = ['coverage',
-        #            'run',
-        #            '--rcfile=./.coveragerc',
-        self.cmd = ['python',
+        self.cmd = ['coverage',
+                    'run',
+                    '--rcfile=./.coveragerc',
                     agent_path,
                     '--site-file',
                     './default.yaml']
@@ -44,53 +43,41 @@ class AgentRunner:
     def _communicate(self):
         # this actually needs to happen in another thread, since it's going to
         # block and we need to yield after this
-        print("Communicate thread started...")
         try:
-            stdout, stderr = self.proc.communicate()
-            print('OUTPUT FROM COMMUNICATE: ', stdout, stderr)
+            self.proc.communicate()
         finally:
             self._cleanup()
-        print("Finished communicating in thread...")
 
     def run(self, timeout):
-        print("Running subprocess...")
         self.proc = subprocess.Popen(self.cmd,
                                      env=self.env,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
-                                     text=True,
                                      preexec_fn=os.setsid)
         self.timers['run'] = Timer(timeout, self.interrupt)
         self.timers['run'].start()
 
         # Wait briefly then make sure subprocess hasn't already exited.
-        print("Checking subprocess is still running...")
         time.sleep(1)
         if self.proc.poll() is not None:
-            self._read_output()
             self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
 
-        print("Starting communicate thread...")
         self.comm_thread = Thread(target=self._communicate)
         self.comm_thread.start()
 
     def shutdown(self):
-        print("Starting shutdown...")
         # shutdown Agent
-        self._send_sigint()
+        self.interrupt()
 
         _error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
         interrupt_timer = Timer(SIGINT_TIMEOUT, self.interrupt, kwargs={'msg': _error})
         interrupt_timer.start()
 
         # wrap up comm thread
-        try:
-            self.comm_thread.join()
-        finally:
-            interrupt_timer.cancel()
+        self.comm_thread.join()
+        interrupt_timer.cancel()
 
     def interrupt(self, msg=None):
-        print("Sending interrupt...")
         self.proc.send_signal(signal.SIGINT)
         self._read_output()
         self._raise_subprocess(msg)
@@ -105,50 +92,14 @@ class AgentRunner:
         return stdout, stderr
 
     def _cleanup(self):
-        print("Cleaning up timers...")
         # Cancel all timers
         for timer in self.timers.values():
             if timer is not None:
                 timer.cancel()
 
     def _raise_subprocess(self, msg):
-        print("Raising subprocess error...")
         self._cleanup()
         raise RuntimeError(msg)
-
-
-class ProcessRunner:
-    def __init__(self, timeout=1):
-        self.env = os.environ.copy()
-        self.env['OCS_CONFIG_DIR'] = '/home/koopman/git/socs/tests'
-        self.cmd = ['python', '/home/koopman/git/socs/socs/agents/hwp_pid/agent.py', '--site-file', '/home/koopman/git/socs/tests/default.yaml']
-        self.timeout = timeout
-        self.proc = None
-        self.stdout = None
-        self.stderr = None
-
-    def _send_sigint(self):
-        if self.proc:
-            self.proc.send_signal(signal.SIGINT)
-
-    def _communicate_process(self):
-        self.stdout, self.stderr = self.proc.communicate()
-
-    def run(self):
-        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-        timer = Timer(self.timeout, self._send_sigint)
-        timer.start()
-
-        comm_thread = Thread(target=self._communicate_process)
-        comm_thread.start()
-
-        try:
-            comm_thread.join()
-        finally:
-            timer.cancel()
-
-        return self.stdout, self.stderr
 
 
 def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
@@ -166,11 +117,8 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
     """
     @pytest.fixture()
     def run_agent(cov):
-        # runner = AgentRunner(agent_path, agent_name, args)
-        # runner.run(timeout=timeout)
-        runner = ProcessRunner(timeout=1)
-        stdout, stderr = runner.run()
-        print(stdout, stderr)
+        runner = AgentRunner(agent_path, agent_name, args)
+        runner.run(timeout=timeout)
 
         yield
 

@@ -49,41 +49,18 @@ class AgentRunner:
                         'interrupt': None}
         self._comm_thread = None
 
-    def _communicate(self):
-        """Wait for process to end and grab stdout/stderr.
-
-        This will block, so this is meant to be run in a Thread. Once
-        communicate() completes, i.e. the process has terminated, we cancel any
-        active interrupt timers.
-
-        """
-        try:
-            self.stdout, self.stderr = self.proc.communicate()
-        finally:
-            self._cancel_timers()
-
-    def _check_for_early_exit(self):
-        """Checks to see if the agent process has exited. Display output and
-        raise an exception if it has.
-
-        This is meant to be called early to see if there was an immediate agent
-        crash on startup.
-
-        """
-        if self.proc.poll() is not None:
-            # communicate should return w/output if proc has already ended
-            try:
-                self._comm_thread.join(timeout=5)
-            # we shouldn't hit this timeout but just in case
-            except subprocess.TimeoutExpired:
-                print("The agent seems to have crashed, but we can't communicate with "
-                      + "the process. Killing the process now.")
-                self.proc.kill()
-                self._comm_thread.join()
-            self._read_output()
-            self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
-
     def run(self, timeout):
+        """Run the agent subprocess.
+
+        This runs the agent subprocess defined by ``self.cmd``. Output is
+        written to a ``PIPE``. If the agent does not exit within the given
+        timeout it will be interrupted with a ``SIGINT``, output will be
+        displayed, and an exception will be raised.
+
+        Parameters:
+            timeout (float): Timeout in seconds to wait for agent to exit.
+
+        """
         self.proc = subprocess.Popen(self.cmd,
                                      env=self.env,
                                      stdout=subprocess.PIPE,
@@ -103,9 +80,54 @@ class AgentRunner:
         time.sleep(1)
         self._check_for_early_exit()
 
+    def _communicate(self):
+        """Wait for process to end and grab stdout/stderr.
+
+        This will block, so this is meant to be run in a Thread. Once
+        communicate() completes, i.e. the process has terminated, we cancel any
+        active interrupt timers.
+
+        """
+        try:
+            self.stdout, self.stderr = self.proc.communicate()
+        finally:
+            self._cancel_timers()
+
+    def _cancel_timers(self):
+        for timer in self._timers.values():
+            if timer is not None:
+                timer.cancel()
+
+    def _check_for_early_exit(self):
+        """Checks to see if the agent process has exited. Display output and
+        raise an exception if it has.
+
+        This is meant to be called early to see if there was an immediate agent
+        crash on startup.
+
+        """
+        if self.proc.poll() is not None:
+            # communicate should return w/output if proc has already ended
+            try:
+                self._comm_thread.join(timeout=5)
+            # we should not hit this timeout but just in case
+            except subprocess.TimeoutExpired:
+                print("The agent seems to have crashed, but we can't communicate with "
+                      + "the process. Killing the process now.")
+                self.proc.kill()
+                self._comm_thread.join()
+            self._read_output()
+            self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
+
     def shutdown(self):
+        """Shutdown the agent process.
+
+        If the agent does not respond to a ``SIGTERM`` then a ``SIGINT`` is
+        sent, output printed, and an exception raised.
+
+        """
         # shutdown Agent
-        self._send_sigint()
+        self.proc.send_signal(signal.SIGTERM)
 
         error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
         self._timers['interrupt'] = Timer(SIGINT_TIMEOUT,
@@ -117,21 +139,13 @@ class AgentRunner:
         self._comm_thread.join()
 
     def _interrupt(self, msg=None):
-        self._send_sigint()
+        self.proc.send_signal(signal.SIGINT)
         self._read_output()
         self._raise_subprocess(msg)
-
-    def _send_sigint(self):
-        self.proc.send_signal(signal.SIGINT)
 
     def _read_output(self):
         print(f'Here is stdout from {self.agent_name}:\n{self.stdout}')
         print(f'Here is stderr from {self.agent_name}:\n{self.stderr}')
-
-    def _cancel_timers(self):
-        for timer in self._timers.values():
-            if timer is not None:
-                timer.cancel()
 
     def _raise_subprocess(self, msg):
         raise RuntimeError(msg)
@@ -146,8 +160,9 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
         agent_name (str): Short, unique name for the agent
         args (list): Additional CLI arguments to add when starting the Agent
         timeout (float): Timeout in seconds, after which the agent process will
-            be killed. This typically indicates a crash within the agent.
-            Defaults to 60 seconds.
+            be interrupted. This typically indicates a crash within the agent.
+            This timeout should be longer than you expect the agent to run for
+            during a given test. Defaults to 60 seconds.
 
     """
     @pytest.fixture()

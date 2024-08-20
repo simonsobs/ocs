@@ -48,20 +48,34 @@ class AgentRunner:
         self._comm_thread = None
 
     def _communicate(self):
-        # this actually needs to happen in another thread, since it's going to
-        # block and we need to yield after this
+        """Wait for process to end and grab stdout/stderr.
+
+        This will block, so this is meant to be run in a Thread. Once
+        communicate() completes, i.e. the process has terminated, we cancel any
+        active interrupt timers.
+
+        """
         try:
             self.stdout, self.stderr = self.proc.communicate()
         finally:
-            self._cleanup()
+            self._cancel_timers()
 
     def _check_for_early_exit(self):
+        """Checks to see if the agent process has exited. Display output and
+        raise an exception if it has.
+
+        This is meant to be called early to see if there was an immediate agent
+        crash on startup.
+
+        """
         if self.proc.poll() is not None:
-            # if proc has exited, communicate should be done
+            # communicate should return w/output if proc has already ended
             try:
                 self._comm_thread.join(timeout=5)
+            # we shouldn't hit this timeout but just in case
             except subprocess.TimeoutExpired:
-                print("process has seemingly ended, but could not join. killing process")
+                print("The agent seems to have crashed, but we can't communicate with "
+                      + "the process. Killing the process now.")
                 self.proc.kill()
                 self._comm_thread.join()
             self._read_output()
@@ -74,6 +88,8 @@ class AgentRunner:
                                      stderr=subprocess.PIPE,
                                      preexec_fn=os.setsid,
                                      text=True)
+
+        # start interrupt timer for if agent crashes and hangs
         self._timers['run'] = Timer(timeout, self.interrupt)
         self._timers['run'].start()
 
@@ -89,13 +105,14 @@ class AgentRunner:
         # shutdown Agent
         self._send_sigint()
 
-        _error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
-        interrupt_timer = Timer(SIGINT_TIMEOUT, self.interrupt, kwargs={'msg': _error})
-        interrupt_timer.start()
+        error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
+        self._timers['interrupt'] = Timer(SIGINT_TIMEOUT,
+                                          self.interrupt,
+                                          kwargs={'msg': error})
+        self._timers['interrupt'].start()
 
         # wrap up comm thread
         self._comm_thread.join()
-        interrupt_timer.cancel()
 
     def interrupt(self, msg=None):
         self.proc.send_signal(signal.SIGINT)
@@ -109,14 +126,12 @@ class AgentRunner:
         print(f'Here is stdout from {self.agent_name}:\n{self.stdout}')
         print(f'Here is stderr from {self.agent_name}:\n{self.stderr}')
 
-    def _cleanup(self):
-        # Cancel all timers
+    def _cancel_timers(self):
         for timer in self._timers.values():
             if timer is not None:
                 timer.cancel()
 
     def _raise_subprocess(self, msg):
-        self._cleanup()
         raise RuntimeError(msg)
 
 

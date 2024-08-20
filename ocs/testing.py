@@ -48,6 +48,7 @@ class AgentRunner:
         self._timers = {'run': None,
                         'interrupt': None}
         self._comm_thread = None
+        self._interrupted = False
 
     def run(self, timeout):
         """Run the agent subprocess.
@@ -80,6 +81,11 @@ class AgentRunner:
         time.sleep(1)
         self._check_for_early_exit()
 
+    def _interrupt(self):
+        print("Process timeout expired. The agent has likely crashed, exiting.")
+        self.proc.send_signal(signal.SIGINT)
+        self._interrupted = True
+
     def _communicate(self):
         """Wait for process to end and grab stdout/stderr.
 
@@ -105,6 +111,9 @@ class AgentRunner:
         This is meant to be called early to see if there was an immediate agent
         crash on startup.
 
+        Note: Since this displays output from ``self.proc.communicate()``, only call
+        in main thread, else you probably won't see any output.
+
         """
         if self.proc.poll() is not None:
             # communicate should return w/output if proc has already ended
@@ -122,26 +131,29 @@ class AgentRunner:
     def shutdown(self):
         """Shutdown the agent process.
 
-        If the agent does not respond to a ``SIGTERM`` then a ``SIGINT`` is
+        If the agent does not respond to a ``SIGINT`` then a ``SIGINT`` is
         sent, output printed, and an exception raised.
 
         """
-        # shutdown Agent
-        self.proc.send_signal(signal.SIGTERM)
+        if self._interrupted:
+            self._handle_hanging_agent()
+        else:
+            # shutdown Agent
+            self.proc.send_signal(signal.SIGINT)
 
-        error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
-        self._timers['interrupt'] = Timer(SIGINT_TIMEOUT,
-                                          self._interrupt,
-                                          kwargs={'msg': error})
-        self._timers['interrupt'].start()
+            try:
+                self._comm_thread.join(timeout=SIGINT_TIMEOUT)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self._comm_thread.join()
+            self._read_output()
+            error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
+            self._raise_subprocess(error)
 
-        # wrap up comm thread
+    def _handle_hanging_agent(self):
         self._comm_thread.join()
-
-    def _interrupt(self, msg=None):
-        self.proc.send_signal(signal.SIGINT)
         self._read_output()
-        self._raise_subprocess(msg)
+        self._raise_subprocess('Agent interrupted.')
 
     def _read_output(self):
         print(f'Here is stdout from {self.agent_name}:\n{self.stdout}')

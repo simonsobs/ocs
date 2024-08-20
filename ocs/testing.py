@@ -51,10 +51,21 @@ class AgentRunner:
         # this actually needs to happen in another thread, since it's going to
         # block and we need to yield after this
         try:
-            # TODO: We should grab stdout/stderr from here instead of from self.proc.stdout.read()
             self.stdout, self.stderr = self.proc.communicate()
         finally:
             self._cleanup()
+
+    def _check_for_early_exit(self):
+        if self.proc.poll() is not None:
+            # if proc has exited, communicate should be done
+            try:
+                self._comm_thread.join(timeout=5)
+            except subprocess.TimeoutExpired:
+                print("process has seemingly ended, but could not join. killing process")
+                self.proc.kill()
+                self._comm_thread.join()
+            self._read_output()
+            self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
 
     def run(self, timeout):
         self.proc = subprocess.Popen(self.cmd,
@@ -72,16 +83,7 @@ class AgentRunner:
 
         # Wait briefly then make sure subprocess hasn't already exited.
         time.sleep(1)
-        if self.proc.poll() is not None:
-            # if proc has exited, communicate should be done
-            try:
-                self._comm_thread.join(timeout=5)
-            except subprocess.TimeoutExpired:
-                print("process has seemingly ended, but could not join. killing process")
-                self.proc.kill()
-                self._comm_thread.join()
-            self._read_output()
-            self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
+        self._check_for_early_exit()
 
     def shutdown(self):
         # shutdown Agent

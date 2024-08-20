@@ -12,9 +12,11 @@ from urllib.error import URLError
 from ocs.ocs_client import OCSClient
 
 # Agent is run as subprocess
-# Fixture checks that agent starts up properly after 1 second, raises an error with stdout/stderr printed if it doesn't
-# agent is sent a SIGINT at end of tests (after `yield`
-# fixture blocks (with `communicate()` for 10 seconds waiting for shutdown -- raises error with stdout/stderr printout if it fails to exit
+# Fixture checks that agent starts up properly after 1 second, raises an error
+# with stdout/stderr printed if it doesn't
+# agent is sent a SIGINT at end of tests (after `yield`)
+# fixture blocks (with `communicate()` for 10 seconds waiting for shutdown --
+# raises error with stdout/stderr printout if it fails to exit
 # coverage is reported
 
 
@@ -90,7 +92,7 @@ class AgentRunner:
                                      text=True)
 
         # start interrupt timer for if agent crashes and hangs
-        self._timers['run'] = Timer(timeout, self.interrupt)
+        self._timers['run'] = Timer(timeout, self._interrupt)
         self._timers['run'].start()
 
         # run blocking proc.communicate() in separate thread
@@ -107,15 +109,15 @@ class AgentRunner:
 
         error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
         self._timers['interrupt'] = Timer(SIGINT_TIMEOUT,
-                                          self.interrupt,
+                                          self._interrupt,
                                           kwargs={'msg': error})
         self._timers['interrupt'].start()
 
         # wrap up comm thread
         self._comm_thread.join()
 
-    def interrupt(self, msg=None):
-        self.proc.send_signal(signal.SIGINT)
+    def _interrupt(self, msg=None):
+        self._send_sigint()
         self._read_output()
         self._raise_subprocess(msg)
 

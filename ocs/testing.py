@@ -22,7 +22,7 @@ SIGINT_TIMEOUT = 10
 
 
 class AgentRunner:
-    def __init__(self, agent_path, agent_name, args):
+    def __init__(self, agent_path, agent_name, args=None):
         self.env = os.environ.copy()
         self.env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
         self.env['OCS_CONFIG_DIR'] = os.getcwd()

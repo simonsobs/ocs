@@ -38,11 +38,11 @@ class AgentRunner:
                     './default.yaml']
         if args is not None:
             self.cmd.extend(args)
+        self.agent_name = agent_name
 
         self.proc = None
-        self.timers = {'run': None,
-                       'interrupt': None}
-        self.agent_name = agent_name
+        self._timers = {'run': None,
+                        'interrupt': None}
         self._comm_thread = None
 
     def _communicate(self):
@@ -60,16 +60,17 @@ class AgentRunner:
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      preexec_fn=os.setsid)
-        self.timers['run'] = Timer(timeout, self.interrupt)
-        self.timers['run'].start()
+        self._timers['run'] = Timer(timeout, self.interrupt)
+        self._timers['run'].start()
+
+        # run blocking proc.communicate() in separate thread
+        self._comm_thread = Thread(target=self._communicate)
+        self._comm_thread.start()
 
         # Wait briefly then make sure subprocess hasn't already exited.
         time.sleep(1)
         if self.proc.poll() is not None:
             self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
-
-        self._comm_thread = Thread(target=self._communicate)
-        self._comm_thread.start()
 
     def shutdown(self):
         # shutdown Agent
@@ -99,7 +100,7 @@ class AgentRunner:
 
     def _cleanup(self):
         # Cancel all timers
-        for timer in self.timers.values():
+        for timer in self._timers.values():
             if timer is not None:
                 timer.cancel()
 

@@ -146,9 +146,9 @@ class AgentRunner:
             except subprocess.TimeoutExpired:
                 self.proc.kill()
                 self._comm_thread.join()
-            self._read_output()
-            error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
-            self._raise_subprocess(error)
+                self._read_output()
+                error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
+                self._raise_subprocess(error)
 
     def _handle_hanging_agent(self):
         self._comm_thread.join()

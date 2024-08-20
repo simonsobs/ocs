@@ -41,6 +41,8 @@ class AgentRunner:
         self.agent_name = agent_name
 
         self.proc = None
+        self.stdout = None
+        self.stderr = None
         self._timers = {'run': None,
                         'interrupt': None}
         self._comm_thread = None
@@ -50,7 +52,7 @@ class AgentRunner:
         # block and we need to yield after this
         try:
             # TODO: We should grab stdout/stderr from here instead of from self.proc.stdout.read()
-            self.proc.communicate()
+            self.stdout, self.stderr = self.proc.communicate()
         finally:
             self._cleanup()
 
@@ -59,7 +61,8 @@ class AgentRunner:
                                      env=self.env,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
-                                     preexec_fn=os.setsid)
+                                     preexec_fn=os.setsid,
+                                     text=True)
         self._timers['run'] = Timer(timeout, self.interrupt)
         self._timers['run'].start()
 
@@ -93,10 +96,8 @@ class AgentRunner:
         self.proc.send_signal(signal.SIGINT)
 
     def _read_output(self):
-        stdout, stderr = self.proc.stdout.read(), self.proc.stderr.read()
-        print(f'Here is stdout from {self.agent_name}:\n{stdout}')
-        print(f'Here is stderr from {self.agent_name}:\n{stderr}')
-        return stdout, stderr
+        print(f'Here is stdout from {self.agent_name}:\n{self.stdout}')
+        print(f'Here is stderr from {self.agent_name}:\n{self.stderr}')
 
     def _cleanup(self):
         # Cancel all timers

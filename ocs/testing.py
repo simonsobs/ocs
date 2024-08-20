@@ -85,7 +85,7 @@ class AgentRunner:
 
     def shutdown(self):
         # shutdown Agent
-        self.interrupt()
+        self._send_sigint()
 
         _error = f'Agent did not terminate within {SIGINT_TIMEOUT} seconds on SIGINT.'
         interrupt_timer = Timer(SIGINT_TIMEOUT, self.interrupt, kwargs={'msg': _error})

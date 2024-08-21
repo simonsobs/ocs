@@ -29,11 +29,17 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
         env = os.environ.copy()
         env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
         env['OCS_CONFIG_DIR'] = os.getcwd()
-        cmd = ['coverage', 'run',
-               '--rcfile=./.coveragerc',
-               agent_path,
-               '--site-file',
-               './default.yaml']
+        cmd = [
+            'python',
+            '-u',
+            '-m',
+            'coverage',
+            'run',
+            '--rcfile=./.coveragerc',
+            agent_path,
+            '--site-file',
+            './default.yaml'
+        ]
         if args is not None:
             cmd.extend(args)
         agentproc = subprocess.Popen(cmd,

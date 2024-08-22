@@ -46,6 +46,7 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
                                      env=env,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
+                                     text=True,
                                      preexec_fn=os.setsid)
 
         def raise_subprocess(msg):

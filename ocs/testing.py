@@ -46,6 +46,7 @@ class _AgentRunner:
         self.agent_name = agent_name
         self.proc = None
         self._timer = None
+        self._timedout = False
 
     def run(self, timeout):
         """Run the agent subprocess.
@@ -66,7 +67,7 @@ class _AgentRunner:
                                      preexec_fn=os.setsid)
 
         # start timer for if agent crashes and hangs
-        self._timer = Timer(timeout, self.proc.send_signal, args=[signal.SIGINT])
+        self._timer = Timer(timeout, self._interrupt)
         self._timer.start()
 
         # Wait briefly then make sure subprocess hasn't already exited.
@@ -74,6 +75,10 @@ class _AgentRunner:
         if self.proc.poll() is not None:
             self._timer.cancel()
             self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
+
+    def _interrupt(self):
+        self.proc.send_signal(signal.SIGINT)
+        self._timedout = True
 
     def _raise_subprocess(self, msg):
         stdout, stderr = self.proc.stdout.read(), self.proc.stderr.read()
@@ -88,7 +93,9 @@ class _AgentRunner:
         and an exception raised.
 
         """
-        self.proc.send_signal(signal.SIGINT)
+        # avoid sending SIGINT twice
+        if not self._timedout:
+            self.proc.send_signal(signal.SIGINT)
         self._timer.cancel()
 
         try:
@@ -96,6 +103,12 @@ class _AgentRunner:
         except subprocess.TimeoutExpired:
             self._raise_subprocess('Agent did not terminate within '
                                    f'{SIGINT_TIMEOUT} seconds on SIGINT.')
+
+        if self._timedout:
+            stdout, stderr = self.proc.communicate(timeout=SIGINT_TIMEOUT)
+            print(f'Here is stdout from {self.agent_name}:\n{stdout}')
+            print(f'Here is stderr from {self.agent_name}:\n{stderr}')
+            raise RuntimeError('Agent timed out.')
 
 
 def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):

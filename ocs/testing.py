@@ -14,6 +14,78 @@ from ocs.ocs_client import OCSClient
 SIGINT_TIMEOUT = 10
 
 
+class _AgentRunner:
+    """Class to manage running an agent as a subprocess during testing.
+
+    Parameters:
+        agent_path (str): Relative path to Agent,
+            i.e. '../agents/fake_data/fake_data_agent.py'
+        agent_name (str): Short, unique name for the agent
+        args (list): Additional CLI arguments to add when starting the Agent
+
+    """
+
+    def __init__(self, agent_path, agent_name, args):
+        self.env = os.environ.copy()
+        self.env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
+        self.env['OCS_CONFIG_DIR'] = os.getcwd()
+        self.cmd = [
+            'python',
+            '-u',
+            '-m',
+            'coverage',
+            'run',
+            '--rcfile=./.coveragerc',
+            agent_path,
+            '--site-file',
+            './default.yaml'
+        ]
+        if args is not None:
+            self.cmd.extend(args)
+        self.agent_name = agent_name
+        self.proc = None
+
+    def run(self):
+        """Run the agent subprocess.
+
+        This runs the agent subprocess defined by ``self.cmd``. Output is
+        written to a ``PIPE``.
+
+        """
+        self.proc = subprocess.Popen(self.cmd,
+                                     env=self.env,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE,
+                                     text=True,
+                                     preexec_fn=os.setsid)
+
+        # Wait briefly then make sure subprocess hasn't already exited.
+        time.sleep(1)
+        if self.proc.poll() is not None:
+            self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
+
+    def _raise_subprocess(self, msg):
+        stdout, stderr = self.proc.stdout.read(), self.proc.stderr.read()
+        print(f'Here is stdout from {self.agent_name}:\n{stdout}')
+        print(f'Here is stderr from {self.agent_name}:\n{stderr}')
+        raise RuntimeError(msg)
+
+    def shutdown(self):
+        """Shutdown the agent process.
+
+        If the agent does not respond to a ``SIGINT`` then output is printed,
+        and an exception raised.
+
+        """
+        self.proc.send_signal(signal.SIGINT)
+
+        try:
+            self.proc.communicate(timeout=SIGINT_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            self._raise_subprocess('Agent did not terminate within '
+                                   f'{SIGINT_TIMEOUT} seconds on SIGINT.')
+
+
 def create_agent_runner_fixture(agent_path, agent_name, args=None):
     """Create a pytest fixture for running a given OCS Agent.
 
@@ -26,50 +98,12 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
     """
     @pytest.fixture()
     def run_agent(cov):
-        env = os.environ.copy()
-        env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
-        env['OCS_CONFIG_DIR'] = os.getcwd()
-        cmd = [
-            'python',
-            '-u',
-            '-m',
-            'coverage',
-            'run',
-            '--rcfile=./.coveragerc',
-            agent_path,
-            '--site-file',
-            './default.yaml'
-        ]
-        if args is not None:
-            cmd.extend(args)
-        agentproc = subprocess.Popen(cmd,
-                                     env=env,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     text=True,
-                                     preexec_fn=os.setsid)
-
-        def raise_subprocess(msg):
-            stdout, stderr = agentproc.stdout.read(), agentproc.stderr.read()
-            print(f'Here is stdout from {agent_name}:\n{stdout}')
-            print(f'Here is stderr from {agent_name}:\n{stderr}')
-            raise RuntimeError(msg)
-
-        # Wait briefly then make sure subprocess hasn't already exited.
-        time.sleep(1)
-        if agentproc.poll() is not None:
-            raise_subprocess(f"Agent failed to startup, cmd: {cmd}")
+        runner = _AgentRunner(agent_path, agent_name, args)
+        runner.run()
 
         yield
 
-        # shutdown Agent
-        agentproc.send_signal(signal.SIGINT)
-
-        try:
-            agentproc.communicate(timeout=SIGINT_TIMEOUT)
-        except subprocess.TimeoutExpired:
-            raise_subprocess('Agent did not terminate within '
-                             f'{SIGINT_TIMEOUT} seconds on SIGINT.')
+        runner.shutdown()
 
         # report coverage
         agentcov = coverage.data.CoverageData(

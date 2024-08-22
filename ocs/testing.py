@@ -6,6 +6,7 @@ import subprocess
 import coverage.data
 import urllib.request
 
+from threading import Timer
 from urllib.error import URLError
 
 from ocs.ocs_client import OCSClient
@@ -44,12 +45,17 @@ class _AgentRunner:
             self.cmd.extend(args)
         self.agent_name = agent_name
         self.proc = None
+        self._timer = None
 
-    def run(self):
+    def run(self, timeout):
         """Run the agent subprocess.
 
         This runs the agent subprocess defined by ``self.cmd``. Output is
-        written to a ``PIPE``.
+        written to a ``PIPE``. If the agent does not exit within the given
+        timeout it will be interruptd with a ``SIGINT``.
+
+        Parameters:
+            timeout (float): Timeout in seconds to wait for agent to exit.
 
         """
         self.proc = subprocess.Popen(self.cmd,
@@ -59,9 +65,14 @@ class _AgentRunner:
                                      text=True,
                                      preexec_fn=os.setsid)
 
+        # start timer for if agent crashes and hangs
+        self._timer = Timer(timeout, self.proc.send_signal, args=[signal.SIGINT])
+        self._timer.start()
+
         # Wait briefly then make sure subprocess hasn't already exited.
         time.sleep(1)
         if self.proc.poll() is not None:
+            self._timer.cancel()
             self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
 
     def _raise_subprocess(self, msg):
@@ -78,6 +89,7 @@ class _AgentRunner:
 
         """
         self.proc.send_signal(signal.SIGINT)
+        self._timer.cancel()
 
         try:
             self.proc.communicate(timeout=SIGINT_TIMEOUT)
@@ -86,7 +98,7 @@ class _AgentRunner:
                                    f'{SIGINT_TIMEOUT} seconds on SIGINT.')
 
 
-def create_agent_runner_fixture(agent_path, agent_name, args=None):
+def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
     """Create a pytest fixture for running a given OCS Agent.
 
     Parameters:
@@ -94,12 +106,16 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None):
             i.e. '../agents/fake_data/fake_data_agent.py'
         agent_name (str): Short, unique name for the agent
         args (list): Additional CLI arguments to add when starting the Agent
+        timeout (float): Timeout in seconds, after which the agent process will
+            be interrupted. This typically indicates a crash within the agent.
+            This timeout should be longer than you expect the agent to run for
+            during a given test. Defaults to 60 seconds.
 
     """
     @pytest.fixture()
     def run_agent(cov):
         runner = _AgentRunner(agent_path, agent_name, args)
-        runner.run()
+        runner.run(timeout=timeout)
 
         yield
 

@@ -53,7 +53,7 @@ class _AgentRunner:
 
         This runs the agent subprocess defined by ``self.cmd``. Output is
         written to a ``PIPE``. If the agent does not exit within the given
-        timeout it will be interruptd with a ``SIGINT``.
+        timeout it will be interrupted with a ``SIGKILL``.
 
         Parameters:
             timeout (float): Timeout in seconds to wait for agent to exit.
@@ -77,7 +77,8 @@ class _AgentRunner:
             self._raise_subprocess(f"Agent failed to startup, cmd: {self.cmd}")
 
     def _interrupt(self):
-        self.proc.send_signal(signal.SIGINT)
+        # not graceful, but handles really misbehaved agent subprocesses
+        self.proc.send_signal(signal.SIGKILL)
         self._timedout = True
 
     def _raise_subprocess(self, msg):
@@ -93,7 +94,7 @@ class _AgentRunner:
         and an exception raised.
 
         """
-        # avoid sending SIGINT twice
+        # don't send SIGINT if we've already sent SIGKILL
         if not self._timedout:
             self.proc.send_signal(signal.SIGINT)
         self._timer.cancel()

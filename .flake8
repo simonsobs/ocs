@@ -12,5 +12,4 @@ recursive = true
 aggressive = 2
 exclude =
     ocs/_version.py,
-    versioneer.py,
     docs/conf.py,

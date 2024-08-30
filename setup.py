@@ -1,7 +1,5 @@
 from setuptools import setup, find_packages
 
-import versioneer
-
 with open("README.rst", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
@@ -29,8 +27,7 @@ setup(name='ocs',
            ],
       },
       package_data={'': ['support/*json']},
-      version=versioneer.get_version(),
-      cmdclass=versioneer.get_cmdclass(),
+      version='0.11.3',
       url="https://github.com/simonsobs/ocs",
       project_urls={
           "Source Code": "https://github.com/simonsobs/ocs",

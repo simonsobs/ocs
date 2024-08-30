@@ -2,7 +2,6 @@
 requires = [
     # Upper bound needed until https://github.com/pypa/setuptools/issues/4483/ is fixed
     "setuptools>=42,<71.0.0",
-    "wheel",
     "versioneer-518",
 ]
 build-backend = "setuptools.build_meta"

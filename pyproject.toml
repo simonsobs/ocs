@@ -1,10 +1,13 @@
 [build-system]
-requires = ["hatchling"]
+requires = [
+    "hatch-vcs",
+    "hatchling",
+]
 build-backend = "hatchling.build"
 
 [project]
 name = "ocs"
-version = "0.11.3"
+dynamic = ["version"]
 description = "Observatory Control System"
 readme = "README.rst"
 license = {file = "LICENSE.txt"}
@@ -43,6 +46,7 @@ dev = [
     "pytest-cov",
     "pytest-docker",
     "pytest-twisted",
+    "setuptools-scm",
     "so3g",
 ]
 so3g = [
@@ -61,6 +65,12 @@ ocsbow = "ocs.ocsbow:main"
 Documentation = "https://ocs.readthedocs.io/"
 Homepage = "https://github.com/simonsobs/ocs"
 "Source Code" = "https://github.com/simonsobs/ocs"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "ocs/_version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

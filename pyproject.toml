@@ -69,6 +69,11 @@ Homepage = "https://github.com/simonsobs/ocs"
 [tool.hatch.version]
 source = "vcs"
 
+# closest scheme to versioneer behavior, avoids auto-incremented version number
+# https://setuptools-scm.readthedocs.io/en/latest/usage/#default-versioning-scheme
+[tool.hatch.version.raw-options]
+version_scheme = "no-guess-dev"
+
 [tool.hatch.build.hooks.vcs]
 version-file = "ocs/_version.py"
 

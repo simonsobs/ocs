@@ -3,4 +3,5 @@ pytest-cov
 docker
 pytest-docker
 pytest-twisted
+setuptools-scm
 so3g

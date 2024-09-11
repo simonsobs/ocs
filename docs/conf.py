@@ -46,6 +46,9 @@ extensions = [
 ]
 extensions += ['sphinxarg.ext']
 
+# support inline tabs
+extensions += ['sphinx_inline_tabs']
+
 # Present auto-documented members in source order (rather than alphabetical).
 autodoc_default_options = {
     'member-order': 'bysource',

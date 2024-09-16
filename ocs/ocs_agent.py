@@ -34,9 +34,11 @@ from ocs.base import OpCode
 from typing import Tuple, Optional, Callable, Dict, Any, Union, TypeVar, Generator, Union
 
 
-OpReturnType = Union[Tuple[bool, str], Deferred[Tuple[bool, str]]]
-OpFuncType = Callable[["OpSession", Optional[Dict[str, Any]]], OpReturnType]
-InlineCallbackOpType = Generator[Any, Any, OpReturnType]
+OpFuncType = Union[
+    Callable[["OpSession", Optional[Dict[str, Any]]], Tuple[bool, str]],
+    Callable[["OpSession", Optional[Dict[str, Any]]], Deferred[Tuple[bool, str]]],
+]
+InlineCallbackOpType = Generator[Any, Any, Tuple[bool, str]]
 
 
 def init_site_agent(

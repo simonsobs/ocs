@@ -6,6 +6,8 @@ from autobahn.twisted.util import sleep as dsleep
 from ocs.ocs_feed import Feed
 import argparse
 
+from typing import Dict, Any, Optional
+
 
 class RegisteredAgent:
     """
@@ -28,15 +30,15 @@ class RegisteredAgent:
                 docs from the ``ocs_agent`` module
     """
 
-    def __init__(self, feed):
+    def __init__(self, feed: Dict[str, Any]) -> None:
         self.expired = False
-        self.time_expired = None
+        self.time_expired: Optional[float] = None
         self.last_updated = time.time()
-        self.op_codes = {}
-        self.agent_class = feed.get('agent_class')
-        self.agent_address = feed['agent_address']
+        self.op_codes: Dict[str, int] = {}
+        self.agent_class: Optional[str] = feed.get('agent_class')
+        self.agent_address: str = feed['agent_address']
 
-    def refresh(self, op_codes=None):
+    def refresh(self, op_codes: Optional[Dict[str, int]]=None) -> None:
         self.expired = False
         self.time_expired = None
         self.last_updated = time.time()
@@ -44,13 +46,13 @@ class RegisteredAgent:
         if op_codes:
             self.op_codes.update(op_codes)
 
-    def expire(self):
+    def expire(self) -> None:
         self.expired = True
         self.time_expired = time.time()
         for k in self.op_codes:
             self.op_codes[k] = OpCode.EXPIRED.value
 
-    def encoded(self):
+    def encoded(self) -> Dict[str, Any]:
         return {
             'expired': self.expired,
             'time_expired': self.time_expired,
@@ -85,7 +87,7 @@ class Registry:
                 as expired.
     """
 
-    def __init__(self, agent, args):
+    def __init__(self, agent: ocs_agent.OCSAgent, args: argparse.Namespace) -> None:
         self.log = agent.log
         self.agent = agent
         self.wait_time = args.wait_time
@@ -94,7 +96,7 @@ class Registry:
         self._run = False
 
         # Dict containing agent_data for each registered agent
-        self.registered_agents = {}
+        self.registered_agents: Dict[str, RegisteredAgent] = {}
         self.agent_timeout = 5.0  # Removes agent after 5 seconds of no heartbeat.
 
         self.agent.subscribe_on_start(
@@ -108,7 +110,7 @@ class Registry:
         self.agent.register_feed('agent_operations', record=True,
                                  agg_params=agg_params, buffer_time=0)
 
-    def _register_heartbeat(self, _data):
+    def _register_heartbeat(self, _data) -> None:
         """
             Function that is called whenever a heartbeat is received from an agent.
             It will update that agent in the Registry's registered_agent dict.
@@ -124,7 +126,7 @@ class Registry:
         if publish:
             self._publish_agent_ops(reg_agent)
 
-    def _publish_agent_ops(self, reg_agent):
+    def _publish_agent_ops(self, reg_agent: RegisteredAgent) -> None:
         """Publish a registered agent's OpCodes.
 
         Args:
@@ -150,7 +152,11 @@ class Registry:
 
     @ocs_agent.param('test_mode', default=False, type=bool)
     @inlineCallbacks
-    def main(self, session: ocs_agent.OpSession, params):
+    def main(
+        self,
+        session: ocs_agent.OpSession,
+        params: Optional[Dict[str, Any]]
+    ) -> ocs_agent.InlineCallbackOpType:
         """main(test_mode=False)
 
         **Process** - Main run process for the Registry agent. This will loop
@@ -214,13 +220,17 @@ class Registry:
                 for agent in self.registered_agents.values():
                     self._publish_agent_ops(agent)
 
-            if params['test_mode']:
+            if params['test_mode']:  # type: ignore
                 break
 
         return True, "Stopped registry main process"
 
     @inlineCallbacks
-    def _stop_main(self, session, params):
+    def _stop_main(
+        self,
+        session: ocs_agent.OpSession,
+        params: Optional[Dict[str, Any]]
+    ) -> ocs_agent.InlineCallbackOpType:
         """Stop function for the 'main' process."""
         yield
         if self._run:
@@ -240,7 +250,7 @@ class Registry:
         return True, "'register_agent' is deprecated"
 
 
-def make_parser(parser=None):
+def make_parser(parser: Optional[argparse.ArgumentParser]=None) -> argparse.ArgumentParser:
     if parser is None:
         parser = argparse.ArgumentParser()
     pgroup = parser.add_argument_group('Agent Options')
@@ -249,7 +259,7 @@ def make_parser(parser=None):
     return parser
 
 
-def main(args=None):
+def main(args=None) -> None:
     parser = make_parser()
     args = site_config.parse_args(agent_class='RegistryAgent',
                                   parser=parser,

@@ -3,6 +3,8 @@ import ocs
 import txaio
 txaio.use_twisted()
 
+from __future__ import annotations
+
 from twisted.application.internet import backoffPolicy
 from twisted.internet import reactor, task, threads
 from twisted.internet.defer import inlineCallbacks, Deferred, DeferredList, FirstError, maybeDeferred
@@ -18,6 +20,7 @@ from autobahn.wamp.exception import ApplicationError, TransportLost
 from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
 
+import argparse
 import json
 import math
 import time
@@ -28,9 +31,18 @@ import os
 from ocs import client_t
 from ocs import ocs_feed
 from ocs.base import OpCode
+from typing import Tuple, Optional, Callable, Dict, Any, Union, TypeVar, Generator, Union
 
 
-def init_site_agent(args, address=None):
+OpReturnType = Union[Tuple[bool, str], Deferred[Tuple[bool, str]]]
+OpFuncType = Callable[["OpSession", Optional[Dict[str, Any]]], OpReturnType]
+InlineCallbackOpType = Generator[Any, Any, OpReturnType]
+
+
+def init_site_agent(
+    args: argparse.Namespace,
+    address: Optional[str] = None
+) -> Tuple[OCSAgent, ApplicationRunner]:
     """
     Create ApplicationSession and ApplicationRunner instances, set up
     to communicate on the chosen WAMP realm.
@@ -432,8 +444,15 @@ class OCSAgent(ApplicationSession):
         if q == 'get_agent_class':
             return self.class_name
 
-    def register_task(self, name, func, aborter=None, blocking=True,
-                      aborter_blocking=None, startup=False):
+    def register_task(
+        self,
+        name: str,
+        func: OpFuncType,
+        aborter: Optional[OpFuncType] = None,
+        blocking: bool = True,
+        aborter_blocking: Optional[bool] = None,
+        startup: Union[bool, Dict[str, Any]] = False
+    ) -> None:
         """Register a Task for this agent.
 
         Args:
@@ -474,8 +493,15 @@ class OCSAgent(ApplicationSession):
         if startup is not False:
             self.startup_ops.append(('task', name, startup))
 
-    def register_process(self, name, start_func, stop_func, blocking=True,
-                         stopper_blocking=None, startup=False):
+    def register_process(
+        self,
+        name: str,
+        start_func: OpFuncType,
+        stop_func: OpFuncType,
+        blocking: bool = True,
+        stopper_blocking: Optional[bool] = None,
+        startup: Union[bool, Dict[str, Any]] = False
+    ) -> None:
         """Register a Process for this agent.
 
         Args:
@@ -1519,8 +1545,9 @@ class ParamHandler:
         if len(weird_args):
             raise ParamError(f"params included unexpected values: {weird_args}")
 
+F = TypeVar('F')
 
-def param(key, **kwargs):
+def param(key, **kwargs) -> Callable[[F], F]:
     """Decorator for Agent operation functions to assist with checking
     params prior to actually trying to execute the code.  Example::
 

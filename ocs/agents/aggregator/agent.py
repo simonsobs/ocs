@@ -122,7 +122,7 @@ class AggregatorAgent:
         except PermissionError:
             self.log.error("Unable to intialize Aggregator due to permission "
                            "error, stopping twisted reactor")
-            reactor.callFromThread(reactor.stop)
+            reactor.callFromThread(reactor.stop)  # type: ignore
             return False, "Aggregation not started"
 
         while self.aggregate:

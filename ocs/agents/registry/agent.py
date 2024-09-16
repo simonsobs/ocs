@@ -38,7 +38,7 @@ class RegisteredAgent:
         self.agent_class: Optional[str] = feed.get('agent_class')
         self.agent_address: str = feed['agent_address']
 
-    def refresh(self, op_codes: Optional[Dict[str, int]]=None) -> None:
+    def refresh(self, op_codes: Optional[Dict[str, int]] = None) -> None:
         self.expired = False
         self.time_expired = None
         self.last_updated = time.time()
@@ -250,7 +250,7 @@ class Registry:
         return True, "'register_agent' is deprecated"
 
 
-def make_parser(parser: Optional[argparse.ArgumentParser]=None) -> argparse.ArgumentParser:
+def make_parser(parser: Optional[argparse.ArgumentParser] = None) -> argparse.ArgumentParser:
     if parser is None:
         parser = argparse.ArgumentParser()
     pgroup = parser.add_argument_group('Agent Options')

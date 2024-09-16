@@ -1547,7 +1547,9 @@ class ParamHandler:
         if len(weird_args):
             raise ParamError(f"params included unexpected values: {weird_args}")
 
+
 F = TypeVar('F')
+
 
 def param(key, **kwargs) -> Callable[[F], F]:
     """Decorator for Agent operation functions to assist with checking

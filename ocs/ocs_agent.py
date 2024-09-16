@@ -1,9 +1,9 @@
+from __future__ import annotations
 import ocs
 
 import txaio
 txaio.use_twisted()
 
-from __future__ import annotations
 
 from twisted.application.internet import backoffPolicy
 from twisted.internet import reactor, task, threads

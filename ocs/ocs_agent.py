@@ -31,7 +31,7 @@ import os
 from ocs import client_t
 from ocs import ocs_feed
 from ocs.base import OpCode
-from typing import Tuple, Optional, Callable, Dict, Any, Union, TypeVar, Generator, Union
+from typing import Tuple, Optional, Callable, Dict, Any, Union, TypeVar, Generator
 
 
 OpFuncType = Union[

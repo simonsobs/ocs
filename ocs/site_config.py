@@ -69,7 +69,6 @@ class HostConfig:
     def __init__(self, name=None):
         self.instances = []
         self.name = name
-        self.agent_paths = []
         self.log_dir = None
         self.working_dir = os.getcwd()
         self.crossbar_timeout = None
@@ -85,10 +84,6 @@ class HostConfig:
 
         ``agent-instances`` (required)
             A list of AgentConfig descriptions.
-
-        ``agent-paths`` (optional)
-            A list of additional paths where OCS is permitted to
-            search for Agent plugin modules.
 
         ``crossbar`` (optional)
             Settings to assist with starting / stopping / monitoring a
@@ -109,7 +104,6 @@ class HostConfig:
         self.parent = parent
         self.data = data
         self.instances = data['agent-instances']
-        self.agent_paths = data.get('agent-paths', [])
         self.crossbar = CrossbarConfig.from_dict(data.get('crossbar'))
         self.log_dir = data.get('log-dir', None)
         self.crossbar_timeout = data.get('crossbar_timeout', 10)

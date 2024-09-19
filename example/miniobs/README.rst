@@ -12,7 +12,7 @@ In particular:
 
 - The list of Agents is defined under hostname ``localhost``.  This is
   a wildcard that can only work in a single-host system.
-- ``log-dir``, ``agent-paths``, and the ``crossbar:config-dir`` are
+- ``log-dir`` and the ``crossbar:config-dir`` are
   all specified as relative paths.  Behavior will be unpredictable if
   Agents are not all invoked in the same working directory.
 

@@ -90,9 +90,6 @@ the CrossbarConfig class:
     :members: from_dict
     :noindex:
 
-The significance of ``agent-paths`` is described more in
-:ref:`agent_plugins`.
-
 InstanceConfig
 --------------
 
@@ -205,43 +202,3 @@ river_ctrl.py in the examples):
       print('Starting a data acquisition process...')
       d1 = yield cw.start()
       #...
-
-
-.. _agent_plugins:
-
-Agent Script Discovery
-======================
-
-Agent scripts are currently written as stand-alone python scripts (and
-thus not not importable through the main ``ocs`` python module).  To
-support automatic launching of Agents, ``site_config`` includes a
-plugin-style system to register Agent scripts.  This is flexible
-enough to support both the natively packaged Agents and any
-"third-party" agents needed in a particular installation.  The system
-works like this:
-
-- A bundle of Agent scripts is assembled at some location.  There are
-  no restrictions on where these scripts can live in the file system.
-  For example, a script called ``riverbank_agent.py`` might live in
-  ``/simonsobs/agents/``.
-- A special "registration script" is written, with a filename of the
-  form ``ocs_plugin_*.py``.  This script should live in Python's
-  import path, or else (and this is better), the path to the script
-  should be included in the ``agent-paths`` variable in the SCF for
-  this host.  For example, we might put the file in ``/simonsobs/agents``
-  and call it ``ocs_plugin_simonsobs.py``.
-- When the site_config system (specifically the HostManager agent)
-  needs to find a particular agent script, it:
-
-  - Adds any directories in ``agent-paths`` to the Python import path.
-  - Scans through all importable modules, and imports them if they
-    match the ``ocs_plugin_*`` name pattern.
-
-- The ``ocs_plugin`` script makes calls into ocs to associate a
-  particular script filenames to agent class names.  In our example,
-  ``ocs_plugin_simonsobs.py`` would call
-  ``ocs.site_config.register_agent_class('RiverBank',
-  '/simonsobs/agents/riverbank_agent.py')``.
-
-A good example of a plugin script can be found in the OCS agents
-directory, ``ocs_plugins_standard.py``.

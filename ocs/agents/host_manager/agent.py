@@ -68,17 +68,6 @@ class HostManager:
                             f'likely syntax error: {e}')
             return returnValue((False, instances, warnings))
 
-        # Scan for agent scripts in (deprecated) script registry
-        try:
-            for p in hc.agent_paths:
-                if p not in sys.path:
-                    sys.path.append(p)
-            site_config.scan_for_agents()
-        except Exception as e:
-            warnings.append('Failed to scan for old plugin agents -- '
-                            f'likely plugin config problem: {e}')
-            return returnValue((False, instances, warnings))
-
         # Gather managed items from site config.
         for inst in hc.instances:
             if inst['instance-id'] in instances:
@@ -317,15 +306,10 @@ class HostManager:
                 continue
             if instance['management'] == 'host':
                 cls = instance['agent_class']
-                # Check for the agent class in the plugin system;
-                # then check the (deprecated) agent script registry.
+                # Check for the agent class in the plugin system
                 if cls in agent_plugins:
                     session.add_message(f'Found plugin for "{cls}"')
                     instance['agent_script'] = '__plugin__'
-                    instance['operable'] = True
-                elif cls in site_config.agent_script_reg:
-                    session.add_message(f'Found launcher script for "{cls}"')
-                    instance['agent_script'] = site_config.agent_script_reg[cls]
                     instance['operable'] = True
                 else:
                     session.add_message(f'No plugin (nor launcher script) '

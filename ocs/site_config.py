@@ -686,47 +686,6 @@ def get_control_client(instance_id, site=None, args=None, start=True,
     return client
 
 
-# We'll also keep the Agent script registry here.
-agent_script_reg = {}
-
-
-def register_agent_class(class_name, filename):
-    """Register an Agent script in the site_config registry.
-
-    Args:
-        class_name (str): The Agent class name, e.g. "HostManager".
-        filename (str): The full path to the script that launches an
-            instance of this Agent class.
-
-    """
-    agent_script_reg[class_name] = filename
-
-
-def scan_for_agents(do_registration=True):
-    """Identify and import ocs Agent plugin scripts.  This will find all
-    modules in the current module search path (sys.path) that begin
-    with the name 'ocs_plugin\\_'.
-
-    Args:
-        do_registration (bool): If True, the modules are imported,
-            which likely causes them to call register_agent_class on
-            each agent they represent.
-
-    Returns:
-        The list of discovered module names.
-
-    """
-    import pkgutil
-    import importlib
-    items = []
-    for modinfo in pkgutil.iter_modules():
-        if modinfo.name.startswith('ocs_plugin_'):
-            items.append(modinfo.name)
-            if do_registration:
-                importlib.import_module(modinfo.name)
-    return items
-
-
 def parse_args(agent_class=None, parser=None, args=None):
     """
     Function to parse site-config and agent arguments. This function takes

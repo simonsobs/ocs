@@ -254,11 +254,7 @@ class InstanceConfig:
 
         ``arguments`` (list, optional):
             A list of arguments that should be passed back to the
-            agent.  Historically the arguments have been grouped into
-            into key value pairs, e.g. [['--key1', 'value'],
-            ['--key2', 'value']] but these days whatever you passed in
-            gets flattened to a single list (i.e. that is equivalent
-            to ['--key1', 'value', '--key2', 'value'].
+            agent.
 
         ``manage`` (str, optional):
             A string describing how a HostManager should manage this

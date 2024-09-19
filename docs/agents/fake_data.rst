@@ -28,9 +28,9 @@ available arguments::
 
     {'agent-class': 'FakeDataAgent',
      'instance-id': 'fake-data1',
-     'arguments': [['--mode', 'acq'],
-                   ['--num-channels', '16'],
-                   ['--sample-rate', '4']]},
+     'arguments': ['--mode', 'acq',
+                   '--num-channels', '16',
+                   '--sample-rate', '4']},
 
 Docker Compose
 ``````````````

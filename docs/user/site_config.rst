@@ -55,12 +55,12 @@ instances (running two different classes of agent):
       'agent-instances': [
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo1',
-         'arguments': [['--serial-number', 'LSA11AA'],
-                       ['--mode', 'idle']]},
+         'arguments': ['--serial-number', 'LSA11AA',
+                       '--mode', 'idle']},
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo2',
-         'arguments': [['--serial-number', 'LSA22BB'],
-                       ['--mode', 'acq']]},
+         'arguments': ['--serial-number', 'LSA22BB',
+                       '--mode', 'acq']},
       ]
     }
 
@@ -76,8 +76,8 @@ instances (running two different classes of agent):
       'agent-instances': [
         {'agent-class': 'Lakeshore372Agent',
          'instance-id': 'LSARR00',
-         'arguments': [['--serial-number', 'LSARR00'],
-                       ['--ip-address', '10.10.10.55']]},
+         'arguments': ['--serial-number', 'LSARR00',
+                       '--ip-address', '10.10.10.55']},
       ]
     }
 
@@ -101,13 +101,13 @@ instances (running two different classes of agent):
       'agent-instances': [
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo3',
-         'arguments': [['--serial-number', 'LSA33CC'],
-                       ['--mode', 'init']]},
+         'arguments': ['--serial-number', 'LSA33CC',
+                       '--mode', 'init']},
         {'agent-class': 'AggregatorAgent',
          'instance-id': 'aggregator',
-         'arguments': [['--initial-state', 'record'],
-                       ['--time-per-file', '3600'],
-                       ['--data-dir', '/data/']]},
+         'arguments': ['--initial-state', 'record',
+                       '--time-per-file', '3600',
+                       '--data-dir', '/data/']},
       ]
     }
 
@@ -146,8 +146,8 @@ example look at the first 372 Agent::
 
         {'agent-class': 'Lakeshore372Agent',
          'instance-id': 'LSARR00',
-         'arguments': [['--serial-number', 'LSARR00'],
-                       ['--ip-address', '10.10.10.55']]},
+         'arguments': ['--serial-number', 'LSARR00',
+                       '--ip-address', '10.10.10.55']},
 
 The ``agent-class`` is given by the actual Agent which will be running. This
 must match the name defined in the Agent's code. The ``instance-id`` is a
@@ -212,15 +212,15 @@ To set at the host level:
         # crossbar timeout set to 30 seconds
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo1',
-         'arguments': [['--serial-number', 'LSA11AA'],
-                       ['--mode', 'idle'],
-                       ['--crossbar-timeout', 30]]},
+         'arguments': ['--serial-number', 'LSA11AA',
+                       '--mode', 'idle',
+                       '--crossbar-timeout', 30]},
         # crossbar timeout disabled
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo2',
-         'arguments': [['--serial-number', 'LSA22BB'],
-                       ['--mode', 'acq'],
-                       ['--crossbar-timeout', 0]]},
+         'arguments': ['--serial-number', 'LSA22BB',
+                       '--mode', 'acq',
+                       '--crossbar-timeout', 0]},
       ]
     }
 

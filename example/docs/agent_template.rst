@@ -32,9 +32,9 @@ An example site-config-file block::
 
     {'agent-class': 'TemplateAgent',
        'instance-id': 'template',
-       'arguments': [['--argument-1', 'value1'],
-                     ['--argument-2', 42],
-                     ['--argument-3']]},
+       'arguments': ['--argument-1', 'value1',
+                     '--argument-2', 42,
+                     '--argument-3']},
 
 Docker Compose
 ``````````````

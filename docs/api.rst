@@ -54,6 +54,7 @@ agents.host_manager
     :members:
     :undoc-members:
     :show-inheritance:
+    :noindex:
 
 agents.influxdb_publisher
 `````````````````````````

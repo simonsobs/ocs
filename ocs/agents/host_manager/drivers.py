@@ -26,8 +26,8 @@ class ManagedInstance(dict):
     - 'operable' (bool): indicates whether the instance can be
       manipulated (whether calls to up/down should be expected to
       work).
-    - 'agent_script' (str): Path to the launcher script (if host
-      system managed).  If docker-managed, this is the service name.
+    - 'agent_script' (str): The docker service_name, if docker-managed.
+      Otherwise, the string ``__plugin__`` to indicate it is host managed.
     - 'prot': The twisted ProcessProtocol object (if host system
       managed), or the DockerContainerHelper (if a docker container).
     - 'target_state' (state): The state we're trying to achieve (up or

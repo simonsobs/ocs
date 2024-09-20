@@ -55,12 +55,6 @@ structure.
         # Directory for logs.
         'log-dir': '/home/<user>/log/ocs/',
 
-        # List of additional paths to Agent plugin modules.
-        'agent-paths': [
-            '/home/<user>/git/ocs/agents/',
-            '/home/<user>/git/socs/agents/',
-        ],
-
         # Agents running directly on the host machine
         # Note: We aren't going to run this Agent in the quickstart example,
         #       but this gives a good example of configuring an agent directly

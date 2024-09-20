@@ -43,11 +43,6 @@ instances (running two different classes of agent):
       # Directory for logs.
       'log-dir': '/simonsobs/log/ocs/',
 
-      # List of additional paths to Agent plugin modules.
-      'agent-paths': [
-        '/simonsobs/ocs/agents/',
-      ],
-
       # Description of host-1's Agents.
       # We have two readout devices; they are both Lakeshore 240. But they can
       # be distinguished, on startup, by a device serial number.
@@ -88,11 +83,6 @@ instances (running two different classes of agent):
 
       # Directory for logs.
       'log-dir': '/simonsobs/log/ocs/',
-
-      # List of additional paths to Agent plugin modules.
-      'agent-paths': [
-        '/simonsobs/ocs/agents/',
-      ],
 
       # Description of host-2's Agents.
       # We have two devices; another Lakeshore 240, and the OCS g3 file

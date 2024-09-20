@@ -68,17 +68,6 @@ class HostManager:
                             f'likely syntax error: {e}')
             return returnValue((False, instances, warnings))
 
-        # Scan for agent scripts in (deprecated) script registry
-        try:
-            for p in hc.agent_paths:
-                if p not in sys.path:
-                    sys.path.append(p)
-            site_config.scan_for_agents()
-        except Exception as e:
-            warnings.append('Failed to scan for old plugin agents -- '
-                            f'likely plugin config problem: {e}')
-            return returnValue((False, instances, warnings))
-
         # Gather managed items from site config.
         for inst in hc.instances:
             if inst['instance-id'] in instances:
@@ -317,18 +306,13 @@ class HostManager:
                 continue
             if instance['management'] == 'host':
                 cls = instance['agent_class']
-                # Check for the agent class in the plugin system;
-                # then check the (deprecated) agent script registry.
+                # Check for the agent class in the plugin system
                 if cls in agent_plugins:
                     session.add_message(f'Found plugin for "{cls}"')
                     instance['agent_script'] = '__plugin__'
                     instance['operable'] = True
-                elif cls in site_config.agent_script_reg:
-                    session.add_message(f'Found launcher script for "{cls}"')
-                    instance['agent_script'] = site_config.agent_script_reg[cls]
-                    instance['operable'] = True
                 else:
-                    session.add_message(f'No plugin (nor launcher script) '
+                    session.add_message('No plugin '
                                         f'found for agent_class "{cls}"!')
             elif instance['management'] == 'docker':
                 instance['agent_script'] = self.docker_service_prefix + iid
@@ -361,16 +345,11 @@ class HostManager:
         else:
             iid = instance['instance_id']
             pyth = sys.executable
-            script = instance['agent_script']
-            if script == '__plugin__':
-                cmd = [pyth, '-m', 'ocs.agent_cli']
-            else:
-                cmd = [pyth, script]
-            cmd.extend([
-                '--instance-id', iid,
-                '--site-file', self.site_config_file,
-                '--site-host', self.host_name,
-                '--working-dir', self.working_dir])
+            cmd = [pyth, '-m', 'ocs.agent_cli',
+                   '--instance-id', iid,
+                   '--site-file', self.site_config_file,
+                   '--site-host', self.host_name,
+                   '--working-dir', self.working_dir]
             prot = hm_utils.AgentProcessHelper(iid, cmd)
         prot.up()
         instance['prot'] = prot

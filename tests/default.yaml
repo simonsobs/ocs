@@ -10,9 +10,6 @@ hosts:
 
   localhost: {
     'log-dir': './log/',
-    'agent-paths': [
-      '../agents/',
-    ],
     'agent-instances': [
       {'agent-class': 'HostManager',
        'instance-id': 'host-manager-1',

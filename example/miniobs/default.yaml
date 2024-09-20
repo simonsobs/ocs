@@ -11,10 +11,6 @@ hosts:
   localhost: {
     'crossbar': {'config-dir': './dot_crossbar/'},
     'log-dir': './logs',
-    'agent-paths': [
-        '../../agents/',
-        './',
-        ],
     'agent-instances': [
       {'agent-class': 'HostManager',
        'instance-id': 'hm1',

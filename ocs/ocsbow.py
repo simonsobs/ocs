@@ -5,6 +5,7 @@
 
 import ocs
 from ocs import client_http, ocs_client
+from ocs.agent_cli import build_agent_list
 
 import argparse
 import difflib
@@ -465,14 +466,10 @@ def print_config(args, site_config):
             return False
         print('ocs plugin detection')
         print('--------------------')
-        print('Scanning.')
-        for p in host.agent_paths:
-            print('  ... adding to path: %s' % p)
-            sys.path.append(p)
-        ocs.site_config.scan_for_agents()
+        agent_list = build_agent_list()
         print('Found:')
-        for k, v in ocs.site_config.agent_script_reg.items():
-            print('  %-20s : %s' % (k, v))
+        for k, v in agent_list.items():
+            print('  %-25s : %s' % (k, v['module']))
         print()
 
     if args.cfg_request == 'crossbar':

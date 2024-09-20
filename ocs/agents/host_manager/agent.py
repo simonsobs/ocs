@@ -345,16 +345,11 @@ class HostManager:
         else:
             iid = instance['instance_id']
             pyth = sys.executable
-            script = instance['agent_script']
-            if script == '__plugin__':
-                cmd = [pyth, '-m', 'ocs.agent_cli']
-            else:
-                cmd = [pyth, script]
-            cmd.extend([
-                '--instance-id', iid,
-                '--site-file', self.site_config_file,
-                '--site-host', self.host_name,
-                '--working-dir', self.working_dir])
+            cmd = [pyth, '-m', 'ocs.agent_cli',
+                   '--instance-id', iid,
+                   '--site-file', self.site_config_file,
+                   '--site-host', self.host_name,
+                   '--working-dir', self.working_dir]
             prot = hm_utils.AgentProcessHelper(iid, cmd)
         prot.up()
         instance['prot'] = prot

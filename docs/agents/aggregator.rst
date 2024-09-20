@@ -47,10 +47,9 @@ An example site-config entry is::
 
     {'agent-class': 'AggregatorAgent',
        'instance-id': 'aggregator',
-       'arguments': [['--initial-state', 'record'],
-                     ['--time-per-file', '3600'],
-                     ['--data-dir', '/data/hk']
-       ]},
+       'arguments': ['--initial-state', 'record',
+                     '--time-per-file', '3600',
+                     '--data-dir', '/data/hk']},
 
 .. note::
     ``/data/hk`` is used to avoid conflict with other collections of data. In

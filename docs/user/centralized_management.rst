@@ -91,12 +91,12 @@ block would become:
       'agent-instances': [
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo1',
-         'arguments': [['--serial-number', 'LSA11AA'],
-                       ['--mode', 'idle']]},
+         'arguments': ['--serial-number', 'LSA11AA',
+                       '--mode', 'idle']},
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo2',
-         'arguments': [['--serial-number', 'LSA22BB'],
-                       ['--mode', 'acq']]},
+         'arguments': ['--serial-number', 'LSA22BB',
+                       '--mode', 'acq']},
         {'agent-class': 'HostManager',
          'instance-id': 'hm-host-1'},
         },
@@ -159,12 +159,12 @@ become:
       {'agent-class': 'Lakeshore372Agent',
        'instance-id': 'LSARR00',
        'manage': 'docker',
-       'arguments': [['--serial-number', 'LSARR00'],
-                     ['--ip-address', '10.10.10.55']]},
+       'arguments': ['--serial-number', 'LSARR00',
+                     '--ip-address', '10.10.10.55']},
       {'agent-class': 'HostManager',
        'instance-id': 'hm-host-1-docker',
-       'arguments': [['--initial-state', 'up'],
-                     ['--docker-compose', '/home/ocs/site-config/host-1-docker/docker-compose.yaml']]},
+       'arguments': ['--initial-state', 'up',
+                     '--docker-compose', '/home/ocs/site-config/host-1-docker/docker-compose.yaml']},
     ]
   }
 

@@ -312,7 +312,7 @@ class HostManager:
                     instance['agent_script'] = '__plugin__'
                     instance['operable'] = True
                 else:
-                    session.add_message(f'No plugin (nor launcher script) '
+                    session.add_message('No plugin '
                                         f'found for agent_class "{cls}"!')
             elif instance['management'] == 'docker':
                 instance['agent_script'] = self.docker_service_prefix + iid

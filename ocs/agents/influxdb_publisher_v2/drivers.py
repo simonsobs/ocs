@@ -88,7 +88,7 @@ class Publisher:
                 time.sleep(1)
             if operate_callback and not operate_callback():
                 break
-        
+
         if self.db != bucket.name:
             print(f"{self.db} DB doesn't exist, creating DB")
             with self.client:

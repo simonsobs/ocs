@@ -9,7 +9,8 @@ setproctitle
 influxdb
 
 # FakeDataAgent
-numpy
+# 2.0 pin required until https://github.com/simonsobs/so3g/issues/184 is fixed
+numpy<2.0
 
 # Documentation generation
 # see docs/requirements.txt

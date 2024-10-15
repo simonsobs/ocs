@@ -216,6 +216,32 @@ of a Task::
     else:
         print('Task did not complete successfully')
 
+Check Health of a Process
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Usually it's good when a Process is still running, but some Processes
+will also mark themselves as "degraded" if there is some non-fatal
+problem that means the acquisition or control is not occurring::
+
+    from ocs.ocs_client import OCSClient
+
+    client = OCSClient('agent-instance-id')
+
+    client.some_process.start()
+    time.sleep(2)
+    status = client.some_process()
+
+    if response.session['success'] is None:
+        if response.session['degraded']:
+            print('Process is running, but in a degraded state.')
+        else:
+            print('Process is running (and does not report degraded state).')
+    elif response.session['success']:
+        print('Process exited without error')
+    else:
+        print('Process exited with error')
+
+
 Check Latest Data in an Operation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

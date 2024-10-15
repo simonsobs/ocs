@@ -110,7 +110,6 @@ class AggregatorAgent:
                          "last_block_received": "temps"}}}
 
         """
-        session.set_status('starting')
         self.aggregate = True
 
         try:
@@ -126,7 +125,6 @@ class AggregatorAgent:
             reactor.callFromThread(reactor.stop)
             return False, "Aggregation not started"
 
-        session.set_status('running')
         while self.aggregate:
             time.sleep(self.loop_time)
             aggregator.run()

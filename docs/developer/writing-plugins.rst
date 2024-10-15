@@ -37,29 +37,47 @@ within the ``__main__`` block.
 Package Entry Point
 -------------------
 After you have created the plugin file, you need to add an entry point to
-``setup.py``. This will register your package for discovery by ocs. This looks
-like (assuming the plugin file is called ``plugin.py`` and lives at the top
-level of the package):
+``pyproject.toml`` or ``setup.py``. This will register your package for
+discovery by ocs. This looks like (assuming the plugin file is called
+``plugin.py`` and lives at the top level of the package):
 
-.. code-block:: python
+.. tab:: pyproject.toml
 
-       entry_points={
-           'ocs.plugins': [
-               '<plugin name> = <package name>.plugin',
-               ],
-       },
+    .. code-block::
 
-Plugin name should just match the package name, however the group name must
-always be ``ocs.plugins`` in order for OCS to recognize the plugin. For
+        [project.entry-points.'ocs.plugins']
+        <plugin name> = '<package name>.plugin'
+
+.. tab:: setup.py
+
+    .. code-block:: python
+
+           entry_points={
+               'ocs.plugins': [
+                   '<plugin name> = <package name>.plugin',
+                   ],
+           },
+
+Plugin name should typically match the package name, however the group name
+must always be ``ocs.plugins`` in order for OCS to recognize the plugin. For
 example, if your package was called ``my_ocs_pkg`` this would be:
 
-.. code-block:: python
+.. tab:: pyproject.toml
 
-       entry_points={
-           'ocs.plugins': [
-               'my_ocs_pkg = my_ocs_pkg.plugin',
-               ],
-       },
+    .. code-block::
+
+        [project.entry-points.'ocs.plugins']
+        my_ocs_pkg = 'my_ocs_pkg.plugin'
+
+.. tab:: setup.py
+
+    .. code-block:: python
+
+           entry_points={
+               'ocs.plugins': [
+                   'my_ocs_pkg = my_ocs_pkg.plugin',
+                   ],
+           },
 
 Agent Entry Point
 -----------------

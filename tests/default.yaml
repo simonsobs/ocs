@@ -10,9 +10,6 @@ hosts:
 
   localhost: {
     'log-dir': './log/',
-    'agent-paths': [
-      '../agents/',
-    ],
     'agent-instances': [
       {'agent-class': 'HostManager',
        'instance-id': 'host-manager-1',
@@ -20,10 +17,10 @@ hosts:
       {'agent-class': 'FakeDataAgent',
        'instance-id': 'fake-data-local',
        'manage': 'host/down',
-       'arguments': [['--mode', 'idle'],
-                     ['--num-channels', '16'],
-                     ['--sample-rate', '5'],
-                     ['--frame-length', '10']]},
+       'arguments': ['--mode', 'idle',
+                     '--num-channels', '16',
+                     '--sample-rate', '5',
+                     '--frame-length', '10']},
       {'agent-class': 'RegistryAgent',
         'instance-id': 'registry',
         'manage': 'host/up',
@@ -31,15 +28,15 @@ hosts:
       {'agent-class': 'AggregatorAgent',
        'instance-id': 'aggregator-local',
        'manage': 'ignore',
-       'arguments': [['--initial-state', 'idle'],
-                     ['--time-per-file', '30'],
-                     ['--data-dir', '/tmp/data/']]},
+       'arguments': ['--initial-state', 'idle',
+                     '--time-per-file', '30',
+                     '--data-dir', '/tmp/data/']},
       {'agent-class': 'InfluxDBAgent',
        'instance-id': 'influxagent-local',
-       'arguments': [['--initial-state', 'idle'],
-                     ['--host', 'localhost'],
-                     ['--port', 18086],
-                     ['--database', 'ocs_feeds']]},
+       'arguments': ['--initial-state', 'idle',
+                     '--host', 'localhost',
+                     '--port', 18086,
+                     '--database', 'ocs_feeds']},
     ]
   }
 
@@ -47,14 +44,14 @@ hosts:
     'agent-instances': [
       {'agent-class': 'FakeDataAgent',
        'instance-id': 'fake-data1',
-       'arguments': [['--mode', 'acq'],
-                     ['--num-channels', '16'],
-                     ['--sample-rate', '5'],
-                     ['--frame-length', '10']]},
+       'arguments': ['--mode', 'acq',
+                     '--num-channels', '16',
+                     '--sample-rate', '5',
+                     '--frame-length', '10']},
       {'agent-class': 'AggregatorAgent',
        'instance-id': 'aggregator',
-       'arguments': [['--initial-state', 'record'],
-                     ['--time-per-file', '30'],
-                     ['--data-dir', '/data/']]},
+       'arguments': ['--initial-state', 'record',
+                     '--time-per-file', '30',
+                     '--data-dir', '/data/']},
     ]
   }

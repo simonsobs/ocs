@@ -33,7 +33,7 @@ fully configured, the system provides the following functionality:
     processes so that it can monitor their states more easily.  For
     Agents running in docker containers, HostManager takes charge of
     the implicated containers and there will be conflicts if users
-    also try to use ``docker-compose`` to restart containers.
+    also try to use ``docker compose`` to restart containers.
 
 The main components of this system are:
 
@@ -78,11 +78,6 @@ block would become:
       # Directory for logs.
       'log-dir': '/simonsobs/log/ocs/',
 
-      # List of additional paths to Agent plugin modules.
-      'agent-paths': [
-        '/simonsobs/ocs/agents/',
-      ],
-
       # Description of host-1's Agents.
       # We have two readout devices; they are both Lakeshore 240. But they can
       # be distinguished, on startup, by a device serial number.
@@ -91,12 +86,12 @@ block would become:
       'agent-instances': [
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo1',
-         'arguments': [['--serial-number', 'LSA11AA'],
-                       ['--mode', 'idle']]},
+         'arguments': ['--serial-number', 'LSA11AA',
+                       '--mode', 'idle']},
         {'agent-class': 'Lakeshore240Agent',
          'instance-id': 'thermo2',
-         'arguments': [['--serial-number', 'LSA22BB'],
-                       ['--mode', 'acq']]},
+         'arguments': ['--serial-number', 'LSA22BB',
+                       '--mode', 'acq']},
         {'agent-class': 'HostManager',
          'instance-id': 'hm-host-1'},
         },
@@ -134,7 +129,7 @@ Config for docker pseudo-hosts
 
 Considering the Example Config from :ref:`ocs_site_config_file`, the
 host ``host-1-docker`` describes agents that are launched in
-containers using ``docker-compose``.  For HostManager to best manage
+containers using ``docker compose``.  For HostManager to best manage
 these agents, a HostManager should be described in this same host
 config block.  The HostManager won't run in a docker container -- it
 will run on the host system.  In this case the HostManager should have
@@ -159,12 +154,12 @@ become:
       {'agent-class': 'Lakeshore372Agent',
        'instance-id': 'LSARR00',
        'manage': 'docker',
-       'arguments': [['--serial-number', 'LSARR00'],
-                     ['--ip-address', '10.10.10.55']]},
+       'arguments': ['--serial-number', 'LSARR00',
+                     '--ip-address', '10.10.10.55']},
       {'agent-class': 'HostManager',
        'instance-id': 'hm-host-1-docker',
-       'arguments': [['--initial-state', 'up'],
-                     ['--docker-compose', '/home/ocs/site-config/host-1-docker/docker-compose.yaml']]},
+       'arguments': ['--initial-state', 'up',
+                     '--docker-compose', '/home/ocs/site-config/host-1-docker/docker-compose.yaml']},
     ]
   }
 
@@ -179,7 +174,7 @@ of the host-1 block.)
 .. note::
 
    The HostManager process must be running as a user with sufficient
-   privileges to run ``docker`` and ``docker-compose``.  Usually that
+   privileges to run ``docker`` and ``docker compose``.  Usually that
    means that the user must be root, or must be in the "docker" user
    group.  The recommendation is that you add the :ref:`OCS user
    <create_ocs_user>` to the docker group (see
@@ -336,7 +331,7 @@ that HostManager will try to achieve for that Agent.  So if
 restarting the Agent if it crashes or otherwise terminates.  If
 ``target=down`` then the HostManager will stop the Agent and not
 restart it.  (Note that in the case of Agents in docker containers,
-the HostManager will use docker and docker-compose to monitor the
+the HostManager will use docker and docker compose to monitor the
 state of containers, and request start or stop in order to match the
 target state.)
 

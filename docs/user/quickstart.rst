@@ -55,12 +55,6 @@ structure.
         # Directory for logs.
         'log-dir': '/home/<user>/log/ocs/',
 
-        # List of additional paths to Agent plugin modules.
-        'agent-paths': [
-            '/home/<user>/git/ocs/agents/',
-            '/home/<user>/git/socs/agents/',
-        ],
-
         # Agents running directly on the host machine
         # Note: We aren't going to run this Agent in the quickstart example,
         #       but this gives a good example of configuring an agent directly
@@ -94,7 +88,6 @@ replaced with the hostname of your computer.
 
 **docker-compose.yaml**::
 
-    version: '3.7'
     volumes:
       grafana-storage:
       influxdb-storage:
@@ -158,9 +151,9 @@ Running
 -------
 
 Now that the system is configured, we can start it with a single
-``docker-compose`` command::
+``docker compose`` command::
 
-    $ sudo -E docker-compose up -d
+    $ sudo -E docker compose up -d
     Creating network "ocs-site-configs_default" with the default driver
     Creating ocs-site-configs_ocs-influx-publisher_1 ... done
     Creating ocs-site-configs_grafana_1              ... done
@@ -226,7 +219,7 @@ Shutdown
 --------
 If you'd just like to shutdown the example you can run::
 
-    $ sudo docker-compose down
+    $ sudo docker compose down
 
 This will shutdown and remove all the containers.
 
@@ -247,4 +240,4 @@ And remove them with::
 If you would like to totally remove all trace of your OCS instance, including
 the storage volumes, run::
 
-    $ sudo docker-compose down --volumes
+    $ sudo docker compose down --volumes

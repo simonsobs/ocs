@@ -194,11 +194,8 @@ class Registry:
                 }
 
         """
-
-        session.set_status('starting')
         self._run = True
 
-        session.set_status('running')
         last_publish = time.time()
         while self._run:
             yield dsleep(1)

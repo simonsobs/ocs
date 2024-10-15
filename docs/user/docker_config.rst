@@ -17,7 +17,7 @@ Docker Compose configuration file defines the containers that we will control.
 
 .. note::
     The filename is important here, as the `docker-compose.yaml` path is the
-    default one parsed by the docker-compose tool. A configuration file can be
+    default one parsed by the docker compose tool. A configuration file can be
     specified with the `-f` flag.
 
 Details about configuring individual Agents can be found in the Agent Reference
@@ -25,7 +25,6 @@ section of this documentation. An example `docker-compose.yaml` file looks
 something like this (note this does not contain all possibly configured
 components)::
 
-    version: '3.7'
     volumes:
       grafana-storage:
 
@@ -110,7 +109,7 @@ format of the file, for details on syntax you are encouraged to check the
 official documentation.
 
 In the remainder of this section we will go over our example. The first line
-defines the version of the docker-compose file format, which corresponds to the
+defines the version of the docker compose file format, which corresponds to the
 Docker Engine version you are running. You likely do not have to change this,
 unless you need a new feature available in a more recent version.
 
@@ -138,7 +137,7 @@ other container configurations::
       - "database"
 
 The top line, ``example-container-name``, defines the name of the service to
-docker-compose. These must be unique. ``image`` defines the docker image used
+docker compose. These must be unique. ``image`` defines the docker image used
 for the container. Associated with the image is the image tag, in this case
 "latest". This defines the version of the image. A container can be thought of
 as a copy of an image. The container is what actually runs when you startup
@@ -173,14 +172,14 @@ start before starting this container. This does not mean the services will be
 ready, but the container will be started.
 
 .. note::
-    Environment variables can be used within a docker-compose configuration
+    Environment variables can be used within a docker compose configuration
     file. This is done for the `OCS_CONFIG_DIR` mount for the OCS agents in the
     default template.  For more information see the `docker compose
     documentation`_.
 
     If you use this functionality, be aware that environment variables must be
     explicitly passed to sudo via the ``-E`` flag, for example: ``$ sudo -E
-    docker-compose up -d``
+    docker compose up -d``
 
 For more details on configurations for individual containers, see the service
 documentation pages, for instance in the Agent Reference section.
@@ -210,7 +209,6 @@ different configuration files in separate directories, for instance::
 Where the separate compose files would look something like::
 
     # influxdb/docker-compose.yml
-    version: '3.7'
     networks:
       default:
         external:
@@ -230,7 +228,6 @@ Where the separate compose files would look something like::
 ::
 
     # crossbar/docker-compose.yml
-    version: '3.7'
     networks:
       default:
         external:
@@ -247,7 +244,6 @@ Where the separate compose files would look something like::
 ::
 
     # web/docker-compose.yml
-    version: '3.7'
     networks:
       default:
         external:
@@ -266,7 +262,6 @@ Where the separate compose files would look something like::
 ::
 
     # docker-compose.yml
-    version: '3.7'
     networks:
       default:
         external:

@@ -27,13 +27,12 @@ class HostManager:
     that host (either automatically or on request).
     """
 
-    def __init__(self, agent, docker_composes=[], docker_compose_bin=None,
+    def __init__(self, agent, docker_composes=[],
                  docker_service_prefix='ocs-'):
         self.agent = agent
         self.running = False
         self.database = {}  # key is instance_id (or docker service name).
         self.docker_composes = docker_composes
-        self.docker_compose_bin = docker_compose_bin
         self.docker_service_prefix = docker_service_prefix
 
     @inlineCallbacks
@@ -67,17 +66,6 @@ class HostManager:
         except Exception as e:
             warnings.append('Failed to read site config file -- '
                             f'likely syntax error: {e}')
-            return returnValue((False, instances, warnings))
-
-        # Scan for agent scripts in (deprecated) script registry
-        try:
-            for p in hc.agent_paths:
-                if p not in sys.path:
-                    sys.path.append(p)
-            site_config.scan_for_agents()
-        except Exception as e:
-            warnings.append('Failed to scan for old plugin agents -- '
-                            f'likely plugin config problem: {e}')
             return returnValue((False, instances, warnings))
 
         # Gather managed items from site config.
@@ -119,8 +107,7 @@ class HostManager:
         docker_services = {}
         for compose in self.docker_composes:
             try:
-                services = yield hm_utils.parse_docker_state(
-                    compose, docker_compose_bin=self.docker_compose_bin)
+                services = yield hm_utils.parse_docker_state(compose)
                 this_ok = True
                 this_msg = f'Successfully parsed {compose} and its service states.'
             except Exception as e:
@@ -319,18 +306,13 @@ class HostManager:
                 continue
             if instance['management'] == 'host':
                 cls = instance['agent_class']
-                # Check for the agent class in the plugin system;
-                # then check the (deprecated) agent script registry.
+                # Check for the agent class in the plugin system
                 if cls in agent_plugins:
                     session.add_message(f'Found plugin for "{cls}"')
                     instance['agent_script'] = '__plugin__'
                     instance['operable'] = True
-                elif cls in site_config.agent_script_reg:
-                    session.add_message(f'Found launcher script for "{cls}"')
-                    instance['agent_script'] = site_config.agent_script_reg[cls]
-                    instance['operable'] = True
                 else:
-                    session.add_message(f'No plugin (nor launcher script) '
+                    session.add_message('No plugin '
                                         f'found for agent_class "{cls}"!')
             elif instance['management'] == 'docker':
                 instance['agent_script'] = self.docker_service_prefix + iid
@@ -363,16 +345,11 @@ class HostManager:
         else:
             iid = instance['instance_id']
             pyth = sys.executable
-            script = instance['agent_script']
-            if script == '__plugin__':
-                cmd = [pyth, '-m', 'ocs.agent_cli']
-            else:
-                cmd = [pyth, script]
-            cmd.extend([
-                '--instance-id', iid,
-                '--site-file', self.site_config_file,
-                '--site-host', self.host_name,
-                '--working-dir', self.working_dir])
+            cmd = [pyth, '-m', 'ocs.agent_cli',
+                   '--instance-id', iid,
+                   '--site-file', self.site_config_file,
+                   '--site-host', self.host_name,
+                   '--working-dir', self.working_dir]
             prot = hm_utils.AgentProcessHelper(iid, cmd)
         prot.up()
         instance['prot'] = prot
@@ -491,7 +468,6 @@ class HostManager:
         }
 
         self.running = True
-        session.set_status('running')
 
         if params['reload_config']:
             self.database = {}
@@ -613,7 +589,6 @@ class HostManager:
         """
         if not self.running:
             return False, 'Manager process is not running; params not updated.'
-        session.set_status('running')
         if params['reload_config']:
             yield self._reload_config(session)
         self._process_target_states(session, params['requests'])
@@ -621,7 +596,6 @@ class HostManager:
 
     @inlineCallbacks
     def die(self, session, params):
-        session.set_status('running')
         if not self.running:
             session.add_message('Manager process is not running.')
         else:
@@ -693,12 +667,8 @@ def main(args=None):
     docker_composes = []
     if args.docker_compose:
         docker_composes = args.docker_compose.split(',')
-        docker_compose_bin = args.docker_compose_bin
-        if args.docker_compose_bin is not None:
-            docker_compose_bin = os.path.join(os.getcwd(), docker_compose_bin)
 
     host_manager = HostManager(agent, docker_composes=docker_composes,
-                               docker_compose_bin=args.docker_compose_bin,
                                docker_service_prefix=args.docker_service_prefix)
 
     startup_params = {}

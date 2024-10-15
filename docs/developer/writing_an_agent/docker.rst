@@ -98,7 +98,7 @@ the BarbonesAgent config to the ``ocs-docker`` host.:
         ]
       }
 
-We also need to add a configuration block to our docker-compose file:
+We also need to add a configuration block to our docker compose file:
 
 .. code-block:: yaml
 
@@ -120,11 +120,11 @@ current directory (``./``) outside of the container to ``/config`` within the
 container, and do so read-only. Lastly, "environment" sets environment
 variables within the container, in this case the instance-id and log level.
 
-Now we can run the Agent with ``docker-compose``:
+Now we can run the Agent with ``docker compose``:
 
 .. code-block:: bash
 
-    $ docker-compose up -d
+    $ docker compose up -d
 
 Once the containers have started, you can see the running containers with:
 

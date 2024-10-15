@@ -38,9 +38,14 @@ TIMEOUT = ResponseCode.TIMEOUT.value
 class OpCode(Enum):
     """Enumeration of OpSession "op_code" values.
 
-    The op_code corresponds to the session.status, except that if the
-    session.status == "done" then the op_code will be assigned a value
-    of either SUCCEEDED or FAILED based on session.success.
+    The op_code corresponds to the session.status, with the following
+    extensions:
+
+    - If the session.status == "done" then the op_code will be
+      assigned a value of either SUCCEEDED or FAILED based on
+      session.success.
+    - If the session.status == "running", and session.degraded is
+      True, then the op_code will be DEGRADED rather than RUNNING.
 
     """
 
@@ -76,3 +81,10 @@ class OpCode(Enum):
     #: EXPIRED may used to mark session information as invalid in cases
     #: where the state cannot be determined.
     EXPIRED = 7
+
+    #: DEGRADED indicates that an operation meets the requirements for
+    #: state RUNNING, but is self-reporting as being in a problematic
+    #: state where it is unable to perform its primary functions (for
+    #: example, if a Process to operate some hardware is trying to
+    #: re-establish connection to that hardware).
+    DEGRADED = 8

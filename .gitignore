@@ -1,3 +1,6 @@
+# dynamic package version
+ocs/_version.py
+
 # local sqlite db's
 *.db
 

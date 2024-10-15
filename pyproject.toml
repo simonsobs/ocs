@@ -1,7 +1,82 @@
 [build-system]
 requires = [
-    "setuptools>=42",
-    "wheel",
-    "versioneer-518",
+    "hatch-vcs",
+    "hatchling",
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
+
+[project]
+name = "ocs"
+dynamic = ["version"]
+description = "Observatory Control System"
+readme = "README.rst"
+requires-python = ">=3.7"
+classifiers = [
+    "Framework :: Twisted",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+dependencies = [
+    "autobahn",
+    "deprecation",
+    "importlib_metadata;python_version<\"3.10\"",
+    "influxdb",
+    "numpy<2.0",  # pin until 2.0 is supported in so3g
+    "PyYAML",
+    "setproctitle",
+    "twisted",
+]
+
+[project.entry-points."ocs.plugins"]
+ocs = "ocs.plugin"
+
+[project.optional-dependencies]
+dev = [
+    "coverage",
+    "docker",
+    "pytest",
+    "pytest-cov",
+    "pytest-docker",
+    "pytest-twisted",
+    "setuptools-scm",
+    "so3g",
+]
+so3g = [
+    "so3g",
+]
+
+[project.scripts]
+ocs-agent-cli = "ocs.agent_cli:main"
+ocs-client-cli = "ocs.client_cli:main"
+ocs-install-systemd = "ocs.ocs_systemd:main"
+ocs-local-support = "ocs.ocsbow:main_local"
+ocsbow = "ocs.ocsbow:main"
+
+[project.urls]
+"Bug Tracker" = "https://github.com/simonsobs/ocs/issues"
+Documentation = "https://ocs.readthedocs.io/"
+Homepage = "https://github.com/simonsobs/ocs"
+"Source Code" = "https://github.com/simonsobs/ocs"
+
+[tool.hatch.version]
+source = "vcs"
+
+# closest scheme to versioneer behavior, avoids auto-incremented version number
+# https://setuptools-scm.readthedocs.io/en/latest/usage/#default-versioning-scheme
+[tool.hatch.version.raw-options]
+version_scheme = "no-guess-dev"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "ocs/_version.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/ocs",
+]

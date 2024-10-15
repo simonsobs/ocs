@@ -67,7 +67,7 @@ starts up:
 - OCS_CROSSBAR_PORT (default 8001): the port on which crossbar will
   accept requests.
 
-Here is an example of a docker-compose entry that overrides the
+Here is an example of a docker compose entry that overrides the
 OCS_ADDRESS_ROOT::
 
       crossbar:
@@ -82,7 +82,7 @@ Bind Mounting the Configuration
 -------------------------------
 To instead mount a new configuration into the pre-built image, first chown
 your file to be owned by user and group 242 (the default crossbar UID/GID),
-then mount it appropriately in your docker-compose file. Here we assume you
+then mount it appropriately in your docker compose file. Here we assume you
 put the configuration in the directory ``./dot_crossbar/``::
 
     $ chown -R 242:242 dot_crossbar/
@@ -91,7 +91,7 @@ put the configuration in the directory ``./dot_crossbar/``::
     If you do not already have a configuration file to modify and use, see the
     next section on generating one.
 
-Your docker-compose service should then be configured like::
+Your docker compose service should then be configured like::
 
     crossbar:
       image: simonsobs/ocs-crossbar

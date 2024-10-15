@@ -59,3 +59,7 @@ Supporting APIs
 ---------------
 
 .. automethod:: ocs.agents.host_manager.agent.HostManager._reload_config
+
+.. automodule:: ocs.agents.host_manager.drivers
+    :members:
+    :show-inheritance:

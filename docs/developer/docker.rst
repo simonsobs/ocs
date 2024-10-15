@@ -26,6 +26,12 @@ OCS Agent via ``ocs-agent-cli``. See the `Dockerfile reference
 <https://docs.docker.com/engine/reference/builder/>`_ in the Docker
 documentation for more information about how to write a Dockerfile.
 
+.. note::
+
+    ``ocs`` and its dependencies are installed into a ``virutualenv`` kept in
+    ``/opt/venv/``. This is enabled by putting ``/opt/venv/bin/`` at the front of
+    the PATH. This is in place to isolate the installation from the system Python.
+
 Building Upon the Base Image
 ----------------------------
 
@@ -43,19 +49,18 @@ that looks something like:
 
     # Install required dependencies
     RUN apt-get update && apt-get install -y rsync \
-        wget \
-        python3-pip
+        wget
 
     # Copy in and install requirements
     COPY requirements.txt /app/my-ocs-agent/requirements.txt
     WORKDIR /app/my-ocs-agent/
-    RUN pip3 install -r requirements.txt
+    RUN python -m pip install -r requirements.txt
 
     # Copy the current directory contents into the container at /app
     COPY . /app/my-ocs-agent/
 
     # Install my-ocs-agent
-    RUN pip3 install .
+    RUN python -m pip install .
 
     # Run agent on container startup
     ENTRYPOINT ["dumb-init", "ocs-agent-cli"]

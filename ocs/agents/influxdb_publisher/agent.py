@@ -87,7 +87,6 @@ class InfluxDBAgent:
                 This is meant only for testing. Default is False.
 
         """
-        session.set_status('starting')
         self.aggregate = True
 
         self.log.debug("Instatiating Publisher class")
@@ -100,7 +99,6 @@ class InfluxDBAgent:
                               operate_callback=lambda: self.aggregate,
                               )
 
-        session.set_status('running')
         while self.aggregate:
             time.sleep(self.loop_time)
             self.log.debug(f"Approx. queue size: {self.incoming_data.qsize()}")

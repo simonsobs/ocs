@@ -28,15 +28,15 @@ available arguments::
 
     {'agent-class': 'FakeDataAgent',
      'instance-id': 'fake-data1',
-     'arguments': [['--mode', 'acq'],
-                   ['--num-channels', '16'],
-                   ['--sample-rate', '4']]},
+     'arguments': ['--mode', 'acq',
+                   '--num-channels', '16',
+                   '--sample-rate', '4']},
 
 Docker Compose
 ``````````````
 
 The Fake Data Agent can also be run in a Docker container. An example
-docker-compose service configuration is shown here::
+docker compose service configuration is shown here::
 
     fake-data1:
         image: simonsobs/ocs:latest

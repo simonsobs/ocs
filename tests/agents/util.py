@@ -33,7 +33,7 @@ def create_agent_fixture(agent_class, agent_kwargs={}):
 def create_session(op_name):
     """Create an OpSession with a mocked app for testing."""
     mock_app = mock.MagicMock()
-    session = OpSession(1, op_name, app=mock_app)
+    session = OpSession(1, op_name, app=mock_app, status='running')
 
     return session
 

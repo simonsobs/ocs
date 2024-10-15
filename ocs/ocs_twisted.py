@@ -126,13 +126,13 @@ def in_reactor_context():
     it's the main thread.  Will raise RuntimeError if the thread name
     is confusing.
     """
-    t = threading.currentThread()
+    t = threading.current_thread()
     if 'PoolThread' in t.name:
         return False
     if 'MainThread' in t.name:
         return True
     raise RuntimeError('Could not determine threading context: '
-                       'currentThread.name="%s"' % t.name)
+                       'current_thread.name="%s"' % t.name)
 
 
 class Pacemaker:

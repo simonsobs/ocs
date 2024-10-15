@@ -1,5 +1,4 @@
 import os
-import shutil
 import time
 import yaml
 
@@ -19,8 +18,7 @@ class ManagedInstance(dict):
       For instances corresponding to docker services that do not have
       a corresponding SCF entry, the value here will be '[docker]'.
     - 'instance_id' (str): The agent instance-id, or the docker
-      service name if the instance is an unmatched docker-compose
-      service.
+      service name if the instance is an unmatched docker service.
     - 'full_name' (str): agent_class:instance_id
 
     Properties that are given a default value by init function:
@@ -28,8 +26,8 @@ class ManagedInstance(dict):
     - 'operable' (bool): indicates whether the instance can be
       manipulated (whether calls to up/down should be expected to
       work).
-    - 'agent_script' (str): Path to the launcher script (if host
-      system managed).  If docker-managed, this is the service name.
+    - 'agent_script' (str): The docker service_name, if docker-managed.
+      Otherwise, the string ``__plugin__`` to indicate it is host managed.
     - 'prot': The twisted ProcessProtocol object (if host system
       managed), or the DockerContainerHelper (if a docker container).
     - 'target_state' (state): The state we're trying to achieve (up or
@@ -285,12 +283,9 @@ class AgentProcessHelper(protocol.ProcessProtocol):
             self.lines['stderr'] = self.lines['stderr'][-100:]
 
 
-def _run_docker_compose(args, docker_compose_bin=None):
-    # Help avoid some boilerplate.
-    if docker_compose_bin is None:
-        docker_compose_bin = shutil.which('docker-compose')
+def _run_docker(args):
     return utils.getProcessOutputAndValue(
-        docker_compose_bin, args, env=os.environ)
+        'docker', args, env=os.environ)
 
 
 class DockerContainerHelper:
@@ -301,14 +296,13 @@ class DockerContainerHelper:
 
     """
 
-    def __init__(self, service, docker_compose_bin=None):
+    def __init__(self, service, docker_bin=None):
         self.service = {}
         self.status = -1, time.time()
         self.killed = False
         self.instance_id = service['service']
         self.d = None
         self.update(service)
-        self.docker_compose_bin = docker_compose_bin
 
     def update(self, service):
         """Update self.status based on service info (in format returned by
@@ -323,34 +317,29 @@ class DockerContainerHelper:
             self.killed = False
 
     def up(self):
-        self.d = _run_docker_compose(
-            ['-f', self.service['compose_file'],
-             'up', '-d', self.service['service']],
-            docker_compose_bin=self.docker_compose_bin)
+        self.d = _run_docker(
+            ['compose', '-f', self.service['compose_file'],
+             'up', '-d', self.service['service']])
         self.status = None, time.time()
 
     def down(self):
-        self.d = _run_docker_compose(
-            ['-f', self.service['compose_file'],
-             'rm', '--stop', '--force', self.service['service']],
-            docker_compose_bin=self.docker_compose_bin)
+        self.d = _run_docker(
+            ['compose', '-f', self.service['compose_file'],
+             'rm', '--stop', '--force', self.service['service']])
         self.killed = True
 
 
 @inlineCallbacks
-def parse_docker_state(docker_compose_file, docker_compose_bin=None):
-    """Analyze a docker-compose.yaml file to get a list of services.
-    Using docker-compose ps and docker inspect, determine whether each
+def parse_docker_state(docker_compose_file):
+    """Analyze a docker compose.yaml file to get a list of services.
+    Using docker compose ps and docker inspect, determine whether each
     service is running or not.
-
-    Use docker_compose_bin to pass in the full path to the
-    docker-compose executable.
 
     Returns:
       A dict where the key is the service name and each value is a
       dict with the following entries:
 
-      - 'compose_file': the path to the docker-compose file
+      - 'compose_file': the path to the docker compose file
       - 'service': service name
       - 'container_found': bool, indicates whether a container for
         this service was found (whether or not it was running).
@@ -373,13 +362,12 @@ def parse_docker_state(docker_compose_file, docker_compose_bin=None):
             'compose_file': docker_compose_file,
         }
 
-    # Query docker-compose for container ids...
-    out, err, code = yield _run_docker_compose(
-        ['-f', docker_compose_file, 'ps', '-q'],
-        docker_compose_bin=docker_compose_bin)
+    # Query docker compose for container ids...
+    out, err, code = yield _run_docker(
+        ['compose', '-f', docker_compose_file, 'ps', '-q'])
     if code != 0:
-        raise RuntimeError("Could not run docker-compose or could not parse "
-                           "docker-compose file; exit code %i, error text: %s" %
+        raise RuntimeError("Could not run docker compose or could not parse "
+                           "compose.yaml file; exit code %i, error text: %s" %
                            (code, err))
 
     cont_ids = [line.strip() for line in out.decode('utf8').split('\n')
@@ -407,11 +395,11 @@ def parse_docker_state(docker_compose_file, docker_compose_bin=None):
 @inlineCallbacks
 def _inspectContainer(cont_id, docker_compose_file):
     """Run docker inspect on cont_id, return dict with the results."""
-    out, err, code = yield utils.getProcessOutputAndValue(
-        'docker', ['inspect', cont_id], env=os.environ)
+    out, err, code = yield _run_docker(
+        ['inspect', cont_id])
     if code != 0 and 'No such object' in err.decode('utf8'):
         # This is likely due to a race condition where some
-        # container was brought down since we ran docker-compose.
+        # container was brought down since we ran docker compose.
         # Return None to indicate this -- caller should just ignore for now.
         print(f'(_inspectContainer: warning, no such object: {cont_id}')
         return None
@@ -419,7 +407,7 @@ def _inspectContainer(cont_id, docker_compose_file):
         raise RuntimeError(
             f'Trouble running "docker inspect {cont_id}".\n'
             f'stdout: {out}\n  stderr {err}')
-    # Reconcile config against docker-compose ...
+    # Reconcile config against docker compose ...
     info = yaml.safe_load(out)[0]
     config = info['Config']['Labels']
     _dc_file = os.path.join(config['com.docker.compose.project.working_dir'],

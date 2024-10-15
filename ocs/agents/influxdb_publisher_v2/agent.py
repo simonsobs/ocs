@@ -69,9 +69,6 @@ class InfluxDBAgentv2:
         if not feed['record'] or not self.aggregate:
             return
 
-        # LOG.debug("data: {d}", d=data)
-        # LOG.debug("feed: {f}", f=feed)
-
         self.incoming_data.put((data, feed))
 
     @ocs_agent.param('test_mode', default=False, type=bool)
@@ -87,7 +84,6 @@ class InfluxDBAgentv2:
                 This is meant only for testing. Default is False.
 
         """
-        session.set_status('starting')
         self.aggregate = True
 
         self.log.debug("Instatiating Publisher class")

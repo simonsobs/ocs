@@ -125,8 +125,6 @@ class Publisher:
             self.client = InfluxDBClient.from_env_properties()
         except InfluxDBError as err:
             LOG.error("InfluxDB Client Error: {e}", e=err)
-        # except InfluxDBServerError as err:
-        #     LOG.error("InfluxDB Server Error: {e}", e=err)
 
     @staticmethod
     def _format_field_line(field_key, field_value):

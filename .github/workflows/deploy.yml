@@ -13,6 +13,7 @@ on:
 jobs:
   test:
     uses: ./.github/workflows/pytest.yml
+    secrets: inherit
 
   docker:
     name: build and deploy docker images

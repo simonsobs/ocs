@@ -1,4 +1,7 @@
 ---
+codecov:
+  branch: main
+
 # https://docs.codecov.com/docs/pull-request-comments#disable-comment
 comment: false
 
@@ -12,3 +15,6 @@ coverage:
         paths:
           - "ocs/"
     patch: false
+
+# When modifying this file, please validate using
+# curl -X POST --data-binary @codecov.yml https://codecov.io/validate

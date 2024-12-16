@@ -23,8 +23,8 @@ class _AgentRunner:
             i.e. '../agents/fake_data/fake_data_agent.py'
         agent_name (str): Short, unique name for the agent
         args (list): Additional CLI arguments to add when starting the Agent
-        kill_to_exit (bool): If True, will send a kill signal to exit instead of 
-            interrupt.
+        kill_to_exit (bool): If True, will send a kill signal to exit instead
+            of interrupt.
 
     """
 
@@ -119,7 +119,7 @@ class _AgentRunner:
             raise RuntimeError('Agent timed out.')
 
 
-def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
+def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60, kill_to_exit=False):
     """Create a pytest fixture for running a given OCS Agent.
 
     Parameters:
@@ -131,11 +131,13 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
             be interrupted. This typically indicates a crash within the agent.
             This timeout should be longer than you expect the agent to run for
             during a given test. Defaults to 60 seconds.
+        kill_to_exit (bool): If True, will send a kill signal to exit instead of
+            interrupt.
 
     """
     @pytest.fixture()
     def run_agent(cov):
-        runner = _AgentRunner(agent_path, agent_name, args)
+        runner = _AgentRunner(agent_path, agent_name, args, kill_to_exit=kill_to_exit)
         runner.run(timeout=timeout)
 
         yield

@@ -23,10 +23,12 @@ class _AgentRunner:
             i.e. '../agents/fake_data/fake_data_agent.py'
         agent_name (str): Short, unique name for the agent
         args (list): Additional CLI arguments to add when starting the Agent
+        kill_to_exit (bool): If True, will send a kill signal to exit instead
+            of interrupt.
 
     """
 
-    def __init__(self, agent_path, agent_name, args):
+    def __init__(self, agent_path, agent_name, args, kill_to_exit=False):
         self.env = os.environ.copy()
         self.env['COVERAGE_FILE'] = f'.coverage.agent.{agent_name}'
         self.env['OCS_CONFIG_DIR'] = os.getcwd()
@@ -45,6 +47,7 @@ class _AgentRunner:
             self.cmd.extend(args)
         self.agent_name = agent_name
         self.proc = None
+        self._kill_to_exit = kill_to_exit
         self._timer = None
         self._timedout = False
 
@@ -96,7 +99,11 @@ class _AgentRunner:
         """
         # don't send SIGINT if we've already sent SIGKILL
         if not self._timedout:
-            self.proc.send_signal(signal.SIGINT)
+            if self._kill_to_exit:
+                sig = signal.SIGKILL
+            else:
+                sig = signal.SIGINT
+            self.proc.send_signal(sig)
         self._timer.cancel()
 
         try:
@@ -112,7 +119,7 @@ class _AgentRunner:
             raise RuntimeError('Agent timed out.')
 
 
-def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
+def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60, kill_to_exit=False):
     """Create a pytest fixture for running a given OCS Agent.
 
     Parameters:
@@ -124,11 +131,13 @@ def create_agent_runner_fixture(agent_path, agent_name, args=None, timeout=60):
             be interrupted. This typically indicates a crash within the agent.
             This timeout should be longer than you expect the agent to run for
             during a given test. Defaults to 60 seconds.
+        kill_to_exit (bool): If True, will send a kill signal to exit instead of
+            interrupt.
 
     """
     @pytest.fixture()
     def run_agent(cov):
-        runner = _AgentRunner(agent_path, agent_name, args)
+        runner = _AgentRunner(agent_path, agent_name, args, kill_to_exit=kill_to_exit)
         runner.run(timeout=timeout)
 
         yield

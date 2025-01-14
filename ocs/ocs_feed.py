@@ -1,6 +1,7 @@
 from ocs.ocs_agent import in_reactor_context
 from twisted.internet import reactor
-from autobahn.wamp.exception import Disconnected, TransportLost
+from autobahn.exception import Disconnected
+from autobahn.wamp.exception import TransportLost
 import time
 import re
 

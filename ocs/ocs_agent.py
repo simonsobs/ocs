@@ -265,7 +265,11 @@ class OCSAgent(ApplicationSession):
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
         if self.heartbeat_call is not None:
-            self.heartbeat_call.stop()
+            self.log.info('stopping heartbeat')
+            if self.heartbeat_call.running:
+                self.heartbeat_call.stop()
+            else:
+                self.log.warn('heartbeat was not running')
 
         # Normal shutdown
         if details.reason == "wamp.close.normal":

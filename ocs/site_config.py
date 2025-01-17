@@ -7,7 +7,6 @@ import sys
 import yaml
 import argparse
 import collections
-import deprecation
 
 
 class SiteConfig:
@@ -579,45 +578,6 @@ def add_site_attributes(args, site, host=None):
         args.log_dir = host.log_dir
     if (args.crossbar_timeout is None) and (host is not None):
         args.crossbar_timeout = host.crossbar_timeout
-
-
-@deprecation.deprecated(deprecated_in='v0.6.0',
-                        details="Use site_config.parse_args instead")
-def reparse_args(args, agent_class=None):
-    """
-    THIS FUNCTION IS NOW DEPRECATED... Use the parse_args function instead
-    to parse command line and site-config args simultaneously.
-
-    Process the site-config arguments, and modify them in place
-    according to the agent-instance's computed instance-id.
-
-    Args:
-        args: The argument object returned by
-            ArgumentParser.parse_args(), or equivalent.
-
-        agent_class: Class name passed in to match against the list of
-            device classes in each host's list.
-
-    Special values accepted for agent_class:
-    - '*control*': do not insist on matching host or device.
-    """
-    if args.site == 'none':
-        return args
-
-    site, host, instance = get_config(args, agent_class=agent_class)
-
-    add_site_attributes(args, site, host=host)
-
-    if instance is not None:
-        if args.instance_id is None:
-            args.instance_id = instance.data['instance-id']
-
-        for k, v in instance.data['arguments']:
-            kprop = k.lstrip('-').replace('-', '_')
-            print('site_config is setting values of "%s" to "%s".' % (kprop, v))
-            setattr(args, kprop, v)
-
-    return args
 
 
 def get_control_client(instance_id, site=None, args=None, start=True,

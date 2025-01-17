@@ -169,36 +169,3 @@ additional site-info settable from the site's parser.
 .. note::
     For examples calling these commandline arguments see
     :ref:`ocs_agent_cmdline_examples`.
-
-
-Control Clients and the Site Config
-===================================
-
-As of this writing, Control Clients do not store configuration in the
-SCF.  But there is an interim interface available for Control Clients
-to access the Site Configuration, with the usual command-line
-overrides.  Control Clients that use the ``run_control_script``
-function to launch can instead use ``run_control_script2``, which
-behaves as follows:
-
-.. autofunction:: ocs.client_t.run_control_script2
-    :noindex:
-
-The control client script might look something like this (see also
-river_ctrl.py in the examples):
-
-.. code-block:: python
-
-  def my_script(app, pargs):
-      from ocs import client_t
-
-      # We've added a --target option.
-      # Construct the full agent address.
-      agent_addr = '%s.%s' % (pargs.address_root, pargs.target)
-
-      # Create a ProcessClient for the process 'acq'.
-      cw = client_t.ProcessClient(app, agent_addr, 'acq')
-
-      print('Starting a data acquisition process...')
-      d1 = yield cw.start()
-      #...

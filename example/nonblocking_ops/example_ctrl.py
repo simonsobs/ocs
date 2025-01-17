@@ -34,4 +34,4 @@ if __name__ == '__main__':
     # We don't pass a parser in, so it will be auto-generated and
     # populated from the command line.  We hard-code our one argument,
     # the target agent instance_id.
-    client_t.run_control_script2(my_script, target='example1')
+    client_t.run_control_script(my_script, target='example1')

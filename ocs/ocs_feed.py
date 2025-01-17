@@ -140,6 +140,9 @@ class Feed:
             except (Disconnected, TransportLost):
                 self.agent.log.error('Could not publish to Feed. '
                                      + 'crossbar server likely unreachable.')
+            except Exception as e:
+                print(f"Caught unexpected {type(e).__name__} while publishing:")
+                print(f"  {e}")
             for k, b in self.blocks.items():
                 b.clear()
 

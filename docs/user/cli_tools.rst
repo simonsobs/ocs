@@ -134,27 +134,6 @@ scheme. When fields were last seen more than 10 minutes ago their age will show
 up in red. If a field name is invalid, it will show up in yellow in the verbose
 output.
 
-datestring2ctime
-================
-The HK Aggregator originally output .g3 files with the naming convention
-``%Y-%m-%d-%H-%M-%S.g3``. After some time we decided to move to a ctime based
-filename, i.e. ``1582661596.g3``. To facilitate the move the `datestring2ctime`
-script was created. It will rename all datestring based .g3 files in a given
-directory to the ctime convention.
-
-.. warning:: The script is safe to run, but be aware of what you are doing, and that is
-             renaming every .g3 file matching the old convention. This has the potential to
-             break scripts you have written that read in files, especially if that do any
-             parsing of the names.
-
-To use the script run::
-
-    ./datestring2ctime target -v
-
-The passed target can be a single file or directory. The ``-v`` flag indicates
-you'd like verbose output, however this is not required. Without it there will
-be no output.
-
 g32influx
 =========
 ``g32influx`` is a script which uploads data from .g3 files on disk to

@@ -388,7 +388,7 @@ class OCSAgent(ApplicationSession):
 
     def _management_handler(self, q, **kwargs):
         """Get a description of this Agent's API.  This is for adaptive
-        clients (such as MatchedClient) to construct their interfaces.
+        clients (such as OCSClient) to construct their interfaces.
 
         Parameters
         ----------

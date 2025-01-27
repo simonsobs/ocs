@@ -113,14 +113,6 @@ ocs.client_t
     :undoc-members:
     :show-inheritance:
 
-ocs.matched_client
-------------------
-
-.. automodule:: ocs.matched_client
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 .. _ocs_agent_api:
 
 ocs.ocs_agent

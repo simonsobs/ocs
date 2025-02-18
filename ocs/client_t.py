@@ -1,3 +1,5 @@
+import argparse
+
 import ocs
 
 import txaio
@@ -50,9 +52,8 @@ def run_control_script(function, parser=None, *args, **kwargs):
     target.
     """
     if parser is None:
-        parser = ocs.site_config.add_arguments()
-    pargs = parser.parse_args()
-    ocs.site_config.reparse_args(pargs, '*control*')
+        parser = argparse.ArgumentParser()
+    pargs = ocs.site_config.parse_args(agent_class='*control*', parser=parser)
     server, realm = pargs.site_hub, pargs.site_realm
     session = ControlClientSession(ComponentConfig(realm, {}), function,
                                    [pargs] + list(args), kwargs)

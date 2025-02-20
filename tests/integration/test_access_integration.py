@@ -16,7 +16,6 @@ from integration.util import (
 from integration.util import docker_compose_file  # noqa: F401
 
 
-pytest_plugins = ("docker_compose")
 wait_for_crossbar = create_crossbar_fixture()
 
 # For debugging.

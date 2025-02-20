@@ -1127,7 +1127,7 @@ def main_local(args=None):
 
             if any([soln == 'process' for soln, text in supports.analysis]):
                 hm = supports.host_manager['ctrl']
-                hm.agent_control('start', ['all'])
+                hm.agent_control('up', ['all'])
                 time.sleep(2)
 
         elif action == 'stop':

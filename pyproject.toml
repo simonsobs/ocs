@@ -28,7 +28,7 @@ dependencies = [
     "deprecation",
     "importlib_metadata;python_version<\"3.10\"",
     "influxdb",
-    "numpy<2.0",  # pin until 2.0 is supported in so3g
+    "numpy",
     "PyYAML",
     "setproctitle",
     "twisted",

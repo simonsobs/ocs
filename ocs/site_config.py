@@ -188,6 +188,12 @@ class HubConfig:
             ``observatory`` or ``detlab``.  (Command line override:
             ``--address-root``.)
 
+        ``access_policy`` (optional): Specify the default access
+             policy for all agents.  To tell all agents to contact an
+             Access Director Agent with instance_id ``access-dir``,
+             set this to the string "director:access-dir".  (Command
+             line override: ``--access-policy``.)
+
         """
         self = cls()
         self.parent = parent
@@ -425,6 +431,9 @@ def add_arguments(parser=None):
         Length of time in seconds that the Agent will try to reconnect to the
         crossbar server before shutting down.
 
+    ``--access-policy=...``:
+        Override the default Access Control policy.
+
     """
     if parser is None:
         parser = argparse.ArgumentParser()
@@ -451,6 +460,7 @@ def add_arguments(parser=None):
     group.add_argument('--crossbar-timeout', type=int, help="Length of time in seconds "
                        "that the Agent will try to reconnect to the crossbar server before "
                        "shutting down. Note this is set per Agent in an instance's arguments list.")
+    group.add_argument('--access-policy', help="Override Access Control policy.")
     return parser
 
 
@@ -575,10 +585,14 @@ def add_site_attributes(args, site, host=None):
         args.site_realm = site.hub.data['wamp_realm']
     if args.address_root is None:
         args.address_root = site.hub.data['address_root']
+    if args.access_policy is None:
+        args.access_policy = site.hub.data.get('access_policy')
     if (args.log_dir is None) and (host is not None):
         args.log_dir = host.log_dir
     if (args.crossbar_timeout is None) and (host is not None):
         args.crossbar_timeout = host.crossbar_timeout
+    if args.site_file is None:
+        args.site_file = site.source_file
 
 
 @deprecation.deprecated(deprecated_in='v0.6.0',

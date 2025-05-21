@@ -158,14 +158,5 @@ additional site-info settable from the site's parser.
     :prog:
 
 .. note::
-    This is slightly different from the older way of parsing arguments with
-    ``reparse_args``, but should return the same namespace. The only difference is that
-    the new version parses all arguments with the argparse parser, so you can be sure
-    that defaults and type specifications will apply.
-
-    To change to the newer version, just make sure you define the agent parser
-    first, and pass it to the parse_args function as shown in the example above.
-
-.. note::
     For examples calling these commandline arguments see
     :ref:`ocs_agent_cmdline_examples`.

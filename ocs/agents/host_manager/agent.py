@@ -70,6 +70,9 @@ class HostManager:
 
         # Gather managed items from site config.
         for inst in hc.instances:
+            if 'instance-id' not in inst:
+                warnings.append('Ignoring an entry with no instance-id!')
+                continue
             if inst['instance-id'] in instances:
                 warnings.append(
                     f'Configuration problem, instance-id={inst["instance-id"]} '

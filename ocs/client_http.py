@@ -98,3 +98,11 @@ class ControlClient():
           Tuple (status, message, session).
         """
         return self.call(self.agent_addr + '.ops', action, op_name, params, **kw)
+
+    def special(self, subaddr, *args, **kwargs):
+        """Execute a an arbitrary method associated with an Agent.
+        This is intended for use with special, centralized services,
+        such as to communicate with the Access Director.
+
+        """
+        return self.call(self.agent_addr + '.' + subaddr, *args, **kwargs)

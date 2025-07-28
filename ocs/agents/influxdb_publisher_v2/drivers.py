@@ -1,7 +1,6 @@
 import time
 import txaio
 
-from datetime import datetime, timezone
 from influxdb_client import InfluxDBClient, WriteOptions
 from influxdb_client.client.exceptions import InfluxDBError
 from requests.exceptions import ConnectionError as RequestsConnectionError

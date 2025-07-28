@@ -95,7 +95,6 @@ class InfluxDBAgentv2:
                               operate_callback=lambda: self.aggregate,
                               )
 
-        session.set_status('running')
         while self.aggregate:
             time.sleep(self.loop_time)
             self.log.debug(f"Approx. queue size: {self.incoming_data.qsize()}")

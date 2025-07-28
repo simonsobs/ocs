@@ -29,9 +29,9 @@ Add an InfluxDBAgent to your OCS configuration file::
 
       {'agent-class': 'InfluxDBAgentv2',
        'instance-id': 'influxagent',
-       'arguments': [['--initial-state', 'record'],
-                     ['--org', 'socs'],
-                     ['--database', 'ocs_feeds']]},
+       'arguments': ['--initial-state', 'record',
+                     '--org', 'ocs',
+                     '--database', 'ocs_feeds']},
 
 Docker Compose
 ``````````````
@@ -51,14 +51,14 @@ Add the InfluxDB Publisher v2 Agent container to your docker-compose file::
 Your .env file should contain credentials for the InfluxDB v2 database::
 
   INFLUXDB_V2_URL=http://influxdb:8086
-  INFLUXDB_V2_ORG=socs
+  INFLUXDB_V2_ORG=ocs
+  INFLUXDB_V2_BUCKET=ocs_feeds
   INFLUXDB_V2_TOKEN=<your-token>
 
 You will also need an instance of InfluxDB v2 running somewhere on your network.
 This likely should go in a separate docker-compose file so that it remains
 online at all times. An example compose file would look like::
 
-  version: '3.7'
   services:
     influxdb:
       image: "influxdb:2.7"
@@ -96,12 +96,9 @@ file reference`_.
 Database Migration
 ``````````````````
 
-Follow instructions to `Upgrade from InfluxDB 1.x to 2.7 with Docker`_.
+Follow instructions to `Upgrade from InfluxDB 1.x to 2.7 with Docker <upgrade_>`_.
 
-.. _`Upgrade from InfluxDB 1.x to 2.7 with Docker`:
-https://docs.influxdata.com/influxdb/v2/install/upgrade/v1-to-v2/docker/
-
-Refer to Confluence for specific instructions on migrating for SO labs.
+.. _`upgrade`: https://docs.influxdata.com/influxdb/v2/install/upgrade/v1-to-v2/docker/
 
 Grafana
 ```````
@@ -111,11 +108,12 @@ need to create an InfluxDB data source in Grafana. To do so, we add an InfluxDB
 data source with the URL ``http://influxdb:8086``, and the Database
 (default "ocs_feeds", but this can be customized in your OCS config file.) The
 Name of the Data Source is up to you, in this example we set it to "OCS Feeds".
+Note that if you migrated from InfluxDB 1.x to 2.7, this process is slightly
+different from adding an InfluxDB 1.x data source, as the auth token is required.
 
-Follow instructions to `Configure your InfluxDB connection`_ for InfluxDB v2.
+Follow instructions to `Configure your InfluxDB connection <configure_>`_ for InfluxDB v2.
 
-.. _`Configure your InfluxDB connection`:
-https://docs.influxdata.com/influxdb/v2/tools/grafana/?t=InfluxQL#configure-your-influxdb-connection
+.. _`configure`: https://docs.influxdata.com/influxdb/v2/tools/grafana/?t=InfluxQL#configure-your-influxdb-connection
 
 .. note::
     The "ocs_feeds" database (or whatever you choose to name the database) will

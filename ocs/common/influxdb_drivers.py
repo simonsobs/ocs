@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+
 def _timestamp2influxtime(time, protocol):
     """Convert timestamp for influx, always in UTC.
 
@@ -19,6 +20,7 @@ def _timestamp2influxtime(time, protocol):
         influx_t = int(time * 1e9)  # ns
     return influx_t
 
+
 def _format_field_line(field_key, field_value):
     """Format key-value pair for InfluxDB line protocol."""
     # Strings must be in quotes for line protocol
@@ -30,6 +32,7 @@ def _format_field_line(field_key, field_value):
     if isinstance(field_value, int) and not isinstance(field_value, bool):
         line += "i"
     return line
+
 
 def format_data(data, feed, protocol):
     """Format the data from an OCS feed into a dict for pushing to InfluxDB.

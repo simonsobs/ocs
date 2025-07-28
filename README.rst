@@ -141,8 +141,8 @@ This project is licensed under the BSD 2-Clause License - see the
 .. _LICENSE.txt: https://github.com/simonsobs/ocs/blob/main/LICENSE.txt
 
 
-.. |coverage| image:: https://coveralls.io/repos/github/simonsobs/ocs/badge.svg
-    :target: https://coveralls.io/github/simonsobs/ocs
+.. |coverage| image:: https://codecov.io/gh/simonsobs/ocs/graph/badge.svg?token=UTX0AEPTX8
+    :target: https://codecov.io/gh/simonsobs/ocs
 
 .. |docker| image:: https://img.shields.io/badge/dockerhub-latest-blue
     :target: https://hub.docker.com/r/simonsobs/ocs/tags

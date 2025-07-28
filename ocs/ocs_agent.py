@@ -265,7 +265,11 @@ class OCSAgent(ApplicationSession):
     def onLeave(self, details):
         self.log.info('session left: {}'.format(details))
         if self.heartbeat_call is not None:
-            self.heartbeat_call.stop()
+            self.log.info('stopping heartbeat')
+            if self.heartbeat_call.running:
+                self.heartbeat_call.stop()
+            else:
+                self.log.warn('heartbeat was not running')
 
         # Normal shutdown
         if details.reason == "wamp.close.normal":
@@ -384,7 +388,7 @@ class OCSAgent(ApplicationSession):
 
     def _management_handler(self, q, **kwargs):
         """Get a description of this Agent's API.  This is for adaptive
-        clients (such as MatchedClient) to construct their interfaces.
+        clients (such as OCSClient) to construct their interfaces.
 
         Parameters
         ----------

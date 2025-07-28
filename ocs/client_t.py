@@ -1,3 +1,5 @@
+import argparse
+
 import ocs
 
 import txaio
@@ -9,15 +11,6 @@ from twisted.internet.error import ReactorNotRunning
 
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
-import deprecation
-
-
-@deprecation.deprecated(
-    deprecated_in='v0.6.1',
-    details="Renamed to run_control_script"
-)
-def run_control_script2(*args, **kwargs):
-    run_control_script(*args, **kwargs)
 
 
 def run_control_script(function, parser=None, *args, **kwargs):
@@ -53,15 +46,14 @@ def run_control_script(function, parser=None, *args, **kwargs):
         from ocs import client_t, site_config
         parser = site_control.add_arguments()  # initialized ArgParser
         parser.add_option('--target')          # Options for this client
-        client_t.run_control_script2(my_script, parser=parser)
+        client_t.run_control_script(my_script, parser=parser)
 
     In the my_script function, use parser_args.target to get the
     target.
     """
     if parser is None:
-        parser = ocs.site_config.add_arguments()
-    pargs = parser.parse_args()
-    ocs.site_config.reparse_args(pargs, '*control*')
+        parser = argparse.ArgumentParser()
+    pargs = ocs.site_config.parse_args(agent_class='*control*', parser=parser)
     server, realm = pargs.site_hub, pargs.site_realm
     session = ControlClientSession(ComponentConfig(realm, {}), function,
                                    [pargs] + list(args), kwargs)

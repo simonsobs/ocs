@@ -1,0 +1,20 @@
+---
+codecov:
+  branch: main
+
+# https://docs.codecov.com/docs/pull-request-comments#disable-comment
+comment: false
+
+# https://docs.codecov.com/docs/commit-status
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 3
+        paths:
+          - "ocs/"
+    patch: false
+
+# When modifying this file, please validate using
+# curl -X POST --data-binary @codecov.yml https://codecov.io/validate

@@ -1,5 +1,6 @@
 from ocs.ocs_agent import in_reactor_context
 from twisted.internet import reactor
+from autobahn.exception import Disconnected
 from autobahn.wamp.exception import TransportLost
 import time
 import re
@@ -136,8 +137,8 @@ class Feed:
                     {k: b.encoded() for k, b in self.blocks.items() if b.timestamps},
                     self.encoded()
                 ))
-            except TransportLost:
-                self.agent.log.error('Could not publish to Feed. TransportLost. '
+            except (Disconnected, TransportLost):
+                self.agent.log.error('Could not publish to Feed. '
                                      + 'crossbar server likely unreachable.')
             for k, b in self.blocks.items():
                 b.clear()

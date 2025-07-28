@@ -154,7 +154,7 @@ class TestGetOp:
 
 class TestOCSClient:
     @patch('ocs.site_config.get_control_client', fake_get_control_client)
-    def test_matched_client_object(self):
+    def test_ocsclient_object(self):
         client = OCSClient('agent-id')
         assert client.instance_id == 'agent-id'
         print(dir(client))

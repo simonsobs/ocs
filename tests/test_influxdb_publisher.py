@@ -1,6 +1,8 @@
+import os
+
 import pytest
 
-from ocs.agents.influxdb_publisher.drivers import Publisher
+from ocs.agents.influxdb_publisher.drivers import Publisher, _get_credentials
 from ocs.common.influxdb_drivers import timestamp2influxtime
 
 
@@ -28,3 +30,32 @@ def test_format_data():
 
     expected = 'test_address,feed=test_feed key1=1i,key2=2.3,key3="test" 1615394417359038720'
     assert Publisher.format_data(data, feed, 'line')[0] == expected
+
+
+def test__get_credentials(tmp_path):
+    # Defaults
+    assert _get_credentials() == ('root', 'root')
+
+    # Set from file
+    d = tmp_path
+    username_file = d / "username"
+    username_file.write_text("admin", encoding="utf-8")
+    password_file = d / "password"
+    password_file.write_text("testpass", encoding="utf-8")
+
+    os.environ['INFLUXDB_USERNAME_FILE'] = str(username_file)
+    os.environ['INFLUXDB_PASSWORD_FILE'] = str(password_file)
+    assert _get_credentials() == ('admin', 'testpass')
+
+    # Set from env var
+    os.environ['INFLUXDB_USERNAME'] = 'user_var'
+    os.environ['INFLUXDB_PASSWORD'] = 'pass_var'
+    assert _get_credentials() == ('user_var', 'pass_var')
+
+    # Cleanup
+    vars_ = ['INFLUXDB_USERNAME_FILE',
+             'INFLUXDB_PASSWORD_FILE',
+             'INFLUXDB_USERNAME',
+             'INFLUXDB_PASSWORD']
+    for v in vars_:
+        os.environ.pop(v)

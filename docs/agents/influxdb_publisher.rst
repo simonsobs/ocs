@@ -46,8 +46,39 @@ Add the InfluxDB Publisher Agent container to your docker compose file::
     hostname: ocs-docker
     environment:
       - INSTANCE_ID=influxagent
+      - INFLUXDB_USERNAME=admin       # optional
+      - INFLUXDB_PASSWORD=password    # optional
     volumes:
       - ${OCS_CONFIG_DIR}:/config:ro
+
+By default, InfluxDB HTTP authentication is not required. However, if needed,
+you can optionally pass credentials to use when connecting to your InfluxDB
+instance through the environment variables shown above or through a file, for
+instance if you would like to use Docker Secrets. A Docker Secrets example is
+shown below::
+
+  secrets:
+    INFLUXDB_USERNAME:
+      file: ${PWD}/secrets/INFLUXDB_USERNAME
+    INFLUXDB_PASSWORD:
+      file: ${PWD}/secrets/INFLUXDB_PASSWORD
+  services:
+    ocs-influxdb-publisher:
+      image: simonsobs/ocs:latest
+      hostname: ocs-docker
+      secrets:
+        - INFLUXDB_USERNAME
+        - INFLUXDB_PASSWORD
+      environment:
+        - INSTANCE_ID=influxagent
+        - INFLUXDB_USERNAME_FILE=/run/secrets/INFLUXDB_USERNAME
+        - INFLUXDB_PASSWORD_FILE=/run/secrets/INFLUXDB_PASSWORD
+      volumes:
+        - ${OCS_CONFIG_DIR}:/config:ro
+
+.. note::
+    The ``INFLUXDB_USERNAME`` and ``INFLUXDB_PASSWORD`` variables will take
+    precedence if they are also present when using the ``_FILE`` variables.
 
 You will also need an instance of InfluxDB running somewhere on your network.
 This likely should go in a separate docker compose file so that it remains

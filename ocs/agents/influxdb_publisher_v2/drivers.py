@@ -6,7 +6,6 @@ from influxdb_client import InfluxDBClient, WriteOptions
 from influxdb_client.client.exceptions import InfluxDBError
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from urllib3.exceptions import NewConnectionError, ProtocolError
-from influxdb_client.client.write_api import WriteType
 
 from ocs.common.influxdb_drivers import format_data
 

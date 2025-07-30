@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 
-def _timestamp2influxtime(time, protocol):
+def timestamp2influxtime(time, protocol):
     """Convert timestamp for influx, always in UTC.
 
     Args:
@@ -82,14 +82,14 @@ def format_data(data, feed, protocol):
                     fields_line.append(f_line)
 
                 measurement_line = ','.join(fields_line)
-                t_line = _timestamp2influxtime(time_, protocol='line')
+                t_line = timestamp2influxtime(time_, protocol='line')
                 line = f"{measurement},feed={feed_tag} {measurement_line} {t_line}"
                 json_body.append(line)
             elif protocol == 'json':
                 json_body.append(
                     {
                         "measurement": measurement,
-                        "time": _timestamp2influxtime(time_, protocol='json'),
+                        "time": timestamp2influxtime(time_, protocol='json'),
                         "fields": fields,
                         "tags": {
                             "feed": feed_tag

@@ -120,18 +120,6 @@ Follow instructions to `Configure your InfluxDB connection <configure_>`_ for In
     not exist until the first time the InfluxDB Publisher Agent has successfully
     connected to the InfluxDB.
 
-.. image:: ../_static/grafana_influxdb_data_source.jpg
-
-In a dashboard, create a new panel. Each panel can have a different Data
-Source, which is selected at the top of the Metrics tab. Select our "OCS Feeds"
-data source. You'll then see the rich query editor for your InfluxDB data
-source. Each OCS Agent shows up as a "measurement" (here "observatory.LSSIM"
-and "observatory.LSSIM2"). Each feed published by an agent is an InfluxDB tag
-(here "temperatures" is our only feed.) Finally, each field is available within
-the SELECT query.
-
-.. image:: ../_static/grafana_influxdb_panel_example.jpg
-
 For more information about using InfluxDB in Grafana, see the `Grafana Documentation`_.
 
 .. _`Grafana Documentation`: https://grafana.com/docs/features/datasources/influxdb/

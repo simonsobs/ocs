@@ -1,6 +1,7 @@
 import pytest
 
-from ocs.agents.influxdb_publisher.drivers import Publisher, timestamp2influxtime
+from ocs.agents.influxdb_publisher.drivers import Publisher
+from ocs.common.influxdb_drivers import timestamp2influxtime
 
 
 @pytest.mark.parametrize("t,protocol,expected",

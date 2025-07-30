@@ -87,9 +87,7 @@ class InfluxDBAgentv2:
         self.aggregate = True
 
         self.log.debug("Instatiating Publisher class")
-        publisher = Publisher(self.args.database,
-                              self.incoming_data,
-                              self.args.org,
+        publisher = Publisher(self.incoming_data,
                               protocol=self.args.protocol,
                               gzip=self.args.gzip,
                               operate_callback=lambda: self.aggregate,
@@ -127,12 +125,6 @@ def make_parser(parser=None):
                         default='record', choices=['idle', 'record'],
                         help="Initial state of argument parser. Can be either "
                              "idle or record")
-    pgroup.add_argument('--database',
-                        default='ocs_feeds',
-                        help="Database within InfluxDB to publish data to.")
-    pgroup.add_argument('--org',
-                        default='my-org',
-                        help="Organization within InfluxDB to publish data to.")
     pgroup.add_argument('--protocol',
                         default='line',
                         choices=['json', 'line'],

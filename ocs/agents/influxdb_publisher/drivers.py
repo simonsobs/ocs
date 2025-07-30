@@ -1,3 +1,4 @@
+import os
 import time
 import txaio
 
@@ -29,6 +30,39 @@ def timestamp2influxtime(time, protocol):
     elif protocol == 'line':
         influx_t = int(time * 1e9)  # ns
     return influx_t
+
+
+def _get_credentials():
+    """Read credentials from environment variable or file.
+
+    Reads from either `INFLUXDB_USERNAME`, `INFLUXDB_PASSWORD`,
+    `INFLUXDB_USERNAME_FILE`, or `INFLUXDB_PASSWORD_FILE`. Precedence is given
+    to the non-`_FILE` variables.
+
+    Returns:
+        A tuple of (username, password). Defaults to ('root', 'root') if none
+        of the environment variables are present.
+
+    """
+    username_file = os.environ.get('INFLUXDB_USERNAME_FILE')
+    password_file = os.environ.get('INFLUXDB_PASSWORD_FILE')
+
+    username = None
+    password = None
+    if username_file is not None:
+        with open(username_file, 'r', encoding="utf-8") as f:
+            username = f.read().rstrip('\r\n')
+    if password_file is not None:
+        with open(password_file, 'r', encoding="utf-8") as f:
+            password = f.read().rstrip('\r\n')
+
+    username_default = 'root' if username is None else username
+    password_default = 'root' if password is None else password
+
+    username = os.environ.get('INFLUXDB_USERNAME', username_default)
+    password = os.environ.get('INFLUXDB_PASSWORD', password_default)
+
+    return username, password
 
 
 class Publisher:
@@ -81,7 +115,14 @@ class Publisher:
         print(f"gzip encoding enabled: {gzip}")
         print(f"data protocol: {protocol}")
 
-        self.client = InfluxDBClient(host=self.host, port=self.port, gzip=gzip)
+        username, password = _get_credentials()
+
+        self.client = InfluxDBClient(
+            host=self.host,
+            port=self.port,
+            username=username,
+            password=password,
+            gzip=gzip)
 
         db_list = None
         # ConnectionError here is indicative of InfluxDB being down
@@ -91,6 +132,12 @@ class Publisher:
             except RequestsConnectionError:
                 LOG.error("Connection error, attempting to reconnect to DB.")
                 self.client = InfluxDBClient(host=self.host, port=self.port, gzip=gzip)
+                time.sleep(1)
+            except InfluxDBClientError as err:
+                if err.code == 401:
+                    LOG.error("Failed to authenticate. Check your credentials.")
+                else:
+                    LOG.error(f"Unknown client error: {err}")
                 time.sleep(1)
             if operate_callback and not operate_callback():
                 break

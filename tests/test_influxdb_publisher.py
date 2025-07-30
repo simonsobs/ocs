@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from ocs.agents.influxdb_publisher.drivers import Publisher, _get_credentials
-from ocs.common.influxdb_drivers import timestamp2influxtime
+from ocs.agents.influxdb_publisher.drivers import _get_credentials
+from ocs.common.influxdb_drivers import format_data, timestamp2influxtime
 
 
 @pytest.mark.parametrize("t,protocol,expected",
@@ -29,7 +29,7 @@ def test_format_data():
             }
 
     expected = 'test_address,feed=test_feed key1=1i,key2=2.3,key3="test" 1615394417359038720'
-    assert Publisher.format_data(data, feed, 'line')[0] == expected
+    assert format_data(data, feed, 'line')[0] == expected
 
 
 def test__get_credentials(tmp_path):

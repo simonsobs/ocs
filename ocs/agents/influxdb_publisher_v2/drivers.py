@@ -56,7 +56,8 @@ class Publisher:
         print(f"data protocol: {protocol}")
 
         self.client = InfluxDBClient.from_env_properties()
-        self.write_client = self.client.write_api(write_options=WriteOptions(batch_size=10000))
+        self.write_client = self.client.write_api(
+            write_options=WriteOptions(batch_size=10000))
 
         bucket = None
         # ConnectionError here is indicative of InfluxDB being down
@@ -67,7 +68,8 @@ class Publisher:
             except (RequestsConnectionError, NewConnectionError, ProtocolError):
                 LOG.error("Connection error, attempting to reconnect to DB.")
                 self.client = InfluxDBClient.from_env_properties()
-                self.write_client = self.client.write_api(write_options=WriteOptions(batch_size=10000))
+                self.write_client = self.client.write_api(
+                    write_options=WriteOptions(batch_size=10000))
                 time.sleep(1)
             if operate_callback and not operate_callback():
                 break
@@ -103,7 +105,8 @@ class Publisher:
         except (RequestsConnectionError, NewConnectionError, ProtocolError):
             LOG.error("InfluxDB unavailable, attempting to reconnect.")
             self.client = InfluxDBClient.from_env_properties()
-            self.write_client = self.client.write_api(write_options=WriteOptions(batch_size=10000))
+            self.write_client = self.client.write_api(
+                write_options=WriteOptions(batch_size=10000))
         except InfluxDBError as err:
             LOG.error("InfluxDB Client Error: {e}", e=err)
 

@@ -34,6 +34,8 @@ Add an InfluxDBAgent to your OCS configuration file::
                      '--port', 8086,
                      '--protocol', 'line',
                      '--gzip', True,
+                     '--ssl', False,
+                     '--verify-ssl', False,
                      '--database', 'ocs_feeds']},
 
 Docker Compose

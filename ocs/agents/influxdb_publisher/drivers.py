@@ -60,6 +60,8 @@ class _InfluxDBClientArgs:
     port: int
     username: str
     password: str
+    ssl: bool
+    verify_ssl: bool
     gzip: bool
 
 
@@ -81,6 +83,10 @@ class Publisher:
             port for InfluxDB instance, defaults to 8086.
         protocol (str, optional):
             Protocol for writing data. Either 'line' or 'json'.
+        ssl (bool, optional):
+            Use https instead of http to connect to InfluxDB, defaults to False.
+        verify_ssl (bool, optional):
+            Verify SSL certificates for HTTPS requests, defaults to False.
         gzip (bool, optional):
             compress influxdb requsts with gzip
         operate_callback (callable, optional):
@@ -101,8 +107,16 @@ class Publisher:
 
     """
 
-    def __init__(self, host, database, incoming_data, port=8086, protocol='line',
-                 gzip=False, operate_callback=None):
+    def __init__(self,
+                 host,
+                 database,
+                 incoming_data,
+                 port=8086,
+                 protocol='line',
+                 ssl=False,
+                 verify_ssl=False,
+                 gzip=False,
+                 operate_callback=None):
         self.db = database
         self.incoming_data = incoming_data
         self.protocol = protocol
@@ -117,6 +131,8 @@ class Publisher:
             port=port,
             username=username,
             password=password,
+            ssl=ssl,
+            verify_ssl=verify_ssl,
             gzip=gzip)
         self.client = InfluxDBClient(**asdict(self.client_args))
 

@@ -1,5 +1,8 @@
 import os
 import time
+
+from dataclasses import dataclass, asdict
+
 import txaio
 
 from influxdb import InfluxDBClient
@@ -46,6 +49,20 @@ def _get_credentials():
     return username, password
 
 
+@dataclass
+class _InfluxDBClientArgs:
+    """Object to hold arguments passed to InfluxDBClient.
+
+    https://influxdb-python.readthedocs.io/en/latest/api-documentation.html#influxdb.InfluxDBClient
+
+    """
+    host: str
+    port: int
+    username: str
+    password: str
+    gzip: bool
+
+
 class Publisher:
     """
     Data publisher. This manages data to be published to the InfluxDB.
@@ -71,22 +88,14 @@ class Publisher:
             retried (to prevent a thread from locking).
 
     Attributes:
-        host (str):
-            host for InfluxDB instance.
-        port (int, optional):
-            port for InfluxDB instance, defaults to 8086.
         db (str):
             database name within InfluxDB to publish to (from database arg)
-        username (str):
-            username to authenticate to InfluxDB with
-        password (str):
-            password to authenticate to InfluxDB with
         protocol (str, optional):
             Protocol for writing data. Either 'line' or 'json'.
-        gzip (bool, optional):
-            compress influxdb requsts with gzip
         incoming_data:
             data to be published
+        client_args:
+            arguments passed to InfluxDB client
         client:
             InfluxDB client connection
 
@@ -94,24 +103,22 @@ class Publisher:
 
     def __init__(self, host, database, incoming_data, port=8086, protocol='line',
                  gzip=False, operate_callback=None):
-        self.host = host
-        self.port = port
         self.db = database
         self.incoming_data = incoming_data
         self.protocol = protocol
-        self.gzip = gzip
 
         print(f"gzip encoding enabled: {gzip}")
         print(f"data protocol: {protocol}")
 
-        self.username, self.password = _get_credentials()
+        username, password = _get_credentials()
 
-        self.client = InfluxDBClient(
-            host=self.host,
-            port=self.port,
-            username=self.username,
-            password=self.password,
+        self.client_args = _InfluxDBClientArgs(
+            host=host,
+            port=port,
+            username=username,
+            password=password,
             gzip=gzip)
+        self.client = InfluxDBClient(**asdict(self.client_args))
 
         db_list = None
         # ConnectionError here is indicative of InfluxDB being down
@@ -120,12 +127,7 @@ class Publisher:
                 db_list = self.client.get_list_database()
             except RequestsConnectionError:
                 LOG.error("Connection error, attempting to reconnect to DB.")
-                self.client = InfluxDBClient(
-                    host=self.host,
-                    port=self.port,
-                    username=self.username,
-                    password=self.password,
-                    gzip=gzip)
+                self.client = InfluxDBClient(**asdict(self.client_args))
                 time.sleep(1)
             except InfluxDBClientError as err:
                 if err.code == 401:
@@ -172,12 +174,7 @@ class Publisher:
             LOG.debug("wrote payload to influx")
         except RequestsConnectionError:
             LOG.error("InfluxDB unavailable, attempting to reconnect.")
-            self.client = InfluxDBClient(
-                host=self.host,
-                port=self.port,
-                username=self.username,
-                password=self.password,
-                gzip=self.gzip)
+            self.client = InfluxDBClient(**asdict(self.client_args))
             self.client.switch_database(self.db)
         except InfluxDBClientError as err:
             LOG.error("InfluxDB Client Error: {e}", e=err)

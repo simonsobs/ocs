@@ -29,6 +29,7 @@ dependencies = [
     "deprecation",
     "importlib_metadata;python_version<\"3.10\"",
     "influxdb",
+    "influxdb-client[ciso]",
     "numpy",
     "PyYAML",
     "setproctitle",

@@ -33,6 +33,7 @@ write OCS Agents or Clients.
     agents/aggregator
     agents/barebones
     agents/influxdb_publisher
+    agents/influxdb_publisher_v2
     agents/registry
     agents/fake_data
     agents/host_manager

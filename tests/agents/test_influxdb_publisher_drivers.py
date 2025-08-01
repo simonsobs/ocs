@@ -1,4 +1,4 @@
-from ocs.agents.influxdb_publisher.drivers import Publisher
+from ocs.common.influxdb_drivers import _format_field_line
 
 import pytest
 
@@ -8,6 +8,6 @@ import pytest
                                               ('fieldname', 4.2, 'fieldname=4.2'),
                                               ('fieldname', 'string', 'fieldname="string"')])
 def test_publisher_format_field_line(key, value, result):
-    f_line = Publisher._format_field_line(key, value)
+    f_line = _format_field_line(key, value)
 
     assert f_line == result

@@ -29,9 +29,7 @@ Add an InfluxDBAgent to your OCS configuration file::
 
       {'agent-class': 'InfluxDBAgentv2',
        'instance-id': 'influxagent',
-       'arguments': ['--initial-state', 'record',
-                     '--org', 'ocs',
-                     '--database', 'ocs_feeds']},
+       'arguments': ['--initial-state', 'record']},
 
 Docker Compose
 ``````````````

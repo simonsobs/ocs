@@ -77,6 +77,14 @@ class Publisher:
             port for InfluxDB instance, defaults to 8086.
         db (str):
             database name within InfluxDB to publish to (from database arg)
+        username (str):
+            username to authenticate to InfluxDB with
+        password (str):
+            password to authenticate to InfluxDB with
+        protocol (str, optional):
+            Protocol for writing data. Either 'line' or 'json'.
+        gzip (bool, optional):
+            compress influxdb requsts with gzip
         incoming_data:
             data to be published
         client:
@@ -96,13 +104,13 @@ class Publisher:
         print(f"gzip encoding enabled: {gzip}")
         print(f"data protocol: {protocol}")
 
-        username, password = _get_credentials()
+        self.username, self.password = _get_credentials()
 
         self.client = InfluxDBClient(
             host=self.host,
             port=self.port,
-            username=username,
-            password=password,
+            username=self.username,
+            password=self.password,
             gzip=gzip)
 
         db_list = None
@@ -112,7 +120,12 @@ class Publisher:
                 db_list = self.client.get_list_database()
             except RequestsConnectionError:
                 LOG.error("Connection error, attempting to reconnect to DB.")
-                self.client = InfluxDBClient(host=self.host, port=self.port, gzip=gzip)
+                self.client = InfluxDBClient(
+                    host=self.host,
+                    port=self.port,
+                    username=self.username,
+                    password=self.password,
+                    gzip=gzip)
                 time.sleep(1)
             except InfluxDBClientError as err:
                 if err.code == 401:
@@ -159,7 +172,12 @@ class Publisher:
             LOG.debug("wrote payload to influx")
         except RequestsConnectionError:
             LOG.error("InfluxDB unavailable, attempting to reconnect.")
-            self.client = InfluxDBClient(host=self.host, port=self.port, gzip=self.gzip)
+            self.client = InfluxDBClient(
+                host=self.host,
+                port=self.port,
+                username=self.username,
+                password=self.password,
+                gzip=self.gzip)
             self.client.switch_database(self.db)
         except InfluxDBClientError as err:
             LOG.error("InfluxDB Client Error: {e}", e=err)

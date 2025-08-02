@@ -95,6 +95,8 @@ class InfluxDBAgent:
                               self.incoming_data,
                               port=self.args.port,
                               protocol=self.args.protocol,
+                              ssl=self.args.ssl,
+                              verify_ssl=self.args.verify_ssl,
                               gzip=self.args.gzip,
                               operate_callback=lambda: self.aggregate,
                               )
@@ -145,6 +147,14 @@ def make_parser(parser=None):
                         choices=['json', 'line'],
                         help="Protocol for writing data. Either 'line' or "
                              "'json'.")
+    pgroup.add_argument('--ssl',
+                        type=bool,
+                        default=False,
+                        help="Use https instead of http to connect to InfluxDB, defaults to False.")
+    pgroup.add_argument('--verify-ssl',
+                        type=bool,
+                        default=False,
+                        help="Verify SSL certificates for HTTPS requests, defaults to False.")
     pgroup.add_argument('--gzip',
                         type=bool,
                         default=False,

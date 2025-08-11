@@ -23,7 +23,7 @@ jobs:
 
     steps:
     - name: clone ocs
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       # Fetch all history for all tags and branches
       with:
         fetch-depth: 0
@@ -67,7 +67,7 @@ jobs:
         python-version: 3.8
 
     - name: clone ocs
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: install build dependencies
       run: |

@@ -1,6 +1,7 @@
 import argparse
 import sys
 import code
+import json
 import readline
 import rlcompleter
 import re
@@ -67,6 +68,8 @@ def get_parser():
 
     # scan
     p = client_sp.add_parser('listen', help="Subscribe to feed(s) and dump to stdout.")
+    p.add_argument('--json', action='store_true', help=
+                   "Format output as json, for consumption by jq.")
     p.add_argument('feed_selector', help="Feed name, which can include wildcard matching (double "
                    " ..).  E.g., try 'observatory..feeds.heartbeat'")
 
@@ -96,7 +99,12 @@ def listen(parser, args):
     if not use_twisted:
         parser.error('The "listen" function requires twisted and autobahn packages.')
     feeds = args.feed_selector
-    print(f'Subscribing to {feeds}')
+
+    if args.json:
+        # Write directly stdout to avoid decoration by logger.
+        fout = sys.stdout
+    else:
+        print(f'Subscribing to {feeds}')
 
     class Listener(ApplicationSession):
         @defer.inlineCallbacks
@@ -106,7 +114,12 @@ def listen(parser, args):
             yield self.subscribe(self.on_event, topic, options=options)
 
         def on_event(self, msg, details=None):
-            print(f'[{details.topic}] {msg}')
+            if args.json:
+                j = {'topic': details.topic,
+                     'message': msg}
+                fout.write(json.dumps(j) + '\n')
+            else:
+                print(f'[{details.topic}] {msg}')
 
         def onDisconnect(self):
             if reactor.running:

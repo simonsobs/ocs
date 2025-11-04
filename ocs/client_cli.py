@@ -68,8 +68,7 @@ def get_parser():
 
     # scan
     p = client_sp.add_parser('listen', help="Subscribe to feed(s) and dump to stdout.")
-    p.add_argument('--json', action='store_true', help=
-                   "Format output as json, for consumption by jq.")
+    p.add_argument('--json', action='store_true', help="Format output as json, for consumption by jq.")
     p.add_argument('feed_selector', help="Feed name, which can include wildcard matching (double "
                    " ..).  E.g., try 'observatory..feeds.heartbeat'")
 

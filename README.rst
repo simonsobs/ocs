@@ -100,7 +100,16 @@ browser. You can also find a copy hosted on `Read the Docs`_.
 
 Tests
 -----
-The tests for OCS can be run using pytest, and should be run from the
+**Note:** The integration tests require Docker and Docker Compose to run.
+Ensure those are installed and the user running the tests is in the ``docker``
+group.
+
+The first step is to build the Docker images required by the integration
+tests::
+
+  $ docker compose build
+
+Then the tests for OCS can be run using pytest, and should be run from the
 ``tests/`` directory::
 
   $ cd tests/

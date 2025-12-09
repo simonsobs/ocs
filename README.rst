@@ -115,13 +115,6 @@ Then the tests for OCS can be run using pytest, and should be run from the
   $ cd tests/
   $ python3 -m pytest
 
-To run the tests within a Docker container (useful if your local environment is
-missing some dependencies), first make sure you build the latest ocs image,
-then use docker run::
-
-  $ docker build -t ocs .
-  $ docker run --rm -w="/app/ocs/tests/" ocs sh -c "python3 -m pytest -m 'not integtest'"
-
 For more details see `tests/README.rst <tests_>`_.
 
 .. _tests: https://github.com/simonsobs/ocs/blob/main/tests/README.rst

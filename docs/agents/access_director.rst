@@ -149,7 +149,7 @@ The additional settings items are:
 
 - ``passwords_block_default_hashfunc``: name of the hash function to
   assume for passwords provided in the "passwords" block.  (Default:
-  "none", meaning they are the cleartext.)
+  "none", meaning they are in cleartext.)
 - ``distrib_hashfunc``: hashfunc to use, instead of cleartext, when
   distributing passwords to agents.  (Does not affect passwords that
   were provided already hashed.)

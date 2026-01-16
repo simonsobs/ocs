@@ -60,7 +60,7 @@ Setting up the Access Director
 
 The Access Director agent is set up just like any other agent, with an
 entry in the Site Config File.  See the Agent's instructions for the
-standard SCF and docker-compose blocks.  Because it will be critical
+standard SCF and docker compose blocks.  Because it will be critical
 to proper functioning of OCS, it is a good idea to configure it to run
 on the same host as the crossbar server and other critical agents
 (Registry, Aggregator) if possible.

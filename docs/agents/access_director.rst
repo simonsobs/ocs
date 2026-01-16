@@ -31,7 +31,7 @@ block using all of the available arguments::
 
     {'agent-class': 'AccessDirector',
      'instance-id': 'access-dir',
-     'arguments': [['--config-file', '/config/access-director.yaml']]}
+     'arguments': ['--config-file', '/config/access-director.yaml']}
 
 Docker Compose
 ``````````````

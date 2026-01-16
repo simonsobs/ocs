@@ -118,7 +118,7 @@ def test_access_hashfuncs():
     """Check each hash function value stability."""
     # hashfunc test cases
     assert access.HASHFUNCS['none']('a') == 'a'
-    assert len(access.HASHFUNCS['md5']('a')) > 1
+    assert access.HASHFUNCS['md5']('a') == '0cc175b9c0f1b6a8'
 
     # hashfunc mapping
     agent = access.AgentSpec('my-id', 'my-class')

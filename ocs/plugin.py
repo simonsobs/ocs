@@ -7,4 +7,5 @@ agents = {
     'InfluxDBAgent': {'module': 'ocs.agents.influxdb_publisher.agent', 'entry_point': 'main'},
     'InfluxDBAgentv2': {'module': 'ocs.agents.influxdb_publisher_v2.agent', 'entry_point': 'main'},
     'BarebonesAgent': {'module': 'ocs.agents.barebones.agent', 'entry_point': 'main'},
+    'AccessDirector': {'module': 'ocs.agents.access_director.agent', 'entry_point': 'main'},
 }

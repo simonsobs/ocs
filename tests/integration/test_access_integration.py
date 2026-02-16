@@ -1,5 +1,4 @@
 import pytest
-import time
 
 import ocs
 from ocs.base import OpCode
@@ -12,6 +11,7 @@ from ocs.testing import (
 
 from integration.util import (
     create_crossbar_fixture,
+    iter_timed,
 )
 from integration.util import docker_compose_file  # noqa: F401
 
@@ -73,12 +73,18 @@ def test_access_lockout(wait_for_crossbar,
 @pytest.fixture
 def setup_access_system(wait_for_crossbar,
                         run_access_director,
-                        run_fakedata_accessdir):
+                        run_fakedata_accessdir,
+                        client_no_privs):
     """Launch crossbar, Access Director, and FakeData agent; wait a
     couple of seconds for them to synchronize.
 
     """
-    time.sleep(2)
+    for i in iter_timed(5, .1):
+        api = client_no_privs._client.get_api()['access_control']
+        if api['update_count'] > 0:
+            break
+    else:
+        raise RuntimeError("Time-out waiting for access instructions.")
 
 
 @pytest.mark.integtest
@@ -101,8 +107,15 @@ def test_access_director(setup_access_system,
     # With password, should succeed.
     resp = client_good_privs.delay_task(delay=0.01)
     assert resp.status == ocs.OK
-    time.sleep(1)
     assert resp.session['op_code'] == OpCode.SUCCEEDED.value
+
+
+def wait_client_access_step(client, target):
+    for i in iter_timed(5, .1):
+        if target == client._client.get_api()['access_control']['step']:
+            return
+    else:
+        raise RuntimeError("Client failed to reach target step.")
 
 
 @pytest.mark.integtest
@@ -117,7 +130,7 @@ def test_exclusive_access(setup_access_system,
     eac = access.ExclusiveAccessClient(client_adir, 'test-grantee', 'test-grant')
     ok, info = eac.acquire()
     assert ok
-    time.sleep(1)
+    wait_client_access_step(client_good_privs, info['step'])
 
     # Confirm old passwords don't work
     resp = client_good_privs.delay_task.start(delay=0.1)
@@ -137,7 +150,7 @@ def test_exclusive_access(setup_access_system,
     # Release the lock.
     ok, info = eac.release()
     assert ok
-    time.sleep(1)
+    wait_client_access_step(client_good_privs, info['step'])
 
     # And confirm old behavior.
     resp = client_good_privs.delay_task.start(delay=0.1)

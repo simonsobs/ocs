@@ -1,4 +1,5 @@
 import os
+import time
 
 import pytest
 import docker
@@ -35,3 +36,23 @@ def restart_crossbar():
 @pytest.fixture(scope="session")
 def docker_compose_file(pytestconfig):
     return os.path.join(str(pytestconfig.rootdir), "docker-compose.yml")
+
+
+def iter_timed(timeout=10, step_time=1.):
+    """Generator that returns sequential integers, roughly once every
+    step_time seconds, until timeout seconds have passed.
+
+    """
+    timeout = time.time() + timeout
+    attempt = 0
+    while True:
+        last = time.time()
+        yield attempt
+        attempt += 1
+        now = time.time()
+        next = last + step_time
+        if now > timeout:
+            break
+        if next - now > .001:
+            time.sleep(next - now)
+        last = time.time()

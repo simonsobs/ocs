@@ -33,7 +33,7 @@ class AccessDirector:
     def manager(self, session, params):
         """manager()
 
-        **Process** Update the main access control feed with new
+        **Process** - Update the main access control feed with new
         access information.  This occurs in response to agent queries,
         or if new grants require updates to access.
 
@@ -107,7 +107,7 @@ class AccessDirector:
         for k, v in config.items():
             setattr(self, k, v)
 
-        # Request a compete update.
+        # Request a complete update.
         self._update_all()
 
     def _update_all(self):
@@ -276,7 +276,7 @@ def make_parser(parser=None):
         parser = argparse.ArgumentParser()
     pgroup = parser.add_argument_group('Agent Options')
     pgroup.add_argument('--config-file', default=None,
-                        help="AccessDirectory config file.")
+                        help="AccessDirector config file.")
     return parser
 
 

@@ -39,10 +39,10 @@ example::
   agent.register_task('deep_clean', washingmachine.deep_clean,
                       min_privs=2)
 
-If the need for Access Control depends somewhat on the particular
-instance of an Agent, it may be convenient to have ``min_privs`` set
-based on a command-line parameter.  The FakeData Agent shows an
-example of this.
+.. note:: If the need for Access Control depends somewhat on the particular
+    instance of an Agent, it may be convenient to have ``min_privs`` set
+    based on a command-line parameter.  The FakeData Agent shows an
+    example of this.
 
 When restrictions are set up in this way, checking of privileges is
 handled automatically and immediately when a client calls ``start`` or
@@ -53,13 +53,13 @@ In the case that an Agent has privilege levels coded in, but you want
 to disable (or effectively disable) those restrictions, there are two
 simple options:
 
-1. You can run tell the agent to run with no privilege enforcement, by
-   passing `--access-policy none`.  In the SCF that would look like
+1. You can tell the agent to run with no privilege enforcement, by
+   passing ``--access-policy none``.  In the SCF that would look like
    this::
 
      {'agent-class': 'FakeDataAgent',
       'instance-id': 'faker4',
-      'arguments': [['--access-policy', 'none']],
+      'arguments': ['--access-policy', 'none'],
      },
 
 
@@ -156,10 +156,10 @@ passwords is::
 
   {'agent-class': 'FakeDataAgent',
    'instance-id': 'faker4',
-   'arguments': [['--access-policy', 'override:fake-pw-2,fake-pw-3']],
+   'arguments': ['--access-policy', 'override:fake-pw-2,fake-pw-3'],
   },
 
-You can override the ``--access-policy`` on the command line when
+You can also override the ``--access-policy`` on the command line when
 using ``ocs-agent-cli``; e.g.::
 
   $ ocs-agent-cli --instance-id=faker4 --access-policy=none

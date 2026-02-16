@@ -117,6 +117,13 @@ class OCSAgent(ApplicationSession):
         # Access Control rules
         self.access_director = None
         self.access_config = access.agent_get_policy_default(site_args.access_policy)
+        self.access_data = {
+            'version': access.AC_VERSION,
+            'policy': self.access_config.policy,
+            'update_timestamp': time.time(),
+            'update_count': 0,
+            'step': 0,
+        }
         if self.access_config.policy != 'none':
             self.access_config.agent = \
                 access.AgentSpec(instance_id=self.instance_id,
@@ -164,6 +171,11 @@ class OCSAgent(ApplicationSession):
         if message.get('reset') or message.get('target') == self.instance_id:
             new_rules = [access.AccessRule(**item) for item in message['rules']]
             self.access_config.rules = new_rules
+            self.access_data.update({
+                'update_timestamp': time.time(),
+                'update_count': self.access_data['update_count'] + 1,
+                'step': message['step'],
+            })
 
     @inlineCallbacks
     def _stop_all_running_sessions(self):
@@ -452,11 +464,11 @@ class OCSAgent(ApplicationSession):
             returned by :func:`_gather_sessions`.
           - 'tasks': The list of Task api description info, as
             returned by :func:`_gather_sessions`.
-          - 'access_control': if present value will be a positive
-            integer indicating the Access Control system version
-            supported by the instance (a.k.a., 1).  If this isn't
-            present, passing "password" argument to API calls will
-            likely produce an error.
+          - 'access_control': if present, contains some basic info
+            about the access control version, agent configuration, and
+            update count. If this isn't present (i.e. in older ocs),
+            passing "password" argument to API calls will likely
+            produce an error.
 
           Passing get_X will, for some values of X, return only that
           subset of the full API; treat that as deprecated.
@@ -470,7 +482,7 @@ class OCSAgent(ApplicationSession):
                 'feeds': [(k, v.encoded()) for k, v in self.feeds.items()],
                 'processes': self._gather_sessions(self.processes),
                 'tasks': self._gather_sessions(self.tasks),
-                'access_control': access.AC_VERSION,
+                'access_control': self.access_data,
             }
         if q == 'get_tasks':
             return self._gather_sessions(self.tasks)

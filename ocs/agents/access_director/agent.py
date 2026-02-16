@@ -22,6 +22,13 @@ class AccessDirector:
 
         self._registered = False
 
+        # The _step variable increments with every change in
+        # state. API calls (for getting grants or refreshing config)
+        # will increment this variable and make the new value
+        # available to callers. One place this is used is in
+        # integration tests.
+        self._step = 1
+
         self._config_file = config_file
         self._requests = []
         self._active_grants = []
@@ -72,6 +79,7 @@ class AccessDirector:
                 r = self._requests.pop(0)
                 msg = {'reset': True,
                        'ac_version': access.AC_VERSION,
+                       'step': self._step,
                        'rules': list(self._rules)}
 
                 for _grant in self._active_grants:
@@ -86,6 +94,7 @@ class AccessDirector:
                     subrules = access.agent_filter_rules(msg['rules'], agent)
                     msg = {'target': r['instance_id'],
                            'ac_version': access.AC_VERSION,
+                           'step': self._step,
                            'rules': subrules}
 
                 if 'rules' in msg:
@@ -94,7 +103,7 @@ class AccessDirector:
                 self.agent.publish_to_feed('controls', msg)
 
             if time.time() - last_blast > 60:
-                self._update_all()
+                self._update_all(0)
 
         return True, 'Exited.'
 
@@ -110,7 +119,8 @@ class AccessDirector:
         # Request a complete update.
         self._update_all()
 
-    def _update_all(self):
+    def _update_all(self, step=1):
+        self._step += step
         self._requests.append({'type': 'reset'})
 
     @ocs_agent.param('_')
@@ -170,7 +180,8 @@ class AccessDirector:
           On success, the returned dict has at least the items
           'grant_name' (which matches the requested grant_name) and
           'message'; the 'message' is just "grant acquired" / "grant
-          renewed" / "grant released".
+          renewed" / "grant released".  It also has the 'step' at
+          which this event took effect in the director.
 
           Additionally, if the 'action' is 'acquire' or 'renew' then
           the dict will include an entry 'expire_at' with the unix
@@ -219,7 +230,8 @@ class AccessDirector:
             self.log.info(f'Exclusive access granted: {grant_name}')
             return {'message': 'grant acquired', 'password': password,
                     'grant_name': grant_name,
-                    'expire_at': new_grant.expire_at}
+                    'expire_at': new_grant.expire_at,
+                    'step': self._step}
 
         elif action == 'renew':
             if grant_idx is None:
@@ -227,7 +239,8 @@ class AccessDirector:
             self._active_grants[grant_idx].renew(expire_at)
             return {'message': 'grant renewed',
                     'grant_name': grant_name,
-                    'expire_at': self._active_grants[grant_idx].expire_at}
+                    'expire_at': self._active_grants[grant_idx].expire_at,
+                    'step': self._step}
 
         elif action == 'release':
             if grant_idx is None:
@@ -239,6 +252,7 @@ class AccessDirector:
                 self.log.info(f'Exclusive access relinquished: {grant_name}')
             return {'message': 'grant released',
                     'grant_name': grant_name,
+                    'step': self._step,
                     }
 
     @inlineCallbacks

@@ -76,7 +76,7 @@ Access Director, by either:
 - Passing the ``--access-policy=director:<instance-id>`` argument to
   the Agent, providing the instance-id of the Access Director;  OR
 - The ``'access_policy'`` setting in the SCF, which sets the default
-  value for `--access-policy` argument for all agents in the OCS
+  value for ``--access-policy`` argument for all agents in the OCS
   instance.
 
 Before enabling the "director" access policy on the whole system, the

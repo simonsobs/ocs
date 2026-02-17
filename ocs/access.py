@@ -16,7 +16,7 @@ Functions in this module are prefixed with one of:
 
 import hashlib
 import os
-import random
+import secrets
 import string
 import time
 import yaml
@@ -68,7 +68,7 @@ CRED_KEYS = [
 # Password and hashing support
 
 def _get_random_string(length=8):
-    return ''.join([random.choice(string.ascii_letters) for i in range(length)])
+    return ''.join([secrets.choice(string.ascii_letters) for i in range(length)])
 
 
 def _hashfunc_no_hash(x):
@@ -579,7 +579,8 @@ def client_get_password(privs, agent_class, instance_id):
         privs = 1
     if not isinstance(privs, int):
         raise ValueError("privs argument should be int or str.")
-        assert 1 <= privs <= 3
+
+    assert 1 <= privs <= 3
 
     if privs == 1:
         return ''

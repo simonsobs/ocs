@@ -99,11 +99,16 @@ Agent code.  See :ref:`access_control_dev`.
 
 For agents that do not have any explicit Access Control functionality
 built in, they are still subject to constraints from the Accesss
-Director -- provided that the Agent instance is running on a version
-of ``ocs`` that is Access Control-aware.  Even if an agent doesn't set
-any minimum credential levels for operations, the Access Director can
-still restrict access to that agent by imposing passwords for level 1
-access.
+Director (provided they import a version of OCS with Access Control
+implemented).  For example, the Access Director could be configured to
+require a password even for level 1 access, and that requirement would
+be distributed and processed by all agents.  Similarly, exclusive
+access grants may block level 1 access.
+
+(If an Agent is using (i.e. is importing at runtime) an older version
+of OCS without Access Control features, then it may co-exist with
+AC-enabled agent instances but will not be responsive to the Access
+Director.)
 
 
 Passwords and Credential Levels

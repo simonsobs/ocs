@@ -44,6 +44,55 @@ class AccessDirector:
         access information.  This occurs in response to agent queries,
         or if new grants require updates to access.
 
+        The ``session.data`` encodes information about any active
+        exclusive grants.  The entry for ``grants`` contains a list of
+        :class:<AccessGrant> entries.  It looks like this::
+
+          'grants': [
+            {
+              "name": "fake-subsystem",
+              "expire_at": 1771356419.8087718,
+              "grantee": "test-grant.py",
+              "rules": [
+                {
+                  "hashed_pass": {
+                    "hash": "md5",
+                    "value": "03ba0072e0d32376"
+                  },
+                  "cred_level": 2,
+                  "scope_spec": {
+                    "default": false,
+                    "agent_class": "FakeDataAgent",
+                    "instance_id": null
+                  },
+                  "lockout_id": "fake-subsystem",
+                  "lockout_owner": "test-grant.py",
+                  "lockout_levels": [
+                    2,
+                    3
+                  ]
+                },
+                {
+                  "hashed_pass": {
+                    "hash": "md5",
+                    "value": "03ba0072e0d32376"
+                  },
+                  "cred_level": 1,
+                  "scope_spec": {
+                    "default": true,
+                    "agent_class": null,
+                    "instance_id": null
+                  },
+                  "lockout_id": "fake-subsystem",
+                  "lockout_owner": "test-grant.py",
+                  "lockout_levels": [
+                    3
+                  ]
+                }
+              ]
+            }
+          ]
+
         """
         session.set_status('running')
         session.data = {}
@@ -134,20 +183,30 @@ class AccessDirector:
         yield self._load_config()
         return True, 'Update requested.'
 
-    @inlineCallbacks
-    def agent_poll(self, instance_id=None, agent_class=None):
+    def agent_poll(self, instance_id, agent_class):
         """*Special access point.* This is used for agents to request
         an announcement of their password rules on the control feed.
         The instance_id and agent_class arguments must both be
-        specified.
+        specified (and not None).  Returns True if arguments are
+        sufficiently valid and request was slated; otherwise False.
 
         """
-        self._requests.append({
+        self.log.info(f'agent-poll received from {agent_class}:{instance_id}')
+        r = {
             'type': 'single',
             'instance_id': instance_id,
             'agent_class': agent_class,
-        })
-        yield self.log.info(f'agent-poll received from {agent_class}:{instance_id}')
+        }
+        # Validate that before putting it into the request queue.
+        try:
+            access.AgentSpec(
+                agent_class=r['agent_class'],
+                instance_id=r['instance_id'])
+        except Exception as e:
+            self.log.error('Failed validation: {e}', e=e)
+            return False
+        self._requests.append(r)
+        return True
 
     def request_exclusive(self, grant_name=None, password=None,
                           action=None, expire_at=None, grantee=None,
@@ -218,7 +277,8 @@ class AccessDirector:
         if action == 'acquire':
             if grant_idx is not None:
                 if strict:
-                    return {'error': 'Grant is already held; release it first.'}
+                    return {'error': ('Grant is already held (grantee: '
+                                      + f'{g.grantee}); release it first.')}
                 else:
                     self._active_grants.pop(grant_idx)
 

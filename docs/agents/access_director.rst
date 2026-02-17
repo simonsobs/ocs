@@ -118,16 +118,19 @@ Example 2 -- like Example 1 except that any agent with the class
     - agent_class: FakeDataAgent
       password_2: 'fake2'
 
-Example 3 -- like Example 2 except that the agent with `instance_id`
-of "danger4" will have the level 2 and level 3 access totally
-disabled (even if "danger4" is a FakeDataAgent.)::
+Example 3 -- like Example 2 except that the agent with
+`instance_id=danger4` will not be granted any special level 2 or 3
+access passwords.  To do this, it is necessary to negatively match on
+``instance_id`` -- the ``default: true`` block can only apply to
+*everything*::
 
   passwords:
     - default: true
       password_1: ''
+      password_4: 'superuser'
+    - instance_id: '!danger4'
       password_2: 'special2'
       password_3: 'special3'
-      password_4: 'superuser'
     - agent_class: FakeDataAgent
       instance_id: '!danger4'
       password_2: 'fake2'
@@ -152,7 +155,8 @@ The additional settings items are:
   "none", meaning they are in cleartext.)
 - ``distrib_hashfunc``: hashfunc to use, instead of cleartext, when
   distributing passwords to agents.  (Does not affect passwords that
-  were provided already hashed.)
+  were provided already hashed -- those are distributed in hashed
+  form, correctly annotated with the hashfunc declared for them.)
 
 
 

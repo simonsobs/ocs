@@ -45,9 +45,10 @@ example::
     example of this.
 
 When restrictions are set up in this way, checking of privileges is
-handled automatically and immediately when a client calls ``start`` or
-``stop`` on an operation -- if the privileges are not sufficient the
-client gets an *immediate* error response indicating the failure.
+handled automatically and immediately when a client calls ``start``,
+``stop``, or ``abort`` on an operation -- if the privileges are not
+sufficient the client gets an *immediate* error response indicating
+the failure.
 
 In the case that an Agent has privilege levels coded in, but you want
 to disable (or effectively disable) those restrictions, there are two
@@ -148,11 +149,10 @@ As a general guideline:
 Testing and Debugging
 ---------------------
 
-When testing an agent's Access Control, recall that the
-``--access-policy`` argument can be used to set the level 2 and 3
-passwords, independent of whether an Access Director agent is running
-in the OCS instance.  An example SCF entry for a FakeData agent with
-passwords is::
+When testing an agent's Access Control, the ``--access-policy``
+argument can be used to set the level 2 and 3 passwords, independent
+of whether an Access Director agent is running in the OCS instance.
+An example SCF entry for a FakeData agent with passwords is::
 
   {'agent-class': 'FakeDataAgent',
    'instance-id': 'faker4',

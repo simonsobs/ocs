@@ -954,6 +954,7 @@ class OCSAgent(ApplicationSession):
         cred_level, detail = access.agent_get_creds(
             password, self.access_config, self.access_config.agent, actx)
         if cred_level < op.min_privs:
+            self.log.info(f'Rejected underprivileged "{stop_type}" request.')
             return (ocs.ERROR,
                     access.agent_rejection_message(cred_level, op.min_privs),
                     {})
@@ -1082,7 +1083,7 @@ class AgentOp:
 
 class AgentTask(AgentOp):
     def __init__(self, launcher, blocking=None, aborter=None,
-                 aborter_blocking=None, min_privs=0):
+                 aborter_blocking=None, min_privs=1):
         self.launcher = launcher
         self.blocking = blocking
         self.aborter = aborter

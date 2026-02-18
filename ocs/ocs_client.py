@@ -103,6 +103,10 @@ class OCSClient:
         """
         Args:
             instance_id (str): Instance id for agent to run
+            privs (str or int): If str, a password to use for all
+                interactions with Agent operations. If int, the system
+                will check the password configuration for a password
+                that can yield that credential level, and apply it.
             args (list or args object, optional):
                 Takes in the parser arguments for the client.
                 If None, pass an empty list.
@@ -111,6 +115,10 @@ class OCSClient:
 
         .. note::
             For additional ``**kwargs`` see site_config.get_control_client.
+
+        .. note::
+            For details on ``privs`` processing, see
+            :func:`ocs.access.client_get_password`.
 
         """
         if kwargs.get('args') is None:

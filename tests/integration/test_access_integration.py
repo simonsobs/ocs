@@ -96,7 +96,8 @@ def test_access_director(setup_access_system,
     that the programmed passwords work.
 
     """
-    # This should work tho...
+    # This should work because acq requires only level 1, which is not
+    # password protected.
     resp = client_bad_privs.acq.start()
     assert resp.status == ocs.OK
 

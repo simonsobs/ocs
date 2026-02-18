@@ -13,7 +13,7 @@ from ocs.ocs_client import (
     OCSReply,
 )
 
-from util import fake_get_control_client
+from util import fake_get_control_client, password_file  # noqa: F401
 from agents.util import create_session
 
 mocked_client = MagicMock()
@@ -173,18 +173,38 @@ class TestGetOp:
 
 
 class TestOCSClient:
-    @patch('ocs.site_config.get_control_client', fake_get_control_client)
+    @patch('ocs.site_config.get_control_client', fake_get_control_client())
     def test_ocsclient_object(self):
         client = OCSClient('agent-id')
         assert client.instance_id == 'agent-id'
-        print(dir(client))
         assert hasattr(client, 'process_name')
         assert hasattr(client, 'task_name')
 
-    @patch('ocs.site_config.get_control_client', fake_get_control_client)
+    @patch('ocs.site_config.get_control_client', fake_get_control_client())
     def test_ocsclient_repr(self):
         client = OCSClient('agent-id')
         assert repr(client) == "OCSClient('agent-id')"
+
+    @patch('ocs.site_config.get_control_client', fake_get_control_client())
+    def test_ocsclient_privs(self, password_file):  # noqa: F811
+        with patch('os.getenv', MagicMock(return_value=str(password_file))):
+            # With explicit password ...
+            client = OCSClient('agent-id', privs=DUMMY_PASS)
+            assert client._password == DUMMY_PASS
+
+            # Via password file ...
+            client = OCSClient('test-agent1', privs=2)
+            assert client._password == 'ta-two'
+
+            # And no pass.
+            client = OCSClient('test-agent1')
+            assert client._password == ''
+
+    @patch('ocs.site_config.get_control_client',
+           fake_get_control_client(has_access_control=False))
+    def test_ocsclient_privs_old_agent(self):
+        client = OCSClient('agent-id', privs=DUMMY_PASS)
+        assert client._password is None
 
 
 class TestOCSReply:

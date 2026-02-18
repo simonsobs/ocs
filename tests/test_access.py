@@ -1,10 +1,10 @@
 import pytest
 import time
-import yaml
 
 from unittest import mock
 
 from ocs import access
+from util import password_file  # noqa: F401
 
 
 def test_access_enums():
@@ -135,25 +135,7 @@ def test_access_hashfuncs():
         access.agent_get_creds('a', bad_rules, agent)
 
 
-@pytest.fixture(scope='session')
-def password_file(tmp_path_factory):
-    """Write a password file."""
-    fn = tmp_path_factory.mktemp('ocs') / 'passwords.yaml'
-    yaml.dump([
-        {'default': True,
-         'password_2': 'two'},
-        {'instance_id': 'test-agent1',
-         'password_2': 'ta-two',
-         'password_3': 'ta-three'},
-        {'agent_class': 'TestAgent',
-         'password_2': 'TA-two'},
-        {'agent_class': '!NormalAgent',
-         'password_2': 'spec-test'},
-    ], fn.open('w'))
-    return fn
-
-
-def test_access_client_get_password(password_file):
+def test_access_client_get_password(password_file):  # noqa: F811
     """Check that client_get_password parses the password_file data
     appropriately.
 

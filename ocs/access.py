@@ -37,8 +37,7 @@ from pydantic.dataclasses import dataclass
 from . import ocs_client
 
 #: The protocol version ("access_control") that agents report
-#: themselves as using via get_api., should declare themselves to be
-#: using.
+#: themselves as using via get_api.
 AC_VERSION = 1
 
 
@@ -238,7 +237,7 @@ def pattern_match(target: str, pattern: str, raw=False):
       commas. The pattern matches the target if any of the
       positive sub-patterns match the target, as long as none of
       the negative sub-patterns matches the target.
-    - If a sub-pattern does not start with "!", it considered a
+    - If a sub-pattern does not start with "!", it is considered a
       positive sub-pattern and fnmatch is used to test the
       sub-pattern against the target.
     - If a sub-pattern starts with "!", then it is a negative
@@ -370,7 +369,7 @@ class AccessRule:
 
 @dataclass
 class AgentAccessRules:
-    """A container used by Agent to hold configuration, including
+    """A container used by Agents to hold configuration, including
     AccessRule (whether generated in place or received from Access
     Director agent).
 

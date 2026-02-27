@@ -4,6 +4,7 @@ deprecation
 PyYAML
 importlib_metadata
 setproctitle
+pydantic
 
 # InfluxDB Publisher
 influxdb

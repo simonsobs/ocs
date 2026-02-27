@@ -13,11 +13,13 @@ from ocs.ocs_client import (
     OCSReply,
 )
 
-from util import fake_get_control_client
+from util import fake_get_control_client, password_file  # noqa: F401
 from agents.util import create_session
 
 mocked_client = MagicMock()
 mock_from_yaml = MagicMock()
+
+DUMMY_PASS = 'test-password'
 
 
 @patch('ocs.client_http.ControlClient', mocked_client)
@@ -65,7 +67,7 @@ def test_opname_to_attr(input_, expected):
 class TestGetOp:
     def test_invalid_op_type(self):
         with pytest.raises(ValueError):
-            _get_op('not_valid', 'name', MagicMock(), MagicMock())
+            _get_op('not_valid', 'name', MagicMock(), MagicMock(), '')
 
     def mock_client(self, session_name, response_code):
         """Mock a ControlClient object that has a predefined request response for
@@ -88,7 +90,8 @@ class TestGetOp:
 
         return client
 
-    def _client_operation(self, op_type, op_name, response_code=ocs.OK):
+    def _client_operation(self, op_type, op_name, response_code=ocs.OK,
+                          password=DUMMY_PASS):
         """Build a mocked client, and get an Operation for it, returning
         both.
 
@@ -96,7 +99,7 @@ class TestGetOp:
         client = self.mock_client(op_name, response_code)
         encoded_task = {'blocking': True,
                         'docstring': 'Example docstring'}
-        task = _get_op(op_type, op_name, encoded_task, client)
+        task = _get_op(op_type, op_name, encoded_task, client, password)
 
         return (client, task)
 
@@ -108,63 +111,100 @@ class TestGetOp:
     def client_process(self):
         return self._client_operation('process', 'process_name')
 
+    @pytest.fixture
+    def client_process_nopass(self):
+        return self._client_operation('process', 'process_name', password='')
+
     def test_task_abort(self, client_task):
         client, task = client_task
         print(task.abort())
-        client.request.assert_called_with('abort', 'task_name')
+        client.request.assert_called_with('abort', 'task_name', password=DUMMY_PASS)
 
     def test_task_start(self, client_task):
         client, task = client_task
         print(task.start())
         assert task.start.__doc__ == 'Example docstring'
-        client.request.assert_called_with('start', 'task_name', params={})
+        client.request.assert_called_with('start', 'task_name', params={},
+                                          password=DUMMY_PASS)
 
     def test_task_wait(self, client_task):
         client, task = client_task
         print(task.wait())
-        client.request.assert_called_with('wait', 'task_name', timeout=None)
+        client.request.assert_called_with('wait', 'task_name', timeout=None,
+                                          password=DUMMY_PASS)
 
     def test_task_status(self, client_task):
         client, task = client_task
         print(task.status())
-        client.request.assert_called_with('status', 'task_name')
+        client.request.assert_called_with('status', 'task_name',
+                                          password=DUMMY_PASS)
 
     def test_task_call(self):
         client, task = self._client_operation('task', 'task_name', ocs.OK)
         print(task())
         # equivalent to 'start' + 'wait', but we can only check the last call
-        client.request.assert_called_with('wait', 'task_name', timeout=None)
+        client.request.assert_called_with('wait', 'task_name', timeout=None,
+                                          password=DUMMY_PASS)
 
     def test_task_call_w_error(self):
         client, task = self._client_operation('task', 'task_name', ocs.ERROR)
         print(task())
         # error skips the 'wait' call after 'start'
-        client.request.assert_called_with('start', 'task_name', params={})
+        client.request.assert_called_with('start', 'task_name', params={},
+                                          password=DUMMY_PASS)
 
     def test_process_stop(self, client_process):
         client, process = client_process
         print(process.stop())
-        client.request.assert_called_with('stop', 'process_name')
+        client.request.assert_called_with('stop', 'process_name',
+                                          password=DUMMY_PASS)
 
     def test_process_call(self, client_process):
         client, process = client_process
+        print(process())
+        client.request.assert_called_with('status', 'process_name',
+                                          password=DUMMY_PASS)
+
+    def test_op_no_password(self, client_process_nopass):
+        # Backwards compatibility: if no pw, don't pass the password arg
+        client, process = client_process_nopass
         print(process())
         client.request.assert_called_with('status', 'process_name')
 
 
 class TestOCSClient:
-    @patch('ocs.site_config.get_control_client', fake_get_control_client)
+    @patch('ocs.site_config.get_control_client', fake_get_control_client())
     def test_ocsclient_object(self):
         client = OCSClient('agent-id')
         assert client.instance_id == 'agent-id'
-        print(dir(client))
         assert hasattr(client, 'process_name')
         assert hasattr(client, 'task_name')
 
-    @patch('ocs.site_config.get_control_client', fake_get_control_client)
+    @patch('ocs.site_config.get_control_client', fake_get_control_client())
     def test_ocsclient_repr(self):
         client = OCSClient('agent-id')
         assert repr(client) == "OCSClient('agent-id')"
+
+    @patch('ocs.site_config.get_control_client', fake_get_control_client())
+    def test_ocsclient_privs(self, password_file):  # noqa: F811
+        with patch('os.getenv', MagicMock(return_value=str(password_file))):
+            # With explicit password ...
+            client = OCSClient('agent-id', privs=DUMMY_PASS)
+            assert client._password == DUMMY_PASS
+
+            # Via password file ...
+            client = OCSClient('test-agent1', privs=2)
+            assert client._password == 'ta-two'
+
+            # And no pass.
+            client = OCSClient('test-agent1')
+            assert client._password == ''
+
+    @patch('ocs.site_config.get_control_client',
+           fake_get_control_client(has_access_control=False))
+    def test_ocsclient_privs_old_agent(self):
+        client = OCSClient('agent-id', privs=DUMMY_PASS)
+        assert client._password is None
 
 
 class TestOCSReply:

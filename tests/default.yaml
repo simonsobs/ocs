@@ -11,6 +11,9 @@ hosts:
   localhost: {
     'log-dir': './log/',
     'agent-instances': [
+      {'agent-class': 'AccessDirector',
+       'instance-id': 'access-dir',
+       'arguments': ['--config-file', 'ocs-access.yaml']},
       {'agent-class': 'HostManager',
        'instance-id': 'host-manager-1',
        'arguments': []},
@@ -21,6 +24,10 @@ hosts:
                      '--num-channels', '16',
                      '--sample-rate', '5',
                      '--frame-length', '10']},
+      {'agent-class': 'FakeDataAgent',
+       'instance-id': 'fake-data-access-dir',
+       'manage': 'host/down',
+       'arguments': ['--access-policy', 'director:access-dir']},
       {'agent-class': 'RegistryAgent',
         'instance-id': 'registry',
         'manage': 'host/up',

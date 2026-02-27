@@ -17,6 +17,7 @@ from autobahn.twisted.util import sleep as dsleep
 from autobahn.wamp.exception import ApplicationError, TransportLost
 from autobahn.exception import Disconnected
 from .ocs_twisted import in_reactor_context
+from . import access
 
 import json
 import math
@@ -99,6 +100,7 @@ class OCSAgent(ApplicationSession):
         self.next_session_id = 0
         self.session_archive = {}  # by op_name, lists of OpSession.
         self.agent_address = address
+        self.instance_id = site_args.instance_id
         self.class_name = class_name
         self.registered = False
         self.log = txaio.make_logger()
@@ -111,6 +113,27 @@ class OCSAgent(ApplicationSession):
         self.subscriptions = []  # autobahn.wamp.request.Subscription objects
         self.realm_joined = False
         self.first_time_startup = True
+
+        # Access Control rules
+        self.access_director = None
+        self.access_config = access.agent_get_policy_default(site_args.access_policy)
+        self.access_data = {
+            'version': access.AC_VERSION,
+            'policy': self.access_config.policy,
+            'update_timestamp': time.time(),
+            'update_count': 0,
+            'step': 0,
+        }
+        if self.access_config.policy != 'none':
+            self.access_config.agent = \
+                access.AgentSpec(instance_id=self.instance_id,
+                                 agent_class=self.class_name,
+                                 superuser_key=self)
+        if self.access_config.policy == 'director':
+            self.access_director = (
+                site_args.address_root + '.' + self.access_config.director_id)
+            self.subscribe_on_start(self._access_handler,
+                                    self.access_director + '.feeds.controls')
 
         # Attach the logger.
         log_dir, log_file = site_args.log_dir, None
@@ -134,6 +157,25 @@ class OCSAgent(ApplicationSession):
         # Can we log already?
         self.log.info('ocs: starting %s @ %s' % (str(self.__class__), address))
         self.log.info('log_file is apparently %s' % (log_file))
+
+    def _access_handler(self, _data):
+        """Handler for data from the Access Director agent.
+
+        """
+        message = _data[0]
+        ad_version = message.get('ac_version')
+        if ad_version != access.AC_VERSION:
+            self.log.error(f'Access Control version mismatch: director={ad_version}, '
+                           f'Agent={access.AC_VERSION}')
+            return
+        if message.get('reset') or message.get('target') == self.instance_id:
+            new_rules = [access.AccessRule(**item) for item in message['rules']]
+            self.access_config.rules = new_rules
+            self.access_data.update({
+                'update_timestamp': time.time(),
+                'update_count': self.access_data['update_count'] + 1,
+                'step': message['step'],
+            })
 
     @inlineCallbacks
     def _stop_all_running_sessions(self):
@@ -256,10 +298,19 @@ class OCSAgent(ApplicationSession):
                 self.log.info('startup-op: launching %s' % op_name)
                 if op_params is True:
                     op_params = {}
-                self.start(op_name, op_params)
+                self.start(op_name, op_params, password=self)
             self.first_time_startup = False
 
         self.realm_joined = True
+
+        def _access_dir_fail(*args, **kwargs):
+            self.log.error('Failed to request access rules from access director '
+                           f'at {self.access_director}')
+
+        if self.access_config.policy == 'director':
+            self.call(self.access_director + '.agent_poll',
+                      instance_id=self.instance_id, agent_class=self.class_name)\
+                .addErrback(_access_dir_fail)
 
     @inlineCallbacks
     def onLeave(self, details):
@@ -342,17 +393,17 @@ class OCSAgent(ApplicationSession):
             'processes': list(self.processes.keys())
         }
 
-    def _ops_handler(self, action, op_name, params=None, timeout=None):
+    def _ops_handler(self, action, op_name, params=None, timeout=None, password=None):
         if action == 'start':
-            return self.start(op_name, params=params)
+            return self.start(op_name, params=params, password=password)
         if action == 'stop':
-            return self.stop(op_name, params=params)
+            return self.stop(op_name, params=params, password=password)
         if action == 'abort':
-            return self.abort(op_name, params=params)
+            return self.abort(op_name, params=params, password=password)
         if action == 'wait':
-            return self.wait(op_name, timeout=timeout)
+            return self.wait(op_name, timeout=timeout, password=password)
         if action == 'status':
-            return self.status(op_name)
+            return self.status(op_name, password=password)
         return (ocs.ERROR, 'No implementation for "%s"' % op_name, {})
 
     def _gather_sessions(self, parent):
@@ -413,6 +464,11 @@ class OCSAgent(ApplicationSession):
             returned by :func:`_gather_sessions`.
           - 'tasks': The list of Task api description info, as
             returned by :func:`_gather_sessions`.
+          - 'access_control': if present, contains some basic info
+            about the access control version, agent configuration, and
+            update count. If this isn't present (i.e. in older ocs),
+            passing "password" argument to API calls will likely
+            produce an error.
 
           Passing get_X will, for some values of X, return only that
           subset of the full API; treat that as deprecated.
@@ -426,6 +482,7 @@ class OCSAgent(ApplicationSession):
                 'feeds': [(k, v.encoded()) for k, v in self.feeds.items()],
                 'processes': self._gather_sessions(self.processes),
                 'tasks': self._gather_sessions(self.tasks),
+                'access_control': self.access_data,
             }
         if q == 'get_tasks':
             return self._gather_sessions(self.tasks)
@@ -437,7 +494,8 @@ class OCSAgent(ApplicationSession):
             return self.class_name
 
     def register_task(self, name, func, aborter=None, blocking=True,
-                      aborter_blocking=None, startup=False):
+                      aborter_blocking=None, startup=False,
+                      min_privs=0):
         """Register a Task for this agent.
 
         Args:
@@ -460,6 +518,8 @@ class OCSAgent(ApplicationSession):
                 launched on startup.  If the ``startup`` argument is a
                 dictionary, this is passed to the Operation's start
                 function.
+            min_privs (int): Minimum privilege level required to start
+                or abort this operation (1, 2, 3).  See Access Control.
 
         Notes:
 
@@ -473,13 +533,14 @@ class OCSAgent(ApplicationSession):
         """
         self.tasks[name] = AgentTask(
             func, blocking=blocking, aborter=aborter,
-            aborter_blocking=aborter_blocking)
+            aborter_blocking=aborter_blocking,
+            min_privs=min_privs)
         self.sessions[name] = None
         if startup is not False:
             self.startup_ops.append(('task', name, startup))
 
     def register_process(self, name, start_func, stop_func, blocking=True,
-                         stopper_blocking=None, startup=False):
+                         stopper_blocking=None, startup=False, min_privs=0):
         """Register a Process for this agent.
 
         Args:
@@ -502,6 +563,8 @@ class OCSAgent(ApplicationSession):
                 launched on startup.  If the ``startup`` argument is a
                 dictionary, this is passed to the Operation's start
                 function.
+            min_privs (int): Minimum privilege level required to start
+                or stop this operation (1, 2, 3).  See Access Control.
 
         Notes:
             The functions start_func and stop_func will be called with
@@ -514,7 +577,8 @@ class OCSAgent(ApplicationSession):
         """
         self.processes[name] = AgentProcess(
             start_func, stop_func, blocking=blocking,
-            stopper_blocking=stopper_blocking)
+            stopper_blocking=stopper_blocking,
+            min_privs=min_privs)
         self.sessions[name] = None
         if startup is not False:
             self.startup_ops.append(('process', name, startup))
@@ -707,7 +771,7 @@ class OCSAgent(ApplicationSession):
     Agent's Operations.  Some methods are valid on Processs, some on
     Tasks, and some on both."""
 
-    def start(self, op_name, params=None):
+    def start(self, op_name, params=None, password=None):
         """
         Launch an operation.  Note that successful return of this function
         does not mean that the operation is running; it only means
@@ -746,6 +810,17 @@ class OCSAgent(ApplicationSession):
                 op = self.processes[op_name]
                 msg = 'Started process "%s".' % op_name
 
+            # Check access.
+            actx = access.ActionContext(op_name=op_name, action='start')
+            cred_level, detail = access.agent_get_creds(
+                password, self.access_config, self.access_config.agent, actx)
+            if cred_level < op.min_privs:
+                self.log.info('Rejected underprivileged "start" request.')
+                return (ocs.ERROR,
+                        access.agent_rejection_message(
+                            cred_level, op.min_privs, detail),
+                        {})
+
             # Pre-process params?
             if hasattr(op.launcher, '_ocs_prescreen'):
                 try:
@@ -759,7 +834,8 @@ class OCSAgent(ApplicationSession):
                     return (ocs.ERROR, f'CRASH: during param pre-processing: {str(err)}', {})
 
             # Mark as started.
-            session = OpSession(self.next_session_id, op_name, app=self)
+            session = OpSession(self.next_session_id, op_name, app=self,
+                                cred_level=cred_level.value)
             self.next_session_id += 1
             self.sessions[op_name] = session
 
@@ -775,7 +851,7 @@ class OCSAgent(ApplicationSession):
             return (ocs.ERROR, 'No task or process called "%s"' % op_name, {})
 
     @inlineCallbacks
-    def wait(self, op_name, timeout=None):
+    def wait(self, op_name, timeout=None, password=None):
         """Wait for the specified Operation to become idle, or for timeout
         seconds to elapse.  If timeout==None, the timeout is disabled
         and the function will not return until the Operation
@@ -840,7 +916,7 @@ class OCSAgent(ApplicationSession):
             return (ocs.TIMEOUT, 'Operation "%s" still running; wait timed out.' % op_name,
                     session.encoded())
 
-    def _stop_helper(self, stop_type, op_name, params):
+    def _stop_helper(self, stop_type, op_name, params, password):
         """Common stopper/aborter code for Process stop and Task
         abort.
 
@@ -849,6 +925,7 @@ class OCSAgent(ApplicationSession):
           op_name (str): the op_name.
           params (dict or None): Params to be passed to stopper
             function.
+          password: Password of the client.
 
         """
         print(f'{stop_type} called for {op_name}')
@@ -872,6 +949,15 @@ class OCSAgent(ApplicationSession):
            (stop_type == 'abort' and op_type == 'process'):
             return (ocs.ERROR, f'Cannot "{stop_type}" "{op_name}" because '
                     'it is a "{op_type}".', {})
+
+        actx = access.ActionContext(op_name=op_name, action='stop')
+        cred_level, detail = access.agent_get_creds(
+            password, self.access_config, self.access_config.agent, actx)
+        if cred_level < op.min_privs:
+            self.log.info(f'Rejected underprivileged "{stop_type}" request.')
+            return (ocs.ERROR,
+                    access.agent_rejection_message(cred_level, op.min_privs),
+                    {})
 
         session = self.sessions.get(op_name)
         if session is None:
@@ -921,7 +1007,7 @@ class OCSAgent(ApplicationSession):
         return (ocs.OK, f'Requested {stop_type} on {op_type} {op_name}".',
                 session.encoded())
 
-    def stop(self, op_name, params=None):
+    def stop(self, op_name, params=None, password=None):
         """
         Initiate a Process stop routine.
 
@@ -934,9 +1020,9 @@ class OCSAgent(ApplicationSession):
 
           ocs.OK: the Process stop routine has been launched.
         """
-        return self._stop_helper('stop', op_name, params)
+        return self._stop_helper('stop', op_name, params, password)
 
-    def abort(self, op_name, params=None):
+    def abort(self, op_name, params=None, password=None):
         """
         Initiate a Task abort routine.
 
@@ -950,9 +1036,9 @@ class OCSAgent(ApplicationSession):
           ocs.OK: the Process stop routine has been launched.
 
         """
-        return self._stop_helper('abort', op_name, params)
+        return self._stop_helper('abort', op_name, params, password)
 
-    def status(self, op_name, params=None):
+    def status(self, op_name, params=None, password=None):
         """
         Get an Operation's session data.
 
@@ -997,7 +1083,7 @@ class AgentOp:
 
 class AgentTask(AgentOp):
     def __init__(self, launcher, blocking=None, aborter=None,
-                 aborter_blocking=None):
+                 aborter_blocking=None, min_privs=1):
         self.launcher = launcher
         self.blocking = blocking
         self.aborter = aborter
@@ -1005,6 +1091,7 @@ class AgentTask(AgentOp):
             aborter_blocking = blocking
         self.aborter_blocking = aborter_blocking
         self.docstring = launcher.__doc__
+        self.min_privs = access.CredLevel(max(1, min_privs))
 
     def encoded(self):
         """Dict of static info for API self-description."""
@@ -1013,11 +1100,13 @@ class AgentTask(AgentOp):
             'abortable': (self.aborter is not None),
             'docstring': self.docstring,
             'op_type': 'task',
+            'min_privs': self.min_privs.value,
         }
 
 
 class AgentProcess(AgentOp):
-    def __init__(self, launcher, stopper, blocking=None, stopper_blocking=None):
+    def __init__(self, launcher, stopper, blocking=None, stopper_blocking=None,
+                 min_privs=0):
         self.launcher = launcher
         self.stopper = stopper
         self.blocking = blocking
@@ -1025,6 +1114,7 @@ class AgentProcess(AgentOp):
             stopper_blocking = blocking
         self.stopper_blocking = stopper_blocking
         self.docstring = launcher.__doc__
+        self.min_privs = access.CredLevel(max(1, min_privs))
 
     def encoded(self):
         """Dict of static info for API self-description."""
@@ -1032,6 +1122,7 @@ class AgentProcess(AgentOp):
             'blocking': self.blocking,
             'docstring': self.docstring,
             'op_type': 'process',
+            'min_privs': self.min_privs.value,
         }
 
 
@@ -1072,7 +1163,7 @@ class OpSession:
     """
 
     def __init__(self, session_id, op_name, status='starting',
-                 app=None, purge_policy=None):
+                 app=None, purge_policy=None, cred_level=1):
         # Note that some data members are used internally, while others are
         # communicated over WAMP to Agent control clients.
 
@@ -1086,6 +1177,7 @@ class OpSession:
         self.app = app
         self.success = None
         self.status = None
+        self.cred_level = cred_level
 
         # This has to be the last call since it depends on init...
         self.set_status(status, timestamp=self.start_time)
@@ -1132,6 +1224,9 @@ class OpSession:
         op_code : int
           The OpCode, which combines information from status, success,
           and degraded; see :class:`ocs.base.OpCode`.
+        cred_level: int
+          The Credential Level (see Access Control) with which the
+          operation was started.
         status : str
           The Operation run status (e.g. 'starting', 'done', ...).
           See :data:`ocs.ocs_agent.SESSION_STATUS_CODES`.
@@ -1214,6 +1309,7 @@ class OpSession:
         return {'session_id': self.session_id,
                 'op_name': self.op_name,
                 'op_code': self.op_code.value,
+                'cred_level': self.cred_level,
                 'status': self.status,
                 'degraded': self.degraded,
                 'success': self.success,

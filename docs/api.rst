@@ -9,6 +9,15 @@ agents
 The ``agents/`` directory contains the OCS Agents, as well as any supporting
 code.
 
+agents.access_director
+``````````````````````
+
+.. automodule:: ocs.agents.access_director.agent
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :noindex:
+
 agents.aggregator
 `````````````````
 
@@ -84,6 +93,14 @@ ocs.agent_cli
 
 .. automodule:: ocs.agent_cli
     :members: build_agent_list
+    :undoc-members:
+    :show-inheritance:
+
+ocs.access
+----------
+
+.. automodule:: ocs.access
+    :members:
     :undoc-members:
     :show-inheritance:
 

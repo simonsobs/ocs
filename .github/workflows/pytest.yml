@@ -13,7 +13,7 @@ on:
 
 jobs:
   unit-test:
-    name: pytest with coverage
+    name: Run unit tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -58,9 +58,58 @@ jobs:
         include-hidden-files: true
         path: ./tests/.coverage.*
 
+  integ-test:
+    name: Run integration tests
+    runs-on: ubuntu-latest
+
+    steps:
+    # Setup
+    - name: Cancel Previous Runs
+      uses: styfle/cancel-workflow-action@0.13.0
+      with:
+        access_token: ${{ github.token }}
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v6
+      with:
+        python-version: 3.12
+
+    # Install
+    - name: clone ocs
+      uses: actions/checkout@v6
+
+    - name: Install ocs
+      run: |
+        pip3 install -r requirements.txt
+        pip3 install -e .[so3g]
+
+    # Integration Tests
+    - name: Build images for integration tests
+      run: |
+        docker compose build ocs ocs-crossbar
+
+    - name: Run integration tests
+      working-directory: ./tests
+      run: |
+        mkdir log
+        COVERAGE_FILE=.coverage.int python3 -m pytest --cov -m 'integtest'
+        ls -la ./log/
+
+    - name: Checkout coverage output for upload
+      run: |
+        ls -lthra tests/
+        pwd
+
+    - name: upload coverage file artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: coverage-integ
+        include-hidden-files: true
+        path: ./tests/.coverage.*
+
   upload-coverage:
     name: upload coverage
-    needs: unit-test
+    needs: [unit-test, integ-test]
     runs-on: ubuntu-latest
 
     steps:

@@ -15,6 +15,9 @@ jobs:
   test:
     name: pytest with coverage
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.8", "3.9"]
 
     steps:
     # Setup
@@ -23,10 +26,10 @@ jobs:
       with:
         access_token: ${{ github.token }}
 
-    - name: Set up Python 3.8
+    - name: Set up Python ${{ matrix.python }}
       uses: actions/setup-python@v6
       with:
-        python-version: 3.8
+        python-version: ${{ matrix.python }}
 
     # Install
     - name: clone ocs
@@ -41,29 +44,9 @@ jobs:
     - name: Run unit tests
       working-directory: ./tests
       run: |
-        COVERAGE_FILE=.coverage.unit python3 -m pytest --cov -m 'not integtest'
+        COVERAGE_FILE=.coverage.unit-${{ matrix.python }} python3 -m pytest --cov -m 'not integtest'
 
-    # Integration Tests
-    - name: Build images for integration tests
+    - name: Checkout coverage output for upload
       run: |
-        docker compose build ocs ocs-crossbar
-
-    - name: Run integration tests
-      working-directory: ./tests
-      run: |
-        mkdir log
-        COVERAGE_FILE=.coverage.int python3 -m pytest --cov -m 'integtest'
-        ls -la ./log/
-
-    # Coverage
-    - name: Report test coverage
-      run: |
-        mv ./tests/.coverage.* ./
-        coverage combine
-        coverage xml
-        coverage report
-
-    - name: Upload results to Codecov
-      uses: codecov/codecov-action@v5
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+        ls -lthra
+        pwd

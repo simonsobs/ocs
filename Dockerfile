@@ -9,7 +9,7 @@ ENV TZ=Etc/UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Set locale
-ENV LANG C.UTF-8
+ENV LANG=C.UTF-8
 
 # Create ocs user and group
 RUN groupadd -g 9000 ocs && \

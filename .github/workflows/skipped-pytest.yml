@@ -11,8 +11,15 @@ on:
       - '.readthedocs.yaml'
 
 jobs:
-  test:
-    name: pytest with coverage
+  unit-test:
+    name: Run unit tests (3.12)
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: 'echo "No build required" '
+
+  integ-test:
+    name: Run integration tests
     runs-on: ubuntu-latest
 
     steps:

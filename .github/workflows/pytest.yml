@@ -44,7 +44,7 @@ jobs:
         COVERAGE_FILE=.coverage.unit-${{ matrix.python }} python3 -m pytest --cov -m 'not integtest'
 
     - name: Upload coverage file artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-${{ matrix.python }}
         include-hidden-files: true
@@ -86,7 +86,7 @@ jobs:
         ls -la ./log/
 
     - name: Upload coverage file artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-integ
         include-hidden-files: true

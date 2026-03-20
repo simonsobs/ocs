@@ -113,7 +113,7 @@ jobs:
 
     # Download after checkout, else artifacts get deleted
     - name: Download coverage artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v8
 
     - name: List coverage output for upload
       run: |

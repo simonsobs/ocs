@@ -32,6 +32,23 @@ def test_format_data():
     assert format_data(data, feed, 'line')[0] == expected
 
 
+def test_format_data_inf_time():
+    """Test passing unrealistically large time."""
+
+    # Not a real feed, but this is all we need for Publisher.format_data
+    feed = {'agent_address': 'test_address',
+            'feed_name': 'test_feed'}
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [1e1000],  # big enough time to cause OverflowError
+                     'data': {'key1': [1]},
+                     }
+            }
+
+    # Returns empty list due to caught OverflowError
+    assert format_data(data, feed, 'line') == []
+    assert format_data(data, feed, 'json') == []
+
+
 def test__get_credentials(tmp_path):
     # Defaults
     assert _get_credentials() == ('root', 'root')

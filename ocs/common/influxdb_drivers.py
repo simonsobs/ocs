@@ -64,7 +64,7 @@ def format_data(data, feed, protocol):
     json_body = []
 
     # Reshape data for query
-    for bk, bv in data.items():
+    for _, bv in data.items():
         grouped_data_points = []
         times = bv['timestamps']
         num_points = len(bv['timestamps'])

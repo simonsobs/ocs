@@ -87,11 +87,14 @@ class InfluxDBAgentv2:
         self.aggregate = True
 
         self.log.debug("Instatiating Publisher class")
-        publisher = Publisher(self.incoming_data,
-                              protocol=self.args.protocol,
-                              gzip=self.args.gzip,
-                              operate_callback=lambda: self.aggregate,
-                              )
+        try:
+            publisher = Publisher(self.incoming_data,
+                                  protocol=self.args.protocol,
+                                  gzip=self.args.gzip,
+                                  operate_callback=lambda: self.aggregate,
+                                  )
+        except ConnectionError:
+            return False, "Failed to connect to InfluxDB"
 
         while self.aggregate:
             time.sleep(self.loop_time)

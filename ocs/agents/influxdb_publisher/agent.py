@@ -90,16 +90,19 @@ class InfluxDBAgent:
         self.aggregate = True
 
         self.log.debug("Instatiating Publisher class")
-        publisher = Publisher(self.args.host,
-                              self.args.database,
-                              self.incoming_data,
-                              port=self.args.port,
-                              protocol=self.args.protocol,
-                              ssl=self.args.ssl,
-                              verify_ssl=self.args.verify_ssl,
-                              gzip=self.args.gzip,
-                              operate_callback=lambda: self.aggregate,
-                              )
+        try:
+            publisher = Publisher(self.args.host,
+                                  self.args.database,
+                                  self.incoming_data,
+                                  port=self.args.port,
+                                  protocol=self.args.protocol,
+                                  ssl=self.args.ssl,
+                                  verify_ssl=self.args.verify_ssl,
+                                  gzip=self.args.gzip,
+                                  operate_callback=lambda: self.aggregate,
+                                  )
+        except ConnectionError:
+            return False, "Failed to connect to InfluxDB"
 
         while self.aggregate:
             time.sleep(self.loop_time)

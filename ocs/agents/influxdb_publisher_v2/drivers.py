@@ -74,6 +74,10 @@ class Publisher:
             if operate_callback and not operate_callback():
                 break
 
+        if bucket is None:
+            LOG.error("No buckets found. Check connection to InfluxDB.")
+            raise ConnectionError
+
         if self.db != bucket.name:
             print(f"{self.db} DB doesn't exist, creating DB")
             self.client.buckets_api().create_bucket(bucket_name=self.db,

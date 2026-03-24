@@ -154,6 +154,10 @@ class Publisher:
             if operate_callback and not operate_callback():
                 break
 
+        if db_list is None:
+            LOG.error("No databases found. Check connection to InfluxDB.")
+            raise ConnectionError
+
         db_names = [x['name'] for x in db_list]
 
         if self.db not in db_names:

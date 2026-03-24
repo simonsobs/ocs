@@ -64,7 +64,7 @@ def format_data(data, feed, protocol):
     json_body = []
 
     # Reshape data for query
-    for bk, bv in data.items():
+    for _, bv in data.items():
         grouped_data_points = []
         times = bv['timestamps']
         num_points = len(bv['timestamps'])
@@ -82,14 +82,25 @@ def format_data(data, feed, protocol):
                     fields_line.append(f_line)
 
                 measurement_line = ','.join(fields_line)
-                t_line = timestamp2influxtime(time_, protocol='line')
+                try:
+                    t_line = timestamp2influxtime(time_, protocol='line')
+                except OverflowError:
+                    print(f"Warning: Cannot convert {time_} to an InfluxDB compatible time. "
+                          + "Dropping this data point.")
+                    continue
                 line = f"{measurement},feed={feed_tag} {measurement_line} {t_line}"
                 json_body.append(line)
             elif protocol == 'json':
+                try:
+                    t_json = timestamp2influxtime(time_, protocol='json')
+                except OverflowError:
+                    print(f"Warning: Cannot convert {time_} to an InfluxDB compatible time. "
+                          + "Dropping this data point.")
+                    continue
                 json_body.append(
                     {
                         "measurement": measurement,
-                        "time": timestamp2influxtime(time_, protocol='json'),
+                        "time": t_json,
                         "fields": fields,
                         "tags": {
                             "feed": feed_tag

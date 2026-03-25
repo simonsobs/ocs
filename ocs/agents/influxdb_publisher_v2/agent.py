@@ -83,6 +83,13 @@ class InfluxDBAgentv2:
             test_mode (bool, optional): Run the record Process loop only once.
                 This is meant only for testing. Default is False.
 
+        Notes:
+            An example of the session data::
+
+                >>> response.session['data']
+                {'connected': True,
+                 'last_updated': 1774389203.53926}
+
         """
         self.aggregate = True
 
@@ -100,6 +107,17 @@ class InfluxDBAgentv2:
             time.sleep(self.loop_time)
             self.log.debug(f"Approx. queue size: {self.incoming_data.qsize()}")
             publisher.run()
+
+            if not publisher.connection.connected and not session.degraded:
+                session.degraded = True
+                self.log.error("Disconnected from InfluxDB.")
+            if publisher.connection.connected and session.degraded:
+                session.degraded = False
+                self.log.error("Reconnected to InfluxDB.")
+
+            data = {"connected": publisher.connection.connected,
+                    "last_updated": time.time()}
+            session.data.update(data)
 
             if params['test_mode']:
                 break

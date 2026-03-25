@@ -14,6 +14,41 @@ txaio.use_twisted()
 LOG = txaio.make_logger()
 
 
+class Connection:
+    """Simple object to track InfluxDB connection state."""
+
+    def __init__(self):
+        self.connected = True
+
+    def connect(self):
+        if not self.connected:
+            self.connected = True
+
+    def disconnect(self):
+        if self.connected:
+            self.connected = False
+
+
+class BatchingCallback:
+    """Callback for InfluxDB write_api.
+
+    See: https://influxdb-client.readthedocs.io/en/stable/usage.html#handling-errors
+
+    """
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    def success(self, conf: (str, str, str), data: str):
+        self.connection.connect()
+
+    def error(self, conf: (str, str, str), data: str, exception: InfluxDBError):
+        self.connection.disconnect()
+
+    def retry(self, conf: (str, str, str), data: str, exception: InfluxDBError):
+        self.connection.disconnect()
+
+
 class Publisher:
     """
     Data publisher. This manages data to be published to the InfluxDB.
@@ -41,6 +76,8 @@ class Publisher:
             data to be published
         client:
             InfluxDB client connection
+        connection (Connection):
+            Connection state tracking object.
 
     """
 
@@ -55,9 +92,11 @@ class Publisher:
         print(f"gzip encoding enabled: {gzip}")
         print(f"data protocol: {protocol}")
 
+        self.connection = Connection()
         self.client = InfluxDBClient.from_env_properties()
-        self.write_client = self.client.write_api(
-            write_options=WriteOptions(batch_size=10000))
+        self.write_client = self._create_write_client(
+            self.client,
+            self.connection)
 
         bucket = None
         # ConnectionError here is indicative of InfluxDB being down
@@ -68,8 +107,9 @@ class Publisher:
             except (RequestsConnectionError, NewConnectionError, ProtocolError):
                 LOG.error("Connection error, attempting to reconnect to DB.")
                 self.client = InfluxDBClient.from_env_properties()
-                self.write_client = self.client.write_api(
-                    write_options=WriteOptions(batch_size=10000))
+                self.write_client = self._create_write_client(
+                    self.client,
+                    self.connection)
                 time.sleep(1)
             if operate_callback and not operate_callback():
                 break
@@ -82,6 +122,16 @@ class Publisher:
             print(f"{self.db} DB doesn't exist, creating DB")
             self.client.buckets_api().create_bucket(bucket_name=self.db,
                                                     org=self.org)
+
+    @staticmethod
+    def _create_write_client(client, connection):
+        callback = BatchingCallback(connection=connection)
+        write_client = client.write_api(
+            write_options=WriteOptions(batch_size=10000),
+            success_callback=callback.success,
+            error_callback=callback.error,
+            retry_callback=callback.retry)
+        return write_client
 
     def process_incoming_data(self):
         """
@@ -109,8 +159,9 @@ class Publisher:
         except (RequestsConnectionError, NewConnectionError, ProtocolError):
             LOG.error("InfluxDB unavailable, attempting to reconnect.")
             self.client = InfluxDBClient.from_env_properties()
-            self.write_client = self.client.write_api(
-                write_options=WriteOptions(batch_size=10000))
+            self.write_client = self._create_write_client(
+                self.client,
+                self.connection)
         except InfluxDBError as err:
             LOG.error("InfluxDB Client Error: {e}", e=err)
 

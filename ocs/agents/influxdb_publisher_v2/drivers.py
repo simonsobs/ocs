@@ -4,6 +4,7 @@ from os import environ
 
 from influxdb_client import InfluxDBClient, WriteOptions
 from influxdb_client.client.exceptions import InfluxDBError
+from influxdb_client.rest import ApiException
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from urllib3.exceptions import NewConnectionError, ProtocolError
 
@@ -65,6 +66,10 @@ class Publisher:
             try:
                 buckets_api = self.client.buckets_api()
                 bucket = buckets_api.find_bucket_by_name(self.db)
+            # When token doesn't work -- need to figure out what to do here
+            except ApiException as e:
+                print(e)
+                time.sleep(5)
             except (RequestsConnectionError, NewConnectionError, ProtocolError):
                 LOG.error("Connection error, attempting to reconnect to DB.")
                 self.client = InfluxDBClient.from_env_properties()

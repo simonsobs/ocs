@@ -5,64 +5,65 @@ import yaml
 from twisted.internet import reactor, utils, protocol
 from twisted.internet.defer import inlineCallbacks
 
+from dataclasses import dataclass, field
+from typing import List
 
-class ManagedInstance(dict):
-    """Track properties of a managed Agent-instance.  This is just a dict
-    with a schema docstring and an "init" function to set defaults.
 
-    Properties that must be set explicitly by user:
-
-    - 'management' (str): Either 'host', 'docker', or 'retired'.
-    - 'agent_class' (str): The agent class name, which may include a
-      suffix ([d] or [d?]) if the agent is managed through Docker.
-      For instances corresponding to docker services that do not have
-      a corresponding SCF entry, the value here will be '[docker]'.
-    - 'instance_id' (str): The agent instance-id, or the docker
-      service name if the instance is an unmatched docker service.
-    - 'full_name' (str): agent_class:instance_id
-
-    Properties that are given a default value by init function:
-
-    - 'operable' (bool): indicates whether the instance can be
-      manipulated (whether calls to up/down should be expected to
-      work).
-    - 'agent_script' (str): The docker service_name, if docker-managed.
-      Otherwise, the string ``__plugin__`` to indicate it is host managed.
-    - 'prot': The twisted ProcessProtocol object (if host system
-      managed), or the DockerContainerHelper (if a docker container).
-    - 'target_state' (state): The state we're trying to achieve (up or
-      down).
-    - 'next_action' (state): The thing HostManager needs to do next;
-      this will sometimes indicate the "current state" (up or down),
-      but sometimes it will carry a transitional state, such as
-      "wait_start".
-    - 'at' (float): a unix timestamp for transitional states
-      (e.g. used to set how long to wait for something).
-    - 'fail_times' (list of floats): unix timestamps when the instance
-      process has stopped unexpectedly (used to identify "unstable"
-      agents).
+@dataclass
+class ManagedInstance:
+    """Tracks the properties of a managed Agent-instance, including
+    how to launch it, the current run state, target state, etc.
 
     """
-    @classmethod
-    def init(cls, **kwargs):
-        # Note some core things are not included.
-        self = cls({
-            'agent_script': None,
-            'operable': False,
-            'prot': None,
-            'next_action': 'down',
-            'target_state': 'down',
-            'fail_times': [],
-            'at': 0,
-        })
-        self.update(kwargs)
-        return self
+
+    #: How host is managed; either "host", "docker", or "retired".
+    management: str
+
+    #: Agent class name (which may include suffix "[d]" or "[d?]" for
+    #: docker-managed instances; or simply "[docker]" for services
+    #: that do not seem to be registered in the SCF.
+    agent_class: str
+
+    #: The agent instance's instance_id, or else the docker service
+    #: name associated with entry in the SCF.
+    instance_id: str
+
+    #: Indentier constructed as agent_class:instance_id.
+    full_name: str
+
+    #: Indicates whether the instance can be manipulated (whether
+    #: calls to up/down should be expected to work).
+    operable: bool = False
+
+    #: The docker service name, if docker-managed; otherwisre the
+    #: string ``__plugin__`` to indicate it is host managed.
+    agent_script: str = None
+
+    #: The Twisted ProcessProtocol object, if host system managed; or
+    #: else the DockerContainerHelper if docker-based.
+    prot: object = None
+
+    #: The run state HostManager is trying to enforce (up or down).
+    target_state: str = 'down'
+
+    #: The thing HostManager plans to do next; this will sometimes
+    #: mirror the current state (up or down) and will sometimes carry a
+    #: transitional state, such as "wait_start".
+    next_action: str = 'down'
+
+    #: Unix timestamp, used by transitional states to indicate time at
+    #: which some subsequent action should be taken.
+    at: float = 0
+
+    #: List of unix timestamps for recent events where an instance
+    #: stopped unexpectedly; used to identify "unstable" agents.
+    fail_times: List = field(default_factory=list)
 
 
-def resolve_child_state(db):
+def resolve_child_state(minst):
     """Args:
 
-      db (ManagedInstance): the instance state information.  This will
+      minst (ManagedInstance): the instance state information.  This will
         be modified in place.
 
     Returns:
@@ -86,115 +87,115 @@ def resolve_child_state(db):
     sleeps = []
 
     # State machine.
-    prot = db['prot']
+    prot = minst.prot
 
     # If the entry is not "operable", send next_action to '?' and
     # don't try to do anything else.
 
-    if not db['operable']:
-        db['next_action'] = '?'
+    if not minst.operable:
+        minst.next_action = '?'
 
     # The uninterruptible transition state(s) are most easily handled
     # in the same way regardless of target state.
 
     # Transitional: wait_start, which bridges from start -> up.
-    elif db['next_action'] == 'wait_start':
+    elif minst.next_action == 'wait_start':
         if prot is not None:
-            messages.append('Launched {full_name}'.format(**db))
-            db['next_action'] = 'up'
+            messages.append('Launched {0.full_name}'.format(minst))
+            minst.next_action = 'up'
         else:
-            if time.time() >= db['at']:
+            if time.time() >= minst.at:
                 messages.append('Launch not detected for '
-                                '{full_name}!  Will retry.'.format(**db))
-                db['next_action'] = 'start_at'
-                db['at'] = time.time() + 5.
+                                '{0.full_name}!  Will retry.'.format(minst))
+                minst.next_action = 'start_at'
+                minst.at = time.time() + 5.
 
     # Transitional: wait_dead, which bridges from kill -> idle.
-    elif db['next_action'] == 'wait_dead':
+    elif minst.next_action == 'wait_dead':
         if prot is None:
             stat, t = 0, None
         else:
             stat, t = prot.status
         if stat is not None:
-            db['next_action'] = 'down'
-        elif time.time() >= db['at']:
+            minst.next_action = 'down'
+        elif time.time() >= minst.at:
             if stat is None:
-                messages.append('Agent instance {full_name} '
-                                'refused to die.'.format(**db))
-                db['next_action'] = 'down'
+                messages.append('Agent instance {0.full_name} '
+                                'refused to die.'.format(minst))
+                minst.next_action = 'down'
         else:
-            sleeps.append(db['at'] - time.time())
+            sleeps.append(minst.at - time.time())
 
     # State handling when target is to be 'up'.
-    elif db['target_state'] == 'up':
-        if db['next_action'] == 'start_at':
-            if time.time() >= db['at']:
-                db['next_action'] = 'start'
+    elif minst.target_state == 'up':
+        if minst.next_action == 'start_at':
+            if time.time() >= minst.at:
+                minst.next_action = 'start'
             else:
-                sleeps.append(db['at'] - time.time())
-        elif db['next_action'] == 'start':
+                sleeps.append(minst.at - time.time())
+        elif minst.next_action == 'start':
             messages.append(
-                'Requested launch for {full_name}'.format(**db))
+                'Requested launch for {0.full_name}'.format(minst))
             actions['launch'] = True
-            db['next_action'] = 'wait_start'
+            minst.next_action = 'wait_start'
             now = time.time()
-            db['at'] = now + 1.
-        elif db['next_action'] == 'up':
+            minst.at = now + 1.
+        elif minst.next_action == 'up':
             if prot is None:
                 stat, t = 0, None
             else:
                 stat, t = prot.status
             if stat is not None:
-                messages.append('Detected exit of {full_name} '
-                                'with code {stat}.'.format(stat=stat, **db))
+                messages.append('Detected exit of {0.full_name} '
+                                'with code {stat}.'.format(minst, stat=stat))
                 if hasattr(prot, 'lines'):
                     note = ''
                     lines = prot.lines['stderr']
                     if len(lines) > 50:
                         note = ' (trimmed)'
                         lines = lines[-20:]
-                    messages.append('stderr output from {full_name}{note}: {}'
-                                    .format('\n'.join(lines), note=note, **db))
-                db['next_action'] = 'start_at'
-                db['at'] = time.time() + 3
-                db['fail_times'].append(time.time())
+                    messages.append('stderr output from {minst.full_name}{note}: {}'
+                                    .format('\n'.join(lines), note=note, minst=minst))
+                minst.next_action = 'start_at'
+                minst.at = time.time() + 3
+                minst.fail_times.append(time.time())
         else:  # 'down'
-            db['next_action'] = 'start'
+            minst.next_action = 'start'
 
     # State handling when target is to be 'down'.
-    elif db['target_state'] == 'down':
-        if db['next_action'] == 'down':
+    elif minst.target_state == 'down':
+        if minst.next_action == 'down':
             # The lines below will prevent HostManager from killing
             # Agents that suddenly seem to be alive.  With these
             # lines commented out, someone running "up" on a managed
             # docker-compose.yaml will see their Agents immediately
             # be brought down by HostManager.
             # if prot is not None and prot.status[0] is None:
-            #    messages.append('Detected unexpected session for {full_name} '
-            #                    '(probably docker); changing target state to "up".'.format(**db))
-            #    db['target_state'] = 'up'
+            #    messages.append('Detected unexpected session for {0.full_name} '
+            #                    '(probably docker); changing target state to "up".'.format(minst))
+            #    minst.target_state = 'up'
 
             # In fully managed mode, force a termination.
             if prot is not None and prot.status[0] is None:
-                messages.append('Detected unexpected session for {full_name} '
-                                '(probably docker); it will be shut down.'.format(**db))
-                db['next_action'] = 'up'
-        elif db['next_action'] == 'up':
+                messages.append('Detected unexpected session for {0.full_name} '
+                                '(probably docker); it will be shut down.'.format(minst))
+                minst.next_action = 'up'
+        elif minst.next_action == 'up':
             messages.append('Requesting termination of '
-                            '{full_name}'.format(**db))
+                            '{0.full_name}'.format(minst))
             actions['terminate'] = True
-            db['next_action'] = 'wait_dead'
-            db['at'] = time.time() + 5
+            minst.next_action = 'wait_dead'
+            minst.at = time.time() + 5
         else:  # 'start_at', 'start'
-            messages.append('Modifying state of {full_name} from '
-                            '{next_action} to idle'.format(**db))
-            db['next_action'] = 'down'
+            messages.append('Modifying state of {0.full_name} from '
+                            '{0.next_action} to idle'.format(minst))
+            minst.next_action = 'down'
 
     # Should not get here.
     else:
         messages.append(
-            'State machine failure: state={next_action}, target_state'
-            '={target_state}'.format(**db))
+            'State machine failure: state={0.next_action}, target_state'
+            '={0.target_state}'.format(minst))
 
     actions['messages'] = messages
     if len(sleeps):

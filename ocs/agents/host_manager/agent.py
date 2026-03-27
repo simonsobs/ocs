@@ -6,7 +6,7 @@ import time
 import argparse
 
 from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, DeferredList
 from autobahn.twisted.util import sleep as dsleep
 
 import os
@@ -624,6 +624,36 @@ class HostManager:
         return True, 'Update requested.'
 
     @inlineCallbacks
+    def remove_orphans(self, session, params):
+        """remove_orphans(stop_time=10.)
+
+        **Task** - Use docker stop and docker rm to remove orphaned
+        containers associated with managed docker compose files.
+
+        This does not really do any error checking.
+        """
+        containers = list(self.orphans.values())
+        session.add_message(f'Attempting stop and remove of {len(containers)} containers.')
+
+        defs = []
+        for cont in containers:
+            print(f'Stopping {cont["container_id"][:16]} ...')
+            d = hm_utils._run_docker(['stop', cont['container_id']])
+            defs.append(d)
+
+        yield DeferredList(defs)
+
+        defs = []
+        for cont in containers:
+            print(f'Removing {cont["container_id"][:16]} ...')
+            d = hm_utils._run_docker(['rm', cont['container_id']])
+            defs.append(d)
+
+        yield DeferredList(defs)
+
+        return True, 'Done.'
+
+    @inlineCallbacks
     def die(self, session, params):
         if not self.running:
             session.add_message('Manager process is not running.')
@@ -710,6 +740,7 @@ def main(args=None):
                            blocking=False,
                            startup=startup_params)
     agent.register_task('update', host_manager.update, blocking=False)
+    agent.register_task('remove_orphans', host_manager.remove_orphans, blocking=False)
     agent.register_task('die', host_manager.die, blocking=False)
 
     reactor.addSystemEventTrigger('before', 'shutdown', agent._stop_all_running_sessions)

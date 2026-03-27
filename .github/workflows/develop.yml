@@ -13,11 +13,12 @@ on:
 
 jobs:
   test:
+    name: Run tests
     uses: ./.github/workflows/pytest.yml
     secrets: inherit
 
   build:
-    name: build and deploy test images
+    name: Build and deploy test images
     needs: test
     runs-on: ubuntu-latest
 
@@ -56,22 +57,22 @@ jobs:
   # testing so we can catch any issues before release
   # if issues are found, test locally, or copy to pytest.yml and set to test on push
   wheel:
-    name: build and test wheel
+    name: Build wheel
     needs: test
     runs-on: ubuntu-latest
 
     steps:
-    - name: Set up Python 3.8
+    - name: Set up Python 3.12
       uses: actions/setup-python@v6
       with:
-        python-version: 3.8
+        python-version: "3.12"
 
     - name: clone ocs
       uses: actions/checkout@v6
 
     - name: install build dependencies
       run: |
-        python3 -m pip install --upgrade build twine
+        python3 -m pip install --upgrade build
 
     - name: build wheel
       run: |

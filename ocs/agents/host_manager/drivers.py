@@ -284,9 +284,24 @@ class AgentProcessHelper(protocol.ProcessProtocol):
             self.lines['stderr'] = self.lines['stderr'][-100:]
 
 
-def _run_docker(args):
-    return utils.getProcessOutputAndValue(
+def _decode(args):
+    out, err, code = args
+    return (out.decode('utf8'), err.decode('utf8'), code)
+
+
+def _deyaml(args):
+    out, err, code = args
+    return (yaml.safe_load(out), err, code)
+
+
+def _run_docker(args, decode=False, deyaml=False):
+    d = utils.getProcessOutputAndValue(
         'docker', args, env=os.environ)
+    if decode or deyaml:
+        d = d.addCallback(_decode)
+    if deyaml:
+        d = d.addCallback(_deyaml)
+    return d
 
 
 class DockerContainerHelper:
@@ -352,8 +367,9 @@ def parse_docker_state(docker_compose_file):
     """
 
     summary = {}
+    compose, err, code = yield _run_docker(['compose', '-f', docker_compose_file, 'config'],
+                                           deyaml=True)
 
-    compose = yaml.safe_load(open(docker_compose_file, 'r'))
     for key, cfg in compose.get('services', []).items():
         summary[key] = {
             'service': key,
@@ -361,17 +377,34 @@ def parse_docker_state(docker_compose_file):
             'exit_code': 127,
             'container_found': False,
             'compose_file': docker_compose_file,
+            'image_tag': cfg['image'],
         }
+
+    # Look up images associated with each tag. Construct a list of
+    # unique tags to query.
+    to_inspect = list(set([cfg['image_tag'] for cfg in summary.values()]))
+    out, err, code = yield _run_docker(['inspect'] + to_inspect, deyaml=True)
+    # remap as an array of tags -> image_Id.
+    image_ids = {}
+    for image in out:
+        image_ids.update({k: image['Id'] for k in image['RepoTags']})
+
+    # And finally lookup each service's image. At this point image_tag
+    # would be something like "simonsobs/socs:v..." and image_id will
+    # be "sha256:...", or else unknown (if tag is not known to local
+    # docker -- needs to be pulled).
+    for cfg in summary.values():
+        cfg['image_id'] = image_ids.get(cfg['image_tag'], 'unknown')
 
     # Query docker compose for container ids...
     out, err, code = yield _run_docker(
-        ['compose', '-f', docker_compose_file, 'ps', '-q'])
+        ['compose', '-f', docker_compose_file, 'ps', '-q'], decode=True)
     if code != 0:
         raise RuntimeError("Could not run docker compose or could not parse "
                            "compose.yaml file; exit code %i, error text: %s" %
                            (code, err))
 
-    cont_ids = [line.strip() for line in out.decode('utf8').split('\n')
+    cont_ids = [line.strip() for line in out.split('\n')
                 if line.strip() != '']
 
     # Run docker inspect.
@@ -396,20 +429,20 @@ def parse_docker_state(docker_compose_file):
 @inlineCallbacks
 def _inspectContainer(cont_id, docker_compose_file):
     """Run docker inspect on cont_id, return dict with the results."""
-    out, err, code = yield _run_docker(
-        ['inspect', cont_id])
+    info, err, code = yield _run_docker(
+        ['inspect', cont_id], deyaml=True)
     if code != 0 and 'No such object' in err.decode('utf8'):
         # This is likely due to a race condition where some
         # container was brought down since we ran docker compose.
         # Return None to indicate this -- caller should just ignore for now.
         print(f'(_inspectContainer: warning, no such object: {cont_id}')
         return None
-    elif code != 0:
+    elif code != 0 or len(info) != 1:
         raise RuntimeError(
             f'Trouble running "docker inspect {cont_id}".\n'
-            f'stdout: {out}\n  stderr {err}')
+            f'stdout: {info}\n  stderr {err}')
     # Reconcile config against docker compose ...
-    info = yaml.safe_load(out)[0]
+    info = info[0]
     config = info['Config']['Labels']
     _dc_file = os.path.join(config['com.docker.compose.project.working_dir'],
                             config['com.docker.compose.project.config_files'])
@@ -422,4 +455,5 @@ def _inspectContainer(cont_id, docker_compose_file):
         'running': info['State']['Running'],
         'exit_code': info['State'].get('ExitCode', 127),
         'container_found': True,
+        'running_image': info['Image'],
     }

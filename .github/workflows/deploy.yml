@@ -12,11 +12,12 @@ on:
 
 jobs:
   test:
+    name: Run tests
     uses: ./.github/workflows/pytest.yml
     secrets: inherit
 
   docker:
-    name: build and deploy docker images
+    name: Build and deploy docker images
     needs: test
     runs-on: ubuntu-latest
 
@@ -54,7 +55,7 @@ jobs:
         docker compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo ${DOCKERHUB_ORG}/{}:${DOCKER_TAG} pushed
 
   wheel:
-    name: build and deploy to PyPI
+    name: Build wheel
     needs: test
     runs-on: ubuntu-latest
 
@@ -94,7 +95,7 @@ jobs:
         path: ./dist/
 
   pypi-publish:
-    name: upload release to PyPI
+    name: Upload release to PyPI
     needs: wheel
     runs-on: ubuntu-latest
     environment:

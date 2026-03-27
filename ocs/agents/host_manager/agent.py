@@ -34,6 +34,7 @@ class HostManager:
         # The database maps instance_id (or docker service name, if
         # it's an unmanaged docker container) to a ManagedInstance.
         self.database = {}
+        self.orphans = {}
         self.docker_composes = docker_composes
         self.docker_service_prefix = docker_service_prefix
 
@@ -110,9 +111,11 @@ class HostManager:
         """
         # Read services from all docker-compose files.
         docker_services = {}
+        orphans = {}
         for compose in self.docker_composes:
             try:
-                services = yield hm_utils.parse_docker_state(compose)
+                services, _orphans = yield hm_utils.parse_docker_state(compose)
+                orphans.update(_orphans)
                 this_ok = True
                 this_msg = f'Successfully parsed {compose} and its service states.'
             except Exception as e:
@@ -194,6 +197,12 @@ class HostManager:
                 minst.next_action = 'up'
 
             self.database[srv] = minst
+
+        # Update the list of orphans ...
+        orphans_gone = set(self.orphans.keys()).difference(orphans.keys())
+        for k in orphans_gone:
+            del self.orphans[k]
+        self.orphans.update(orphans)
 
         returnValue(docker_services)
 
@@ -432,11 +441,17 @@ class HostManager:
           attempt will be made to terminate them before the Process
           exits.
 
-          The session.data is a dict, and entry 'child_states'
-          contains a list with the managed Agent statuses.  For
-          example::
+          The session.data is a dict, with entries:
+          - 'child_states'
+          - 'config_parse_status' - indicates how recently the various
+            input files havebeen parsed.
+          - 'orphans' - lists any orphaned (in the sense of docker
+            compose) containers.
 
-            {'child_states': [
+          The 'child_states' entry is a list of managed Agent status;
+          for example::
+
+            [
               {'next_action': 'up',
                'target_state': 'up',
                'stability': 1.0,
@@ -452,8 +467,7 @@ class HostManager:
                'stability': 1.0,
                'agent_class': 'FakeDataAgent[d]',
                'instance_id': 'faker6'},
-              ],
-            }
+              ]
 
           If you are looking for the "current state", it's called
           "next_action" here.
@@ -464,11 +478,20 @@ class HostManager:
           HostManager cannot actually identify the docker-compose
           service associated with the agent description in the SCF.)
 
+          The 'config_parse_status' is a dict where the key is a
+          docker compose filename, or "[SCF]" for the site config
+          file, and the value is a tuple (success, timestamp,
+          message).
+
+          The 'orphans' entry is as a dict mapping docker container ID
+          to some information about the container.
+
         """
         self.config_parse_status = {}
         session.data = {
             'child_states': [],
             'config_parse_status': self.config_parse_status,
+            'orphans': self.orphans,
         }
 
         self.running = True
@@ -525,7 +548,9 @@ class HostManager:
                                       'target_state',
                                       'stability',
                                       'agent_class',
-                                      'instance_id']})
+                                      'instance_id',
+                                      'operable',
+                                      ]})
             session.data['child_states'] = child_states
 
             yield dsleep(max(min(sleep_times), .001))

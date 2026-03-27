@@ -335,7 +335,7 @@ class DockerContainerHelper:
     def up(self):
         self.d = _run_docker(
             ['compose', '-f', self.service['compose_file'],
-             'up', '-d', self.service['service']])
+             'up', '--remove-orphans', '-d', self.service['service']])
         self.status = None, time.time()
 
     def down(self):
@@ -352,21 +352,29 @@ def parse_docker_state(docker_compose_file):
     service is running or not.
 
     Returns:
-      A dict where the key is the service name and each value is a
-      dict with the following entries:
+      services:
+        A dict where the key is the service name and each value is a
+        dict with the following entries:
 
-      - 'compose_file': the path to the docker compose file
-      - 'service': service name
-      - 'container_found': bool, indicates whether a container for
-        this service was found (whether or not it was running).
-      - 'running': bool, indicating that a container for this service
-        is currently in state "Running".
-      - 'exit_code': int, which is either extracted from the docker
-        inspect output or is set to 127.  (This should never be None.)
+        - 'compose_file': the path to the docker compose file
+        - 'service': service name
+        - 'container_found': bool, indicates whether a container for
+          this service was found (whether or not it was running).
+        - 'running': bool, indicating that a container for this service
+          is currently in state "Running".
+        - 'exit_code': int, which is either extracted from the docker
+          inspect output or is set to 127.  (This should never be None.)
+
+      orphans:
+        A dict (by container id) of dicts describing running
+        containers that are associated with this compose file but have
+        apparently been removed from the service list.  Key is the
+        service name.
 
     """
 
     summary = {}
+    orphans = {}
     compose, err, code = yield _run_docker(['compose', '-f', docker_compose_file, 'config'],
                                            deyaml=True)
 
@@ -419,11 +427,15 @@ def parse_docker_state(docker_compose_file):
 
         service = info.pop('service')
         if service not in summary:
-            raise RuntimeError("Consistency problem: image does not self-report "
-                               "as a listed service? (%s)" % (service))
-        summary[service].update(info)
+            orphans[cont_id] = {
+                'compose_file': docker_compose_file,
+                'service': service,
+                'container_id': cont_id,
+            } | info
+        else:
+            summary[service].update(info)
 
-    return summary
+    return summary, orphans
 
 
 @inlineCallbacks

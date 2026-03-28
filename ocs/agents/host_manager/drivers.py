@@ -43,6 +43,10 @@ class ManagedInstance:
     #: else the DockerContainerHelper if docker-based.
     prot: object = None
 
+    #: Indicates a restart is in order, due to change of docker tag or
+    #: other new software version.
+    restart_required: bool = False
+
     #: The run state HostManager is trying to enforce (up or down).
     target_state: str = 'down'
 

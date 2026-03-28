@@ -35,6 +35,7 @@ class HostManager:
         # it's an unmanaged docker container) to a ManagedInstance.
         self.database = {}
         self.orphans = {}
+        self.new_tags = {}
         self.docker_composes = docker_composes
         self.docker_service_prefix = docker_service_prefix
 
@@ -112,6 +113,7 @@ class HostManager:
         # Read services from all docker-compose files.
         docker_services = {}
         orphans = {}
+        new_tags = {}
         for compose in self.docker_composes:
             try:
                 services, _orphans = yield hm_utils.parse_docker_state(compose)
@@ -169,6 +171,15 @@ class HostManager:
                         session.add_message(f'Marking missing service for {key}')
                         minst.agent_class = _clsname_tool(minst.agent_class, '[d?]')
 
+            restart_required = False
+            if minst.prot is not None and service_data is not None \
+               and service_data.get('running') \
+               and (service_data.get('running_image') != service_data.get('image_id')):
+                restart_required = True
+            if service_data is not None and service_data.get('image_id') == 'unknown':
+                new_tags[key] = service_data['image_tag']
+            minst.restart_required = restart_required
+
         # If a non-agent [docker] service has disappeared, there's no
         # reason to show it in a list, and no persistent state /
         # operations to worry about.  So just delete it.
@@ -203,6 +214,9 @@ class HostManager:
         for k in orphans_gone:
             del self.orphans[k]
         self.orphans.update(orphans)
+
+        # And new tags that need a docker pull ...
+        self.new_tags = new_tags
 
         returnValue(docker_services)
 
@@ -447,6 +461,10 @@ class HostManager:
             input files havebeen parsed.
           - 'orphans' - lists any orphaned (in the sense of docker
             compose) containers.
+          - 'new_tags' - dict mapping instance_id to new docker image
+            tag, if that tag is not known to docker system. Only
+            populated for tracked instances where the tag is not
+            known.
 
           The 'child_states' entry is a list of managed Agent status;
           for example::
@@ -484,7 +502,26 @@ class HostManager:
           message).
 
           The 'orphans' entry is as a dict mapping docker container ID
-          to some information about the container.
+          to some information about the container.  E.g.::
+
+            {
+              "30027f37e0ef4b...": {
+                "compose_file": "/home/ocs/config/docker-compose.yml",
+                "service": "ocs-faker3",
+                "container_id": "30027f37e0ef4b...",
+                "running": true,
+                "exit_code": 0,
+                "container_found": true,
+                "running_image": "sha256:7eaa6d6f6..."
+              }
+            }
+
+        The 'new_tags' entry looks like this::
+
+          {
+            "faker1": "simonsobs/ocs:v0.11.3",
+            "faker2": "simonsobs/ocs:v0.11.3"
+          }
 
         """
         self.config_parse_status = {}
@@ -492,6 +529,7 @@ class HostManager:
             'child_states': [],
             'config_parse_status': self.config_parse_status,
             'orphans': self.orphans,
+            'new_tags': self.new_tags,
         }
 
         self.running = True
@@ -550,8 +588,10 @@ class HostManager:
                                       'agent_class',
                                       'instance_id',
                                       'operable',
+                                      'restart_required',
                                       ]})
             session.data['child_states'] = child_states
+            session.data['new_tags'] = self.new_tags
 
             yield dsleep(max(min(sleep_times), .001))
         return True, 'Exited.'
@@ -654,6 +694,20 @@ class HostManager:
         return True, 'Done.'
 
     @inlineCallbacks
+    def docker_pull(self, session, params):
+        """docker_pull()
+
+        **Task** - Use docker compose to pull any (new) images for the
+        managed docker compose files.
+
+        """
+        for compose in self.docker_composes:
+            session.add_message(f'Running pull for {compose} ...')
+            yield hm_utils._run_docker(['compose', '-f', compose, 'pull'])
+
+        return True, 'Done.'
+
+    @inlineCallbacks
     def die(self, session, params):
         if not self.running:
             session.add_message('Manager process is not running.')
@@ -741,6 +795,7 @@ def main(args=None):
                            startup=startup_params)
     agent.register_task('update', host_manager.update, blocking=False)
     agent.register_task('remove_orphans', host_manager.remove_orphans, blocking=False)
+    agent.register_task('docker_pull', host_manager.docker_pull, blocking=False)
     agent.register_task('die', host_manager.die, blocking=False)
 
     reactor.addSystemEventTrigger('before', 'shutdown', agent._stop_all_running_sessions)

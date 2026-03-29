@@ -35,6 +35,15 @@ class ManagedInstance:
     #: calls to up/down should be expected to work).
     operable: bool = False
 
+    #: Indicates if instance is retired and can be removed from
+    #: tracking.
+    retired: bool = False
+
+    #: Indicates if instance should be "passively" managed, e.g. not
+    #: be enforced other than ephemerally to attempt a start / stop.
+    #: This is expected to only be used for docker-based instances.
+    passive_tracking: bool = False
+
     #: The docker service name, if docker-managed; otherwisre the
     #: string ``__plugin__`` to indicate it is host managed.
     agent_script: str = None
@@ -47,7 +56,7 @@ class ManagedInstance:
     #: other new software version.
     restart_required: bool = False
 
-    #: The run state HostManager is trying to enforce (up or down).
+    #: The run state HostManager is trying to enforce (up, down, passive).
     target_state: str = 'down'
 
     #: The thing HostManager plans to do next; this will sometimes
@@ -107,6 +116,8 @@ def resolve_child_state(minst):
         if prot is not None:
             messages.append('Launched {0.full_name}'.format(minst))
             minst.next_action = 'up'
+            if minst.passive_tracking:
+                minst.target_state = 'passive'
         else:
             if time.time() >= minst.at:
                 messages.append('Launch not detected for '
@@ -122,6 +133,8 @@ def resolve_child_state(minst):
             stat, t = prot.status
         if stat is not None:
             minst.next_action = 'down'
+            if minst.passive_tracking:
+                minst.target_state = 'passive'
         elif time.time() >= minst.at:
             if stat is None:
                 messages.append('Agent instance {0.full_name} '
@@ -194,6 +207,15 @@ def resolve_child_state(minst):
             messages.append('Modifying state of {0.full_name} from '
                             '{0.next_action} to idle'.format(minst))
             minst.next_action = 'down'
+
+    elif minst.passive_tracking:
+        # For passive tracking, next_action always reflects the
+        # current running state.
+        if prot is None or prot.status[0] is not None:
+            minst.next_action = 'down'
+        else:
+            minst.next_action = 'up'
+        minst.target_state = 'passive'
 
     # Should not get here.
     else:

@@ -197,6 +197,8 @@ class HostManager:
                 full_name=f'[docker]:{srv}',
                 agent_script=srv,
                 operable=True,
+                passive_tracking=True,
+                target_state='passive',
             )
 
             service_data = docker_services[srv]
@@ -204,7 +206,6 @@ class HostManager:
 
             # If it's up, leave it up.
             if service_data['running']:
-                minst.target_state = 'up'
                 minst.next_action = 'up'
 
             self.database[srv] = minst

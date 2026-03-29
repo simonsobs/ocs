@@ -156,6 +156,13 @@ class HostManager:
                     minst.operable = True
                     if minst.agent_class != NONAGENT_DOCKER:
                         minst.agent_class = _clsname_tool(minst.agent_class, '[d]')
+                    # Update current_state to not trigger a "docker
+                    # up" on a running container. Normally that would
+                    # be a no-op, but not if image tag has changed.
+                    if service_data['running']:
+                        session.add_message(f'Docker-based instance {key} seems to be running.')
+                        minst.next_action = 'up'
+
             else:
                 if service_data is not None:
                     prot.update(service_data)
@@ -190,6 +197,7 @@ class HostManager:
         unassigned_services = set(docker_services.keys()) \
             .difference(assigned_services)
         for srv in unassigned_services:
+            session.add_message(f'Adding non-agent service "{srv}"')
             minst = hm_utils.ManagedInstance(
                 management='docker',
                 instance_id=srv,
@@ -404,7 +412,6 @@ class HostManager:
         # Special requests will target specific instance_id; make a map for that.
         addressable = {k: minst for k, minst in self.database.items()
                        if minst.management != 'retired'}
-
         for key, state in requests:
             if state not in VALID_TARGETS:
                 session.add_message('Ignoring request for "%s" -> invalid state "%s".' %
@@ -555,7 +562,7 @@ class HostManager:
             for key, minst in self.database.items():
 
                 # If Process exit is requested, force all targets to down.
-                if not self.running:
+                if not self.running and not minst.passive_tracking:
                     minst.target_state = 'down'
 
                 actions = hm_utils.resolve_child_state(minst)
@@ -568,7 +575,12 @@ class HostManager:
                     reactor.callFromThread(self._launch_instance, minst)
                 if actions['sleep']:
                     sleep_times.append(actions['sleep'])
-                any_jobs = (any_jobs or (minst.next_action != 'down'))
+
+                if minst.passive_tracking:
+                    this_job = minst.next_action != 'passive'
+                else:
+                    this_job = minst.next_action != 'down'
+                any_jobs = (any_jobs or this_job)
 
                 # Criteria for stability:
                 minst.fail_times, minst.stability = hm_utils.stability_factor(
@@ -709,7 +721,29 @@ class HostManager:
         return True, 'Done.'
 
     @inlineCallbacks
+    @ocs_agent.param('disown_dockers', default=False, type=bool)
     def die(self, session, params):
+        """die(disown_dockers=False)
+
+        **Task** - trigger a shutdown of the manage process and then
+        stop the reactor, causing the HostManager to exit.
+
+        Args:
+          disown_dockers (bool): If True, then all tracked docker
+            services will be put in "passive tracking" mode, meaning
+            that they will not be stopped and removed during this
+            shutdown process.  This can be used to restart HostManager
+            without needing to also restart all (docker-based) agents
+            on the system.
+
+        """
+        if params['disown_dockers']:
+            for minst in self.database.values():
+                if minst.management == 'docker':
+                    minst.passive_tracking = True
+                    if minst.target_state in ['up', 'down']:
+                        minst.target_state = 'passive'
+
         if not self.running:
             session.add_message('Manager process is not running.')
         else:

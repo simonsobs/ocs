@@ -9,6 +9,11 @@ from dataclasses import dataclass, field
 from typing import List
 
 
+WAIT_DEAD_TIME = 11
+WAIT_START_TIME_INIT = 1
+WAIT_START_TIME_FOLLOWUP = 5
+
+
 @dataclass
 class ManagedInstance:
     """Tracks the properties of a managed Agent-instance, including
@@ -123,7 +128,7 @@ def resolve_child_state(minst):
                 messages.append('Launch not detected for '
                                 '{0.full_name}!  Will retry.'.format(minst))
                 minst.next_action = 'start_at'
-                minst.at = time.time() + 5.
+                minst.at = time.time() + WAIT_START_TIME_FOLLOWUP
 
     # Transitional: wait_dead, which bridges from kill -> idle.
     elif minst.next_action == 'wait_dead':
@@ -135,6 +140,8 @@ def resolve_child_state(minst):
             minst.next_action = 'down'
             if minst.passive_tracking:
                 minst.target_state = 'passive'
+            messages.append('Agent instance {0.full_name} has exited'
+                            .format(minst))
         elif time.time() >= minst.at:
             if stat is None:
                 messages.append('Agent instance {0.full_name} '
@@ -156,7 +163,7 @@ def resolve_child_state(minst):
             actions['launch'] = True
             minst.next_action = 'wait_start'
             now = time.time()
-            minst.at = now + 1.
+            minst.at = now + WAIT_START_TIME_INIT
         elif minst.next_action == 'up':
             if prot is None:
                 stat, t = 0, None
@@ -202,7 +209,7 @@ def resolve_child_state(minst):
                             '{0.full_name}'.format(minst))
             actions['terminate'] = True
             minst.next_action = 'wait_dead'
-            minst.at = time.time() + 5
+            minst.at = time.time() + WAIT_DEAD_TIME
         else:  # 'start_at', 'start'
             messages.append('Modifying state of {0.full_name} from '
                             '{0.next_action} to idle'.format(minst))

@@ -391,12 +391,20 @@ def parse_docker_state(docker_compose_file):
 
         - 'compose_file': the path to the docker compose file
         - 'service': service name
+        - 'image_tag': the tag listed for the image in the compose
+          file (this may differ from the running image).
+        - 'image_id': the docker image ID corresponding to
+          'image_tag'; will be "unknown" if, e.g., listed tag is not
+          yet pulled to the running system.
         - 'container_found': bool, indicates whether a container for
           this service was found (whether or not it was running).
-        - 'running': bool, indicating that a container for this service
-          is currently in state "Running".
+        - 'container_id': the docker ID of the container (if found).
+        - 'running': bool, indicating that the found container is
+          in state "Running".
+        - 'running_image': the ID of the image for the container (if
+          found; e.g. "sha:0f...").
         - 'exit_code': int, which is either extracted from the docker
-          inspect output or is set to 127.  (This should never be None.)
+          inspect output or is set to 127. (This should never be None.)
 
       orphans:
         A dict (by container id) of dicts describing running
@@ -411,29 +419,29 @@ def parse_docker_state(docker_compose_file):
     compose, err, code = yield _run_docker(['compose', '-f', docker_compose_file, 'config'],
                                            deyaml=True)
 
-    for key, cfg in compose.get('services', []).items():
+    for key, cfg in compose.get('services', {}).items():
         summary[key] = {
-            'service': key,
-            'running': False,
-            'exit_code': 127,
-            'container_found': False,
             'compose_file': docker_compose_file,
+            'service': key,
             'image_tag': cfg['image'],
+            'image_id': 'unknown',
+            'container_found': False,
+            'container_id': None,
+            'running': False,
+            'running_image': None,
+            'exit_code': 127,
         }
 
-    # Look up images associated with each tag. Construct a list of
-    # unique tags to query.
+    # Look up each tag; create map from tag to image_id.
     to_inspect = list(set([cfg['image_tag'] for cfg in summary.values()]))
-    out, err, code = yield _run_docker(['inspect'] + to_inspect, deyaml=True)
-    # remap as an array of tags -> image_Id.
     image_ids = {}
-    for image in out:
-        image_ids.update({k: image['Id'] for k in image['RepoTags']})
+    if len(to_inspect):
+        # Output from inspect is not neccessarily one-to-one with
+        # items on command line, if image of a tag is not yet known.
+        out, err, code = yield _run_docker(['inspect'] + to_inspect, deyaml=True)
+        for image in out:
+            image_ids.update({k: image['Id'] for k in image['RepoTags']})
 
-    # And finally lookup each service's image. At this point image_tag
-    # would be something like "simonsobs/socs:v..." and image_id will
-    # be "sha256:...", or else unknown (if tag is not known to local
-    # docker -- needs to be pulled).
     for cfg in summary.values():
         cfg['image_id'] = image_ids.get(cfg['image_tag'], 'unknown')
 
@@ -495,6 +503,8 @@ def _inspectContainer(cont_id, docker_compose_file):
         raise RuntimeError("Consistency problem: container started from "
                            "some other compose file?\n%s\n%s" % (docker_compose_file, _dc_file))
     service = config['com.docker.compose.service']
+    # Note returned dict is merged into summary output for
+    # parse_docker_state, so use keys documented there.
     return {
         'service': service,
         'running': info['State']['Running'],

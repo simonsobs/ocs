@@ -10,7 +10,7 @@ from typing import List
 
 
 WAIT_DEAD_TIME = 11
-WAIT_START_TIME_INIT = 1
+WAIT_START_TIME_INIT = 15
 WAIT_START_TIME_FOLLOWUP = 5
 
 
@@ -77,6 +77,18 @@ class ManagedInstance:
     #: stopped unexpectedly; used to identify "unstable" agents.
     fail_times: List = field(default_factory=list)
 
+    @property
+    def is_running(self):
+        if self.prot is None:
+            return False
+        return self.prot.is_running
+
+    @property
+    def exit_code(self):
+        if self.prot is None:
+            return None
+        return self.prot.status[0]
+
 
 def resolve_child_state(minst):
     """Args:
@@ -104,12 +116,8 @@ def resolve_child_state(minst):
     messages = []
     sleeps = []
 
-    # State machine.
-    prot = minst.prot
-
     # If the entry is not "operable", send next_action to '?' and
     # don't try to do anything else.
-
     if not minst.operable:
         minst.next_action = '?'
 
@@ -118,35 +126,37 @@ def resolve_child_state(minst):
 
     # Transitional: wait_start, which bridges from start -> up.
     elif minst.next_action == 'wait_start':
-        if prot is not None:
+        if minst.is_running:
             messages.append('Launched {0.full_name}'.format(minst))
             minst.next_action = 'up'
             if minst.passive_tracking:
                 minst.target_state = 'passive'
-        else:
-            if time.time() >= minst.at:
+        elif time.time() >= minst.at:
+            if minst.passive_tracking:
+                messages.append(
+                    'Launch not detected for {0.full_name}! '
+                    'Passive tracking so will not try again.'
+                    .format(minst))
+                minst.target_state = 'passive'
+                minst.next_action = 'down'
+            else:
                 messages.append('Launch not detected for '
-                                '{0.full_name}!  Will retry.'.format(minst))
+                                '{0.full_name}! Will retry.'.format(minst))
                 minst.next_action = 'start_at'
                 minst.at = time.time() + WAIT_START_TIME_FOLLOWUP
 
     # Transitional: wait_dead, which bridges from kill -> idle.
     elif minst.next_action == 'wait_dead':
-        if prot is None:
-            stat, t = 0, None
-        else:
-            stat, t = prot.status
-        if stat is not None:
+        if not minst.is_running:
             minst.next_action = 'down'
             if minst.passive_tracking:
                 minst.target_state = 'passive'
             messages.append('Agent instance {0.full_name} has exited'
                             .format(minst))
         elif time.time() >= minst.at:
-            if stat is None:
-                messages.append('Agent instance {0.full_name} '
-                                'refused to die.'.format(minst))
-                minst.next_action = 'down'
+            messages.append('Agent instance {0.full_name} '
+                            'refused to die.'.format(minst))
+            minst.next_action = 'down'
         else:
             sleeps.append(minst.at - time.time())
 
@@ -165,16 +175,12 @@ def resolve_child_state(minst):
             now = time.time()
             minst.at = now + WAIT_START_TIME_INIT
         elif minst.next_action == 'up':
-            if prot is None:
-                stat, t = 0, None
-            else:
-                stat, t = prot.status
-            if stat is not None:
+            if not minst.is_running:
                 messages.append('Detected exit of {0.full_name} '
-                                'with code {stat}.'.format(minst, stat=stat))
-                if hasattr(prot, 'lines'):
+                                'with code {0.exit_code}.'.format(minst))
+                if hasattr(minst.prot, 'lines'):
                     note = ''
-                    lines = prot.lines['stderr']
+                    lines = minst.prot.lines['stderr']
                     if len(lines) > 50:
                         note = ' (trimmed)'
                         lines = lines[-20:]
@@ -189,18 +195,8 @@ def resolve_child_state(minst):
     # State handling when target is to be 'down'.
     elif minst.target_state == 'down':
         if minst.next_action == 'down':
-            # The lines below will prevent HostManager from killing
-            # Agents that suddenly seem to be alive.  With these
-            # lines commented out, someone running "up" on a managed
-            # docker-compose.yaml will see their Agents immediately
-            # be brought down by HostManager.
-            # if prot is not None and prot.status[0] is None:
-            #    messages.append('Detected unexpected session for {0.full_name} '
-            #                    '(probably docker); changing target state to "up".'.format(minst))
-            #    minst.target_state = 'up'
-
             # In fully managed mode, force a termination.
-            if prot is not None and prot.status[0] is None:
+            if minst.is_running:
                 messages.append('Detected unexpected session for {0.full_name} '
                                 '(probably docker); it will be shut down.'.format(minst))
                 minst.next_action = 'up'
@@ -218,10 +214,12 @@ def resolve_child_state(minst):
     elif minst.passive_tracking:
         # For passive tracking, next_action always reflects the
         # current running state.
-        if prot is None or prot.status[0] is not None:
-            minst.next_action = 'down'
-        else:
+        if minst.is_running and minst.next_action != 'up':
+            messages.append(f'Passively tracked {minst.full_name} is now up.')
             minst.next_action = 'up'
+        elif not minst.is_running and minst.next_action != 'down':
+            messages.append(f'Passively tracked {minst.full_name} is now down.')
+            minst.next_action = 'down'
         minst.target_state = 'passive'
 
     # Should not get here.
@@ -276,6 +274,10 @@ class AgentProcessHelper(protocol.ProcessProtocol):
         # race condition, but it could be worse.
         if self.status[0] is None:
             reactor.callFromThread(self.transport.signalProcess, 'INT')
+
+    @property
+    def is_running(self):
+        return self.status[0] is None
 
     # See https://twistedmatrix.com/documents/current/core/howto/process.html
     #
@@ -347,7 +349,8 @@ class DockerContainerHelper:
 
     def __init__(self, service, docker_bin=None):
         self.service = {}
-        self.status = -1, time.time()
+        self.is_running = False
+        self.status = None, time.time()
         self.killed = False
         self.instance_id = service['service']
         self.d = None
@@ -360,8 +363,10 @@ class DockerContainerHelper:
         """
         self.service.update(service)
         if service['running']:
+            self.is_running = True
             self.status = None, time.time()
         else:
+            self.is_running = False
             self.status = service['exit_code'], time.time()
             self.killed = False
 

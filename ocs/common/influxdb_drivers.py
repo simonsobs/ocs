@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 
@@ -34,6 +35,49 @@ def _format_field_line(field_key, field_value):
     return line
 
 
+@dataclass
+class ReceivedBlock:
+    block_name: str
+    data: dict
+    timestamps: list
+    influxdb_tags: dict = None
+
+    def group_data(self):
+        # Reshape data for query
+        grouped_data_points = []
+        num_points = len(self.timestamps)
+        for i in range(num_points):
+            grouped_dict = {}
+            for data_key, data_value in self.data.items():
+                grouped_dict[data_key] = data_value[i]
+            grouped_data_points.append(grouped_dict)
+
+        return grouped_data_points, self.timestamps
+
+    def encoded(self, protocol='line'):
+        # I wouldn't mind having some structure that checked for
+        # 'influxdb_tags' and if it had those, then ran one set of if/elif/else
+        # for the various protocols
+
+        # then if it didn't have influxdb_tags ran the below set of
+        # if/elif/else for the protocols
+        # the other option is to try to flip it so that it checks for protocol
+        # first, then does the manipulations required to reshape
+
+        # would some dataclass that can form the appropriate structures work
+        # better? maybe...
+
+        # This could just do .encoded('line') or .encoded('json') based on
+        # which protocol and do the grouping/rearranging internally
+
+        if self.influxdb_tags is None:
+            # do old grouping methods
+            pass
+        else:
+            # do new assembly of outputs w/tags
+            pass
+
+
 def format_data(data, feed, protocol):
     """Format the data from an OCS feed into a dict for pushing to InfluxDB.
 
@@ -54,18 +98,93 @@ def format_data(data, feed, protocol):
         protocol (str):
             Protocol for writing data. Either 'line' or 'json'.
 
+H
     Returns:
         list: Data ready to publish to influxdb, in the specified protocol.
 
+    Examples:
+        data = {'temps': {'block_name': 'temps',
+                          'data': {'channel_00': [0.0861292206532646, 0.08767502826731405, 0.09074201939982668],
+                                   'channel_01': [0.040572476754158676, 0.04176234998637523, 0.044872031531513375]},
+                          'influxdb_tags': {'channel_00':
+                                                {'channel': 0, '_field': 'temperature'},
+                                            'channel_01':
+                                                {'channel': 1, '_field': 'temperature'}},
+                          'timestamps': [1775065084.3634055, 1775065085.3634055, 1775065086.3634055]}}
+        json_body = ['observatory.fake-data1,feed=false_temperatures channel_00=0.0861292206532646,channel_01=0.040572476754158676 1775065084363405568',
+                     'observatory.fake-data1,feed=false_temperatures channel_00=0.08767502826731405,channel_01=0.04176234998637523 1775065085363405568',
+                     'observatory.fake-data1,feed=false_temperatures channel_00=0.09074201939982668,channel_01=0.044872031531513375 1775065086363405568']
+
     """
-    measurement = feed['agent_address']
-    feed_tag = feed['feed_name']
+    if protocol == 'line':
+        measurement = feed['agent_address']
+        feed_tag = feed['feed_name']
+        tags = f"feed={feed_tag}"
 
-    json_body = []
+        json_body = []
 
+        blocks = []
+        for _, bv in data.items():
+            blocks.append(ReceivedBlock(**bv))
+
+        # print(blocks)
+
+        # print('DATA:', data)
+        # Old, non-tag, way to reshape data for query
+        grouped_data_points, times = _group_data(data)
+        block_grouped, block_times = blocks[0].group_data()
+        assert grouped_data_points == block_grouped
+        assert times == block_times
+        print('GROUPS:', grouped_data_points)
+
+        # print('\n')
+        fields_lines = []
+        for fields, time_ in zip(grouped_data_points, times):
+            field_line = []
+            for mk, mv in fields.items():
+                f_line = _format_field_line(mk, mv)
+                field_line.append(f_line)
+
+            fields_line = ','.join(field_line)
+            fields_lines.append(fields_line)
+        # Old, non-tag, way to reshape data for query
+
+        for fields, time_ in zip(fields_lines, times):
+            print('SINGLE:', fields_line, time_)
+            text = _format_line(measurement, time_, fields, tags)
+            if text is not None:
+                json_body.append(text)
+
+        print('ALL:', fields_lines)
+
+    elif protocol == 'json':
+        measurement = feed['agent_address']
+        feed_tag = feed['feed_name']
+
+        json_body = []
+
+        print('DATA:', data)
+        # Reshape data for query
+        grouped_data_points, times = _group_data(data)
+        print('GROUPS:', grouped_data_points)
+
+        for fields, time_ in zip(grouped_data_points, times):
+            tags = {"feed": feed_tag}
+            text = _format_json(measurement, time_, fields, tags)
+            if text is not None:
+                json_body.append(text)
+
+    else:
+        print(f"Protocol '{protocol}' not supported.")
+
+    return json_body
+
+
+def _group_data(data):
     # Reshape data for query
+    grouped_data_points = []
+    # there should only ever be 1 key, value pair in these blocks
     for _, bv in data.items():
-        grouped_data_points = []
         times = bv['timestamps']
         num_points = len(bv['timestamps'])
         for i in range(num_points):
@@ -74,31 +193,7 @@ def format_data(data, feed, protocol):
                 grouped_dict[data_key] = data_value[i]
             grouped_data_points.append(grouped_dict)
 
-        for fields, time_ in zip(grouped_data_points, times):
-            if protocol == 'line':
-                fields_line = []
-                for mk, mv in fields.items():
-                    f_line = _format_field_line(mk, mv)
-                    fields_line.append(f_line)
-
-                measurement_line = ','.join(fields_line)
-                try:
-                    t_line = timestamp2influxtime(time_, protocol='line')
-                except OverflowError:
-                    print(f"Warning: Cannot convert {time_} to an InfluxDB compatible time. "
-                          + "Dropping this data point.")
-                    continue
-                line = f"{measurement},feed={feed_tag} {measurement_line} {t_line}"
-                json_body.append(line)
-            elif protocol == 'json':
-                tags = {"feed": feed_tag}
-                text = _format_json(measurement, time_, fields, tags)
-                if text is not None:
-                    json_body.append(text)
-            else:
-                print(f"Protocol '{protocol}' not supported.")
-
-    return json_body
+    return grouped_data_points, times
 
 
 def _format_json(measurement, time, fields, tags):
@@ -115,3 +210,14 @@ def _format_json(measurement, time, fields, tags):
         "tags": tags,
     }
     return json
+
+
+def _format_line(measurement, time, fields, tags):
+    try:
+        t_line = timestamp2influxtime(time, protocol='line')
+    except OverflowError:
+        print(f"Warning: Cannot convert {time} to an InfluxDB compatible time. "
+              + "Dropping this data point.")
+        return
+    line = f"{measurement},{tags} {fields} {t_line}"
+    return line

@@ -91,23 +91,27 @@ def format_data(data, feed, protocol):
                 line = f"{measurement},feed={feed_tag} {measurement_line} {t_line}"
                 json_body.append(line)
             elif protocol == 'json':
-                try:
-                    t_json = timestamp2influxtime(time_, protocol='json')
-                except OverflowError:
-                    print(f"Warning: Cannot convert {time_} to an InfluxDB compatible time. "
-                          + "Dropping this data point.")
-                    continue
-                json_body.append(
-                    {
-                        "measurement": measurement,
-                        "time": t_json,
-                        "fields": fields,
-                        "tags": {
-                            "feed": feed_tag
-                        }
-                    }
-                )
+                tags = {"feed": feed_tag}
+                text = _format_json(measurement, time_, fields, tags)
+                if text is not None:
+                    json_body.append(text)
             else:
                 print(f"Protocol '{protocol}' not supported.")
 
     return json_body
+
+
+def _format_json(measurement, time, fields, tags):
+    try:
+        t_json = timestamp2influxtime(time, protocol='json')
+    except OverflowError:
+        print(f"Warning: Cannot convert {time} to an InfluxDB compatible time. "
+              + "Dropping this data point.")
+        return
+    json = {
+        "measurement": measurement,
+        "time": t_json,
+        "fields": fields,
+        "tags": tags,
+    }
+    return json

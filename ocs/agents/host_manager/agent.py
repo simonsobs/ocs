@@ -6,7 +6,7 @@ import time
 import argparse
 
 from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, DeferredList
 from autobahn.twisted.util import sleep as dsleep
 
 import os
@@ -31,7 +31,11 @@ class HostManager:
                  docker_service_prefix='ocs-'):
         self.agent = agent
         self.running = False
-        self.database = {}  # key is instance_id (or docker service name).
+        # The database maps instance_id (or docker service name, if
+        # it's an unmanaged docker container) to a ManagedInstance.
+        self.database = {}
+        self.orphans = {}
+        self.new_tags = {}
         self.docker_composes = docker_composes
         self.docker_service_prefix = docker_service_prefix
 
@@ -108,9 +112,12 @@ class HostManager:
         """
         # Read services from all docker-compose files.
         docker_services = {}
+        orphans = {}
+        new_tags = {}
         for compose in self.docker_composes:
             try:
-                services = yield hm_utils.parse_docker_state(compose)
+                services, _orphans = yield hm_utils.parse_docker_state(compose)
+                orphans.update(_orphans)
                 this_ok = True
                 this_msg = f'Successfully parsed {compose} and its service states.'
             except Exception as e:
@@ -133,36 +140,52 @@ class HostManager:
         # Update all docker things in the database.
         retirees = []
         assigned_services = []
-        for key, instance in self.database.items():
-            if instance['management'] != 'docker':
+        for key, minst in self.database.items():
+            if minst.management != 'docker':
                 continue
 
-            service_name = instance['agent_script']
+            service_name = minst.agent_script
             service_data = docker_services.get(service_name)
             assigned_services.append(service_name)
 
-            prot = instance.get('prot')
+            prot = minst.prot
             if prot is None:
                 if service_data is not None:
                     # Create a prot entry with the service info.
-                    instance['prot'] = hm_utils.DockerContainerHelper(service_data)
-                    instance['operable'] = True
-                    if instance['agent_class'] != NONAGENT_DOCKER:
-                        instance['agent_class'] = _clsname_tool(instance['agent_class'], '[d]')
+                    minst.prot = hm_utils.DockerContainerHelper(service_data)
+                    minst.operable = True
+                    if minst.agent_class != NONAGENT_DOCKER:
+                        minst.agent_class = _clsname_tool(minst.agent_class, '[d]')
+                    # Update current_state to not trigger a "docker
+                    # up" on a running container. Normally that would
+                    # be a no-op, but not if image tag has changed.
+                    if service_data['running']:
+                        session.add_message(f'Docker-based instance {key} seems to be running.')
+                        minst.next_action = 'up'
+
             else:
                 if service_data is not None:
                     prot.update(service_data)
                 else:
                     # service_data is missing, but there used to be a
                     # service there.  Close it out.
-                    instance['prot'] = None
-                    instance['operable'] = False
-                    if instance['agent_class'] == NONAGENT_DOCKER:
+                    minst.prot = None
+                    minst.operable = False
+                    if minst.agent_class == NONAGENT_DOCKER:
                         session.add_message(f'Deleting non-agent service {key}')
                         retirees.append(key)
                     else:
                         session.add_message(f'Marking missing service for {key}')
-                        instance['agent_class'] = _clsname_tool(instance['agent_class'], '[d?]')
+                        minst.agent_class = _clsname_tool(minst.agent_class, '[d?]')
+
+            restart_required = False
+            if minst.prot is not None and service_data is not None \
+               and service_data.get('running') \
+               and (service_data.get('running_image') != service_data.get('image_id')):
+                restart_required = True
+            if service_data is not None and service_data.get('image_id') == 'unknown':
+                new_tags[key] = service_data['image_tag']
+            minst.restart_required = restart_required
 
         # If a non-agent [docker] service has disappeared, there's no
         # reason to show it in a list, and no persistent state /
@@ -174,23 +197,35 @@ class HostManager:
         unassigned_services = set(docker_services.keys()) \
             .difference(assigned_services)
         for srv in unassigned_services:
-            instance = hm_utils.ManagedInstance.init(
+            session.add_message(f'Adding non-agent service "{srv}"')
+            minst = hm_utils.ManagedInstance(
                 management='docker',
                 instance_id=srv,
                 agent_class=NONAGENT_DOCKER,
-                full_name=(f'[docker]:{srv}'))
-            instance.update({
-                'agent_script': srv,
-                'operable': True,
-            })
-            service_data = docker_services[srv]
-            instance['prot'] = hm_utils.DockerContainerHelper(service_data)
+                full_name=f'[docker]:{srv}',
+                agent_script=srv,
+                operable=True,
+                passive_tracking=True,
+                target_state='passive',
+            )
 
-            self.database[srv] = instance
+            service_data = docker_services[srv]
+            minst.prot = hm_utils.DockerContainerHelper(service_data)
+
             # If it's up, leave it up.
             if service_data['running']:
-                instance['target_state'] = 'up'
-                instance['next_action'] = 'up'
+                minst.next_action = 'up'
+
+            self.database[srv] = minst
+
+        # Update the list of orphans ...
+        orphans_gone = set(self.orphans.keys()).difference(orphans.keys())
+        for k in orphans_gone:
+            del self.orphans[k]
+        self.orphans.update(orphans)
+
+        # And new tags that need a docker pull ...
+        self.new_tags = new_tags
 
         returnValue(docker_services)
 
@@ -212,12 +247,12 @@ class HostManager:
 
         """
         def retire(db_key):
-            instance = self.database.get(db_key, None)
-            if instance is None:
+            minst = self.database.get(db_key, None)
+            if minst is None:
                 return
-            instance['management'] = 'retired'
-            instance['at'] = time.time()
-            instance['target_state'] = 'down'
+            minst.management = 'retired'
+            minst.at = time.time()
+            minst.target_state = 'down'
 
         def _full_name(cls, iid):
             if cls != NONAGENT_DOCKER:
@@ -240,11 +275,11 @@ class HostManager:
         # agent_dict should be immediately retired.  That includes
         # things that are suddenly marked as manage=no.  Ignore docker
         # non-agents.
-        for iid, instance in self.database.items():
-            if instance['agent_class'] != NONAGENT_DOCKER and (
+        for iid, minst in self.database.items():
+            if minst.agent_class != NONAGENT_DOCKER and (
                     iid not in agent_dict or agent_dict[iid].get('manage') == 'ignore'):
                 session.add_message(
-                    f'Retiring {instance["full_name"]}, which has disappeared from '
+                    f'Retiring {minst.full_name}, which has disappeared from '
                     f'configuration file(s) or has manage:no.')
                 retire(iid)
 
@@ -263,12 +298,12 @@ class HostManager:
                 srv = self.docker_service_prefix + iid
 
             # See if we already tracking this agent.
-            instance = self.database.get(iid)
+            minst = self.database.get(iid)
 
-            if instance is not None:
+            if minst is not None:
                 # Already tracking; just check for major config change.
-                _cls = instance['agent_class']
-                _mgmt = instance['management']
+                _cls = minst.agent_class
+                _mgmt = minst.management
                 if not same_base_class(_cls, cls) or _mgmt != mgmt:
                     session.add_message(
                         f'Managed agent "{iid}" changed agent_class '
@@ -277,60 +312,65 @@ class HostManager:
                     # Bring down existing instance
                     self._terminate_instance(iid)
                     # Start a new one
-                    instance = None
+                    minst = None
 
             # Do we have an unmatched docker entry for this?
-            if instance is None and srv in self.database:
+            if minst is None and srv in self.database:
+                session.add_message(
+                    f'Unmanaged docker service {srv} will now be managed as '
+                    f'instance_id={iid}.')
                 # Re-register it under instance_id
-                instance = self.database.pop(srv)
-                self.database[iid] = instance
-                instance.update({
-                    'instance_id': iid,
-                    'agent_class': _clsname_tool(cls, '[d]'),
-                    'full_name': _full_name(cls, iid),
-                })
+                minst = self.database.pop(srv)
+                minst.instance_id = iid
+                minst.agent_class = _clsname_tool(cls, '[d]')
+                minst.full_name = _full_name(cls, iid)
+                minst.passive_tracking = False
+                if minst.target_state == 'passive':
+                    minst.target_state = \
+                        minst.next_action if minst.next_action in ['up', 'down'] else 'down'
+                self.database[iid] = minst
 
-            if instance is None:
-                instance = hm_utils.ManagedInstance.init(
+            if minst is None:
+                minst = hm_utils.ManagedInstance(
                     management=mgmt,
                     instance_id=iid,
                     agent_class=cls,
                     full_name=_full_name(cls, iid),
+                    target_state=start_state,
                 )
-                instance['target_state'] = start_state
-                self.database[iid] = instance
+                self.database[iid] = minst
 
         # Get agent class list from modern plugin system.
         agent_plugins = agent_cli.build_agent_list()
 
         # Assign plugins / scripts / whatever to any new instances.
-        for iid, instance in self.database.items():
-            if instance['agent_script'] is not None:
+        for iid, minst in self.database.items():
+            if minst.agent_script is not None:
                 continue
-            if instance['management'] == 'host':
-                cls = instance['agent_class']
+            if minst.management == 'host':
+                cls = minst.agent_class
                 # Check for the agent class in the plugin system
                 if cls in agent_plugins:
                     session.add_message(f'Found plugin for "{cls}"')
-                    instance['agent_script'] = '__plugin__'
-                    instance['operable'] = True
+                    minst.agent_script = '__plugin__'
+                    minst.operable = True
                 else:
                     session.add_message('No plugin '
                                         f'found for agent_class "{cls}"!')
-            elif instance['management'] == 'docker':
-                instance['agent_script'] = self.docker_service_prefix + iid
+            elif minst.management == 'docker':
+                minst.agent_script = self.docker_service_prefix + iid
 
         # Read the compose files; query container states; updater stuff.
         yield self._update_docker_services(session)
         returnValue(warnings)
 
-    def _launch_instance(self, instance):
+    def _launch_instance(self, minst):
         """Launch an Agent instance (whether 'host' or 'docker' managed) using
         hm_utils.
 
         For 'host' managed agents: hm_utils will use
         reactor.spawnProcess, and store the AgentProcessHelper (which
-        inherits from twisted ProcessProtocol) in instance['prot'].
+        inherits from twisted ProcessProtocol) in minst.prot.
         The site_file and instance_id are passed on the command line;
         this means that any weird config overrides passed to this
         HostManager are not propagated.  One exception is working_dir,
@@ -338,15 +378,15 @@ class HostManager:
         sense.
 
         For 'docker' managed agents: hm_utils will try to start the
-        right service container, and instance['prot'] will hold a
+        right service container, and minst.prot will hold a
         DockerContainerHelper (which has some common interface with
         AgentProcessHelper).
 
         """
-        if instance['management'] == 'docker':
-            prot = instance['prot']
+        if minst.management == 'docker':
+            prot = minst.prot
         else:
-            iid = instance['instance_id']
+            iid = minst.instance_id
             pyth = sys.executable
             cmd = [pyth, '-m', 'ocs.agent_cli',
                    '--instance-id', iid,
@@ -355,13 +395,13 @@ class HostManager:
                    '--working-dir', self.working_dir]
             prot = hm_utils.AgentProcessHelper(iid, cmd)
         prot.up()
-        instance['prot'] = prot
+        minst.prot = prot
 
     def _terminate_instance(self, key):
         """
         Use the ProcessProtocol to request the Agent instance to exit.
         """
-        prot = self.database[key]['prot']  # Get the ProcessProtocol.
+        prot = self.database[key].prot  # Get the ProcessProtocol.
         if prot is None:
             return True, 'Instance was not running.'
         if prot.killed:
@@ -377,20 +417,19 @@ class HostManager:
 
         """
         # Special requests will target specific instance_id; make a map for that.
-        addressable = {k: v for k, v in self.database.items()
-                       if v['management'] != 'retired'}
-
+        addressable = {k: minst for k, minst in self.database.items()
+                       if minst.management != 'retired'}
         for key, state in requests:
             if state not in VALID_TARGETS:
                 session.add_message('Ignoring request for "%s" -> invalid state "%s".' %
                                     (key, state))
                 continue
             if key == 'all':
-                for v in addressable.values():
-                    v['target_state'] = state
+                for minst in addressable.values():
+                    minst.target_state = state
             else:
                 if key in addressable:
-                    addressable[key]['target_state'] = state
+                    addressable[key].target_state = state
                 else:
                     session.add_message(f'Ignoring invalid target, {key}')
 
@@ -431,11 +470,21 @@ class HostManager:
           attempt will be made to terminate them before the Process
           exits.
 
-          The session.data is a dict, and entry 'child_states'
-          contains a list with the managed Agent statuses.  For
-          example::
+          The session.data is a dict, with entries:
+          - 'child_states'
+          - 'config_parse_status' - indicates how recently the various
+            input files havebeen parsed.
+          - 'orphans' - lists any orphaned (in the sense of docker
+            compose) containers.
+          - 'new_tags' - dict mapping instance_id to new docker image
+            tag, if that tag is not known to docker system. Only
+            populated for tracked instances where the tag is not
+            known.
 
-            {'child_states': [
+          The 'child_states' entry is a list of managed Agent status;
+          for example::
+
+            [
               {'next_action': 'up',
                'target_state': 'up',
                'stability': 1.0,
@@ -451,8 +500,7 @@ class HostManager:
                'stability': 1.0,
                'agent_class': 'FakeDataAgent[d]',
                'instance_id': 'faker6'},
-              ],
-            }
+              ]
 
           If you are looking for the "current state", it's called
           "next_action" here.
@@ -463,11 +511,40 @@ class HostManager:
           HostManager cannot actually identify the docker-compose
           service associated with the agent description in the SCF.)
 
+          The 'config_parse_status' is a dict where the key is a
+          docker compose filename, or "[SCF]" for the site config
+          file, and the value is a tuple (success, timestamp,
+          message).
+
+          The 'orphans' entry is as a dict mapping docker container ID
+          to some information about the container.  E.g.::
+
+            {
+              "30027f37e0ef4b...": {
+                "compose_file": "/home/ocs/config/docker-compose.yml",
+                "service": "ocs-faker3",
+                "container_id": "30027f37e0ef4b...",
+                "running": true,
+                "exit_code": 0,
+                "container_found": true,
+                "running_image": "sha256:7eaa6d6f6..."
+              }
+            }
+
+        The 'new_tags' entry looks like this::
+
+          {
+            "faker1": "simonsobs/ocs:v0.11.3",
+            "faker2": "simonsobs/ocs:v0.11.3"
+          }
+
         """
         self.config_parse_status = {}
         session.data = {
             'child_states': [],
             'config_parse_status': self.config_parse_status,
+            'orphans': self.orphans,
+            'new_tags': self.new_tags,
         }
 
         self.running = True
@@ -489,43 +566,52 @@ class HostManager:
             sleep_times = [1.]
             any_jobs = False
 
-            for key, db in self.database.items():
+            for key, minst in self.database.items():
 
                 # If Process exit is requested, force all targets to down.
-                if not self.running:
-                    db['target_state'] = 'down'
+                if not self.running and not minst.passive_tracking:
+                    minst.target_state = 'down'
 
-                actions = hm_utils.resolve_child_state(db)
+                actions = hm_utils.resolve_child_state(minst)
 
                 for msg in actions['messages']:
                     session.add_message(msg)
                 if actions['terminate']:
                     self._terminate_instance(key)
                 if actions['launch']:
-                    reactor.callFromThread(self._launch_instance, db)
+                    reactor.callFromThread(self._launch_instance, minst)
                 if actions['sleep']:
                     sleep_times.append(actions['sleep'])
-                any_jobs = (any_jobs or (db['next_action'] != 'down'))
+
+                if minst.passive_tracking:
+                    this_job = minst.next_action != 'passive'
+                else:
+                    this_job = minst.next_action != 'down'
+                any_jobs = (any_jobs or this_job)
 
                 # Criteria for stability:
-                db['fail_times'], db['stability'] = hm_utils.stability_factor(
-                    db['fail_times'])
+                minst.fail_times, minst.stability = hm_utils.stability_factor(
+                    minst.fail_times)
 
             # Clean up retired items.
             self.database = {
-                k: v for k, v in self.database.items()
-                if v['management'] != 'retired' or v['next_action'] not in ['down', '?']}
+                k: minst for k, minst in self.database.items()
+                if minst.management != 'retired' or minst.next_action not in ['down', '?']}
 
             # Update session info.
             child_states = []
-            for state in self.database.values():
-                child_states.append({_k: state[_k] for _k in
+            for minst in self.database.values():
+                child_states.append({_k: getattr(minst, _k) for _k in
                                      ['next_action',
                                       'target_state',
                                       'stability',
                                       'agent_class',
-                                      'instance_id']})
+                                      'instance_id',
+                                      'operable',
+                                      'restart_required',
+                                      ]})
             session.data['child_states'] = child_states
+            session.data['new_tags'] = self.new_tags
 
             yield dsleep(max(min(sleep_times), .001))
         return True, 'Exited.'
@@ -598,7 +684,73 @@ class HostManager:
         return True, 'Update requested.'
 
     @inlineCallbacks
+    def remove_orphans(self, session, params):
+        """remove_orphans(stop_time=10.)
+
+        **Task** - Use docker stop and docker rm to remove orphaned
+        containers associated with managed docker compose files.
+
+        This does not really do any error checking.
+        """
+        containers = list(self.orphans.values())
+        session.add_message(f'Attempting stop and remove of {len(containers)} containers.')
+
+        defs = []
+        for cont in containers:
+            print(f'Stopping {cont["container_id"][:16]} ...')
+            d = hm_utils._run_docker(['stop', cont['container_id']])
+            defs.append(d)
+
+        yield DeferredList(defs)
+
+        defs = []
+        for cont in containers:
+            print(f'Removing {cont["container_id"][:16]} ...')
+            d = hm_utils._run_docker(['rm', cont['container_id']])
+            defs.append(d)
+
+        yield DeferredList(defs)
+
+        return True, 'Done.'
+
+    @inlineCallbacks
+    def docker_pull(self, session, params):
+        """docker_pull()
+
+        **Task** - Use docker compose to pull any (new) images for the
+        managed docker compose files.
+
+        """
+        for compose in self.docker_composes:
+            session.add_message(f'Running pull for {compose} ...')
+            yield hm_utils._run_docker(['compose', '-f', compose, 'pull'])
+
+        return True, 'Done.'
+
+    @inlineCallbacks
+    @ocs_agent.param('disown_dockers', default=False, type=bool)
     def die(self, session, params):
+        """die(disown_dockers=False)
+
+        **Task** - trigger a shutdown of the manage process and then
+        stop the reactor, causing the HostManager to exit.
+
+        Args:
+          disown_dockers (bool): If True, then all tracked docker
+            services will be put in "passive tracking" mode, meaning
+            that they will not be stopped and removed during this
+            shutdown process.  This can be used to restart HostManager
+            without needing to also restart all (docker-based) agents
+            on the system.
+
+        """
+        if params['disown_dockers']:
+            for minst in self.database.values():
+                if minst.management == 'docker':
+                    minst.passive_tracking = True
+                    if minst.target_state in ['up', 'down']:
+                        minst.target_state = 'passive'
+
         if not self.running:
             session.add_message('Manager process is not running.')
         else:
@@ -684,6 +836,8 @@ def main(args=None):
                            blocking=False,
                            startup=startup_params)
     agent.register_task('update', host_manager.update, blocking=False)
+    agent.register_task('remove_orphans', host_manager.remove_orphans, blocking=False)
+    agent.register_task('docker_pull', host_manager.docker_pull, blocking=False)
     agent.register_task('die', host_manager.die, blocking=False)
 
     reactor.addSystemEventTrigger('before', 'shutdown', agent._stop_all_running_sessions)

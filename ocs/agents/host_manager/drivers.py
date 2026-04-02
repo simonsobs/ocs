@@ -5,64 +5,95 @@ import yaml
 from twisted.internet import reactor, utils, protocol
 from twisted.internet.defer import inlineCallbacks
 
+from dataclasses import dataclass, field
+from typing import List
 
-class ManagedInstance(dict):
-    """Track properties of a managed Agent-instance.  This is just a dict
-    with a schema docstring and an "init" function to set defaults.
 
-    Properties that must be set explicitly by user:
+WAIT_DEAD_TIME = 11
+WAIT_START_TIME_INIT = 15
+WAIT_START_TIME_FOLLOWUP = 5
 
-    - 'management' (str): Either 'host', 'docker', or 'retired'.
-    - 'agent_class' (str): The agent class name, which may include a
-      suffix ([d] or [d?]) if the agent is managed through Docker.
-      For instances corresponding to docker services that do not have
-      a corresponding SCF entry, the value here will be '[docker]'.
-    - 'instance_id' (str): The agent instance-id, or the docker
-      service name if the instance is an unmatched docker service.
-    - 'full_name' (str): agent_class:instance_id
 
-    Properties that are given a default value by init function:
-
-    - 'operable' (bool): indicates whether the instance can be
-      manipulated (whether calls to up/down should be expected to
-      work).
-    - 'agent_script' (str): The docker service_name, if docker-managed.
-      Otherwise, the string ``__plugin__`` to indicate it is host managed.
-    - 'prot': The twisted ProcessProtocol object (if host system
-      managed), or the DockerContainerHelper (if a docker container).
-    - 'target_state' (state): The state we're trying to achieve (up or
-      down).
-    - 'next_action' (state): The thing HostManager needs to do next;
-      this will sometimes indicate the "current state" (up or down),
-      but sometimes it will carry a transitional state, such as
-      "wait_start".
-    - 'at' (float): a unix timestamp for transitional states
-      (e.g. used to set how long to wait for something).
-    - 'fail_times' (list of floats): unix timestamps when the instance
-      process has stopped unexpectedly (used to identify "unstable"
-      agents).
+@dataclass
+class ManagedInstance:
+    """Tracks the properties of a managed Agent-instance, including
+    how to launch it, the current run state, target state, etc.
 
     """
-    @classmethod
-    def init(cls, **kwargs):
-        # Note some core things are not included.
-        self = cls({
-            'agent_script': None,
-            'operable': False,
-            'prot': None,
-            'next_action': 'down',
-            'target_state': 'down',
-            'fail_times': [],
-            'at': 0,
-        })
-        self.update(kwargs)
-        return self
+
+    #: How host is managed; either "host", "docker", or "retired".
+    management: str
+
+    #: Agent class name (which may include suffix "[d]" or "[d?]" for
+    #: docker-managed instances; or simply "[docker]" for services
+    #: that do not seem to be registered in the SCF.
+    agent_class: str
+
+    #: The agent instance's instance_id, or else the docker service
+    #: name associated with entry in the SCF.
+    instance_id: str
+
+    #: Indentier constructed as agent_class:instance_id.
+    full_name: str
+
+    #: Indicates whether the instance can be manipulated (whether
+    #: calls to up/down should be expected to work).
+    operable: bool = False
+
+    #: Indicates if instance is retired and can be removed from
+    #: tracking.
+    retired: bool = False
+
+    #: Indicates if instance should be "passively" managed, e.g. not
+    #: be enforced other than ephemerally to attempt a start / stop.
+    #: This is expected to only be used for docker-based instances.
+    passive_tracking: bool = False
+
+    #: The docker service name, if docker-managed; otherwisre the
+    #: string ``__plugin__`` to indicate it is host managed.
+    agent_script: str = None
+
+    #: The Twisted ProcessProtocol object, if host system managed; or
+    #: else the DockerContainerHelper if docker-based.
+    prot: object = None
+
+    #: Indicates a restart is in order, due to change of docker tag or
+    #: other new software version.
+    restart_required: bool = False
+
+    #: The run state HostManager is trying to enforce (up, down, passive).
+    target_state: str = 'down'
+
+    #: The thing HostManager plans to do next; this will sometimes
+    #: mirror the current state (up or down) and will sometimes carry a
+    #: transitional state, such as "wait_start".
+    next_action: str = 'down'
+
+    #: Unix timestamp, used by transitional states to indicate time at
+    #: which some subsequent action should be taken.
+    at: float = 0
+
+    #: List of unix timestamps for recent events where an instance
+    #: stopped unexpectedly; used to identify "unstable" agents.
+    fail_times: List = field(default_factory=list)
+
+    @property
+    def is_running(self):
+        if self.prot is None:
+            return False
+        return self.prot.is_running
+
+    @property
+    def exit_code(self):
+        if self.prot is None:
+            return None
+        return self.prot.status[0]
 
 
-def resolve_child_state(db):
+def resolve_child_state(minst):
     """Args:
 
-      db (ManagedInstance): the instance state information.  This will
+      minst (ManagedInstance): the instance state information.  This will
         be modified in place.
 
     Returns:
@@ -85,116 +116,117 @@ def resolve_child_state(db):
     messages = []
     sleeps = []
 
-    # State machine.
-    prot = db['prot']
-
     # If the entry is not "operable", send next_action to '?' and
     # don't try to do anything else.
-
-    if not db['operable']:
-        db['next_action'] = '?'
+    if not minst.operable:
+        minst.next_action = '?'
 
     # The uninterruptible transition state(s) are most easily handled
     # in the same way regardless of target state.
 
     # Transitional: wait_start, which bridges from start -> up.
-    elif db['next_action'] == 'wait_start':
-        if prot is not None:
-            messages.append('Launched {full_name}'.format(**db))
-            db['next_action'] = 'up'
-        else:
-            if time.time() >= db['at']:
+    elif minst.next_action == 'wait_start':
+        if minst.is_running:
+            messages.append('Launched {0.full_name}'.format(minst))
+            minst.next_action = 'up'
+            if minst.passive_tracking:
+                minst.target_state = 'passive'
+        elif time.time() >= minst.at:
+            if minst.passive_tracking:
+                messages.append(
+                    'Launch not detected for {0.full_name}! '
+                    'Passive tracking so will not try again.'
+                    .format(minst))
+                minst.target_state = 'passive'
+                minst.next_action = 'down'
+            else:
                 messages.append('Launch not detected for '
-                                '{full_name}!  Will retry.'.format(**db))
-                db['next_action'] = 'start_at'
-                db['at'] = time.time() + 5.
+                                '{0.full_name}! Will retry.'.format(minst))
+                minst.next_action = 'start_at'
+                minst.at = time.time() + WAIT_START_TIME_FOLLOWUP
 
     # Transitional: wait_dead, which bridges from kill -> idle.
-    elif db['next_action'] == 'wait_dead':
-        if prot is None:
-            stat, t = 0, None
+    elif minst.next_action == 'wait_dead':
+        if not minst.is_running:
+            minst.next_action = 'down'
+            if minst.passive_tracking:
+                minst.target_state = 'passive'
+            messages.append('Agent instance {0.full_name} has exited'
+                            .format(minst))
+        elif time.time() >= minst.at:
+            messages.append('Agent instance {0.full_name} '
+                            'refused to die.'.format(minst))
+            minst.next_action = 'down'
         else:
-            stat, t = prot.status
-        if stat is not None:
-            db['next_action'] = 'down'
-        elif time.time() >= db['at']:
-            if stat is None:
-                messages.append('Agent instance {full_name} '
-                                'refused to die.'.format(**db))
-                db['next_action'] = 'down'
-        else:
-            sleeps.append(db['at'] - time.time())
+            sleeps.append(minst.at - time.time())
 
     # State handling when target is to be 'up'.
-    elif db['target_state'] == 'up':
-        if db['next_action'] == 'start_at':
-            if time.time() >= db['at']:
-                db['next_action'] = 'start'
+    elif minst.target_state == 'up':
+        if minst.next_action == 'start_at':
+            if time.time() >= minst.at:
+                minst.next_action = 'start'
             else:
-                sleeps.append(db['at'] - time.time())
-        elif db['next_action'] == 'start':
+                sleeps.append(minst.at - time.time())
+        elif minst.next_action == 'start':
             messages.append(
-                'Requested launch for {full_name}'.format(**db))
+                'Requested launch for {0.full_name}'.format(minst))
             actions['launch'] = True
-            db['next_action'] = 'wait_start'
+            minst.next_action = 'wait_start'
             now = time.time()
-            db['at'] = now + 1.
-        elif db['next_action'] == 'up':
-            if prot is None:
-                stat, t = 0, None
-            else:
-                stat, t = prot.status
-            if stat is not None:
-                messages.append('Detected exit of {full_name} '
-                                'with code {stat}.'.format(stat=stat, **db))
-                if hasattr(prot, 'lines'):
+            minst.at = now + WAIT_START_TIME_INIT
+        elif minst.next_action == 'up':
+            if not minst.is_running:
+                messages.append('Detected exit of {0.full_name} '
+                                'with code {0.exit_code}.'.format(minst))
+                if hasattr(minst.prot, 'lines'):
                     note = ''
-                    lines = prot.lines['stderr']
+                    lines = minst.prot.lines['stderr']
                     if len(lines) > 50:
                         note = ' (trimmed)'
                         lines = lines[-20:]
-                    messages.append('stderr output from {full_name}{note}: {}'
-                                    .format('\n'.join(lines), note=note, **db))
-                db['next_action'] = 'start_at'
-                db['at'] = time.time() + 3
-                db['fail_times'].append(time.time())
+                    messages.append('stderr output from {minst.full_name}{note}: {}'
+                                    .format('\n'.join(lines), note=note, minst=minst))
+                minst.next_action = 'start_at'
+                minst.at = time.time() + 3
+                minst.fail_times.append(time.time())
         else:  # 'down'
-            db['next_action'] = 'start'
+            minst.next_action = 'start'
 
     # State handling when target is to be 'down'.
-    elif db['target_state'] == 'down':
-        if db['next_action'] == 'down':
-            # The lines below will prevent HostManager from killing
-            # Agents that suddenly seem to be alive.  With these
-            # lines commented out, someone running "up" on a managed
-            # docker-compose.yaml will see their Agents immediately
-            # be brought down by HostManager.
-            # if prot is not None and prot.status[0] is None:
-            #    messages.append('Detected unexpected session for {full_name} '
-            #                    '(probably docker); changing target state to "up".'.format(**db))
-            #    db['target_state'] = 'up'
-
+    elif minst.target_state == 'down':
+        if minst.next_action == 'down':
             # In fully managed mode, force a termination.
-            if prot is not None and prot.status[0] is None:
-                messages.append('Detected unexpected session for {full_name} '
-                                '(probably docker); it will be shut down.'.format(**db))
-                db['next_action'] = 'up'
-        elif db['next_action'] == 'up':
+            if minst.is_running:
+                messages.append('Detected unexpected session for {0.full_name} '
+                                '(probably docker); it will be shut down.'.format(minst))
+                minst.next_action = 'up'
+        elif minst.next_action == 'up':
             messages.append('Requesting termination of '
-                            '{full_name}'.format(**db))
+                            '{0.full_name}'.format(minst))
             actions['terminate'] = True
-            db['next_action'] = 'wait_dead'
-            db['at'] = time.time() + 5
+            minst.next_action = 'wait_dead'
+            minst.at = time.time() + WAIT_DEAD_TIME
         else:  # 'start_at', 'start'
-            messages.append('Modifying state of {full_name} from '
-                            '{next_action} to idle'.format(**db))
-            db['next_action'] = 'down'
+            messages.append('Modifying state of {0.full_name} from '
+                            '{0.next_action} to idle'.format(minst))
+            minst.next_action = 'down'
+
+    elif minst.passive_tracking:
+        # For passive tracking, next_action always reflects the
+        # current running state.
+        if minst.is_running and minst.next_action != 'up':
+            messages.append(f'Passively tracked {minst.full_name} is now up.')
+            minst.next_action = 'up'
+        elif not minst.is_running and minst.next_action != 'down':
+            messages.append(f'Passively tracked {minst.full_name} is now down.')
+            minst.next_action = 'down'
+        minst.target_state = 'passive'
 
     # Should not get here.
     else:
         messages.append(
-            'State machine failure: state={next_action}, target_state'
-            '={target_state}'.format(**db))
+            'State machine failure: state={0.next_action}, target_state'
+            '={0.target_state}'.format(minst))
 
     actions['messages'] = messages
     if len(sleeps):
@@ -243,6 +275,10 @@ class AgentProcessHelper(protocol.ProcessProtocol):
         if self.status[0] is None:
             reactor.callFromThread(self.transport.signalProcess, 'INT')
 
+    @property
+    def is_running(self):
+        return self.status[0] is None
+
     # See https://twistedmatrix.com/documents/current/core/howto/process.html
     #
     # These notes, and the useless prototypes below them, are to get
@@ -283,9 +319,24 @@ class AgentProcessHelper(protocol.ProcessProtocol):
             self.lines['stderr'] = self.lines['stderr'][-100:]
 
 
-def _run_docker(args):
-    return utils.getProcessOutputAndValue(
+def _decode(args):
+    out, err, code = args
+    return (out.decode('utf8'), err.decode('utf8'), code)
+
+
+def _deyaml(args):
+    out, err, code = args
+    return (yaml.safe_load(out), err, code)
+
+
+def _run_docker(args, decode=False, deyaml=False):
+    d = utils.getProcessOutputAndValue(
         'docker', args, env=os.environ)
+    if decode or deyaml:
+        d = d.addCallback(_decode)
+    if deyaml:
+        d = d.addCallback(_deyaml)
+    return d
 
 
 class DockerContainerHelper:
@@ -298,7 +349,8 @@ class DockerContainerHelper:
 
     def __init__(self, service, docker_bin=None):
         self.service = {}
-        self.status = -1, time.time()
+        self.is_running = False
+        self.status = None, time.time()
         self.killed = False
         self.instance_id = service['service']
         self.d = None
@@ -311,15 +363,17 @@ class DockerContainerHelper:
         """
         self.service.update(service)
         if service['running']:
+            self.is_running = True
             self.status = None, time.time()
         else:
+            self.is_running = False
             self.status = service['exit_code'], time.time()
             self.killed = False
 
     def up(self):
         self.d = _run_docker(
             ['compose', '-f', self.service['compose_file'],
-             'up', '-d', self.service['service']])
+             'up', '--remove-orphans', '-d', self.service['service']])
         self.status = None, time.time()
 
     def down(self):
@@ -336,41 +390,75 @@ def parse_docker_state(docker_compose_file):
     service is running or not.
 
     Returns:
-      A dict where the key is the service name and each value is a
-      dict with the following entries:
+      services:
+        A dict where the key is the service name and each value is a
+        dict with the following entries:
 
-      - 'compose_file': the path to the docker compose file
-      - 'service': service name
-      - 'container_found': bool, indicates whether a container for
-        this service was found (whether or not it was running).
-      - 'running': bool, indicating that a container for this service
-        is currently in state "Running".
-      - 'exit_code': int, which is either extracted from the docker
-        inspect output or is set to 127.  (This should never be None.)
+        - 'compose_file': the path to the docker compose file
+        - 'service': service name
+        - 'image_tag': the tag listed for the image in the compose
+          file (this may differ from the running image).
+        - 'image_id': the docker image ID corresponding to
+          'image_tag'; will be "unknown" if, e.g., listed tag is not
+          yet pulled to the running system.
+        - 'container_found': bool, indicates whether a container for
+          this service was found (whether or not it was running).
+        - 'container_id': the docker ID of the container (if found).
+        - 'running': bool, indicating that the found container is
+          in state "Running".
+        - 'running_image': the ID of the image for the container (if
+          found; e.g. "sha:0f...").
+        - 'exit_code': int, which is either extracted from the docker
+          inspect output or is set to 127. (This should never be None.)
+
+      orphans:
+        A dict (by container id) of dicts describing running
+        containers that are associated with this compose file but have
+        apparently been removed from the service list.  Key is the
+        service name.
 
     """
 
     summary = {}
+    orphans = {}
+    compose, err, code = yield _run_docker(['compose', '-f', docker_compose_file, 'config'],
+                                           deyaml=True)
 
-    compose = yaml.safe_load(open(docker_compose_file, 'r'))
-    for key, cfg in compose.get('services', []).items():
+    for key, cfg in compose.get('services', {}).items():
         summary[key] = {
-            'service': key,
-            'running': False,
-            'exit_code': 127,
-            'container_found': False,
             'compose_file': docker_compose_file,
+            'service': key,
+            'image_tag': cfg['image'],
+            'image_id': 'unknown',
+            'container_found': False,
+            'container_id': None,
+            'running': False,
+            'running_image': None,
+            'exit_code': 127,
         }
+
+    # Look up each tag; create map from tag to image_id.
+    to_inspect = list(set([cfg['image_tag'] for cfg in summary.values()]))
+    image_ids = {}
+    if len(to_inspect):
+        # Output from inspect is not neccessarily one-to-one with
+        # items on command line, if image of a tag is not yet known.
+        out, err, code = yield _run_docker(['inspect'] + to_inspect, deyaml=True)
+        for image in out:
+            image_ids.update({k: image['Id'] for k in image['RepoTags']})
+
+    for cfg in summary.values():
+        cfg['image_id'] = image_ids.get(cfg['image_tag'], 'unknown')
 
     # Query docker compose for container ids...
     out, err, code = yield _run_docker(
-        ['compose', '-f', docker_compose_file, 'ps', '-q'])
+        ['compose', '-f', docker_compose_file, 'ps', '-q'], decode=True)
     if code != 0:
         raise RuntimeError("Could not run docker compose or could not parse "
                            "compose.yaml file; exit code %i, error text: %s" %
                            (code, err))
 
-    cont_ids = [line.strip() for line in out.decode('utf8').split('\n')
+    cont_ids = [line.strip() for line in out.split('\n')
                 if line.strip() != '']
 
     # Run docker inspect.
@@ -385,30 +473,34 @@ def parse_docker_state(docker_compose_file):
 
         service = info.pop('service')
         if service not in summary:
-            raise RuntimeError("Consistency problem: image does not self-report "
-                               "as a listed service? (%s)" % (service))
-        summary[service].update(info)
+            orphans[cont_id] = {
+                'compose_file': docker_compose_file,
+                'service': service,
+                'container_id': cont_id,
+            } | info
+        else:
+            summary[service].update(info)
 
-    return summary
+    return summary, orphans
 
 
 @inlineCallbacks
 def _inspectContainer(cont_id, docker_compose_file):
     """Run docker inspect on cont_id, return dict with the results."""
-    out, err, code = yield _run_docker(
-        ['inspect', cont_id])
+    info, err, code = yield _run_docker(
+        ['inspect', cont_id], deyaml=True)
     if code != 0 and 'No such object' in err.decode('utf8'):
         # This is likely due to a race condition where some
         # container was brought down since we ran docker compose.
         # Return None to indicate this -- caller should just ignore for now.
         print(f'(_inspectContainer: warning, no such object: {cont_id}')
         return None
-    elif code != 0:
+    elif code != 0 or len(info) != 1:
         raise RuntimeError(
             f'Trouble running "docker inspect {cont_id}".\n'
-            f'stdout: {out}\n  stderr {err}')
+            f'stdout: {info}\n  stderr {err}')
     # Reconcile config against docker compose ...
-    info = yaml.safe_load(out)[0]
+    info = info[0]
     config = info['Config']['Labels']
     _dc_file = os.path.join(config['com.docker.compose.project.working_dir'],
                             config['com.docker.compose.project.config_files'])
@@ -416,9 +508,12 @@ def _inspectContainer(cont_id, docker_compose_file):
         raise RuntimeError("Consistency problem: container started from "
                            "some other compose file?\n%s\n%s" % (docker_compose_file, _dc_file))
     service = config['com.docker.compose.service']
+    # Note returned dict is merged into summary output for
+    # parse_docker_state, so use keys documented there.
     return {
         'service': service,
         'running': info['State']['Running'],
         'exit_code': info['State'].get('ExitCode', 127),
         'container_found': True,
+        'running_image': info['Image'],
     }

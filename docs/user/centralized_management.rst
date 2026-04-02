@@ -192,8 +192,14 @@ with a [d] appended to their usual agent_class name.
 
 If HostManager finds services in the docker-compose.yaml that don't
 seem to correspond to agent instances in site config, it will still
-permit them to be "managed" (brought up and down).  The agent_class,
-in ocsbow or ocs-web, will show up as simply "[docker]".
+track their state and make it visible in ocsbow / ocs-web.  The
+agent_class will show up as simply "[docker]".  HostManager can be
+told to bring the containers up or down, but this state will not be
+recorded as a persistent target state.  Other than during the request
+and transition stages, the target state will be recorded as "passive".
+This means such services can be brought up and down by other means
+(i.e. docker compose on the command line) without any conflict with
+HostManager.
 
 
 Advanced host config
@@ -212,8 +218,8 @@ It is possible to mix host- and docker-based agents in a single host
 config block, and control them all with a single HostManager instance.
 Just make sure your docker-based agents are marked with ``'manage':
 'docker'`` in site config, and have service name ``ocs-[instance-id]``
-as usual.  Usually, docker-based agents have some command line
-parameter overrides set in docker-compose.yaml (or in the site config
+as usual.  Sometimes docker-based agents will require some command line
+parameter overrides in docker-compose.yaml (or in the site config
 block), because the crossbar address is different or weird from inside
 the container.  If the hostname, in the docker container, is not the
 same as on the host system then specify the native host hostname with
@@ -311,7 +317,7 @@ specific instance will show up with agent-class "?/[docker]" and an
 instance-id corresponding to the service name.  For example::
 
     [instance-id]        [agent-class]                     [state]   [target]
-    influxdb             ?/[docker]                             up         up
+    influxdb             ?/[docker]                             up    passive
 
 
 ``state`` and ``target``

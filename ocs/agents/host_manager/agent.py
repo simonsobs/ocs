@@ -316,11 +316,18 @@ class HostManager:
 
             # Do we have an unmatched docker entry for this?
             if minst is None and srv in self.database:
+                session.add_message(
+                    f'Unmanaged docker service {srv} will now be managed as '
+                    f'instance_id={iid}.')
                 # Re-register it under instance_id
                 minst = self.database.pop(srv)
                 minst.instance_id = iid
-                minst.agent_class = _clsname_tool(cls, '[d]'),
+                minst.agent_class = _clsname_tool(cls, '[d]')
                 minst.full_name = _full_name(cls, iid)
+                minst.passive_tracking = False
+                if minst.target_state == 'passive':
+                    minst.target_state = \
+                        minst.next_action if minst.next_action in ['up', 'down'] else 'down'
                 self.database[iid] = minst
 
             if minst is None:

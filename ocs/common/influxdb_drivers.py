@@ -73,7 +73,8 @@ class InfluxBlock:
         Example:
             This takes something of the form::
 
-                {'channel_00': [-0.0943, -0.0965], 'channel_01': [-0.0082, -0.0086]}
+                {'channel_00': [-0.0943, -0.0965],
+                 'channel_01': [-0.0082, -0.0086]}
 
             and shapes it into the form::
 

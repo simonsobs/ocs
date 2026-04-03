@@ -84,6 +84,45 @@ def test_format_data_json():
     assert format_data(data, feed, 'json')[0] == expected
 
 
+def test_format_data_w_tags():
+    """Test passing int, float, string to InfluxDB line protocol, with new tags."""
+
+    # Not a real feed, but this is all we need for influxdb_drivers.format_data
+    feed = {'agent_address': 'test_address',
+            'feed_name': 'test_feed'}
+    data = {'test': {'block_name': 'test',
+                     'timestamps': [1615394417.3590388],
+                     'influxdb_tags': {'key1': {'key': 1, '_field': 'value'},
+                                       'key2': {'key': 2, '_field': 'value'},
+                                       'key3': {'key': 3, '_field': 'value'}},
+                     'data': {'key1': [1],
+                              'key2': [2.3],
+                              'key3': ["test"]},
+                     }
+            }
+
+    # test 'line' protocol
+    expected = ['test_address,feed=test_feed,key=1 value=1i 1615394417359038720',
+                'test_address,feed=test_feed,key=2 value=2.3 1615394417359038720',
+                'test_address,feed=test_feed,key=3 value="test" 1615394417359038720']
+    assert format_data(data, feed, 'line') == expected
+
+    # test 'json' protocol
+    expected = [{'fields': {'value': 1},
+                'measurement': 'test_address',
+                 'tags': {'feed': 'test_feed', 'key': 1},
+                 'time': '2021-03-10T16:40:17.359039'},
+                {'fields': {'value': 2.3},
+                'measurement': 'test_address',
+                 'tags': {'feed': 'test_feed', 'key': 2},
+                 'time': '2021-03-10T16:40:17.359039'},
+                {'fields': {'value': 'test'},
+                'measurement': 'test_address',
+                 'tags': {'feed': 'test_feed', 'key': 3},
+                 'time': '2021-03-10T16:40:17.359039'}]
+    assert format_data(data, feed, 'json') == expected
+
+
 def test_format_data_inf_time():
     """Test passing unrealistically large time."""
 

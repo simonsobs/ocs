@@ -31,6 +31,20 @@ def test_format_data_line():
     expected = 'test_address,feed=test_feed key1=1i,key2=2.3,key3="test" 1615394417359038720'
     assert format_data(data, feed, 'line')[0] == expected
 
+    # Now test single timestamp structure
+    feed = {'agent_address': 'test_address',
+            'feed_name': 'test_feed'}
+    data = {'test': {'block_name': 'test',
+                     'timestamp': 1615394417.3590388,
+                     'data': {'key1': 1,
+                              'key2': 2.3,
+                              'key3': "test"},
+                     }
+            }
+
+    expected = 'test_address,feed=test_feed key1=1i,key2=2.3,key3="test" 1615394417359038720'
+    assert format_data(data, feed, 'line')[0] == expected
+
 
 def test_format_data_json():
     """Test passing int, float, string to InfluxDB json protocol."""
@@ -43,6 +57,23 @@ def test_format_data_json():
                      'data': {'key1': [1],
                               'key2': [2.3],
                               'key3': ["test"]},
+                     }
+            }
+
+    expected = {'fields': {'key1': 1, 'key2': 2.3, 'key3': 'test'},
+                'measurement': 'test_address',
+                'tags': {'feed': 'test_feed'},
+                'time': '2021-03-10T16:40:17.359039'}
+    assert format_data(data, feed, 'json')[0] == expected
+
+    # Now test single timestamp structure
+    feed = {'agent_address': 'test_address',
+            'feed_name': 'test_feed'}
+    data = {'test': {'block_name': 'test',
+                     'timestamp': 1615394417.3590388,
+                     'data': {'key1': 1,
+                              'key2': 2.3,
+                              'key3': "test"},
                      }
             }
 

@@ -146,7 +146,22 @@ class InfluxBlock:
         # Convert json format tags to line format
         tag_list = []
         for k, v in self.tags.shared_tags.items():
-            tag_list.append(f"{k}={v}")
+            tag_list.append(f'{k}={v}')
+
+        # Add unique field tags to the list and overwrite the field key
+        if self.tags.field_tags:
+            field_name = fields.split('=')[0]
+            tags_to_add = self.tags.field_tags.get(field_name)
+            for k, v in tags_to_add.items():
+                if k == '_field':
+                    continue
+                tag_list.append(f'{k}={v}')
+
+            # Overwrite field name with _field from tags_to_add (influxdb_tags)
+            new_field_key = tags_to_add.get('_field')
+            field_value = fields.split('=')[1]
+            fields = f'{new_field_key}={field_value}'
+
         tags = ','.join(tag_list)
 
         try:
@@ -210,11 +225,23 @@ class InfluxBlock:
         """
         encoded_list = []
         if protocol == 'line':
-            fields_lines = self._group_fields_lines()
-            for fields, time_ in zip(fields_lines, self.timestamps):
-                line = self._format_line(fields, time_)
-                if line is not None:
-                    encoded_list.append(line)
+            # If we don't have unique field tags, group the fields together
+            if self.tags.field_tags is None:
+                fields_lines = self._group_fields_lines()
+                for fields, time_ in zip(fields_lines, self.timestamps):
+                    line = self._format_line(fields, time_)
+                    if line is not None:
+                        encoded_list.append(line)
+
+            # If we do have field_tags, we need to build the lines differently
+            grouped_data = self._group_data()
+            for fields, time_ in zip(grouped_data, self.timestamps):
+                print(fields, time_, self.tags)
+                for (field, value) in fields.items():
+                    f_line = _format_field_line(field, value)
+                    line = self._format_line(f_line, time_)
+                    if line is not None:
+                        encoded_list.append(line)
 
         elif protocol == 'json':
             grouped_data = self._group_data()
@@ -277,7 +304,7 @@ def format_data(data, feed, protocol):
     blocks = []
     for _, bv in data.items():
         feed_tag = {'feed': feed['feed_name']}
-        tags = InfluxTags(shared_tags=feed_tag)
+        tags = InfluxTags(shared_tags=feed_tag, field_tags=bv.get('influxdb_tags'))
         if 'timestamp' in bv:
             bv = _convert_single_to_group(bv)
         block = InfluxBlock(

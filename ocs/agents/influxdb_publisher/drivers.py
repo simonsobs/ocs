@@ -104,6 +104,8 @@ class Publisher:
             arguments passed to InfluxDB client
         client:
             InfluxDB client connection
+        connected (bool):
+            True if connected to InfluxDB, False if not.
 
     """
 
@@ -158,6 +160,8 @@ class Publisher:
             LOG.error("No databases found. Check connection to InfluxDB.")
             raise ConnectionError
 
+        self.connected = True
+
         db_names = [x['name'] for x in db_list]
 
         if self.db not in db_names:
@@ -191,15 +195,21 @@ class Publisher:
                                      batch_size=10000,
                                      protocol=self.protocol,
                                      )
+            if not self.connected:
+                self.connected = True
+                LOG.info("Reconnected to InfluxDB!")
             LOG.debug("wrote payload to influx")
         except RequestsConnectionError:
             LOG.error("InfluxDB unavailable, attempting to reconnect.")
+            self.connected = False
             self.client = InfluxDBClient(**asdict(self.client_args))
             self.client.switch_database(self.db)
         except InfluxDBClientError as err:
             LOG.error("InfluxDB Client Error: {e}", e=err)
+            self.connected = False
         except InfluxDBServerError as err:
             LOG.error("InfluxDB Server Error: {e}", e=err)
+            self.connected = False
 
     def run(self):
         """Main run iterator for the publisher. This processes all incoming

@@ -334,15 +334,22 @@ def format_data(data, feed, protocol):
     # Load data into InfluxBlock objects.
     blocks = []
     for _, bv in data.items():
-        feed_tag = {'feed': feed['feed_name']}
-        tags = InfluxTags(shared_tags=feed_tag, field_tags=bv.get('influxdb_tags'))
+        shared_tags = {'feed': feed['feed_name']}
+        measurement = feed.get('agent_address')
+        if bv.get('influxdb_tags'):
+            measurement = feed.get('agent_class')
+            shared_tags['address_root'] = feed['agent_address'].split('.')[0]
+            shared_tags['instance_id'] = feed['agent_address'].split('.')[1]
+        tags = InfluxTags(
+            shared_tags=shared_tags,
+            field_tags=bv.get('influxdb_tags'))
         if 'timestamp' in bv:
             bv = _convert_single_to_group(bv)
         block = InfluxBlock(
             block_name=bv['block_name'],
             data=bv['data'],
             timestamps=bv['timestamps'],
-            measurement=feed['agent_address'],
+            measurement=measurement,
             tags=tags)
         blocks.append(block)
 

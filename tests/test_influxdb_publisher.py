@@ -88,8 +88,9 @@ def test_format_data_w_tags():
     """Test passing int, float, string to InfluxDB line protocol, with new tags."""
 
     # Not a real feed, but this is all we need for influxdb_drivers.format_data
-    feed = {'agent_address': 'test_address',
-            'feed_name': 'test_feed'}
+    feed = {'agent_address': 'test_address.test_instance',
+            'feed_name': 'test_feed',
+            'agent_class': 'TestAgent'}
     data = {'test': {'block_name': 'test',
                      'timestamps': [1615394417.3590388],
                      'influxdb_tags': {'key1': {'key': 1, '_field': 'value'},
@@ -102,23 +103,32 @@ def test_format_data_w_tags():
             }
 
     # test 'line' protocol
-    expected = ['test_address,feed=test_feed,key=1 value=1i 1615394417359038720',
-                'test_address,feed=test_feed,key=2 value=2.3 1615394417359038720',
-                'test_address,feed=test_feed,key=3 value="test" 1615394417359038720']
+    expected = ['TestAgent,feed=test_feed,address_root=test_address,instance_id=test_instance,key=1 value=1i 1615394417359038720',
+                'TestAgent,feed=test_feed,address_root=test_address,instance_id=test_instance,key=2 value=2.3 1615394417359038720',
+                'TestAgent,feed=test_feed,address_root=test_address,instance_id=test_instance,key=3 value="test" 1615394417359038720']
     assert format_data(data, feed, 'line') == expected
 
     # test 'json' protocol
     expected = [{'fields': {'value': 1},
-                'measurement': 'test_address',
-                 'tags': {'feed': 'test_feed', 'key': 1},
+                 'measurement': 'TestAgent',
+                 'tags': {'feed': 'test_feed',
+                          'instance_id': 'test_instance',
+                          'address_root': 'test_address',
+                          'key': 1},
                  'time': '2021-03-10T16:40:17.359039'},
                 {'fields': {'value': 2.3},
-                'measurement': 'test_address',
-                 'tags': {'feed': 'test_feed', 'key': 2},
+                 'measurement': 'TestAgent',
+                 'tags': {'feed': 'test_feed',
+                          'instance_id': 'test_instance',
+                          'address_root': 'test_address',
+                          'key': 2},
                  'time': '2021-03-10T16:40:17.359039'},
                 {'fields': {'value': 'test'},
-                'measurement': 'test_address',
-                 'tags': {'feed': 'test_feed', 'key': 3},
+                 'measurement': 'TestAgent',
+                 'tags': {'feed': 'test_feed',
+                          'instance_id': 'test_instance',
+                          'address_root': 'test_address',
+                          'key': 3},
                  'time': '2021-03-10T16:40:17.359039'}]
     assert format_data(data, feed, 'json') == expected
 

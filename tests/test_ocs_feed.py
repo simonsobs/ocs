@@ -290,6 +290,68 @@ class TestPublishMessage:
         with pytest.raises(ValueError):
             test_feed.publish_message(test_message)
 
+    def test_valid_multi_sample_input_w_tags(self):
+        """We should be able to pass lists of ints and floats to a feed, with
+        the new influxdb_tags.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamps': [time.time(), time.time() + 1],
+            'influxdb_tags': {'key1': {'key': 1, '_field': 'value'},
+                              'key2': {'key': 2, '_field': 'value'}},
+            'data': {
+                'key1': [1., 2.],
+                'key2': [10, 5]
+            }
+        }
+
+        test_feed.publish_message(test_message)
+
+    def test_valid_multi_sample_input_w_invalid_tags_missing(self):
+        """Check if we don't supply influxdb_tags for all fields.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamps': [time.time(), time.time() + 1],
+            'influxdb_tags': {'key1': {'key': 1, '_field': 'value'}},
+            'data': {
+                'key1': [1., 2.],
+                'key2': [10, 5]
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
+
+    def test_valid_multi_sample_input_w_invalid_tags_field(self):
+        """Check if we don't supply an influxdb_tags '_field' value.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamps': [time.time(), time.time() + 1],
+            'influxdb_tags': {'key1': {'key': 1, '_field': 'value'},
+                              'key2': {'key': 2}},
+            'data': {
+                'key1': [1., 2.],
+                'key2': [10, 5]
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
+
 # ocs_feed.Block
 
 

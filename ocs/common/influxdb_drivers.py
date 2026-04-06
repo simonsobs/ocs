@@ -7,9 +7,9 @@ def timestamp2influxtime(time, protocol):
 
     Args:
         time:
-            ctime timestamp
+            Unix 'ctime' timestamp, i.e. ``1775500953.5108523``
         protocol:
-            'json' or line'
+            InfluxDB protocol to format timestamp for. Either 'json' or line'.
 
     """
     if protocol == 'json':
@@ -37,11 +37,18 @@ def _format_field_line(field_key, field_value):
 
 @dataclass
 class InfluxTags:
-    """Stores tags to apply to a set of data within an InfluxBlock."""
-    #: Tags to apply to all data points
+    """Stores tags to apply to a set of data within an InfluxBlock.
+
+    Examples:
+        >>> tags = InfluxTags(shared_tags={'feed': 'example_fed'},
+        ...                   field_tags={'key1': 1, '_field': 'value'})
+
+
+    """
+    #: Tags to apply to all data points.
     shared_tags: dict
 
-    #: Tags to apply per field
+    #: Tags to apply per field, along with '_field' value to use.
     field_tags: dict = None
 
 
@@ -310,25 +317,45 @@ def _convert_single_to_group(message):
 def format_data(data, feed, protocol):
     """Format the data from an OCS feed for publishing to InfluxDB.
 
-    The scheme here is as follows:
-        - agent_address is the "measurement" (conceptually like an SQL
-            table)
-        - feed names are an indexed "tag" on the data structure
-            (effectively a table column)
-        - keys within an OCS block's 'data' dictionary are the field names
-            (effectively a table column)
+    The scheme used depends on whether 'influxdb_tags' are published to the Feed.
+
+    Without 'influxdb_tags' the measurement consists of the agent address, i.e.
+    ``address_root.instance_id``, there is a single tag for the feed name, and
+    each data field from the OCS feed is used directly as the field name in
+    InfluxDB. This structure, however, is not ideal for InfluxDB query
+    performance.
+
+    When 'influxdb_tags' are provided by the agent then the measurement becomes
+    the agent class, and the address root and instance-id are added as tags.
+    The 'influxdb_tags' are also used to add additional tags and provide a
+    simple field name. See the examples below.
 
     Args:
         data (dict):
-            data from the OCS Feed subscription
+            Data from the OCS Feed subscription.
         feed (dict):
-            feed from the OCS Feed subscription, contains feed information
-            used to structure our influxdb query
+            Feed from the OCS Feed subscription, contains feed information
+            used to structure our influxdb query.
         protocol (str):
             Protocol for writing data. Either 'line' or 'json'.
 
     Returns:
         list: Data ready to publish to influxdb, in the specified protocol.
+
+    Examples:
+        >>> # without 'influxdb_tags'
+        >>> format_data(data, feed, protocol='line')
+        ['observatory.fake-data1,feed=false_temperatures channel_00=0.20307 1775502374078489088',
+         'observatory.fake-data1,feed=false_temperatures channel_01=0.35795 1775502374078489088',
+         'observatory.fake-data1,feed=false_temperatures channel_00=0.20548 1775502375078489088',
+         'observatory.fake-data1,feed=false_temperatures channel_01=0.36313 1775502375078489088']
+
+        >>> # with 'influxdb_tags'
+        >>> format_data(data, feed, protocol='line')
+        ['FakeDataAgent,feed=false_temperatures,address_root=observatory,instance_id=fake-data1,channel=0 temperature=0.20307 1775502374078489088',
+         'FakeDataAgent,feed=false_temperatures,address_root=observatory,instance_id=fake-data1,channel=1 temperature=0.35795 1775502374078489088',
+         'FakeDataAgent,feed=false_temperatures,address_root=observatory,instance_id=fake-data1,channel=0 temperature=0.20548 1775502375078489088',
+         'FakeDataAgent,feed=false_temperatures,address_root=observatory,instance_id=fake-data1,channel=1 temperature=0.36313 1775502375078489088']
 
     """
     # Load data into InfluxBlock objects.

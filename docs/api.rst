@@ -130,6 +130,19 @@ ocs.client_t
     :undoc-members:
     :show-inheritance:
 
+ocs.common
+----------
+
+The ``common/`` directory contains driver code shared among agents.
+
+ocs.common.influxdb_drivers
+```````````````````````````
+
+.. automodule:: ocs.common.influxdb_drivers
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 .. _ocs_agent_api:
 
 ocs.ocs_agent

@@ -36,6 +36,16 @@ def _format_field_line(field_key, field_value):
 
 
 @dataclass
+class InfluxTags:
+    """Stores tags to apply to a set of data within an InfluxBlock."""
+    #: Tags to apply to all data points
+    shared_tags: dict
+
+    #: Tags to apply per field
+    field_tags: dict = None
+
+
+@dataclass
 class InfluxBlock:
     """Holds and can convert the data and feed information into a format
     suitable for publishing to InfluxDB.
@@ -54,7 +64,7 @@ class InfluxBlock:
     measurement: str
 
     #: Tags to apply to the measurements.
-    tags: dict
+    tags: InfluxTags
 
     def _group_data(self):
         """Takes the block structured data and groups each data point in a set
@@ -135,7 +145,7 @@ class InfluxBlock:
         """
         # Convert json format tags to line format
         tag_list = []
-        for k, v in self.tags.items():
+        for k, v in self.tags.shared_tags.items():
             tag_list.append(f"{k}={v}")
         tags = ','.join(tag_list)
 
@@ -181,7 +191,7 @@ class InfluxBlock:
             "measurement": self.measurement,
             "time": t_influx,
             "fields": fields,
-            "tags": self.tags,
+            "tags": self.tags.shared_tags,
         }
         return json
 
@@ -267,7 +277,8 @@ def format_data(data, feed, protocol):
     # Load data into InfluxBlock objects.
     blocks = []
     for _, bv in data.items():
-        tags = {'feed': feed['feed_name']}
+        feed_tag = {'feed': feed['feed_name']}
+        tags = InfluxTags(shared_tags=feed_tag)
         if 'timestamp' in bv:
             bv = _convert_single_to_group(bv)
         block = InfluxBlock(

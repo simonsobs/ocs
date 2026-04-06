@@ -13,6 +13,7 @@ class Block:
         """
         self.name = name
         self.timestamps = []
+        self.tags = None
         self.data = {
             k: [] for k in keys
         }
@@ -37,6 +38,7 @@ class Block:
             raise Exception("Block structure does not match: {}".format(self.name))
 
         self.timestamps.append(d['timestamp'])
+        self.tags = d.get('influxdb_tags')
 
         for k in self.data:
             self.data[k].append(d['data'][k])
@@ -49,6 +51,7 @@ class Block:
             raise Exception("Block structure does not match: {}".format(self.name))
 
         self.timestamps.extend(block['timestamps'])
+        self.tags = block.get('influxdb_tags')
         for k in self.data:
             self.data[k].extend(block['data'][k])
 
@@ -58,6 +61,7 @@ class Block:
         return {
             'block_name': self.name,
             'data': {k: self.data[k] for k in self.data.keys()},
+            'influxdb_tags': self.tags,
             'timestamps': self.timestamps,
         }
 

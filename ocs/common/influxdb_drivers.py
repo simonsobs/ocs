@@ -66,6 +66,14 @@ def format_data(data, feed, protocol):
     # Reshape data for query
     for _, bv in data.items():
         grouped_data_points = []
+        if 'timestamp' in bv:
+            # convert to 'timestamps' format, which handle already
+            bv['timestamps'] = [bv['timestamp']]
+            new_data = {}
+            for field, value in bv['data'].items():
+                new_data[field] = [value]
+            bv['data'] = new_data
+            bv.pop('timestamp')
         times = bv['timestamps']
         num_points = len(bv['timestamps'])
         for i in range(num_points):

@@ -13,6 +13,7 @@ class Block:
         """
         self.name = name
         self.timestamps = []
+        self.tags = None
         self.data = {
             k: [] for k in keys
         }
@@ -37,6 +38,7 @@ class Block:
             raise Exception("Block structure does not match: {}".format(self.name))
 
         self.timestamps.append(d['timestamp'])
+        self.tags = d.get('influxdb_tags')
 
         for k in self.data:
             self.data[k].append(d['data'][k])
@@ -49,6 +51,7 @@ class Block:
             raise Exception("Block structure does not match: {}".format(self.name))
 
         self.timestamps.extend(block['timestamps'])
+        self.tags = block.get('influxdb_tags')
         for k in self.data:
             self.data[k].extend(block['data'][k])
 
@@ -58,6 +61,7 @@ class Block:
         return {
             'block_name': self.name,
             'data': {k: self.data[k] for k in self.data.keys()},
+            'influxdb_tags': self.tags,
             'timestamps': self.timestamps,
         }
 
@@ -213,6 +217,9 @@ class Feed:
                 Feed.verify_data_field_string(k)
                 Feed.verify_message_data_type(v)
 
+            # check influxdb_tags
+            Feed.verify_influxdb_tags(message)
+
             # Data is stored in Block objects
             block_name = message['block_name']
             try:
@@ -243,6 +250,40 @@ class Feed:
             except TransportLost:
                 self.agent.log.error('Could not publish to Feed. TransportLost. '
                                      + 'crossbar server likely unreachable.')
+
+    @staticmethod
+    def verify_influxdb_tags(message):
+        """Check the 'influxdb_tags' to make sure all the needed information is
+        provided.
+
+        This checks to make sure each tag has a '_field' provided, and that
+        each field has a corresponding tag.
+
+        Args:
+            message (dict):
+                'message' dictionary value published (see Feed.publish_message for details).
+
+        Raises:
+            ValueError: If the 'influxdb_tags' provided in the message do not
+                meet the required format.
+
+        """
+        tags = message.get('influxdb_tags')
+        if tags is None:
+            return
+
+        # check '_field' supplied with each tag
+        for v in tags.values():
+            if '_field' not in v:
+                error_msg = f"'_field' not supplied with 'influxdb_tags' for tag set {v}"
+                raise ValueError(error_msg)
+
+        # check that all fields have a corresponding tag
+        tag_fields = tags.keys()
+        for k in message['data'].keys():
+            if k not in tag_fields:
+                error_msg = f"'influxdb_tags' does not contain tags for '{k}'"
+                raise ValueError(error_msg)
 
     @staticmethod
     def verify_message_data_type(value):

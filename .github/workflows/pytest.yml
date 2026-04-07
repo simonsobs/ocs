@@ -11,6 +11,7 @@ on:
       - '.readthedocs.yaml'
   workflow_call:
 
+# Cancel workflow runs if a new commit is pushed
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

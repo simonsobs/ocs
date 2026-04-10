@@ -33,7 +33,7 @@ historical look back of the housekeeping data.
 Dependencies
 ------------
 
-This code targets Python 3.7+.
+This code targets Python 3.10+.
 
 * `so3g`_ - Required for using the HK Aggregator Agent.
 * `crossbar`_ (optional) - The supported WAMP router. Controllable via

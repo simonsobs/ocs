@@ -2,7 +2,7 @@
 # A container setup with an installation of ocs.
 
 # Use ubuntu base image
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Set timezone to UTC
 ENV TZ=Etc/UTC

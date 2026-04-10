@@ -25,7 +25,6 @@ classifiers = [
 dependencies = [
     "autobahn",
     "deprecation",
-    "importlib_metadata",
     "influxdb",
     "influxdb-client[ciso]",
     "numpy",

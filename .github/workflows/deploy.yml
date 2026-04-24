@@ -92,6 +92,7 @@ jobs:
     - name: upload dist
       uses: actions/upload-artifact@v7
       with:
+        name: wheels
         path: ./dist/
 
   pypi-publish:
@@ -107,6 +108,7 @@ jobs:
     - name: download dist
       uses: actions/download-artifact@v8
       with:
+        name: wheels
         path: dist
 
     - name: publish package distributions to PyPI

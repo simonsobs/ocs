@@ -259,6 +259,10 @@ class Feed:
         This checks to make sure each tag has a '_field' provided, and that
         each field has a corresponding tag.
 
+        Note:
+            'influxdb_tags' can be ``None``. This will be the case for any
+            agents that do not implement tagging.
+
         Args:
             message (dict):
                 'message' dictionary value published (see Feed.publish_message for details).

@@ -38,7 +38,9 @@ class Block:
             raise Exception("Block structure does not match: {}".format(self.name))
 
         self.timestamps.append(d['timestamp'])
-        self.tags = d.get('influxdb_tags')
+        tags = d.get('influxdb_tags')
+        if tags is not None:
+            self.tags = d['influxdb_tags']
 
         for k in self.data:
             self.data[k].append(d['data'][k])
@@ -51,7 +53,9 @@ class Block:
             raise Exception("Block structure does not match: {}".format(self.name))
 
         self.timestamps.extend(block['timestamps'])
-        self.tags = block.get('influxdb_tags')
+        tags = block.get('influxdb_tags')
+        if tags is not None:
+            self.tags = block['influxdb_tags']
         for k in self.data:
             self.data[k].extend(block['data'][k])
 

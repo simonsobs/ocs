@@ -331,6 +331,28 @@ class TestPublishMessage:
         with pytest.raises(ValueError):
             test_feed.publish_message(test_message)
 
+    def test_valid_multi_sample_input_w_extra_tags(self):
+        """Check if we supply extra influxdb_tags.
+
+        """
+        mock_agent = MagicMock()
+        test_feed = ocs_feed.Feed(mock_agent, 'test_feed', record=True)
+
+        test_message = {
+            'block_name': 'test',
+            'timestamps': [time.time(), time.time() + 1],
+            'influxdb_tags': {'key1': {'key': 1, '_field': 'value'},
+                              'key2': {'key': 2, '_field': 'value'},
+                              'key3': {'key': 3, '_field': 'value'}},
+            'data': {
+                'key1': [1., 2.],
+                'key2': [10, 5]
+            }
+        }
+
+        with pytest.raises(ValueError):
+            test_feed.publish_message(test_message)
+
     def test_valid_multi_sample_input_w_invalid_tags_field(self):
         """Check if we don't supply an influxdb_tags '_field' value.
 

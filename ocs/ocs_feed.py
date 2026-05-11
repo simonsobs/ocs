@@ -289,6 +289,12 @@ class Feed:
                 error_msg = f"'influxdb_tags' does not contain tags for '{k}'"
                 raise ValueError(error_msg)
 
+        # check for extra tags
+        for k in tag_fields:
+            if k not in message['data'].keys():
+                error_msg = f"'influxdb_tags' contains extra tag '{k}'"
+                raise ValueError(error_msg)
+
     @staticmethod
     def verify_message_data_type(value):
         """Aggregated Feeds can only store certain types of data. Here we check

@@ -401,7 +401,10 @@ class Provider:
             try:
                 m = core.G3TimesampleMap()
                 m.times = g3_cast(block.timestamps, time=True)
+                # This selects block.data directly, and tags are in
+                # block.influxdb_tags, so it should ignore tags by default!
                 for key, ts in block.data.items():
+                    print('TO_FRAME:', key, ts)
                     m[key] = g3_cast(ts)
             except Exception as e:
                 self.log.warn("Error received when casting timestream! {e}",
@@ -583,6 +586,21 @@ class Aggregator:
 
             if agg_params.get('exclude_aggregator', False):
                 continue
+
+            # DROP: Debug for InfluxDB tagging development
+            # print("BEFORE DATA: ", data)
+            # print("FEED: ", feed)
+
+            # Drop influxdb_tags
+            # TODO: This doesn't actually work, the `influxdb_tags` will be in
+            # the Block later after the prov.save_to_block() call.
+            for block_name, block in data.items():
+                if block.get('influxdb_tags'):
+                    block.pop('influxdb_tags')
+
+            # DROP: Debug for InfluxDB tagging development
+            # print("AFTER DATA: ", data)
+            # print("FEED: ", feed)
 
             address = feed['address']
             sessid = feed['session_id']

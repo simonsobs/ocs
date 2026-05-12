@@ -151,7 +151,14 @@ class FakeDataAgent:
             next_timestamp += n_data / self.sample_rate
 
             # self.log.info('Sending %i data on %i channels.' % (len(t), len(T)))
-            session.app.publish_to_feed('false_temperatures', block.encoded())
+            tags = {}
+            for channel in self.channel_names:
+                _channel_tag = {channel: {'channel': int(channel.split('_')[1]),
+                                          '_field': 'temperature'}}
+                tags.update(_channel_tag)
+            publish_block = block.encoded()
+            publish_block.update(influxdb_tags=tags)
+            session.app.publish_to_feed('false_temperatures', publish_block)
 
             # Update session.data
             data_cache = {"fields": {}, "timestamp": None}

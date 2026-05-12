@@ -7,9 +7,9 @@ def timestamp2influxtime(time, protocol):
 
     Args:
         time:
-            ctime timestamp
+            Unix 'ctime' timestamp, i.e. ``1775500953.5108523``
         protocol:
-            'json' or line'
+            InfluxDB protocol to format timestamp for. Either 'json' or line'.
 
     """
     if protocol == 'json':
@@ -36,6 +36,23 @@ def _format_field_line(field_key, field_value):
 
 
 @dataclass
+class InfluxTags:
+    """Stores tags to apply to a set of data within an InfluxBlock.
+
+    Examples:
+        >>> tags = InfluxTags(shared_tags={'feed': 'example_fed'},
+        ...                   field_tags={'key1': 1, '_field': 'value'})
+
+
+    """
+    #: Tags to apply to all data points.
+    shared_tags: dict
+
+    #: Tags to apply per field, along with '_field' value to use.
+    field_tags: dict = None
+
+
+@dataclass
 class InfluxBlock:
     """Holds and can convert the data and feed information into a format
     suitable for publishing to InfluxDB.
@@ -54,7 +71,7 @@ class InfluxBlock:
     measurement: str
 
     #: Tags to apply to the measurements.
-    tags: dict
+    tags: InfluxTags
 
     def _group_data(self):
         """Takes the block structured data and groups each data point in a set
@@ -135,8 +152,23 @@ class InfluxBlock:
         """
         # Convert json format tags to line format
         tag_list = []
-        for k, v in self.tags.items():
-            tag_list.append(f"{k}={v}")
+        for k, v in self.tags.shared_tags.items():
+            tag_list.append(f'{k}={v}')
+
+        # Add unique field tags to the list and overwrite the field key
+        if self.tags.field_tags:
+            field_name = fields.split('=')[0]
+            tags_to_add = self.tags.field_tags.get(field_name)
+            for k, v in tags_to_add.items():
+                if k == '_field':
+                    continue
+                tag_list.append(f'{k}={v}')
+
+            # Overwrite field name with _field from tags_to_add (influxdb_tags)
+            new_field_key = tags_to_add.get('_field')
+            field_value = fields.split('=')[1]
+            fields = f'{new_field_key}={field_value}'
+
         tags = ','.join(tag_list)
 
         try:
@@ -170,6 +202,24 @@ class InfluxBlock:
                  'tags': {'feed': 'false_temperatures'}}
 
         """
+        # Add unique field tags to the list and overwrite the field key
+        if self.tags.field_tags:
+            (field_name, field_value), = fields.items()  # Unpack single (k, v)
+            tags_to_add = self.tags.field_tags.get(field_name)
+            tags = {}
+            for k, v in tags_to_add.items():
+                if k == '_field':
+                    continue
+                tags[k] = v
+
+            tags.update(self.tags.shared_tags)
+
+            # Overwrite field name with _field from tags_to_add (influxdb_tags)
+            new_field_key = tags_to_add.get('_field')
+            fields = {new_field_key: field_value}
+        else:
+            tags = self.tags.shared_tags
+
         try:
             t_influx = timestamp2influxtime(timestamp, protocol='json')
         except OverflowError:
@@ -181,7 +231,7 @@ class InfluxBlock:
             "measurement": self.measurement,
             "time": t_influx,
             "fields": fields,
-            "tags": self.tags,
+            "tags": tags,
         }
         return json
 
@@ -201,18 +251,42 @@ class InfluxBlock:
         """
         encoded_list = []
         if protocol == 'line':
-            fields_lines = self._group_fields_lines()
-            for fields, time_ in zip(fields_lines, self.timestamps):
-                line = self._encode_line(fields, time_)
-                if line is not None:
-                    encoded_list.append(line)
+            # If we don't have unique field tags, group the fields together
+            if self.tags.field_tags is None:
+                fields_lines = self._group_fields_lines()
+                for fields, time_ in zip(fields_lines, self.timestamps):
+                    line = self._encode_line(fields, time_)
+                    if line is not None:
+                        encoded_list.append(line)
+
+            # If we do have field_tags, encode each line separately
+            else:
+                grouped_data = self._group_data()
+                for fields, time_ in zip(grouped_data, self.timestamps):
+                    for (field, value) in fields.items():
+                        f_line = _format_field_line(field, value)
+                        line = self._encode_line(f_line, time_)
+                        if line is not None:
+                            encoded_list.append(line)
 
         elif protocol == 'json':
-            grouped_data = self._group_data()
-            for fields, time_ in zip(grouped_data, self.timestamps):
-                text = self._encode_json(fields, time_)
-                if text is not None:
-                    encoded_list.append(text)
+            # If we don't have unique field tags, group the fields together
+            if self.tags.field_tags is None:
+                grouped_data = self._group_data()
+                for fields, time_ in zip(grouped_data, self.timestamps):
+                    text = self._encode_json(fields, time_)
+                    if text is not None:
+                        encoded_list.append(text)
+
+            # If we do have field_tags, encode each line separately
+            else:
+                grouped_data = self._group_data()
+                for fields, time_ in zip(grouped_data, self.timestamps):
+                    for (field, value) in fields.items():
+                        single_field_dict = {field: value}
+                        text = self._encode_json(single_field_dict, time_)
+                        if text is not None:
+                            encoded_list.append(text)
         else:
             print(f"Protocol '{protocol}' not supported.")
 
@@ -243,38 +317,66 @@ def _convert_single_to_group(message):
 def format_data(data, feed, protocol):
     """Format the data from an OCS feed for publishing to InfluxDB.
 
-    The scheme here is as follows:
-        - agent_address is the "measurement" (conceptually like an SQL
-            table)
-        - feed names are an indexed "tag" on the data structure
-            (effectively a table column)
-        - keys within an OCS block's 'data' dictionary are the field names
-            (effectively a table column)
+    The scheme used depends on whether 'influxdb_tags' are published to the Feed.
+
+    Without 'influxdb_tags' the measurement consists of the agent address, i.e.
+    ``address_root.instance_id``, there is a single tag for the feed name, and
+    each data field from the OCS feed is used directly as the field name in
+    InfluxDB. This structure, however, is not ideal for InfluxDB query
+    performance.
+
+    When 'influxdb_tags' are provided by the agent then the measurement becomes
+    the agent class, and the address root and instance-id are added as tags.
+    The 'influxdb_tags' are also used to add additional tags and provide a
+    simple field name. See the examples below.
 
     Args:
         data (dict):
-            data from the OCS Feed subscription
+            Data from the OCS Feed subscription.
         feed (dict):
-            feed from the OCS Feed subscription, contains feed information
-            used to structure our influxdb query
+            Feed from the OCS Feed subscription, contains feed information
+            used to structure our influxdb query.
         protocol (str):
             Protocol for writing data. Either 'line' or 'json'.
 
     Returns:
         list: Data ready to publish to influxdb, in the specified protocol.
 
+    Examples:
+        >>> # without 'influxdb_tags'
+        >>> format_data(data, feed, protocol='line')
+        ['observatory.fake-data1,feed=false_temperatures channel_00=0.20307 1775502374078489088',
+         'observatory.fake-data1,feed=false_temperatures channel_01=0.35795 1775502374078489088',
+         'observatory.fake-data1,feed=false_temperatures channel_00=0.20548 1775502375078489088',
+         'observatory.fake-data1,feed=false_temperatures channel_01=0.36313 1775502375078489088']
+
+        >>> # with 'influxdb_tags'
+        >>> format_data(data, feed, protocol='line')
+        ['FakeDataAgent,feed=false_temperatures,address_root=observatory,instance_id=fake-data1,channel=0 temperature=0.20307 1775502374078489088',
+         'FakeDataAgent,feed=false_temperatures,address_root=observatory,instance_id=fake-data1,channel=1 temperature=0.35795 1775502374078489088',
+         'FakeDataAgent,feed=false_temperatures,address_root=observatory,instance_id=fake-data1,channel=0 temperature=0.20548 1775502375078489088',
+         'FakeDataAgent,feed=false_temperatures,address_root=observatory,instance_id=fake-data1,channel=1 temperature=0.36313 1775502375078489088']
+
     """
     # Load data into InfluxBlock objects.
     blocks = []
     for _, bv in data.items():
-        tags = {'feed': feed['feed_name']}
+        shared_tags = {'feed': feed['feed_name']}
+        measurement = feed.get('agent_address')
+        if bv.get('influxdb_tags'):
+            measurement = feed.get('agent_class')
+            shared_tags['address_root'] = feed['agent_address'].split('.')[0]
+            shared_tags['instance_id'] = feed['agent_address'].split('.')[1]
+        tags = InfluxTags(
+            shared_tags=shared_tags,
+            field_tags=bv.get('influxdb_tags'))
         if 'timestamp' in bv:
             bv = _convert_single_to_group(bv)
         block = InfluxBlock(
             block_name=bv['block_name'],
             data=bv['data'],
             timestamps=bv['timestamps'],
-            measurement=feed['agent_address'],
+            measurement=measurement,
             tags=tags)
         blocks.append(block)
 

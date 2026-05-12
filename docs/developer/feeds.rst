@@ -179,6 +179,36 @@ Attempting to publish an invalid field name should raise an error by the agent.
 However, if invalid field names somehow make it to the aggregator, the
 aggregator will attempt to correct them before writing to disk.
 
+Using InfluxDB Tags
+'''''''''''''''''''
+ocs v0.12.1 introduced improved InfluxDB tagging. This changes the structure
+with which the InfluxDB Publisher agents writes to InfluxDB. In order to take
+advantage of this improved tagging agents must supply tag information when
+publishing data to their feeds.
+
+This data extends the existing message structure using the 'influxdb_tags'
+key::
+
+    message = {
+        'block_name': <Key to identify group of co-sampled data>
+        'timestamps': [ctime1, ctime2, ... ]
+        'influxdb_tags': {
+            'field_name_1': {'tag1': tag1_1, 'tag2': tag1_2, '_field': 'value'},
+            'field_name_2': {'tag1': tag2_1, 'tag2': tag2_2, '_field': 'value'}
+        }
+        'data': {
+            'field_name_1': [data1_1, data1_2, ...],
+            'field_name_2': [data2_1, data2_2, ...]
+        }
+    }
+
+The field names within the 'data' and 'influxdb_tags' dicts must match, and
+there must be a set of tags for every field. Each set of tags must also contain
+the special '_field' key, which determine the field name within InfluxDB. In
+this example it is just the word 'value', but a more practical example would
+be 'temperature', 'resistance', or 'voltage' for a device measuring
+temperatures in a cryostat.
+
 Subscribing to a Feed
 ---------------------
 

@@ -1,0 +1,3 @@
+# Cover dependabot generated PRs
+.github/** @BrianJKoopman
+/docker/crossbar/Dockerfile @BrianJKoopman

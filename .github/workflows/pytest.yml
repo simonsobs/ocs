@@ -31,7 +31,7 @@ jobs:
         python-version: ${{ matrix.python }}
 
     - name: Clone ocs
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Install ocs
       run: |
@@ -62,7 +62,7 @@ jobs:
         python-version: 3.12
 
     - name: Clone ocs
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Install ocs
       run: |
@@ -104,7 +104,7 @@ jobs:
 
     # Coverage report doesn't work unless we have a checkout
     - name: Clone ocs
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     # Download after checkout, else artifacts get deleted
     - name: Download coverage artifacts

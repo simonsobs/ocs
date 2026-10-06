@@ -3,7 +3,7 @@
 # https://crossbar.io/docs/Creating-Docker-Images/
 
 # Use ocs base image
-FROM crossbario/crossbar:cpy3-20.8.1
+FROM crossbario/crossbar:cpy3-20.12.1
 
 # Run as root to put config in place and chown
 USER root

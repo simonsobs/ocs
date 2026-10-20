@@ -42,13 +42,14 @@ directly on hosts we do recommend using Linux.
 
 Linux
 ^^^^^
-We recommend you run mostly in a Linux environment. Mostly we have deployed on
-Ubuntu 18.04, and recommend you use that if possible. You are welcome to use
-other Linux distributions, however support might be limited.
+We recommend you run mostly in a Linux environment. The core developers run
+systems on Ubuntu (22.04, and more recently 24.04), and recommend you use that
+if possible. You are welcome to use other Linux distributions, however support
+might be limited.
 
 Windows
 ^^^^^^^
-Some users have had success running OCS Agents in Docker on Windows 10, so that
+Some users have had success running OCS Agents in Docker on Windows, so that
 is possible. This is often driven by the need to interface with some Windows
 only software.
 

@@ -27,10 +27,16 @@ following::
 
     $ sudo systemctl status docker
     ● docker.service - Docker Application Container Engine
-       Loaded: loaded (/lib/systemd/system/docker.service; disabled; vendor preset: enabled)
-       Active: active (running) since Tue 2018-10-30 10:57:48 EDT; 2 days ago
-         Docs: https://docs.docker.com
-     Main PID: 1472 (dockerd)
+         Loaded: loaded (/usr/lib/systemd/system/docker.service; enabled; preset: enabled)
+         Active: active (running) since Tue 2026-10-20 18:39:13 UTC; 38s ago
+    TriggeredBy: ● docker.socket
+           Docs: https://docs.docker.com
+       Main PID: 2891 (dockerd)
+          Tasks: 9
+         Memory: 27.2M (peak: 27.7M)
+            CPU: 375ms
+         CGroup: /system.slice/docker.service
+                 └─2891 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
 
 If you see it is not active, run ``sudo systemctl start docker``. To ensure it
 runs after a computer reboot you should also run ``sudo systemctl enable
@@ -46,7 +52,7 @@ install see the `Docker Compose`_ documentation.
 When complete you should be able to run::
 
     $ docker compose version
-    Docker Compose version v2.25.0
+    Docker Compose version v5.6.0
 
 .. note::
 

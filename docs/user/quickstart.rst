@@ -105,7 +105,7 @@ replaced with the hostname of your computer.
 
       # InfluxDB Backend for Grafana
       influxdb:
-        image: influxdb:1.7
+        image: influxdb:1.8
         container_name: "influxdb"
         restart: always
         ports:
@@ -173,7 +173,7 @@ You can view the running containers with::
 
     $ sudo docker ps
     CONTAINER ID   IMAGE                                           COMMAND                  CREATED          STATUS          PORTS                                          NAMES
-    dc3792e8d4f3   influxdb:1.7                                    "/entrypoint.sh infl…"   27 seconds ago   Up 25 seconds   0.0.0.0:8086->8086/tcp, :::8086->8086/tcp      influxdb
+    dc3792e8d4f3   influxdb:1.8                                    "/entrypoint.sh infl…"   27 seconds ago   Up 25 seconds   0.0.0.0:8086->8086/tcp, :::8086->8086/tcp      influxdb
     7aa0c07345de   simonsobs/ocs-crossbar:latest                   "crossbar start --cb…"   27 seconds ago   Up 25 seconds   8000/tcp, 8080/tcp, 127.0.0.1:8001->8001/tcp   ocs-site-configs_crossbar_1
     88dd47cc6714   simonsobs/ocs:latest                            "dumb-init python3 -…"   27 seconds ago   Up 25 seconds                                                  ocs-site-configs_ocs-fake-data1_1
     41231a482dec   simonsobs/ocs:latest                            "dumb-init python3 -…"   27 seconds ago   Up 25 seconds                                                  ocs-site-configs_ocs-influx-publisher_1

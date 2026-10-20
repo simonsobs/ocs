@@ -42,7 +42,7 @@ components)::
 
       # InfluxDB Backend for Grafana
       influxdb:
-        image: influxdb:1.7
+        image: influxdb:1.8
         container_name: "influxdb"
         restart: always
         ports:
@@ -215,7 +215,7 @@ Where the separate compose files would look something like::
           name: ocs-net
     services:
       influxdb:
-        image: "influxdb:1.7"
+        image: "influxdb:1.8"
         container_name: "influxdb"
         restart: always
         ports:

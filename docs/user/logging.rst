@@ -49,7 +49,7 @@ example Compose file looks like::
 
     services:
       loki:
-        image: grafana/loki:1.5.0
+        image: grafana/loki:2.9.17
         <<: *log-options
         container_name: "loki"
         restart: always
@@ -65,7 +65,7 @@ example Compose file looks like::
           name: ocs-net
 
 .. note::
-    Version 1.5.0 was the latest at the time of this writing, but there may be
+    Version 2.9.17 was the latest at the time of this writing, but there may be
     more recent versions available. You can check on the grafana/loki Docker
     Hub page.
 

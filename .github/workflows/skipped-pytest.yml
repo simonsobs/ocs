@@ -24,3 +24,10 @@ jobs:
 
     steps:
       - run: 'echo "No build required" '
+
+  upload-coverage:
+    name: Upload coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: 'echo "No build required" '

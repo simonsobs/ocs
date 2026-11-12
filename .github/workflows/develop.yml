@@ -8,6 +8,7 @@ on:
       - '**.rst'
       - '**.md'
       - '.flake8'
+      - '.github/workflows/skipped-pytest.yml'
       - '.pre-commit-config.yaml'
       - '.readthedocs.yaml'
 
